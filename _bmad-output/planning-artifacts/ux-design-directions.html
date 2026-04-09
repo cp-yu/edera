@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockImformation — UX Design Directions</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-0:#0a0a0a;--bg-1:#111111;--bg-2:#1a1a1a;--bg-3:#222222;--bg-4:#2a2a2a;
+  --border:#2a2a2a;--border-hover:#3a3a3a;
+  --text-primary:#e5e5e5;--text-secondary:#a3a3a3;--text-muted:#6b7280;
+  --red:#ef4444;--green:#22c55e;--yellow:#eab308;--gray:#6b7280;--orange:#f97316;
+  --accent:#3b82f6;
+  --radius:8px;--radius-sm:4px;
+  --font-sans:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --font-mono:"SF Mono","Cascadia Code","JetBrains Mono",Consolas,monospace;
+}
+html{font-size:14px}
+body{font-family:var(--font-sans);background:var(--bg-0);color:var(--text-primary);line-height:1.5;min-height:100vh}
+
+/* ── Direction Switcher (sticky top) ── */
+.dir-switcher{position:sticky;top:0;z-index:100;background:var(--bg-0);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:2px;padding:0 16px;height:44px}
+.dir-switcher .label{color:var(--text-muted);font-size:12px;margin-right:12px;white-space:nowrap;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.dir-btn{background:none;border:1px solid transparent;color:var(--text-secondary);padding:6px 16px;cursor:pointer;font-size:13px;border-radius:var(--radius-sm);transition:all .15s;font-family:var(--font-sans)}
+.dir-btn:hover{color:var(--text-primary);background:var(--bg-2)}
+.dir-btn.active{color:var(--text-primary);background:var(--bg-2);border-color:var(--border-hover)}
+
+/* ── Shared: Meta Bar ── */
+.meta-bar{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--bg-1);border-bottom:1px solid var(--border);font-size:12px;color:var(--text-secondary);flex-wrap:wrap}
+.meta-bar .meta-item{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.meta-bar .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.meta-bar .dot.ok{background:var(--green)}
+.meta-bar .dot.warn{background:var(--yellow)}
+
+/* ── Shared: Tabs ── */
+.nav-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--bg-1);padding:0 16px}
+.nav-tab{padding:10px 18px;font-size:13px;color:var(--text-muted);cursor:default;border-bottom:2px solid transparent;transition:color .15s}
+.nav-tab.active{color:var(--text-primary);border-bottom-color:var(--accent)}
+.nav-tab:not(.active){cursor:pointer}
+.nav-tab:not(.active):hover{color:var(--text-secondary)}
+
+/* ── Direction Panel ── */
+.direction{display:none;min-height:calc(100vh - 44px)}
+.direction.visible{display:block}
+
+/* ── Shared: Stock Item Structure ── */
+.signal-strip{width:4px;flex-shrink:0;border-radius:2px}
+.strip-bullish{background:var(--red)}
+.strip-bearish{background:var(--green)}
+.strip-conflict{background:var(--yellow)}
+.strip-neutral{background:var(--gray)}
+.strip-degraded{background:var(--orange)}
+
+.badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:500;line-height:1.6}
+.badge-buy{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-sell{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-hold{background:rgba(107,114,128,.15);color:var(--text-muted)}
+.badge-conf-high{border:1px solid rgba(239,68,68,.3);color:var(--red);background:none}
+.badge-conf-low{border:1px solid rgba(234,179,8,.3);color:var(--yellow);background:none}
+.badge-conf-none{border:1px solid rgba(107,114,128,.3);color:var(--text-muted);background:none}
+.badge-degraded{border:1px solid rgba(249,115,22,.3);color:var(--orange);background:none}
+
+.stock-code{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:600}
+.stock-name{font-size:13px;color:var(--text-secondary)}
+.stock-reason{font-size:12px;color:var(--text-muted);line-height:1.4}
+
+.unread .stock-code,.unread .stock-name{color:#fff}
+.unread .stock-reason{color:var(--text-secondary)}
+.read .stock-code{color:var(--text-secondary)}
+.read .stock-name{color:var(--text-muted)}
+.read .stock-reason{color:#555}
+.read .badge{opacity:.5}
+
+/* Expand area */
+.detail-area{display:none;padding:10px 16px;font-size:12px;color:var(--text-secondary);background:var(--bg-0);border-top:1px solid var(--border);line-height:1.7}
+.detail-area.open{display:block}
+.detail-area h4{font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px}
+.detail-area p{margin-bottom:8px}
+.analysis-chain{display:none;margin-top:8px;padding:8px 12px;background:var(--bg-2);border-radius:var(--radius-sm);font-size:11px;color:var(--text-muted);line-height:1.8}
+.analysis-chain.open{display:block}
+.analysis-chain a{color:var(--accent);text-decoration:none}
+.analysis-chain a:hover{text-decoration:underline}
+.expand-btn{background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:2px 0;font-family:var(--font-sans)}
+.expand-btn:hover{text-decoration:underline}
+
+/* ═══════════════════════════════════════
+   DIRECTION A — Terminal
+   ═══════════════════════════════════════ */
+#dirA .term-list{padding:0}
+#dirA .term-item{display:flex;border-bottom:1px solid #1a1a1a;cursor:pointer;transition:background .1s}
+#dirA .term-item:hover{background:var(--bg-2)}
+#dirA .term-body{flex:1;padding:6px 12px;display:flex;align-items:baseline;gap:10px;min-height:36px;flex-wrap:wrap}
+#dirA .stock-code{font-size:12px;min-width:90px}
+#dirA .stock-name{font-size:12px;min-width:70px}
+#dirA .stock-reason{flex:1;min-width:200px}
+#dirA .term-badges{display:flex;gap:6px;align-items:center}
+#dirA .meta-bar{font-family:var(--font-mono);font-size:11px;letter-spacing:.3px}
+#dirA .nav-tabs{font-family:var(--font-mono)}
+
+/* ═══════════════════════════════════════
+   DIRECTION B — Dashboard
+   ═══════════════════════════════════════ */
+#dirB .dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;padding:16px}
+#dirB .dash-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#dirB .dash-card:hover{border-color:var(--border-hover);box-shadow:0 2px 12px rgba(0,0,0,.4)}
+#dirB .dash-card-inner{display:flex}
+#dirB .dash-card-body{flex:1;padding:14px 16px}
+#dirB .dash-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#dirB .dash-card-title{display:flex;align-items:baseline;gap:8px}
+#dirB .dash-card .stock-reason{margin-top:6px}
+#dirB .dash-card .badge{font-size:10px}
+#dirB .dash-card .detail-area{padding:12px 16px}
+#dirB .dash-card.read{opacity:.6}
+#dirB .dash-card.read:hover{opacity:.8}
+
+/* ═══════════════════════════════════════
+   DIRECTION C — Inbox
+   ═══════════════════════════════════════ */
+#dirC .inbox-layout{display:flex;height:calc(100vh - 44px - 44px - 36px - 36px)}
+#dirC .inbox-list{width:380px;min-width:320px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0}
+#dirC .inbox-item{display:flex;padding:0;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+#dirC .inbox-item:hover,.inbox-item.selected{background:var(--bg-2)}
+#dirC .inbox-item.selected{border-left:2px solid var(--accent)}
+#dirC .inbox-item-body{flex:1;padding:10px 14px}
+#dirC .inbox-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+#dirC .inbox-item-title{display:flex;align-items:baseline;gap:8px}
+#dirC .inbox-preview{display:flex;flex:1;flex-direction:column;overflow-y:auto;background:var(--bg-1);padding:24px}
+#dirC .inbox-preview-empty{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-muted);font-size:13px}
+#dirC .preview-header{margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+#dirC .preview-header h2{font-size:16px;font-weight:600;margin-bottom:4px}
+#dirC .preview-badges{display:flex;gap:8px;margin-top:8px}
+#dirC .preview-body{font-size:13px;line-height:1.8;color:var(--text-secondary)}
+#dirC .preview-body h4{color:var(--text-primary);margin:12px 0 6px;font-size:13px}
+#dirC .preview-body p{margin-bottom:8px}
+
+/* ═══════════════════════════════════════
+   DIRECTION D — Feed
+   ═══════════════════════════════════════ */
+#dirD .feed-list{max-width:680px;margin:0 auto;padding:16px}
+#dirD .feed-item{position:relative;padding-left:20px;margin-bottom:2px}
+#dirD .feed-item::before{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;background:var(--border)}
+#dirD .feed-dot{position:absolute;left:1px;top:16px;width:9px;height:9px;border-radius:50%;border:2px solid var(--bg-0)}
+#dirD .feed-dot.bullish{background:var(--red)}
+#dirD .feed-dot.bearish{background:var(--green)}
+#dirD .feed-dot.conflict{background:var(--yellow)}
+#dirD .feed-dot.neutral{background:var(--gray)}
+#dirD .feed-dot.degraded{background:var(--orange)}
+#dirD .feed-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:border-color .15s;margin-bottom:12px}
+#dirD .feed-card:hover{border-color:var(--border-hover)}
+#dirD .feed-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+#dirD .feed-card-title{display:flex;align-items:baseline;gap:8px}
+#dirD .feed-card .stock-reason{margin-top:4px}
+#dirD .feed-card.read{opacity:.55}
+#dirD .feed-card.read:hover{opacity:.75}
+#dirD .feed-card .detail-area{margin:10px -16px -14px;padding:12px 16px;border-radius:0 0 var(--radius) var(--radius)}
+#dirD .feed-time{font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:4px;padding-left:6px}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     STICKY DIRECTION SWITCHER
+     ════════════════════════════════════════════════ -->
+<div class="dir-switcher">
+  <span class="label">Design Direction</span>
+  <button class="dir-btn active" onclick="showDir('A')">A · Terminal</button>
+  <button class="dir-btn" onclick="showDir('B')">B · Dashboard</button>
+  <button class="dir-btn" onclick="showDir('C')">C · Inbox</button>
+  <button class="dir-btn" onclick="showDir('D')">D · Feed</button>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     DIRECTION A — Terminal
+     ════════════════════════════════════════════════ -->
+<div id="dirA" class="direction visible">
+  <div class="meta-bar">
+    <div class="meta-item"><span class="dot ok"></span> 系统正常</div>
+    <div class="meta-item" style="font-family:var(--font-mono)">周期窗口 2026-04-09 14:00~14:30</div>
+    <div class="meta-item">信息源: 已配置 <b style="color:var(--text-primary)">7</b> / 成功 <b style="color:var(--green)">5</b> / 失败 <b style="color:var(--red)">2</b></div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active">摘要列表</div>
+    <div class="nav-tab">Node Graph</div>
+    <div class="nav-tab">Skill 编辑</div>
+    <div class="nav-tab">信息源管理</div>
+  </div>
+  <div class="term-list">
+    <!-- 00700 -->
+    <div class="term-item unread" onclick="toggleRead(this)">
+      <div class="signal-strip strip-bullish"></div>
+      <div class="term-body">
+        <span class="stock-code">00700.HK</span>
+        <span class="stock-name">腾讯控股</span>
+        <span class="badge badge-buy">买入</span>
+        <span class="badge badge-conf-high">高置信</span>
+        <span class="stock-reason">南向资金持续流入，游戏版号审批加速</span>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开</button>
+      </div>
+    </div>
+    <div class="detail-area">
+      <h4>简报摘要</h4>
+      <p>南向资金连续5日净流入腾讯，累计超过42亿港元。国家新闻出版署本月批复游戏版号87个，较上月增加23%，腾讯旗下2款产品获批。技术面MACD金叉确认，量价配合良好。</p>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路 &amp; 信息源</button>
+      <div class="analysis-chain">
+        <div>1. 南向资金监控 → CCASS数据 → <a href="#">https://www.hkexnews.hk/sdw/...</a></div>
+        <div>2. 版号审批 → 国家新闻出版署 → <a href="#">https://www.nppa.gov.cn/...</a></div>
+        <div>3. 技术指标 → TradingView API → <a href="#">https://api.tradingview.com/...</a></div>
+      </div>
+    </div>
+    <!-- 01211 -->
+    <div class="term-item unread" onclick="toggleRead(this)">
+      <div class="signal-strip strip-bearish"></div>
+      <div class="term-body">
+        <span class="stock-code">01211.HK</span>
+        <span class="stock-name">比亚迪</span>
+        <span class="badge badge-sell">卖出</span>
+        <span class="badge badge-conf-high">高置信</span>
+        <span class="stock-reason">欧盟关税终裁结果不利，海外出货预期下修</span>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开</button>
+      </div>
+    </div>
+    <div class="detail-area">
+      <h4>简报摘要</h4>
+      <p>欧盟委员会终裁决定对中国电动车征收17.0%~36.3%反补贴税，比亚迪适用税率17.0%。虽为最低档，但叠加现有10%关税后总税负达27%，预计影响2026年欧洲出货量约15-20%。多家投行下调目标价。</p>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路 &amp; 信息源</button>
+      <div class="analysis-chain">
+        <div>1. 欧盟公告 → Official Journal of the EU → <a href="#">https://eur-lex.europa.eu/...</a></div>
+        <div>2. 投行报告 → Morgan Stanley Research → <a href="#">https://research.ms.com/...</a></div>
+        <div>3. 出货数据 → 中汽协 → <a href="#">https://www.caam.org.cn/...</a></div>
+      </div>
+    </div>
+    <!-- 09988 -->
+    <div class="term-item unread" onclick="toggleRead(this)">
+      <div class="signal-strip strip-conflict"></div>
+      <div class="term-body">
+        <span class="stock-code">09988.HK</span>
+        <span class="stock-name">阿里巴巴</span>
+        <span class="badge badge-hold">持有</span>
+        <span class="badge badge-conf-low">低置信</span>
+        <span class="stock-reason">云业务增速超预期 vs 反垄断新规征求意见</span>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开</button>
+      </div>
+    </div>
+    <div class="detail-area">
+      <h4>简报摘要</h4>
+      <p>阿里云Q4营收同比增长13%超市场预期，AI相关收入三位数增长。但市场监管总局就《禁止滥用市场支配地位行为规定（修订草案）》公开征求意见，新增数据与算法条款。两方面信号相互矛盾，建议持有观望。</p>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路 &amp; 信息源</button>
+      <div class="analysis-chain">
+        <div>1. 财报数据 → 阿里巴巴IR → <a href="#">https://www.alibabagroup.com/en-US/ir</a></div>
+        <div>2. 监管动态 → 市场监管总局 → <a href="#">https://www.samr.gov.cn/...</a></div>
+      </div>
+    </div>
+    <!-- 688981 -->
+    <div class="term-item read" onclick="toggleRead(this)">
+      <div class="signal-strip strip-neutral"></div>
+      <div class="term-body">
+        <span class="stock-code">688981.SH</span>
+        <span class="stock-name">中芯国际</span>
+        <span class="badge badge-hold">持有</span>
+        <span class="badge badge-conf-none">无变化</span>
+        <span class="stock-reason">无显著新增信息，维持前期判断</span>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开</button>
+      </div>
+    </div>
+    <div class="detail-area">
+      <h4>简报摘要</h4>
+      <p>本周期内无显著增量信息。前期判断维持：28nm及以上成熟制程产能利用率回升中，但先进制程受限于设备管制。维持中性评级。</p>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路 &amp; 信息源</button>
+      <div class="analysis-chain">
+        <div>1. 前期分析 → 内部存档 → 2026-04-09T13:30 cycle</div>
+        <div>2. 行业动态扫描 → 无新增命中</div>
+      </div>
+    </div>
+    <!-- 002594 -->
+    <div class="term-item unread" onclick="toggleRead(this)">
+      <div class="signal-strip strip-degraded"></div>
+      <div class="term-body">
+        <span class="stock-code">002594.SZ</span>
+        <span class="stock-name">比亚迪A</span>
+        <span class="badge badge-hold">持有</span>
+        <span class="badge badge-degraded">采集降级</span>
+        <span class="stock-reason">2/3信息源采集失败，数据不完整</span>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开</button>
+      </div>
+    </div>
+    <div class="detail-area">
+      <h4>简报摘要</h4>
+      <p>本周期仅1/3信息源采集成功（东方财富），同花顺API超时，新浪财经返回403。现有数据不足以形成完整判断，建议参考01211.HK比亚迪港股分析或等待下一采集周期。</p>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路 &amp; 信息源</button>
+      <div class="analysis-chain">
+        <div>1. 东方财富 → 成功 → <a href="#">https://quote.eastmoney.com/...</a></div>
+        <div>2. 同花顺 → <span style="color:var(--red)">失败 (timeout 30s)</span></div>
+        <div>3. 新浪财经 → <span style="color:var(--red)">失败 (HTTP 403)</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     DIRECTION B — Dashboard
+     ════════════════════════════════════════════════ -->
+<div id="dirB" class="direction">
+  <div class="meta-bar">
+    <div class="meta-item"><span class="dot ok"></span> 系统正常</div>
+    <div class="meta-item">周期窗口 2026-04-09 14:00~14:30</div>
+    <div class="meta-item">信息源: 已配置 <b style="color:var(--text-primary)">7</b> / 成功 <b style="color:var(--green)">5</b> / 失败 <b style="color:var(--red)">2</b></div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active">摘要列表</div>
+    <div class="nav-tab">Node Graph</div>
+    <div class="nav-tab">Skill 编辑</div>
+    <div class="nav-tab">信息源管理</div>
+  </div>
+  <div class="dash-grid">
+    <!-- 00700 -->
+    <div class="dash-card unread" onclick="toggleRead(this)">
+      <div class="dash-card-inner">
+        <div class="signal-strip strip-bullish"></div>
+        <div class="dash-card-body">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <span class="stock-code">00700.HK</span>
+              <span class="stock-name">腾讯控股</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-buy">买入</span>
+              <span class="badge badge-conf-high">高置信</span>
+            </div>
+          </div>
+          <div class="stock-reason">南向资金持续流入，游戏版号审批加速</div>
+          <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 查看详情</button></div>
+        </div>
+      </div>
+      <div class="detail-area">
+        <h4>简报摘要</h4>
+        <p>南向资金连续5日净流入腾讯，累计超过42亿港元。国家新闻出版署本月批复游戏版号87个，较上月增加23%，腾讯旗下2款产品获批。</p>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+        <div class="analysis-chain">
+          <div>1. CCASS数据 → <a href="#">https://www.hkexnews.hk/sdw/...</a></div>
+          <div>2. 版号公告 → <a href="#">https://www.nppa.gov.cn/...</a></div>
+        </div>
+      </div>
+    </div>
+    <!-- 01211 -->
+    <div class="dash-card unread" onclick="toggleRead(this)">
+      <div class="dash-card-inner">
+        <div class="signal-strip strip-bearish"></div>
+        <div class="dash-card-body">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <span class="stock-code">01211.HK</span>
+              <span class="stock-name">比亚迪</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-sell">卖出</span>
+              <span class="badge badge-conf-high">高置信</span>
+            </div>
+          </div>
+          <div class="stock-reason">欧盟关税终裁结果不利，海外出货预期下修</div>
+          <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 查看详情</button></div>
+        </div>
+      </div>
+      <div class="detail-area">
+        <h4>简报摘要</h4>
+        <p>欧盟终裁对中国电动车征收17.0%~36.3%反补贴税，比亚迪适用17.0%。叠加现有10%关税，总税负27%，预计影响欧洲出货量15-20%。</p>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+        <div class="analysis-chain">
+          <div>1. EU Official Journal → <a href="#">https://eur-lex.europa.eu/...</a></div>
+          <div>2. 中汽协数据 → <a href="#">https://www.caam.org.cn/...</a></div>
+        </div>
+      </div>
+    </div>
+    <!-- 09988 -->
+    <div class="dash-card unread" onclick="toggleRead(this)">
+      <div class="dash-card-inner">
+        <div class="signal-strip strip-conflict"></div>
+        <div class="dash-card-body">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <span class="stock-code">09988.HK</span>
+              <span class="stock-name">阿里巴巴</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-hold">持有</span>
+              <span class="badge badge-conf-low">低置信</span>
+            </div>
+          </div>
+          <div class="stock-reason">云业务增速超预期 vs 反垄断新规征求意见</div>
+          <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 查看详情</button></div>
+        </div>
+      </div>
+      <div class="detail-area">
+        <h4>简报摘要</h4>
+        <p>阿里云Q4营收同比增长13%超预期，AI相关收入三位数增长。但市场监管总局就反垄断新规征求意见，新增数据与算法条款。信号矛盾，建议观望。</p>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+        <div class="analysis-chain">
+          <div>1. 阿里IR → <a href="#">https://www.alibabagroup.com/...</a></div>
+          <div>2. 市监总局 → <a href="#">https://www.samr.gov.cn/...</a></div>
+        </div>
+      </div>
+    </div>
+    <!-- 688981 -->
+    <div class="dash-card read" onclick="toggleRead(this)">
+      <div class="dash-card-inner">
+        <div class="signal-strip strip-neutral"></div>
+        <div class="dash-card-body">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <span class="stock-code">688981.SH</span>
+              <span class="stock-name">中芯国际</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-hold">持有</span>
+              <span class="badge badge-conf-none">无变化</span>
+            </div>
+          </div>
+          <div class="stock-reason">无显著新增信息，维持前期判断</div>
+          <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 查看详情</button></div>
+        </div>
+      </div>
+      <div class="detail-area">
+        <h4>简报摘要</h4>
+        <p>本周期无显著增量信息。28nm及以上成熟制程产能利用率回升中，先进制程受限于设备管制。维持中性评级。</p>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+        <div class="analysis-chain">
+          <div>1. 前期分析存档 → 2026-04-09T13:30</div>
+          <div>2. 行业扫描 → 无新增命中</div>
+        </div>
+      </div>
+    </div>
+    <!-- 002594 -->
+    <div class="dash-card unread" onclick="toggleRead(this)">
+      <div class="dash-card-inner">
+        <div class="signal-strip strip-degraded"></div>
+        <div class="dash-card-body">
+          <div class="dash-card-header">
+            <div class="dash-card-title">
+              <span class="stock-code">002594.SZ</span>
+              <span class="stock-name">比亚迪A</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <span class="badge badge-hold">持有</span>
+              <span class="badge badge-degraded">采集降级</span>
+            </div>
+          </div>
+          <div class="stock-reason">2/3信息源采集失败，数据不完整</div>
+          <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 查看详情</button></div>
+        </div>
+      </div>
+      <div class="detail-area">
+        <h4>简报摘要</h4>
+        <p>仅东方财富采集成功，同花顺超时，新浪财经403。数据不足以形成完整判断。</p>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+        <div class="analysis-chain">
+          <div>1. 东方财富 → 成功 → <a href="#">https://quote.eastmoney.com/...</a></div>
+          <div>2. 同花顺 → <span style="color:var(--red)">失败 (timeout)</span></div>
+          <div>3. 新浪财经 → <span style="color:var(--red)">失败 (403)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     DIRECTION C — Inbox
+     ════════════════════════════════════════════════ -->
+<div id="dirC" class="direction">
+  <div class="meta-bar">
+    <div class="meta-item"><span class="dot ok"></span> 系统正常</div>
+    <div class="meta-item">周期窗口 2026-04-09 14:00~14:30</div>
+    <div class="meta-item">信息源: 已配置 <b style="color:var(--text-primary)">7</b> / 成功 <b style="color:var(--green)">5</b> / 失败 <b style="color:var(--red)">2</b></div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active">摘要列表</div>
+    <div class="nav-tab">Node Graph</div>
+    <div class="nav-tab">Skill 编辑</div>
+    <div class="nav-tab">信息源管理</div>
+  </div>
+  <div class="inbox-layout">
+    <div class="inbox-list">
+      <!-- 00700 -->
+      <div class="inbox-item unread selected" onclick="selectInbox(this,0)">
+        <div class="signal-strip strip-bullish"></div>
+        <div class="inbox-item-body">
+          <div class="inbox-item-header">
+            <div class="inbox-item-title">
+              <span class="stock-code">00700.HK</span>
+              <span class="stock-name">腾讯控股</span>
+            </div>
+            <span class="badge badge-buy">买入</span>
+          </div>
+          <div class="stock-reason">南向资金持续流入，游戏版号审批加速</div>
+        </div>
+      </div>
+      <!-- 01211 -->
+      <div class="inbox-item unread" onclick="selectInbox(this,1)">
+        <div class="signal-strip strip-bearish"></div>
+        <div class="inbox-item-body">
+          <div class="inbox-item-header">
+            <div class="inbox-item-title">
+              <span class="stock-code">01211.HK</span>
+              <span class="stock-name">比亚迪</span>
+            </div>
+            <span class="badge badge-sell">卖出</span>
+          </div>
+          <div class="stock-reason">欧盟关税终裁结果不利，海外出货预期下修</div>
+        </div>
+      </div>
+      <!-- 09988 -->
+      <div class="inbox-item unread" onclick="selectInbox(this,2)">
+        <div class="signal-strip strip-conflict"></div>
+        <div class="inbox-item-body">
+          <div class="inbox-item-header">
+            <div class="inbox-item-title">
+              <span class="stock-code">09988.HK</span>
+              <span class="stock-name">阿里巴巴</span>
+            </div>
+            <span class="badge badge-hold">持有</span>
+          </div>
+          <div class="stock-reason">云业务增速超预期 vs 反垄断新规征求意见</div>
+        </div>
+      </div>
+      <!-- 688981 -->
+      <div class="inbox-item read" onclick="selectInbox(this,3)">
+        <div class="signal-strip strip-neutral"></div>
+        <div class="inbox-item-body">
+          <div class="inbox-item-header">
+            <div class="inbox-item-title">
+              <span class="stock-code">688981.SH</span>
+              <span class="stock-name">中芯国际</span>
+            </div>
+            <span class="badge badge-hold">持有</span>
+          </div>
+          <div class="stock-reason">无显著新增信息，维持前期判断</div>
+        </div>
+      </div>
+      <!-- 002594 -->
+      <div class="inbox-item unread" onclick="selectInbox(this,4)">
+        <div class="signal-strip strip-degraded"></div>
+        <div class="inbox-item-body">
+          <div class="inbox-item-header">
+            <div class="inbox-item-title">
+              <span class="stock-code">002594.SZ</span>
+              <span class="stock-name">比亚迪A</span>
+            </div>
+            <span class="badge badge-hold">持有</span>
+          </div>
+          <div class="stock-reason">2/3信息源采集失败，数据不完整</div>
+        </div>
+      </div>
+    </div>
+    <div class="inbox-preview" id="inboxPreview">
+      <!-- Default: show first stock -->
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     DIRECTION D — Feed
+     ════════════════════════════════════════════════ -->
+<div id="dirD" class="direction">
+  <div class="meta-bar">
+    <div class="meta-item"><span class="dot ok"></span> 系统正常</div>
+    <div class="meta-item">周期窗口 2026-04-09 14:00~14:30</div>
+    <div class="meta-item">信息源: 已配置 <b style="color:var(--text-primary)">7</b> / 成功 <b style="color:var(--green)">5</b> / 失败 <b style="color:var(--red)">2</b></div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active">摘要列表</div>
+    <div class="nav-tab">Node Graph</div>
+    <div class="nav-tab">Skill 编辑</div>
+    <div class="nav-tab">信息源管理</div>
+  </div>
+  <div class="feed-list">
+    <!-- 00700 -->
+    <div class="feed-item">
+      <div class="feed-dot bullish"></div>
+      <div class="feed-time">14:28</div>
+      <div class="feed-card unread" onclick="toggleRead(this)">
+        <div class="feed-card-header">
+          <div class="feed-card-title">
+            <span class="stock-code">00700.HK</span>
+            <span class="stock-name">腾讯控股</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="badge badge-buy">买入</span>
+            <span class="badge badge-conf-high">高置信</span>
+          </div>
+        </div>
+        <div class="stock-reason">南向资金持续流入，游戏版号审批加速</div>
+        <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开详情</button></div>
+        <div class="detail-area">
+          <h4>简报摘要</h4>
+          <p>南向资金连续5日净流入腾讯，累计超42亿港元。本月版号批复87个（+23%），腾讯2款获批。MACD金叉确认。</p>
+          <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+          <div class="analysis-chain">
+            <div>1. CCASS → <a href="#">https://www.hkexnews.hk/sdw/...</a></div>
+            <div>2. 版号 → <a href="#">https://www.nppa.gov.cn/...</a></div>
+            <div>3. 技术面 → <a href="#">https://api.tradingview.com/...</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 01211 -->
+    <div class="feed-item">
+      <div class="feed-dot bearish"></div>
+      <div class="feed-time">14:25</div>
+      <div class="feed-card unread" onclick="toggleRead(this)">
+        <div class="feed-card-header">
+          <div class="feed-card-title">
+            <span class="stock-code">01211.HK</span>
+            <span class="stock-name">比亚迪</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="badge badge-sell">卖出</span>
+            <span class="badge badge-conf-high">高置信</span>
+          </div>
+        </div>
+        <div class="stock-reason">欧盟关税终裁结果不利，海外出货预期下修</div>
+        <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开详情</button></div>
+        <div class="detail-area">
+          <h4>简报摘要</h4>
+          <p>欧盟终裁征收17.0%~36.3%反补贴税，比亚迪17.0%。总税负27%，预计影响欧洲出货15-20%。多家投行下调目标价。</p>
+          <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+          <div class="analysis-chain">
+            <div>1. EU OJ → <a href="#">https://eur-lex.europa.eu/...</a></div>
+            <div>2. MS Research → <a href="#">https://research.ms.com/...</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 09988 -->
+    <div class="feed-item">
+      <div class="feed-dot conflict"></div>
+      <div class="feed-time">14:22</div>
+      <div class="feed-card unread" onclick="toggleRead(this)">
+        <div class="feed-card-header">
+          <div class="feed-card-title">
+            <span class="stock-code">09988.HK</span>
+            <span class="stock-name">阿里巴巴</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="badge badge-hold">持有</span>
+            <span class="badge badge-conf-low">低置信</span>
+          </div>
+        </div>
+        <div class="stock-reason">云业务增速超预期 vs 反垄断新规征求意见</div>
+        <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开详情</button></div>
+        <div class="detail-area">
+          <h4>简报摘要</h4>
+          <p>阿里云Q4营收同比+13%超预期，AI收入三位数增长。市监总局就反垄断新规征求意见，新增数据与算法条款。信号矛盾。</p>
+          <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+          <div class="analysis-chain">
+            <div>1. 阿里IR → <a href="#">https://www.alibabagroup.com/...</a></div>
+            <div>2. 市监总局 → <a href="#">https://www.samr.gov.cn/...</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 688981 -->
+    <div class="feed-item">
+      <div class="feed-dot neutral"></div>
+      <div class="feed-time">14:18</div>
+      <div class="feed-card read" onclick="toggleRead(this)">
+        <div class="feed-card-header">
+          <div class="feed-card-title">
+            <span class="stock-code">688981.SH</span>
+            <span class="stock-name">中芯国际</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="badge badge-hold">持有</span>
+            <span class="badge badge-conf-none">无变化</span>
+          </div>
+        </div>
+        <div class="stock-reason">无显著新增信息，维持前期判断</div>
+        <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开详情</button></div>
+        <div class="detail-area">
+          <h4>简报摘要</h4>
+          <p>本周期无增量信息。成熟制程产能利用率回升，先进制程受限。维持中性。</p>
+          <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+          <div class="analysis-chain">
+            <div>1. 前期存档 → 2026-04-09T13:30</div>
+            <div>2. 行业扫描 → 无命中</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 002594 -->
+    <div class="feed-item">
+      <div class="feed-dot degraded"></div>
+      <div class="feed-time">14:15</div>
+      <div class="feed-card unread" onclick="toggleRead(this)">
+        <div class="feed-card-header">
+          <div class="feed-card-title">
+            <span class="stock-code">002594.SZ</span>
+            <span class="stock-name">比亚迪A</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="badge badge-hold">持有</span>
+            <span class="badge badge-degraded">采集降级</span>
+          </div>
+        </div>
+        <div class="stock-reason">2/3信息源采集失败，数据不完整</div>
+        <div style="margin-top:8px"><button class="expand-btn" onclick="event.stopPropagation();toggleDetail(this)">▸ 展开详情</button></div>
+        <div class="detail-area">
+          <h4>简报摘要</h4>
+          <p>仅东方财富成功。同花顺超时，新浪403。数据不完整，建议参考港股分析。</p>
+          <button class="expand-btn" onclick="event.stopPropagation();toggleChain(this)">▸ 分析链路</button>
+          <div class="analysis-chain">
+            <div>1. 东方财富 → 成功 → <a href="#">https://quote.eastmoney.com/...</a></div>
+            <div>2. 同花顺 → <span style="color:var(--red)">失败</span></div>
+            <div>3. 新浪财经 → <span style="color:var(--red)">失败</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Direction Switching ──
+function showDir(id) {
+  document.querySelectorAll('.direction').forEach(d => d.classList.remove('visible'));
+  document.getElementById('dir' + id).classList.add('visible');
+  document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (id === 'C') initInbox();
+}
+
+// ── Read/Unread Toggle ──
+function toggleRead(el) {
+  if (el.classList.contains('unread')) {
+    el.classList.remove('unread');
+    el.classList.add('read');
+  } else {
+    el.classList.remove('read');
+    el.classList.add('unread');
+  }
+}
+
+// ── Expand Detail ──
+function toggleDetail(btn) {
+  let parent = btn.closest('.term-item, .dash-card, .feed-card');
+  let detail;
+  if (parent && parent.classList.contains('term-item')) {
+    detail = parent.nextElementSibling;
+  } else if (parent) {
+    detail = parent.querySelector('.detail-area');
+  }
+  if (!detail) return;
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open');
+  btn.textContent = isOpen ? '▸ ' + btn.textContent.replace('▾ ', '').replace('▸ ', '') : '▾ ' + btn.textContent.replace('▸ ', '').replace('▾ ', '');
+}
+
+// ── Expand Analysis Chain ──
+function toggleChain(btn) {
+  const chain = btn.nextElementSibling;
+  if (!chain) return;
+  const isOpen = chain.classList.contains('open');
+  chain.classList.toggle('open');
+  btn.textContent = isOpen ? '▸ 分析链路 & 信息源' : '▾ 分析链路 & 信息源';
+  if (btn.textContent.indexOf('&') === -1) {
+    btn.textContent = isOpen ? '▸ 分析链路' : '▾ 分析链路';
+  }
+}
+
+// ── Inbox (Direction C) ──
+const inboxData = [
+  {
+    code: '00700.HK', name: '腾讯控股', dir: '买入', dirClass: 'badge-buy',
+    conf: '高置信', confClass: 'badge-conf-high', strip: 'bullish',
+    reason: '南向资金持续流入，游戏版号审批加速',
+    summary: '南向资金连续5日净流入腾讯，累计超过42亿港元。国家新闻出版署本月批复游戏版号87个，较上月增加23%，腾讯旗下2款产品获批。技术面MACD金叉确认，量价配合良好。',
+    chain: [
+      {text: '南向资金监控 → CCASS', url: 'https://www.hkexnews.hk/sdw/...'},
+      {text: '版号审批 → 新闻出版署', url: 'https://www.nppa.gov.cn/...'},
+      {text: '技术指标 → TradingView', url: 'https://api.tradingview.com/...'}
+    ]
+  },
+  {
+    code: '01211.HK', name: '比亚迪', dir: '卖出', dirClass: 'badge-sell',
+    conf: '高置信', confClass: 'badge-conf-high', strip: 'bearish',
+    reason: '欧盟关税终裁结果不利，海外出货预期下修',
+    summary: '欧盟委员会终裁决定对中国电动车征收17.0%~36.3%反补贴税，比亚迪适用税率17.0%。虽为最低档，但叠加现有10%关税后总税负达27%，预计影响2026年欧洲出货量约15-20%。多家投行下调目标价。',
+    chain: [
+      {text: '欧盟公告 → EU OJ', url: 'https://eur-lex.europa.eu/...'},
+      {text: '投行报告 → MS Research', url: 'https://research.ms.com/...'},
+      {text: '出货数据 → 中汽协', url: 'https://www.caam.org.cn/...'}
+    ]
+  },
+  {
+    code: '09988.HK', name: '阿里巴巴', dir: '持有', dirClass: 'badge-hold',
+    conf: '低置信', confClass: 'badge-conf-low', strip: 'conflict',
+    reason: '云业务增速超预期 vs 反垄断新规征求意见',
+    summary: '阿里云Q4营收同比增长13%超市场预期，AI相关收入三位数增长。但市场监管总局就《禁止滥用市场支配地位行为规定（修订草案）》公开征求意见，新增数据与算法条款。两方面信号相互矛盾，建议持有观望。',
+    chain: [
+      {text: '财报 → 阿里IR', url: 'https://www.alibabagroup.com/en-US/ir'},
+      {text: '监管 → 市场监管总局', url: 'https://www.samr.gov.cn/...'}
+    ]
+  },
+  {
+    code: '688981.SH', name: '中芯国际', dir: '持有', dirClass: 'badge-hold',
+    conf: '无变化', confClass: 'badge-conf-none', strip: 'neutral',
+    reason: '无显著新增信息，维持前期判断',
+    summary: '本周期内无显著增量信息。前期判断维持：28nm及以上成熟制程产能利用率回升中，但先进制程受限于设备管制。维持中性评级。',
+    chain: [
+      {text: '前期分析存档', url: null},
+      {text: '行业扫描 → 无新增命中', url: null}
+    ]
+  },
+  {
+    code: '002594.SZ', name: '比亚迪A', dir: '持有', dirClass: 'badge-hold',
+    conf: '采集降级', confClass: 'badge-degraded', strip: 'degraded',
+    reason: '2/3信息源采集失败，数据不完整',
+    summary: '本周期仅1/3信息源采集成功（东方财富），同花顺API超时，新浪财经返回403。现有数据不足以形成完整判断，建议参考01211.HK比亚迪港股分析或等待下一采集周期。',
+    chain: [
+      {text: '东方财富 → 成功', url: 'https://quote.eastmoney.com/...'},
+      {text: '同花顺 → 失败 (timeout)', url: null, fail: true},
+      {text: '新浪财经 → 失败 (403)', url: null, fail: true}
+    ]
+  }
+];
+
+let currentInbox = 0;
+
+function initInbox() {
+  renderInboxPreview(currentInbox);
+}
+
+function selectInbox(el, idx) {
+  currentInbox = idx;
+  document.querySelectorAll('#dirC .inbox-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  if (el.classList.contains('unread')) {
+    el.classList.remove('unread');
+    el.classList.add('read');
+  }
+  renderInboxPreview(idx);
+}
+
+function renderInboxPreview(idx) {
+  const d = inboxData[idx];
+  const preview = document.getElementById('inboxPreview');
+  let chainHtml = d.chain.map(c => {
+    if (c.fail) return `<div style="color:var(--red)">${c.text}</div>`;
+    if (c.url) return `<div>${c.text} → <a href="#" style="color:var(--accent)">${c.url}</a></div>`;
+    return `<div style="color:var(--text-muted)">${c.text}</div>`;
+  }).join('');
+
+  preview.innerHTML = `
+    <div class="preview-header">
+      <h2><span style="font-family:var(--font-mono)">${d.code}</span> ${d.name}</h2>
+      <div style="color:var(--text-muted);font-size:12px;margin-top:2px">${d.reason}</div>
+      <div class="preview-badges">
+        <span class="badge ${d.dirClass}">${d.dir}</span>
+        <span class="badge ${d.confClass}">${d.conf}</span>
+      </div>
+    </div>
+    <div class="preview-body">
+      <h4>简报摘要</h4>
+      <p>${d.summary}</p>
+      <h4 style="margin-top:16px">分析链路 &amp; 信息源</h4>
+      <div style="padding:10px 12px;background:var(--bg-2);border-radius:var(--radius-sm);font-size:12px;line-height:1.8">
+        ${chainHtml}
+      </div>
+    </div>
+  `;
+}
+
+// Init inbox on load if Direction C is visible
+document.addEventListener('DOMContentLoaded', () => {
+  initInbox();
+});
+</script>
+</body>
+</html>
