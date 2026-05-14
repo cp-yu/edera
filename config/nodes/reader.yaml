@@ -1,5 +1,6 @@
 name: reader
-type: function
+type: llm
+model: hf-share/deepseek-v4-flash
 skills:
   - name: summarize
   - name: classify-sentiment

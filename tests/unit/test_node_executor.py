@@ -55,5 +55,6 @@ def test_llm_workspace_isolated_and_precreated(tmp_path: Path) -> None:
     assert workspace == tmp_path / "cycle" / "reader-reader"
     assert (workspace / "sessions").is_dir()
     assert (workspace / "pi-home").is_dir()
-    assert (workspace / "AGENTS.md").read_text()
+    assert "list[AnalysisResult]" in (workspace / "AGENTS.md").read_text()
     assert (workspace / ".pi" / "SYSTEM.md").read_text()
+    assert "defaultModel" in (workspace / ".pi" / "settings.json").read_text()

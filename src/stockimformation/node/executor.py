@@ -79,7 +79,7 @@ class NodeExecutor:
         workspace = self._prepare_workspace(config, context)
         skill_paths = [str(load_skill(skill.name, self.skills_dir).path) for skill in config.skills]
         input_json = _json(node_input)
-        args = [self.runtime.pi_bin, "-p", "--no-skills"]
+        args = [self.runtime.pi_bin, "-p", "--no-skills", "--no-tools"]
         for path in skill_paths:
             args.extend(["--skill", path])
         args.extend(
@@ -111,6 +111,7 @@ class NodeExecutor:
         except json.JSONDecodeError as exc:
             raise NodeExecutionError(f"pi returned invalid JSON for {config.name}") from exc
         finally:
+            (workspace / "pi-home" / "models.json").unlink(missing_ok=True)
             self._cleanup_success(workspace)
 
     def _prepare_workspace(self, config: NodeConfig, context: NodeContext) -> Path:
@@ -119,10 +120,13 @@ class NodeExecutor:
         (workspace / "sessions").mkdir(parents=True, exist_ok=True)
         (workspace / "pi-home").mkdir(parents=True, exist_ok=True)
         (workspace / "AGENTS.md").write_text(
-            f"Return JSON only.\nInput type: {config.input_type}\nOutput type: {config.output_type}\n"
+            f"{_agent_contract(config.input_type, config.output_type)}\n"
         )
         (workspace / ".pi" / "SYSTEM.md").write_text("You are a JSON-only stock analysis agent.\n")
-        (workspace / ".pi" / "settings.json").write_text(json.dumps({"model": config.model}))
+        (workspace / ".pi" / "settings.json").write_text(json.dumps({"defaultModel": config.model}))
+        models_config = Path.home() / ".pi" / "agent" / "models.json"
+        if models_config.exists():
+            shutil.copy2(models_config, workspace / "pi-home" / "models.json")
         return workspace
 
     def _cleanup_success(self, workspace: Path) -> None:
@@ -140,3 +144,22 @@ def _json(value: object) -> str:
     if isinstance(value, BaseModel):
         return value.model_dump_json()
     return json.dumps(value, default=str)
+
+
+def _agent_contract(input_type: str, output_type: str) -> str:
+    contract = [
+        "Return JSON only.",
+        "Do not wrap JSON in markdown fences.",
+        f"Input type: {input_type}",
+        f"Output type: {output_type}",
+    ]
+    if output_type == "list[AnalysisResult]":
+        contract.append(
+            "Return an array of objects with exactly these fields: "
+            "raw_item_id, summary, keywords, sentiment, confidence, "
+            "source_quote, source_url, rationale, contradiction."
+        )
+        contract.append("raw_item_id must be an integer; use the 1-based input item index when id is null.")
+        contract.append("contradiction must be true or false; never null.")
+        contract.append("sentiment must be bullish, bearish, or neutral.")
+    return "\n".join(contract)
