@@ -1,0 +1,67 @@
+# OpenSpec Change Delta — project-mvp
+# Merge intent: All capabilities are NEW (greenfield project)
+
+## ADDED
+
+### Domains
+
+- name: core
+  description: 核心编排层 — DAG 运行时与 Node 执行框架
+  capabilities:
+    - id: dag-runner
+      description: DAG 编排引擎 — 图解析、拓扑排序、asyncio 并发调度、数据路由、fan-out/fan-in、降级处理
+      spec: specs/dag-runner/spec.md
+    - id: node-executor
+      description: Node 通用执行框架 — Skill 加载、Agent 调用、I/O 管理
+      spec: specs/node-executor/spec.md
+
+- name: data
+  description: 数据层 — 共享模型与持久化
+  capabilities:
+    - id: data-models
+      description: RawItem/AnalysisResult/Advice/Briefing SQLModel 定义 + Alembic migration + SQLite WAL
+      spec: specs/data-models/spec.md
+
+- name: source
+  description: 信息采集域 — 多源并发采集
+  capabilities:
+    - id: source-collection
+      description: RSS 订阅拉取、非标准源抓取、URL 去重、定时触发
+      spec: specs/source-collection/spec.md
+
+- name: analysis
+  description: 信息分析域 — 摘要与分类
+  capabilities:
+    - id: information-analysis
+      description: 摘要生成、关键词提取、利好/利空分类、原文溯源
+      spec: specs/information-analysis/spec.md
+
+- name: advisory
+  description: 交易建议域 — 建议生成与审计
+  capabilities:
+    - id: trade-advisory
+      description: 交易建议生成（buy/sell/hold）、证据链溯源、审计字段完整性
+      spec: specs/trade-advisory/spec.md
+
+- name: delivery
+  description: 推送交付域 — 通知与简报
+  capabilities:
+    - id: notification-delivery
+      description: ntfy.sh 分级推送、结构化摘要、周期性状态输出
+      spec: specs/notification-delivery/spec.md
+    - id: briefing-generation
+      description: 结构化简报生成、元数据区、免责声明
+      spec: specs/briefing-generation/spec.md
+
+- name: config
+  description: 配置管理域 — 分层配置体系
+  capabilities:
+    - id: config-management
+      description: TOML/YAML/env 分层配置、标的/信息源/Node/DAG 配置
+      spec: specs/config-management/spec.md
+
+## MODIFIED
+# (none — greenfield project)
+
+## REMOVED
+# (none — greenfield project)
