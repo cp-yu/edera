@@ -128,7 +128,7 @@ Node executor SHALL 通过 `--session-dir` 指定 per-invocation session 存储�
 
 ### Requirement: pi CLI 调用规范
 
-Node executor 调用 pi 的标准参数组合（`subprocess.run`，`cwd` 设为 workspace 根）：
+Node executor SHALL 使用固定参数组合调用 pi CLI（`subprocess.run`，`cwd` 设为 workspace 根）：
 
 ```
 env:
@@ -153,3 +153,7 @@ stdin: (可选，input JSON 超长时走 stdin)
 3. `<workspace>/AGENTS.md` 已写入
 4. `<workspace>/.pi/SYSTEM.md` 已 copy
 5. `<workspace>/.pi/settings.json` 已 copy
+
+#### Scenario: 使用固定 pi CLI 参数
+- **WHEN** executor 启动 LLM Node
+- **THEN** 子进程 cwd 为 workspace 根，env 包含 `PI_CODING_AGENT_DIR=<workspace>/pi-home`，args 包含 `pi -p --no-skills --skill <abs_path_to_skill_dir> --no-extensions --no-prompt-templates --no-themes --session-dir <workspace>/sessions`

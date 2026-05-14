@@ -15,6 +15,7 @@ stockImformation 项目需要完成 MVP 的端到端实现：将「采集→分�
 - 实现简报生成能力：结构化简报 + 元数据区（配置源/成功源/失败源/时间窗口）
 - 实现配置管理：TOML(系统) + YAML(业务/标的/信息源) + env(凭据)
 - 实现免责声明输出
+- 实现完成门禁：PRD 门禁 + P1 验收映射 + 单元/契约/集成/E2E 测试命令
 - Docker 容器化部署
 
 ## Capabilities
@@ -29,6 +30,7 @@ stockImformation 项目需要完成 MVP 的端到端实现：将「采集→分�
 - `notification-delivery`: 推送通知 — ntfy.sh 分级推送、结构化摘要（≤16字标题+必含字段）、周期性状态输出
 - `briefing-generation`: 简报生成 — 结构化简报、元数据区、免责声明
 - `config-management`: 配置管理 — 分层配置（TOML系统+YAML业务+env凭据）、标的/信息源配置、非标准源接入规则
+- `goal-completion`: 完成门禁 — PRD 门禁、P1 FR 验收映射、测试金字塔、E2E 产物断言、命令门禁
 
 ### Modified Capabilities
 （无 — greenfield 项目）

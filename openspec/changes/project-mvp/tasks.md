@@ -73,9 +73,20 @@
 - [ ] 9.1 实现 main.py 入口（APScheduler 初始化 + DAG 加载 + 调度注册）
 - [ ] 9.2 配置 30min 周期定时任务
 - [ ] 9.3 端到端集成测试（模拟完整管道执行）
+- [ ] 9.4 实现 `/goal` 完成门禁报告（P1 FR → Requirement → 测试用例映射）
 
 ## 10. 容器化
 
 - [ ] 10.1 编写 Dockerfile（Python 3.12 + uv + 项目依赖）
 - [ ] 10.2 配置 Docker volume 挂载（logs/ + data/ + config/）
 - [ ] 10.3 编写 docker-compose.yaml（含 .env 注入）
+
+## 11. 完成门禁测试
+
+- [ ] 11.1 建立测试目录：tests/unit、tests/contract、tests/integration、tests/e2e、tests/fixtures
+- [ ] 11.2 编写单元测试：配置解析、URL 去重、RSS 解析、非标准源规则解析、通知摘要格式、建议结构校验、简报元数据校验
+- [ ] 11.3 编写契约测试：LLM 输出 schema、AnalysisResult 溯源字段、Advice 审计字段、凭据不入仓库
+- [ ] 11.4 编写集成测试：假 RSS 源 + fake LLM + fake 通知通道跑通默认 DAG，覆盖单源失败和重复 URL
+- [ ] 11.5 编写 E2E 验收测试：固定信息源 fixture + 固定持仓配置 + fake LLM 生成采集结果、分析摘要、建议、证据、简报、通知 payload、审计记录
+- [ ] 11.6 编写性能/可靠性测试：30s 分析延迟、30min 周期内完成、priority=5 通知 5min 内生成、节点异常后续周期可继续
+- [ ] 11.7 完成命令门禁：`pytest tests/unit tests/contract tests/integration tests/e2e`、`ruff check .`、`mypy src` 均返回 0
