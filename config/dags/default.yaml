@@ -1,0 +1,21 @@
+name: default
+nodes:
+  - rss-fetcher
+  - web-scraper
+  - reader
+  - advisor
+  - briefing-generator
+  - notifier
+edges:
+  - from: rss-fetcher
+    to: reader
+    fan_in: true
+  - from: web-scraper
+    to: reader
+    fan_in: true
+  - from: reader
+    to: advisor
+  - from: advisor
+    to: briefing-generator
+  - from: briefing-generator
+    to: notifier

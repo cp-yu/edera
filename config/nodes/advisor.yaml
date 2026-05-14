@@ -1,0 +1,6 @@
+name: advisor
+type: function
+skills:
+  - name: generate-advice
+input_type: list[AnalysisResult]
+output_type: list[Advice]

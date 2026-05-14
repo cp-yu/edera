@@ -1,0 +1,8 @@
+name: rss-fetcher
+type: function
+skills:
+  - name: fetch-rss
+input_type: Any
+output_type: list[RawItem]
+source_names:
+  - sample-rss

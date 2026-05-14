@@ -1,0 +1,6 @@
+name: briefing-generator
+type: function
+skills:
+  - name: generate-briefing
+input_type: list[Advice]
+output_type: Briefing

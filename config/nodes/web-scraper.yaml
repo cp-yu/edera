@@ -1,0 +1,8 @@
+name: web-scraper
+type: function
+skills:
+  - name: fetch-web
+input_type: Any
+output_type: list[RawItem]
+source_names:
+  - sample-web

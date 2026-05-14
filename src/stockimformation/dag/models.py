@@ -1,0 +1,28 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from stockimformation.node.models import NodeOutput
+
+
+@dataclass(frozen=True)
+class DagGraph:
+    name: str
+    nodes: list[str]
+    edges: dict[str, list[str]]
+    reverse_edges: dict[str, list[str]]
+    fan_out_edges: set[tuple[str, str]] = field(default_factory=set)
+    fan_in_edges: set[tuple[str, str]] = field(default_factory=set)
+
+
+@dataclass
+class DagRunResult:
+    cycle_id: str
+    node_outputs: dict[str, NodeOutput]
+    failures: dict[str, str]
+    payload: Any = None
+
+    @property
+    def ok(self) -> bool:
+        return bool(self.node_outputs) and not all(not output.ok for output in self.node_outputs.values())

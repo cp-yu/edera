@@ -1,0 +1,7 @@
+database_url = "sqlite+aiosqlite:///data/stockimformation.db"
+schedule_minutes = 30
+log_level = "INFO"
+llm_timeout_seconds = 60
+workspace_root = "/tmp/stockimformation/runs"
+retention_count = 20
+retention_hours = 24

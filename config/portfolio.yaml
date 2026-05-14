@@ -1,0 +1,21 @@
+targets:
+  - code: "00700.HK"
+    name: "Tencent"
+    holding:
+      quantity: 100
+      cost_price: 300
+    sources:
+      - sample-rss
+      - sample-web
+  - code: "600519.SH"
+    name: "Kweichow Moutai"
+    sources:
+      - sample-rss
+sources:
+  - name: sample-rss
+    type: rss
+    url: https://example.com/feed.xml
+  - name: sample-web
+    type: web
+    url: https://example.com/announcements.html
+    regex: '<article>(?P<title>.*?)</article>'
