@@ -134,11 +134,11 @@ After completing all artifacts, summarize:
 - Use `template` as the structure for your output file - fill in its sections
 
 **Document Language Contract**:
-- Before creating or updating any OpenSpec artifact, read `openspec/config.yaml` if it exists
-- If it defines `docLanguage`, use it only for natural-language prose you write in the artifact body
+- Treat `openspec/config.yaml` as the compact source of truth, but consume its compiled prompt projection rather than reinterpreting raw keys ad hoc
+- If the compiled projection includes `docLanguage`, apply it only to natural-language prose you write in the artifact body
 - Follow the existing template structure exactly; do not invent a different layout because the prose language changes
 - Keep template headings, IDs, schema keys, relation types, BDD keywords, file paths, commands, and code identifiers in their canonical form
-- If `docLanguage` is missing, keep the default writing behavior for prose
+- If no `docLanguage` projection is present, keep the default writing behavior for prose
 
 - **IMPORTANT**: `context` and `rules` are constraints for YOU, not content for the file
   - Do NOT copy `<context>`, `<rules>`, `<project_context>` blocks into the artifact

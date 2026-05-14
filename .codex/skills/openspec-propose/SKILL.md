@@ -6,7 +6,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  generatedBy: "1.2.0-cpyu.4"
+  generatedBy: "1.2.0-cpyu.8"
 ---
 
 Propose a new change - create the change and generate all artifacts in one step.
@@ -17,7 +17,7 @@ I'll create a change with artifacts:
 - tasks.md (implementation steps)
 - opsx-delta.yaml (project OPSX delta, generated after specs are clear)
 
-When ready to implement, run /opsx:apply
+When ready to implement, run $openspec-apply-change
 
 ---
 
@@ -96,7 +96,7 @@ Before reading other context files, check whether `openspec/project.opsx.yaml` e
 5. **Run post-propose validation before the final summary**
 
    **Run post-propose warning validation**:
-- This validation is warning-only. Do NOT turn `/opsx:propose` into a blocking gate.
+- This validation is warning-only. Do NOT turn `$openspec-propose` into a blocking gate.
 - Validate generated change specs against the same contract used by downstream change delta validation:
   - Prefer `openspec validate "<name>" --type change --json` when available
   - Align with `Validator.validateChangeDeltaSpecs()` semantics for delta sections, SHALL/MUST requirement text, and required `#### Scenario:` blocks
@@ -114,7 +114,7 @@ Before reading other context files, check whether `openspec/project.opsx.yaml` e
   - fixed warnings
   - remaining warnings
   - skipped checks
-- Even with remaining warnings, you MAY still declare the change ready for `/opsx:apply`, but disclose the residual issues explicitly
+- Even with remaining warnings, you MAY still declare the change ready for `$openspec-apply-change`, but disclose the residual issues explicitly
 
 6. **Show final status**
    ```bash
@@ -128,7 +128,7 @@ After completing all artifacts, summarize:
 - List of artifacts created with brief descriptions
 - Validation summary with fixed warnings, remaining warnings, and skipped checks
 - What's ready: "All artifacts created! Ready for implementation."
-- Prompt: "Run `/opsx:apply` or ask me to implement to start working on the tasks."
+- Prompt: "Run `$openspec-apply-change` or ask me to implement to start working on the tasks."
 
 **Artifact Creation Guidelines**
 
@@ -138,11 +138,11 @@ After completing all artifacts, summarize:
 - Use `template` as the structure for your output file - fill in its sections
 
 **Document Language Contract**:
-- Before creating or updating any OpenSpec artifact, read `openspec/config.yaml` if it exists
-- If it defines `docLanguage`, use it only for natural-language prose you write in the artifact body
+- Treat `openspec/config.yaml` as the compact source of truth, but consume its compiled prompt projection rather than reinterpreting raw keys ad hoc
+- If the compiled projection includes `docLanguage`, apply it only to natural-language prose you write in the artifact body
 - Follow the existing template structure exactly; do not invent a different layout because the prose language changes
 - Keep template headings, IDs, schema keys, relation types, BDD keywords, file paths, commands, and code identifiers in their canonical form
-- If `docLanguage` is missing, keep the default writing behavior for prose
+- If no `docLanguage` projection is present, keep the default writing behavior for prose
 
 - **IMPORTANT**: `context` and `rules` are constraints for YOU, not content for the file
   - Do NOT copy `<context>`, `<rules>`, `<project_context>` blocks into the artifact
