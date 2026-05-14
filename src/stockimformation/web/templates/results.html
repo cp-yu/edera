@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="split">
+  <article>
+    <h1>最新简报</h1>
+    {% if briefing %}
+      <p class="muted">cycle {{ briefing.cycle_id }} · {{ briefing.created_at }}</p>
+      <pre>{{ briefing.content }}</pre>
+    {% else %}
+      <p class="empty">暂无简报。</p>
+    {% endif %}
+  </article>
+  <aside>
+    <h2>失败源</h2>
+    {% if failed_sources %}
+      <ul>
+        {% for source, message in failed_sources.items() %}
+          <li><strong>{{ source }}</strong> {{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">暂无失败源。</p>
+    {% endif %}
+  </aside>
+</section>
+<section>
+  <h2>建议</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>标的</th>
+          <th>方向</th>
+          <th>置信度</th>
+          <th>原因</th>
+          <th>创建时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for advice in advices %}
+          <tr>
+            <td>{{ advice.stock_code }} {{ advice.stock_name }}</td>
+            <td>{{ advice.direction }}{% if advice.low_confidence %} <span class="tag">低置信</span>{% endif %}</td>
+            <td>{{ "%.2f"|format(advice.confidence) }}</td>
+            <td>{{ advice.reason }}</td>
+            <td>{{ advice.created_at }}</td>
+          </tr>
+          <tr>
+            <td colspan="5">
+              <details>
+                <summary>证据链</summary>
+                <ul>
+                  {% for url in advice.source_urls %}
+                    <li><a href="{{ url }}">{{ url }}</a></li>
+                  {% endfor %}
+                </ul>
+                <pre>{{ advice.source_quotes }}</pre>
+              </details>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="empty">暂无建议。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

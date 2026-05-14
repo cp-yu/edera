@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h1>配置编辑</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <div class="config-layout">
+    <nav class="file-list" aria-label="config files">
+      {% for file in files %}
+        <a class="{{ 'active' if file.path == current.path else '' }}" href="/config?kind={{ file.kind }}&name={{ file.name }}">
+          {{ file.kind }} · {{ file.name }}
+        </a>
+      {% endfor %}
+    </nav>
+    <form method="post" action="/config" class="editor">
+      <input type="hidden" name="kind" value="{{ current.kind }}">
+      <input type="hidden" name="name" value="{{ current.name }}">
+      <label for="content">{{ current.path }}</label>
+      <textarea id="content" name="content" spellcheck="false">{{ current.content }}</textarea>
+      <button type="submit">保存</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

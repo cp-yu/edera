@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 
 from stockimformation.dag.loader import topological_layers
 from stockimformation.dag.models import DagGraph, DagRunResult
@@ -9,10 +9,13 @@ from stockimformation.errors import DagError
 from stockimformation.node.executor import NodeExecutor
 from stockimformation.node.models import NodeContext, NodeInput, NodeOutput
 
+NodeRunRecorder = Callable[[str, str, str | None], Awaitable[None]]
+
 
 class DagRunner:
-    def __init__(self, executor: NodeExecutor) -> None:
+    def __init__(self, executor: NodeExecutor, recorder: NodeRunRecorder | None = None) -> None:
         self.executor = executor
+        self.recorder = recorder
 
     async def run(self, graph: DagGraph, cycle_id: str, initial_payload: object) -> DagRunResult:
         outputs: dict[str, NodeOutput] = {}
@@ -56,7 +59,14 @@ class DagRunner:
             metadata={"upstreams": graph.reverse_edges[node]},
         )
         context = NodeContext(cycle_id=cycle_id, instance_id=node)
-        return node, await self.executor.execute(node, node_input, context)
+        await self._record(node, "running")
+        output = await self.executor.execute(node, node_input, context)
+        await self._record(node, "succeeded" if output.ok else "failed", output.error)
+        return node, output
+
+    async def _record(self, node: str, status: str, error: str | None = None) -> None:
+        if self.recorder is not None:
+            await self.recorder(node, status, error)
 
     def _input_payload(
         self,

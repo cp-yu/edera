@@ -6,6 +6,10 @@ class ConfigError(StockImformationError):
     pass
 
 
+class ConfigEditError(ConfigError):
+    pass
+
+
 class DatabaseError(StockImformationError):
     pass
 

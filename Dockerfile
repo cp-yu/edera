@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN pip install --no-cache-dir uv
+EXPOSE 8000
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN uv pip install --system .

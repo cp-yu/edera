@@ -22,11 +22,20 @@ class RuntimeSettings(BaseSettings):
 class SystemConfig(BaseModel):
     database_url: str = "sqlite+aiosqlite:///data/stockimformation.db"
     schedule_minutes: int = Field(default=30, ge=1)
+    web_host: str = "127.0.0.1"
+    web_port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = "INFO"
     llm_timeout_seconds: float = Field(default=60.0, gt=0)
     workspace_root: Path = Path("/tmp/stockimformation/runs")
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=24, ge=0)
+
+    @field_validator("web_host")
+    @classmethod
+    def _local_web_host(cls, value: str) -> str:
+        if value != "127.0.0.1":
+            raise ValueError("web_host must be 127.0.0.1")
+        return value
 
 
 class Holding(BaseModel):

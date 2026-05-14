@@ -1,0 +1,27 @@
+# OPSX Architecture Map — stockImformation
+# Bootstrapped from: web-control-panel change
+
+domains:
+  - name: web
+    description: 本机 Web 控制台 — 页面、API、本机访问边界
+    capabilities:
+      - id: local-web-console
+        description: 仅本机访问的 Web 控制台，覆盖导航、页面渲染、HTTP API 和本地访问边界
+        spec: specs/local-web-console/spec.md
+      - id: result-explorer
+        description: 结果浏览能力，覆盖简报、建议、分析、原文和失败信息的查询与展示
+        spec: specs/result-explorer/spec.md
+
+  - name: operations
+    description: 管道操作面 — 调度控制、手动运行、停止运行和状态记录
+    capabilities:
+      - id: pipeline-control
+        description: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态与运行记录
+        spec: specs/pipeline-control/spec.md
+
+  - name: config
+    description: 配置管理域 — 分层配置体系与运行时编辑
+    capabilities:
+      - id: runtime-config-editing
+        description: 运行时配置编辑能力，覆盖 portfolio/system/node/dag/skill 配置读取、校验、保存与错误反馈
+        spec: specs/runtime-config-editing/spec.md

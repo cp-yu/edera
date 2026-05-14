@@ -7,4 +7,7 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
       - ./config:/app/config
+      - ./skills:/app/skills
+    ports:
+      - "127.0.0.1:8000:8000"
     restart: unless-stopped

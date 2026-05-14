@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-05-14T08:59:39.101Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "5097e1db6da9caf7f44542e8f302994dd02175bf2ba1cc0cb8e7ce111927baea",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "agent-verified",
+    "evidenceFiles": [
+      "Dockerfile",
+      "README.md",
+      "alembic/versions/0002_pipeline_runs.py",
+      "config/system.toml",
+      "docker-compose.yaml",
+      "pyproject.toml",
+      "src/stockimformation/config/editor.py",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/dag/runner.py",
+      "src/stockimformation/errors.py",
+      "src/stockimformation/main.py",
+      "src/stockimformation/models/entities.py",
+      "src/stockimformation/models/repository.py",
+      "src/stockimformation/pipeline.py",
+      "src/stockimformation/web/app.py",
+      "src/stockimformation/web/routes.py",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_config_editor.py",
+      "tests/unit/test_repository.py"
+    ],
+    "evidenceFingerprint": "76b847ad7394b6a93d713d0df1f3810d78af42186c985283ab983a58cb9a5bcb",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "74761a5892200aa5c5566e91d44dea190d921597"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T09:00:43.344Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T08:59:39.101Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "5097e1db6da9caf7f44542e8f302994dd02175bf2ba1cc0cb8e7ce111927baea",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "agent-verified",
+        "evidenceFiles": [
+          "Dockerfile",
+          "README.md",
+          "alembic/versions/0002_pipeline_runs.py",
+          "config/system.toml",
+          "docker-compose.yaml",
+          "pyproject.toml",
+          "src/stockimformation/config/editor.py",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/dag/runner.py",
+          "src/stockimformation/errors.py",
+          "src/stockimformation/main.py",
+          "src/stockimformation/models/entities.py",
+          "src/stockimformation/models/repository.py",
+          "src/stockimformation/pipeline.py",
+          "src/stockimformation/web/app.py",
+          "src/stockimformation/web/routes.py",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_config_editor.py",
+          "tests/unit/test_repository.py"
+        ],
+        "evidenceFingerprint": "76b847ad7394b6a93d713d0df1f3810d78af42186c985283ab983a58cb9a5bcb",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "74761a5892200aa5c5566e91d44dea190d921597"
+      }
+    }
+  }
+}
