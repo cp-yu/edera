@@ -1,0 +1,20 @@
+change: add-node-graph-dag-editor
+domains:
+  - name: web
+    capabilities:
+      add:
+        - id: node-graph-dag-editor
+          description: ComfyUI 风格 Node Graph DAG 编排界面，覆盖节点画布、palette、Inspector、图状态 API 和运行状态叠加
+          spec: specs/node-graph-dag-editor/spec.md
+  - name: config
+    capabilities:
+      modify:
+        - id: runtime-config-editing
+          description: 将 DAG/Node 主要 Web 编辑体验扩展为 Node Graph，并保留 YAML 兜底和原子校验保存语义
+          spec: specs/runtime-config-editing/spec.md
+  - name: operations
+    capabilities:
+      modify:
+        - id: pipeline-control
+          description: 为 Node Graph 编辑器提供可映射到节点名称的运行状态数据
+          spec: specs/pipeline-control/spec.md
