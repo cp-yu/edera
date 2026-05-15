@@ -531,6 +531,8 @@ async def test_web_config_page_lists_analysis_tuning_entries(tmp_path: Path) -> 
     assert "rss-fetcher" in response.text
     assert "source_names" in response.text
     assert "parameters" in response.text
+    assert "DAG 编辑" in response.text
+    assert "DAG 结构化编辑" in response.text
 
 
 @pytest.mark.asyncio
@@ -549,6 +551,131 @@ async def test_web_config_page_lists_portfolio_entries(tmp_path: Path) -> None:
     assert "sample-rss" in response.text
     assert "portfolio JSON" in response.text
     assert "保存标的与信息源" in response.text
+
+
+@pytest.mark.asyncio
+async def test_web_config_dag_page_shows_structured_editor(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            dag_response = await client.get("/config", params={"kind": "dag", "name": "default"})
+            node_response = await client.get("/config", params={"kind": "node", "name": "reader"})
+        finally:
+            await app.state.controller.shutdown()
+    assert dag_response.status_code == 200
+    assert "DAG 结构化编辑" in dag_response.text
+    assert "data-dag-editor" in dag_response.text
+    assert "rss-fetcher" in dag_response.text
+    assert "fan_in" in dag_response.text
+    assert "保存 DAG 结构" in dag_response.text
+    assert "dags/default.yaml" in dag_response.text
+    assert node_response.status_code == 200
+    assert "data-dag-editor" not in node_response.text
+    assert "保存 DAG 结构" not in node_response.text
+
+
+@pytest.mark.asyncio
+async def test_web_config_dag_form_saves_valid_dag(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post(
+                "/config/dag",
+                data={
+                    "name": "default",
+                    "nodes": ["rss-fetcher", "reader", "advisor"],
+                    "edges_json": (
+                        '[{"from":"rss-fetcher","to":"reader","fan_in":true},'
+                        '{"from":"reader","to":"advisor"}]'
+                    ),
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    saved = (root / "config" / "dags" / "default.yaml").read_text()
+    assert response.status_code == 200
+    assert "DAG 结构化编辑" in response.text
+    assert "fan_in: true" in saved
+    assert "to: advisor" in saved
+
+
+@pytest.mark.asyncio
+async def test_web_config_dag_form_rejects_cycle_without_writing(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post(
+                "/config/dag",
+                data={
+                    "name": "default",
+                    "nodes": ["rss-fetcher", "reader"],
+                    "edges_json": (
+                        '[{"from":"rss-fetcher","to":"reader"},'
+                        '{"from":"reader","to":"rss-fetcher"}]'
+                    ),
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert "DAG contains a cycle" in response.text
+    assert dag_path.read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_web_config_dag_form_rejects_unknown_node_without_writing(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post(
+                "/config/dag",
+                data={
+                    "name": "default",
+                    "nodes": ["rss-fetcher", "missing-node"],
+                    "edges_json": '[{"from":"rss-fetcher","to":"missing-node"}]',
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert "missing node config" in response.text
+    assert dag_path.read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_web_config_dag_form_rejects_io_mismatch_without_writing(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post(
+                "/config/dag",
+                data={
+                    "name": "default",
+                    "nodes": ["rss-fetcher", "advisor"],
+                    "edges_json": '[{"from":"rss-fetcher","to":"advisor"}]',
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert "I/O type mismatch" in response.text
+    assert dag_path.read_text() == original
 
 
 @pytest.mark.asyncio
