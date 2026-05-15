@@ -1,0 +1,70 @@
+{
+  "timestamp": "2026-05-14T16:27:37.619Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "953220acc6877685e0f3ef5c14cefbc4acde50b2a3b3fb5fa98144d54959a965",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-orchestrated",
+    "evidenceFiles": [
+      "README.md",
+      "config/portfolio.yaml",
+      "openspec/changes/add-minimax-retrieval-test/design.md",
+      "openspec/changes/add-minimax-retrieval-test/opsx-delta.yaml",
+      "openspec/changes/add-minimax-retrieval-test/proposal.md",
+      "openspec/changes/add-minimax-retrieval-test/specs/minimax-retrieval-acceptance/spec.md",
+      "openspec/changes/add-minimax-retrieval-test/specs/result-explorer/spec.md",
+      "openspec/changes/add-minimax-retrieval-test/tasks.md",
+      "openspec/specs/minimax-retrieval-acceptance/spec.md",
+      "openspec/specs/result-explorer/spec.md",
+      "tests/e2e/test_pipeline.py",
+      "tests/fixtures/minimax_text_chat.html",
+      "tests/integration/test_dag_runner.py",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_config_collection_notification.py"
+    ],
+    "evidenceFingerprint": "b38d6447e666d5879d3289524848d7de92c428b834a51f888c4ec29aefaf2e6f",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T16:27:37.807Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T16:27:37.619Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "953220acc6877685e0f3ef5c14cefbc4acde50b2a3b3fb5fa98144d54959a965",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-orchestrated",
+        "evidenceFiles": [
+          "README.md",
+          "config/portfolio.yaml",
+          "openspec/changes/add-minimax-retrieval-test/design.md",
+          "openspec/changes/add-minimax-retrieval-test/opsx-delta.yaml",
+          "openspec/changes/add-minimax-retrieval-test/proposal.md",
+          "openspec/changes/add-minimax-retrieval-test/specs/minimax-retrieval-acceptance/spec.md",
+          "openspec/changes/add-minimax-retrieval-test/specs/result-explorer/spec.md",
+          "openspec/changes/add-minimax-retrieval-test/tasks.md",
+          "openspec/specs/minimax-retrieval-acceptance/spec.md",
+          "openspec/specs/result-explorer/spec.md",
+          "tests/e2e/test_pipeline.py",
+          "tests/fixtures/minimax_text_chat.html",
+          "tests/integration/test_dag_runner.py",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_config_collection_notification.py"
+        ],
+        "evidenceFingerprint": "b38d6447e666d5879d3289524848d7de92c428b834a51f888c4ec29aefaf2e6f",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+      }
+    }
+  }
+}

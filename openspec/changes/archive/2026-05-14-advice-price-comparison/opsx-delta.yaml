@@ -1,0 +1,10 @@
+modified:
+  capabilities:
+    - id: trade-advisory
+      description: 交易建议能力补充基于本地价格历史的历史建议方向一致性判定
+      spec: specs/trade-advisory/spec.md
+    - id: result-explorer
+      description: 结果浏览能力补充建议价格对比的 API 和 WebUI 展示
+      spec: specs/result-explorer/spec.md
+added: {}
+removed: {}

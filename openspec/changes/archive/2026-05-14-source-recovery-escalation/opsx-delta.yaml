@@ -1,0 +1,12 @@
+modified:
+  domains:
+    - name: operations
+      capabilities:
+        - id: source-health-monitoring
+          description: 信息源健康监控能力，覆盖成功率、最近失败原因、执行日志、源级恢复状态、用户升级和外部修复任务交接
+          spec: specs/source-health-monitoring/spec.md
+        - id: pipeline-control
+          description: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态、运行记录和源级恢复执行追溯
+          spec: specs/pipeline-control/spec.md
+added: {}
+removed: {}

@@ -1,0 +1,14 @@
+added:
+  domains:
+    - name: acceptance
+      description: 验收闭环 — 外部公开源、管道产物与 Web 证据链的端到端证明
+      capabilities:
+        - id: minimax-retrieval-acceptance
+          description: MiniMax 官方文档信息获取验收，覆盖配置、采集、管道产物和 Web API 证据展示
+          spec: specs/minimax-retrieval-acceptance/spec.md
+modified:
+  capabilities:
+    - id: result-explorer
+      description: 结果浏览能力补充 MiniMax 来源建议证据链展示
+      spec: specs/result-explorer/spec.md
+removed: {}

@@ -1,0 +1,7 @@
+modified:
+  capabilities:
+    - id: result-explorer
+      description: 结果浏览能力补充新 Briefing 到达后的自动刷新
+      spec: specs/result-explorer/spec.md
+added: {}
+removed: {}

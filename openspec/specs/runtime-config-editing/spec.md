@@ -1,5 +1,7 @@
-## ADDED Requirements
+## Purpose
 
+定义运行时配置编辑能力，包括读取、展示、校验、原子保存 config 与 skills 文档，并保持运行中周期使用启动时配置快照。
+## Requirements
 ### Requirement: Read runtime configuration
 系统 SHALL 从现有 `config/` 和 `skills/` 目录读取可编辑配置，并通过 WebUI 展示。
 
@@ -50,3 +52,92 @@
 #### Scenario: Reject path traversal
 - **WHEN** 用户请求编辑 `skills/` 目录外的路径
 - **THEN** 系统 MUST 拒绝该请求
+
+### Requirement: Analysis parameter tuning entry
+系统 SHALL 在 Web 配置界面提供分析参数调优入口，帮助用户定位会影响分析链结果的运行时配置。
+
+#### Scenario: View analysis tuning entry
+- **WHEN** 用户打开 Web 配置界面
+- **THEN** 系统 SHALL 提供分析参数调优入口，并展示可调参数对应的配置来源
+
+#### Scenario: Preserve generic config editing
+- **WHEN** 用户使用通用配置编辑入口
+- **THEN** 系统 SHALL 继续支持编辑 `system`、`portfolio`、`node`、`dag` 和 `skill` 配置
+
+### Requirement: Bounded analysis parameters
+系统 MUST 将第一版分析参数调优限制在 schema 明确允许的配置字段内，包括 `NodeConfig.timeout_seconds`、`NodeConfig.model`、采集节点 `source_names`、`SystemConfig.llm_timeout_seconds`，以及节点 YAML 中的 `parameters` mapping。
+
+#### Scenario: Show supported node parameters
+- **WHEN** 用户查看分析参数调优入口
+- **THEN** 系统 SHALL 展示 reader/advisor/briefing 相关节点中可编辑的 `model`、`timeout_seconds` 和 `parameters` 字段
+
+#### Scenario: Show analysis input source parameters
+- **WHEN** 用户查看分析参数调优入口
+- **THEN** 系统 SHALL 展示采集节点的 `source_names`，用于调整后续分析输入范围
+
+#### Scenario: Reject unsupported analysis parameter
+- **WHEN** 用户提交 schema 未允许的分析参数字段
+- **THEN** 系统 MUST 拒绝保存并返回校验错误
+
+### Requirement: Node private tuning parameters
+系统 SHALL 支持在 Node YAML 中配置 `parameters` mapping，用于节点私有、非凭据、可序列化的分析调优参数。
+
+#### Scenario: Save node parameters
+- **WHEN** 用户为 reader、advisor 或 briefing 节点提交合法 `parameters` mapping
+- **THEN** 系统 SHALL 保存对应 Node YAML，并让新参数仅影响后续运行
+
+#### Scenario: Reject invalid node parameters
+- **WHEN** 用户提交不可序列化或不符合 schema 的 `parameters` 内容
+- **THEN** 系统 MUST 拒绝保存并返回校验错误
+
+### Requirement: Analysis tuning save semantics
+系统 SHALL 复用运行时配置编辑的保存前校验、原子写入和运行中配置快照语义保存分析参数。
+
+#### Scenario: Save valid analysis tuning
+- **WHEN** 用户在分析参数调优入口提交合法参数
+- **THEN** 系统 SHALL 原子写入对应配置文件，并返回保存成功状态
+
+#### Scenario: Active run keeps previous parameters
+- **WHEN** 用户在管道运行中保存新的分析参数
+- **THEN** 系统 SHALL 让当前运行继续使用启动时配置，并让新参数只影响后续运行
+
+### Requirement: Analysis tuning rollback boundary
+系统 SHALL 在第一版明确分析参数调优不提供内置版本历史或一键回滚。
+
+#### Scenario: Save without internal version history
+- **WHEN** 用户保存分析参数
+- **THEN** 系统 SHALL 不创建数据库参数版本记录，并 SHALL 保持配置文件为唯一运行时参数来源
+
+### Requirement: Structured portfolio management entry
+系统 SHALL 在 Web 配置界面提供结构化标的与信息源管理入口，展示 `portfolio.yaml` 中的 targets、holdings、sources 和绑定关系。
+
+#### Scenario: View portfolio targets and sources
+- **WHEN** 用户打开 Web 配置界面
+- **THEN** 系统 SHALL 展示当前标的、持仓数量、成本价、绑定的信息源和所有可用信息源
+
+#### Scenario: Preserve raw portfolio editing
+- **WHEN** 用户需要直接编辑 `portfolio.yaml`
+- **THEN** 系统 SHALL 继续提供通用配置编辑入口
+
+### Requirement: Structured portfolio save
+系统 SHALL 支持通过结构化 Web/API 请求保存 portfolio targets 和 sources，并写回现有 `config/portfolio.yaml`。
+
+#### Scenario: Save valid portfolio structure
+- **WHEN** 用户提交符合 `PortfolioConfig` schema 的 targets 和 sources
+- **THEN** 系统 SHALL 原子写入 `portfolio.yaml`，并返回保存成功状态
+
+#### Scenario: Reject invalid portfolio structure
+- **WHEN** 用户提交非法 URL、非法 source type、负数持仓或缺失必填字段
+- **THEN** 系统 MUST 拒绝保存并返回校验错误
+
+#### Scenario: Reject target source reference to missing source
+- **WHEN** 用户提交的 target 引用不存在的信息源名称
+- **THEN** 系统 MUST 拒绝保存并返回校验错误
+
+### Requirement: Portfolio save semantics
+系统 SHALL 复用运行时配置编辑的保存前校验、原子写入和运行中配置快照语义保存 portfolio 管理变更。
+
+#### Scenario: Active run keeps previous portfolio
+- **WHEN** 用户在管道运行中保存新的标的或信息源配置
+- **THEN** 系统 SHALL 让当前运行继续使用启动时配置，并让新配置只影响后续运行
+

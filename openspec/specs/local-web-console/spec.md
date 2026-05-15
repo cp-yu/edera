@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+定义本机 Web 控制台基础能力，包括默认本机监听、浏览器访问、统一导航和 WebUI API 错误格式。
+
+## Requirements
 
 ### Requirement: Local-only web binding
 系统 SHALL 提供本机 Web 控制台，并且默认只监听 `127.0.0.1`。

@@ -1,0 +1,26 @@
+added:
+  domains:
+    - name: data
+      description: 数据层 — 共享模型与持久化
+      capabilities:
+        - id: data-models
+          description: 数据模型能力，覆盖 RawItem、AnalysisResult、Advice、Briefing、EventRecord 和持久化约束
+          spec: specs/data-models/spec.md
+    - name: analysis
+      description: 信息分析域 — 摘要、分类、跨源事件归并与矛盾检测
+      capabilities:
+        - id: information-analysis
+          description: 信息分析能力，覆盖摘要生成、关键词提取、利好利空分类、原文溯源、跨源事件归并和矛盾检测
+          spec: specs/information-analysis/spec.md
+    - name: events
+      description: 事件态势域 — 跨源事件记录、生命周期、热度和证据追踪
+      capabilities:
+        - id: event-management
+          description: 事件管理能力，覆盖事件创建更新、生命周期状态、确定性热度分数和事件证据链接
+          spec: specs/event-management/spec.md
+modified:
+  capabilities:
+    - id: result-explorer
+      description: 结果浏览能力补充事件组、矛盾标记、生命周期、热度分数和关联证据的 API/WebUI 展示
+      spec: specs/result-explorer/spec.md
+removed: {}

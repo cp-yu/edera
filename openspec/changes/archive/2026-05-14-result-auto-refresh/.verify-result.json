@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-05-14T18:02:57.680Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "7c7596e95a20b9f754914e7e0fe9b7f9e839fce5fa0ab973f6672a93f83dd69b",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "local",
+    "evidenceFiles": [
+      "openspec/changes/result-auto-refresh/tasks.md",
+      "openspec/specs/result-explorer/spec.md",
+      "src/stockimformation/web/routes.py",
+      "src/stockimformation/web/templates/results.html",
+      "tests/integration/test_web_api.py"
+    ],
+    "evidenceFingerprint": "380773764a687126a460e8a0909b480b66f38a1c9cb83c9a2037c2276fbc9588",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T18:02:57.865Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T18:02:57.680Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "7c7596e95a20b9f754914e7e0fe9b7f9e839fce5fa0ab973f6672a93f83dd69b",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "local",
+        "evidenceFiles": [
+          "openspec/changes/result-auto-refresh/tasks.md",
+          "openspec/specs/result-explorer/spec.md",
+          "src/stockimformation/web/routes.py",
+          "src/stockimformation/web/templates/results.html",
+          "tests/integration/test_web_api.py"
+        ],
+        "evidenceFingerprint": "380773764a687126a460e8a0909b480b66f38a1c9cb83c9a2037c2276fbc9588",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+domains:
+  - name: operations
+    capabilities:
+      ADDED:
+        - id: source-health-monitoring
+          description: 信息源健康监控能力，覆盖成功率、最近失败原因和执行日志查询
+          spec: specs/source-health-monitoring/spec.md

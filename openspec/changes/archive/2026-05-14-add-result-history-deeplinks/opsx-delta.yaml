@@ -1,0 +1,7 @@
+modified:
+  capabilities:
+    - id: result-explorer
+      description: 结果浏览能力补充历史简报检索、建议过滤、简报详情和建议证据链深链
+      spec: specs/result-explorer/spec.md
+added: {}
+removed: {}

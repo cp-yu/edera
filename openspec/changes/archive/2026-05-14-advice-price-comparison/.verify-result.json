@@ -1,0 +1,70 @@
+{
+  "timestamp": "2026-05-14T23:00:13.673Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "8e9c969b326cca4c349d1873acf89afeb124b9fec35a4909596f5ddfc3684cd2",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer-subagent",
+    "evidenceFiles": [
+      "openspec/changes/advice-price-comparison/design.md",
+      "openspec/changes/advice-price-comparison/opsx-delta.yaml",
+      "openspec/changes/advice-price-comparison/proposal.md",
+      "openspec/changes/advice-price-comparison/specs/result-explorer/spec.md",
+      "openspec/changes/advice-price-comparison/specs/trade-advisory/spec.md",
+      "openspec/changes/advice-price-comparison/tasks.md",
+      "openspec/project.opsx.yaml",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/services/price_comparison.py",
+      "src/stockimformation/web/routes.py",
+      "src/stockimformation/web/static/styles.css",
+      "src/stockimformation/web/templates/advice_detail.html",
+      "src/stockimformation/web/templates/results.html",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_price_comparison.py"
+    ],
+    "evidenceFingerprint": "59ac210059ddc597adbf435016876232cc8b06b23dfee0dd7d0b244df12d7a3c",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T23:01:40.392Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T23:00:13.673Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "8e9c969b326cca4c349d1873acf89afeb124b9fec35a4909596f5ddfc3684cd2",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer-subagent",
+        "evidenceFiles": [
+          "openspec/changes/advice-price-comparison/design.md",
+          "openspec/changes/advice-price-comparison/opsx-delta.yaml",
+          "openspec/changes/advice-price-comparison/proposal.md",
+          "openspec/changes/advice-price-comparison/specs/result-explorer/spec.md",
+          "openspec/changes/advice-price-comparison/specs/trade-advisory/spec.md",
+          "openspec/changes/advice-price-comparison/tasks.md",
+          "openspec/project.opsx.yaml",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/services/price_comparison.py",
+          "src/stockimformation/web/routes.py",
+          "src/stockimformation/web/static/styles.css",
+          "src/stockimformation/web/templates/advice_detail.html",
+          "src/stockimformation/web/templates/results.html",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_price_comparison.py"
+        ],
+        "evidenceFingerprint": "59ac210059ddc597adbf435016876232cc8b06b23dfee0dd7d0b244df12d7a3c",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+      }
+    }
+  }
+}

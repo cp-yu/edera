@@ -19,6 +19,13 @@ domains:
         description: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态与运行记录
         spec: specs/pipeline-control/spec.md
 
+  - name: advisory
+    description: 交易建议域 — 建议生成、历史复盘与建议质量评估
+    capabilities:
+      - id: trade-advisory
+        description: 交易建议能力，覆盖建议生成、审计字段与历史建议价格复盘
+        spec: specs/trade-advisory/spec.md
+
   - name: config
     description: 配置管理域 — 分层配置体系与运行时编辑
     capabilities:

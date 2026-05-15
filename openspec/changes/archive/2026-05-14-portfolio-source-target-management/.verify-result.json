@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-05-14T18:26:56.513Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "3da57e887042e66c65d9a4f9a3fad6a285a75cd99a6a17eaf5107e8a439bbed4",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "current-agent",
+    "evidenceFiles": [
+      "openspec/changes/portfolio-source-target-management/design.md",
+      "openspec/changes/portfolio-source-target-management/proposal.md",
+      "openspec/changes/portfolio-source-target-management/specs/runtime-config-editing/spec.md",
+      "openspec/changes/portfolio-source-target-management/tasks.md",
+      "src/stockimformation/web/routes.py",
+      "src/stockimformation/web/static/styles.css",
+      "src/stockimformation/web/templates/config.html",
+      "tests/integration/test_web_api.py"
+    ],
+    "evidenceFingerprint": "f2bc23cf10cffd118e06c1ed835ca2a38d211226bedca1fae8b56fbe18db33a5",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T18:27:04.787Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T18:26:56.513Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "3da57e887042e66c65d9a4f9a3fad6a285a75cd99a6a17eaf5107e8a439bbed4",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "current-agent",
+        "evidenceFiles": [
+          "openspec/changes/portfolio-source-target-management/design.md",
+          "openspec/changes/portfolio-source-target-management/proposal.md",
+          "openspec/changes/portfolio-source-target-management/specs/runtime-config-editing/spec.md",
+          "openspec/changes/portfolio-source-target-management/tasks.md",
+          "src/stockimformation/web/routes.py",
+          "src/stockimformation/web/static/styles.css",
+          "src/stockimformation/web/templates/config.html",
+          "tests/integration/test_web_api.py"
+        ],
+        "evidenceFingerprint": "f2bc23cf10cffd118e06c1ed835ca2a38d211226bedca1fae8b56fbe18db33a5",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+      }
+    }
+  }
+}

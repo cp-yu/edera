@@ -1,5 +1,7 @@
-## ADDED Requirements
+## Purpose
 
+定义管道运行控制能力，包括运行记录、节点状态记录、手动运行、并发拒绝、调度暂停恢复、停止当前运行和状态展示。
+## Requirements
 ### Requirement: Persistent pipeline runs
 系统 SHALL 持久化每次管道运行的 cycle_id、触发来源、状态、开始时间、结束时间和错误信息。
 
@@ -57,3 +59,19 @@
 #### Scenario: View pipeline status
 - **WHEN** 用户打开管道控制页面
 - **THEN** 系统 SHALL 展示 scheduler 是否运行、是否暂停、当前 cycle_id 和最近运行列表
+
+### Requirement: Source recovery execution recording
+系统 SHALL 将源级自动恢复尝试关联到现有管道运行上下文，MUST 通过 `PipelineRun.cycle_id`、对应 source 的 `NodeRun` 和 `Briefing.metadata_` 追溯恢复结果。
+
+#### Scenario: Record successful recovery in pipeline context
+- **WHEN** 某信息源在同一 cycle 内经过自动恢复后成功
+- **THEN** 系统 SHALL 将对应 `NodeRun` 的最终状态记录为 `succeeded`，并在 `Briefing.metadata_` 中记录该 source 的恢复尝试摘要
+
+#### Scenario: Record exhausted recovery in pipeline context
+- **WHEN** 某信息源自动恢复尝试耗尽后仍失败
+- **THEN** 系统 SHALL 将对应 `NodeRun` 的最终状态记录为 `failed`，并在 `Briefing.metadata_` 中记录 attempt_count、恢复失败原因和升级状态
+
+#### Scenario: Preserve cycle traceability for repair handoff
+- **WHEN** 用户生成外部修复任务交接包
+- **THEN** 系统 SHALL 在交接包中包含最近失败 `PipelineRun.cycle_id` 和对应 `NodeRun` 错误，以便外部辅助能力追溯执行上下文
+

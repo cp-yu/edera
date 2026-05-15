@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-05-14T17:34:37.845Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "93fe44b5362bb546c2b238015619ab9f328813fadd75341106254e9f31d14d7e",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "current-agent-verified",
+    "evidenceFiles": [
+      "openspec/changes/add-current-summary-inbox/design.md",
+      "openspec/changes/add-current-summary-inbox/proposal.md",
+      "openspec/changes/add-current-summary-inbox/specs/result-explorer/spec.md",
+      "openspec/changes/add-current-summary-inbox/tasks.md",
+      "src/stockimformation/web/routes.py",
+      "src/stockimformation/web/static/styles.css",
+      "src/stockimformation/web/templates/results.html",
+      "tests/integration/test_web_api.py"
+    ],
+    "evidenceFingerprint": "7cced065c7a01c4f5277d31c0aff8cc53659a0e01119261bb78d7e25787c0fcf",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T17:34:38.020Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T17:34:37.845Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "93fe44b5362bb546c2b238015619ab9f328813fadd75341106254e9f31d14d7e",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "current-agent-verified",
+        "evidenceFiles": [
+          "openspec/changes/add-current-summary-inbox/design.md",
+          "openspec/changes/add-current-summary-inbox/proposal.md",
+          "openspec/changes/add-current-summary-inbox/specs/result-explorer/spec.md",
+          "openspec/changes/add-current-summary-inbox/tasks.md",
+          "src/stockimformation/web/routes.py",
+          "src/stockimformation/web/static/styles.css",
+          "src/stockimformation/web/templates/results.html",
+          "tests/integration/test_web_api.py"
+        ],
+        "evidenceFingerprint": "7cced065c7a01c4f5277d31c0aff8cc53659a0e01119261bb78d7e25787c0fcf",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+      }
+    }
+  }
+}

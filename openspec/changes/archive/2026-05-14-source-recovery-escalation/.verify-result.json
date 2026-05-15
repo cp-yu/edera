@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-05-14T18:42:39.935Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "b16e0043158c5ed22a84b9020f2be39a76d6658648c4ce6d6d9b619f86a1b82d",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "local",
+    "evidenceFiles": [
+      "openspec/changes/source-recovery-escalation/opsx-delta.yaml",
+      "openspec/changes/source-recovery-escalation/tasks.md",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/dag/runner.py",
+      "src/stockimformation/models/repository.py",
+      "src/stockimformation/node/executor.py",
+      "src/stockimformation/pipeline.py",
+      "src/stockimformation/services/briefing.py",
+      "src/stockimformation/services/collection.py",
+      "src/stockimformation/web/routes.py",
+      "src/stockimformation/web/templates/sources.html",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_config_collection_notification.py",
+      "tests/unit/test_repository.py"
+    ],
+    "evidenceFingerprint": "8f0427774dac342a645b115e6921505bb23a1b0f34ba46813ce0a29a829573d5",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-14T18:42:48.874Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-14T18:42:39.935Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "b16e0043158c5ed22a84b9020f2be39a76d6658648c4ce6d6d9b619f86a1b82d",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "local",
+        "evidenceFiles": [
+          "openspec/changes/source-recovery-escalation/opsx-delta.yaml",
+          "openspec/changes/source-recovery-escalation/tasks.md",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/dag/runner.py",
+          "src/stockimformation/models/repository.py",
+          "src/stockimformation/node/executor.py",
+          "src/stockimformation/pipeline.py",
+          "src/stockimformation/services/briefing.py",
+          "src/stockimformation/services/collection.py",
+          "src/stockimformation/web/routes.py",
+          "src/stockimformation/web/templates/sources.html",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_config_collection_notification.py",
+          "tests/unit/test_repository.py"
+        ],
+        "evidenceFingerprint": "8f0427774dac342a645b115e6921505bb23a1b0f34ba46813ce0a29a829573d5",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0f9fe62c94aa230a435bbf568e26d2a86ef2f645"
+      }
+    }
+  }
+}

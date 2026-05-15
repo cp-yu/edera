@@ -1,0 +1,9 @@
+modified:
+  domains:
+    - name: config
+      capabilities:
+        - id: runtime-config-editing
+          description: 运行时配置编辑能力，覆盖 portfolio/system/node/dag/skill 配置读取、校验、保存、错误反馈、分析参数调优和标的信息源管理入口
+          spec: specs/runtime-config-editing/spec.md
+added: {}
+removed: {}

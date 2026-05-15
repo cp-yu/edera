@@ -1,0 +1,8 @@
+change: add-current-summary-inbox
+domains:
+  web:
+    modifiedCapabilities:
+      - id: result-explorer
+        spec: openspec/specs/result-explorer/spec.md
+        delta: openspec/changes/add-current-summary-inbox/specs/result-explorer/spec.md
+        reason: 增加当前周期摘要 Inbox、metadata bar 和 Web 免责声明展示。
