@@ -66,6 +66,27 @@
       <button type="submit">保存标的与信息源</button>
     </form>
   </section>
+  <section class="tuning-panel" aria-labelledby="dag-entry-title">
+    <div>
+      <h2 id="dag-entry-title">DAG 编辑</h2>
+      <p class="muted">通过结构化表单维护节点、边和 fan flags；YAML 原文编辑仍保留。</p>
+    </div>
+    <div class="tuning-list">
+      {% for file in files %}
+        {% if file.kind == "dag" %}
+          <a class="tuning-item" href="/config?kind=dag&name={{ file.name }}">
+            <span>{{ file.name }}</span>
+            <span class="muted">DAG 结构化编辑</span>
+            <span>
+              <span class="tag">nodes</span>
+              <span class="tag">edges</span>
+              <span class="tag">fan flags</span>
+            </span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
   <section class="tuning-panel" aria-labelledby="analysis-tuning-title">
     <div>
       <h2 id="analysis-tuning-title">分析参数</h2>
@@ -93,13 +114,90 @@
         </a>
       {% endfor %}
     </nav>
-    <form method="post" action="/config" class="editor">
-      <input type="hidden" name="kind" value="{{ current.kind }}">
-      <input type="hidden" name="name" value="{{ current.name }}">
-      <label for="content">{{ current.path }}</label>
-      <textarea id="content" name="content" spellcheck="false" aria-describedby="analysis-tuning-help">{{ current.content }}</textarea>
-      <button type="submit">保存</button>
-    </form>
+    <div class="editor">
+      {% if dag %}
+        <section
+          class="dag-panel"
+          aria-labelledby="dag-editor-title"
+          data-dag-editor
+          data-nodes='{{ dag.nodes | tojson }}'
+          data-edges='{{ dag.edges | tojson }}'
+        >
+          <div>
+            <h2 id="dag-editor-title">DAG 结构化编辑</h2>
+            <p class="muted">保存后仍通过 DAG 校验；YAML 原文编辑保留在下方。</p>
+          </div>
+          <div class="dag-layout">
+            <div class="dag-preview" aria-label="DAG preview">
+              <svg data-dag-preview role="img" aria-label="DAG 预览"></svg>
+            </div>
+            <form method="post" action="/config/dag" class="editor dag-form" data-dag-form>
+              <input type="hidden" name="name" value="{{ current.name }}">
+              <input type="hidden" name="edges_json" value="{{ dag.edges_json }}" data-dag-edges-input>
+              <fieldset class="dag-node-list">
+                <legend>节点</legend>
+                {% for node in dag.all_nodes %}
+                  <label>
+                    <input type="checkbox" name="nodes" value="{{ node }}" {% if node in dag.nodes %}checked{% endif %}>
+                    {{ node }}
+                  </label>
+                {% endfor %}
+              </fieldset>
+              <div class="table-wrap">
+                <table class="dag-edge-table" data-dag-edge-table>
+                  <thead>
+                    <tr>
+                      <th scope="col">from</th>
+                      <th scope="col">to</th>
+                      <th scope="col">fan_in</th>
+                      <th scope="col">fan_out</th>
+                      <th scope="col">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for edge in dag.edges %}
+                      <tr>
+                        <td>
+                          <select data-edge-from>
+                            {% for node in dag.all_nodes %}
+                              <option value="{{ node }}" {% if edge["from"] == node %}selected{% endif %}>{{ node }}</option>
+                            {% endfor %}
+                          </select>
+                        </td>
+                        <td>
+                          <select data-edge-to>
+                            {% for node in dag.all_nodes %}
+                              <option value="{{ node }}" {% if edge["to"] == node %}selected{% endif %}>{{ node }}</option>
+                            {% endfor %}
+                          </select>
+                        </td>
+                        <td><input type="checkbox" data-edge-fan-in {% if edge.get("fan_in") %}checked{% endif %}></td>
+                        <td><input type="checkbox" data-edge-fan-out {% if edge.get("fan_out") %}checked{% endif %}></td>
+                        <td><button type="button" class="danger" data-remove-edge>删除</button></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="actions">
+                <button type="button" data-add-edge>添加边</button>
+                <button type="submit">保存 DAG 结构</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      {% endif %}
+      <form method="post" action="/config" class="editor">
+        <input type="hidden" name="kind" value="{{ current.kind }}">
+        <input type="hidden" name="name" value="{{ current.name }}">
+        <label for="content">{{ current.path }}</label>
+        <textarea id="content" name="content" spellcheck="false" aria-describedby="analysis-tuning-help">{{ current.content }}</textarea>
+        <button type="submit">保存</button>
+      </form>
+    </div>
   </div>
 </section>
+{% if dag %}
+  <script src="/static/dag_editor.js"></script>
+{% endif %}
 {% endblock %}

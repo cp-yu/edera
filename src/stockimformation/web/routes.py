@@ -11,8 +11,8 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from stockimformation.config.editor import ConfigKind, EditableFile, RuntimeConfigEditor
-from stockimformation.config.loader import load_portfolio_config, load_system_config
-from stockimformation.config.schema import PortfolioConfig
+from stockimformation.config.loader import load_node_configs, load_portfolio_config, load_system_config
+from stockimformation.config.schema import DagConfig, PortfolioConfig
 from stockimformation.errors import ConfigEditError, ConfigError
 from stockimformation.models.repository import (
     analyses_for_advice,
@@ -125,6 +125,7 @@ async def config_page(request: Request, kind: str = "system", name: str = "syste
             "current": current,
             "error": error,
             "analysis_tuning": _analysis_tuning(editor.list_files()),
+            "dag": _dag_view(config_dir(request), current),
             "portfolio": _portfolio_view(config_dir(request)),
         },
     )
@@ -153,6 +154,7 @@ async def save_config(
             "current": current,
             "error": error,
             "analysis_tuning": _analysis_tuning(editor.list_files()),
+            "dag": _dag_view(config_dir(request), current),
             "portfolio": _portfolio_view(config_dir(request)),
         },
     )
@@ -180,7 +182,39 @@ async def save_portfolio_config(
             "current": current,
             "error": error,
             "analysis_tuning": _analysis_tuning(editor.list_files()),
+            "dag": _dag_view(config_dir(request), current),
             "portfolio": _portfolio_view(config_dir(request), portfolio_json),
+        },
+    )
+
+
+@router.post("/config/dag", response_class=HTMLResponse)
+async def save_dag_config(
+    request: Request,
+    name: str = Form(),
+    nodes: list[str] = Form(default=[]),
+    edges_json: str = Form(default="[]"),
+) -> HTMLResponse:
+    editor = _editor(config_dir(request))
+    error = None
+    dag_payload: dict[str, object] | None = None
+    try:
+        dag_payload = _dag_payload(name, nodes, json.loads(edges_json))
+        current = _save_dag(editor, name, dag_payload)
+    except (ConfigEditError, json.JSONDecodeError) as exc:
+        current = editor.read("dag", name)
+        error = str(exc)
+    return templates(request).TemplateResponse(
+        request,
+        "config.html",
+        {
+            "active": "config",
+            "files": editor.list_files(),
+            "current": current,
+            "error": error,
+            "analysis_tuning": _analysis_tuning(editor.list_files()),
+            "dag": _dag_view(config_dir(request), current, dag_payload),
+            "portfolio": _portfolio_view(config_dir(request)),
         },
     )
 
@@ -639,6 +673,12 @@ def _save_portfolio(editor: RuntimeConfigEditor, body: object) -> EditableFile:
     return editor.save("portfolio", "portfolio", content)
 
 
+def _save_dag(editor: RuntimeConfigEditor, name: str, body: object) -> EditableFile:
+    payload = _dag_payload(name, body.get("nodes", []), body.get("edges", [])) if isinstance(body, dict) else {}
+    content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
+    return editor.save("dag", name, content)
+
+
 def _portfolio_payload(body: object) -> dict[str, object]:
     if not isinstance(body, dict):
         raise ConfigEditError("portfolio payload must be a mapping")
@@ -658,6 +698,63 @@ def _portfolio_payload(body: object) -> dict[str, object]:
     if missing:
         raise ConfigEditError(f"target references missing sources: {', '.join(missing)}")
     return portfolio.model_dump(mode="json")
+
+
+def _dag_view(
+    config_path: Path,
+    current: EditableFile,
+    draft: dict[str, object] | None = None,
+) -> dict[str, object] | None:
+    if current.kind != "dag":
+        return None
+    try:
+        payload = draft or DagConfig.model_validate(yaml.safe_load(current.content) or {}).model_dump(
+            by_alias=True,
+            mode="json",
+        )
+    except ValueError:
+        payload = {"name": current.name, "nodes": [], "edges": []}
+    node_names = sorted(load_node_configs(config_path / "nodes"))
+    raw_nodes = payload.get("nodes", [])
+    selected_nodes = [str(node) for node in raw_nodes] if isinstance(raw_nodes, list) else []
+    edges = payload.get("edges", [])
+    if not isinstance(edges, list):
+        edges = []
+    return {
+        "name": str(payload.get("name") or current.name),
+        "nodes": selected_nodes,
+        "all_nodes": node_names,
+        "edges": [edge for edge in edges if isinstance(edge, dict)],
+        "edges_json": json.dumps(edges, ensure_ascii=False),
+    }
+
+
+def _dag_payload(name: str, nodes: object, edges: object) -> dict[str, object]:
+    if not isinstance(nodes, list):
+        raise ConfigEditError("dag nodes must be a list")
+    if not isinstance(edges, list):
+        raise ConfigEditError("dag edges must be a list")
+    payload = {
+        "name": name,
+        "nodes": [str(node) for node in nodes],
+        "edges": [_dag_edge_payload(edge) for edge in edges],
+    }
+    return DagConfig.model_validate(payload).model_dump(by_alias=True, mode="json")
+
+
+def _dag_edge_payload(edge: object) -> dict[str, object]:
+    if not isinstance(edge, dict):
+        raise ConfigEditError("dag edge must be a mapping")
+    from_node = edge.get("from")
+    to_node = edge.get("to")
+    if not isinstance(from_node, str) or not isinstance(to_node, str):
+        raise ConfigEditError("dag edge requires from and to")
+    payload: dict[str, object] = {"from": from_node, "to": to_node}
+    if bool(edge.get("fan_out")):
+        payload["fan_out"] = True
+    if bool(edge.get("fan_in")):
+        payload["fan_in"] = True
+    return payload
 
 
 def _repair_task_payload(
