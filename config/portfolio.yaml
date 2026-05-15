@@ -8,11 +8,15 @@ targets:
       - sample-rss
       - sample-web
       - minimax-docs
+      - minimax-docs-index
+      - tonghuashun-minimax
   - code: "600519.SH"
     name: "Kweichow Moutai"
     sources:
       - sample-rss
       - minimax-docs
+      - minimax-docs-index
+      - tonghuashun-minimax
 sources:
   - name: sample-rss
     type: rss
@@ -25,3 +29,11 @@ sources:
     type: web
     url: https://platform.minimax.io/docs/api-reference/text-chat-openai
     regex: '<main[^>]*>.*?(?P<title>Text Chat \(Compatible OpenAI API\)).*?(?P<content>Bearer Auth.*?MiniMax-M2\.7.*?)</main>'
+  - name: minimax-docs-index
+    type: web
+    url: https://platform.minimax.io/docs/llms.txt
+    regex: '(?P<title># MiniMax API Docs).*?(?P<content>Text Chat \(Compatible OpenAI API\).*?MiniMax-M2\.7.*?)$'
+  - name: tonghuashun-minimax
+    type: web
+    url: https://basic.10jqka.com.cn/176/HK0100/field.html
+    regex: '(?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"'

@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from stockimformation.config.schema import SourceConfig
 from stockimformation.models import (
     Advice,
     AnalysisResult,
@@ -25,6 +26,7 @@ from stockimformation.models.repository import (
     store_cycle_outputs,
 )
 from stockimformation.pipeline import PipelineController, RunAlreadyActiveError
+from stockimformation.services import collection
 from stockimformation.web.app import create_app
 
 
@@ -660,6 +662,86 @@ async def test_web_config_api_keeps_generic_skill_editing(tmp_path: Path) -> Non
     assert (root / "skills" / "fetch-rss" / "skill.md").read_text() == "# skill\n"
 
 
+@pytest.mark.asyncio
+async def test_minimax_multi_source_llm_cycle_surfaces_web_features(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _copy_project_config(tmp_path)
+    config_dir = root / "config"
+    pi_bin = _write_fixture_pi(tmp_path)
+    _write_minimax_multi_source_runtime(config_dir, tmp_path, pi_bin)
+    monkeypatch.setenv("STOCKIMFORMATION_PI_BIN", str(pi_bin))
+    fixture_by_source = {
+        "minimax-docs": Path("tests/fixtures/minimax_text_chat.html").read_text(),
+        "minimax-docs-index": Path("tests/fixtures/minimax_llms.txt").read_text(),
+        "tonghuashun-minimax": Path("tests/fixtures/tonghuashun_minimax.html").read_text(),
+    }
+
+    async def fixture_web_source(source: SourceConfig, stock_codes: list[str]) -> list[RawItem]:
+        return collection.parse_web(fixture_by_source[source.name], source, stock_codes)
+
+    monkeypatch.setattr(collection, "fetch_web_source", fixture_web_source)
+    controller = PipelineController(config_dir)
+    app = create_app(config_dir, controller, run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await controller.start(run_startup=False)
+        try:
+            cycle_id = await controller.run_now("manual")
+            results = await client.get("/api/results")
+            sources = await client.get("/api/sources/health")
+            logs = await client.get("/api/sources/logs")
+            config_page = await client.get("/config")
+            pipeline_status = await client.get("/api/pipeline/status")
+            advice = results.json()["advices"][0]
+            advice_detail = await client.get(f"/api/advices/{advice['id']}")
+            briefing = results.json()["briefing"]
+            briefing_detail = await client.get(f"/api/briefings/{briefing['id']}")
+            results_page = await client.get("/results")
+            sources_page = await client.get("/sources")
+        finally:
+            await controller.shutdown()
+
+    assert results.status_code == 200
+    payload = results.json()
+    expected_sources = ["minimax-docs", "minimax-docs-index", "tonghuashun-minimax"]
+    expected_urls = [
+        "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+        "https://platform.minimax.io/docs/llms.txt",
+        "https://basic.10jqka.com.cn/176/HK0100/field.html",
+    ]
+    assert payload["briefing"]["cycle_id"] == cycle_id
+    assert payload["advices"][0]["source_urls"] == expected_urls
+    assert payload["advices"][0]["comparison"]["verdict"] == "unknown"
+    assert payload["briefing"]["metadata_"]["configured_sources"] == expected_sources
+    assert payload["failed_sources"] == {}
+    assert advice_detail.status_code == 200
+    assert [item["source_url"] for item in advice_detail.json()["analyses"]] == expected_urls
+    assert "MiniMax-M2.7" in advice_detail.json()["raw_items"][0]["content"]
+    assert "MINIMAX-WP" in advice_detail.json()["raw_items"][2]["title"]
+    assert sources.status_code == 200
+    health = {item["source_name"]: item for item in sources.json()["sources"]}
+    assert set(health) == set(expected_sources)
+    assert all(health[name]["latest_status"] == "succeeded" for name in expected_sources)
+    assert all(health[name]["success_rate"] == 1.0 for name in expected_sources)
+    assert logs.status_code == 200
+    source_logs = {
+        item["source_name"]: item for item in logs.json()["logs"] if item["source_name"] in expected_sources
+    }
+    assert set(source_logs) == set(expected_sources)
+    assert all(item["pipeline_status"] == "succeeded" for item in source_logs.values())
+    assert pipeline_status.status_code == 200
+    assert pipeline_status.json()["recent_runs"][0]["status"] == "succeeded"
+    assert briefing_detail.status_code == 200
+    assert "minimax-docs" in briefing_detail.text
+    assert config_page.status_code == 200
+    assert "tonghuashun-minimax" in config_page.text
+    assert results_page.status_code == 200
+    assert "MINIMAX-WP" in results_page.text
+    assert sources_page.status_code == 200
+    assert "tonghuashun-minimax" in sources_page.text
+
+
 def _raw_item(url: str) -> RawItem:
     return RawItem(
         url=url,
@@ -815,3 +897,77 @@ def _copy_dir(source: Path, target: Path) -> None:
             dest.mkdir()
         else:
             dest.write_text(path.read_text())
+
+
+def _write_fixture_pi(tmp_path: Path) -> Path:
+    script = tmp_path / "pi"
+    script.write_text(
+        """#!/usr/bin/env python3
+import json
+import sys
+
+payload = json.loads(sys.argv[-1])
+items = payload["payload"]
+results = []
+for index, item in enumerate(items, start=1):
+    content = item["content"]
+    sentiment = "bearish" if "亏损" in content else "neutral"
+    results.append({
+        "raw_item_id": index,
+        "summary": item["title"],
+        "keywords": ["MiniMax", item["source_name"]],
+        "sentiment": sentiment,
+        "confidence": 0.72,
+        "source_quote": content[:80],
+        "source_url": item["url"],
+        "rationale": "fixture llm output",
+        "contradiction": False,
+    })
+print(json.dumps(results, ensure_ascii=False))
+"""
+    )
+    script.chmod(0o755)
+    return script
+
+
+def _write_minimax_multi_source_runtime(config_dir: Path, tmp_path: Path, pi_bin: Path) -> None:
+    config_dir.joinpath("system.toml").write_text(
+        f"""
+database_url = "sqlite+aiosqlite:///{tmp_path / "minimax.db"}"
+schedule_minutes = 30
+web_host = "127.0.0.1"
+web_port = 8000
+log_level = "INFO"
+llm_timeout_seconds = 60
+workspace_root = "{tmp_path / "workspace"}"
+retention_count = 20
+retention_hours = 24
+""".lstrip()
+    )
+    config_dir.joinpath("portfolio.yaml").write_text(
+        """
+targets:
+  - code: "00700.HK"
+    name: "Tencent"
+    holding:
+      quantity: 100
+      cost_price: 300
+    sources:
+      - minimax-docs
+      - minimax-docs-index
+      - tonghuashun-minimax
+sources:
+  - name: minimax-docs
+    type: web
+    url: https://platform.minimax.io/docs/api-reference/text-chat-openai
+    regex: '<main[^>]*>.*?(?P<title>Text Chat \\(Compatible OpenAI API\\)).*?(?P<content>Bearer Auth.*?MiniMax-M2\\.7.*?)</main>'
+  - name: minimax-docs-index
+    type: web
+    url: https://platform.minimax.io/docs/llms.txt
+    regex: '(?P<title># MiniMax API Docs).*?(?P<content>Text Chat \\(Compatible OpenAI API\\).*?MiniMax-M2\\.7.*?)$'
+  - name: tonghuashun-minimax
+    type: web
+    url: https://basic.10jqka.com.cn/176/HK0100/field.html
+    regex: '(?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"'
+""".lstrip()
+    )

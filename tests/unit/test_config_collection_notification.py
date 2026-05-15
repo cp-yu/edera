@@ -29,7 +29,13 @@ def test_load_portfolio_holdings() -> None:
 
 def test_source_association() -> None:
     config = load_app_config(Path("config"))
-    assert config.portfolio.targets[0].sources == ["sample-rss", "sample-web", "minimax-docs"]
+    assert config.portfolio.targets[0].sources == [
+        "sample-rss",
+        "sample-web",
+        "minimax-docs",
+        "minimax-docs-index",
+        "tonghuashun-minimax",
+    ]
 
 
 def test_rss_source_config() -> None:
@@ -48,6 +54,17 @@ def test_minimax_docs_source_config() -> None:
     assert source.type == "web"
     assert str(source.url) == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
     assert "minimax-docs" in config.portfolio.targets[0].sources
+
+
+def test_minimax_multi_source_config() -> None:
+    config = load_app_config(Path("config"))
+    assert str(config.portfolio.source_map()["minimax-docs-index"].url) == (
+        "https://platform.minimax.io/docs/llms.txt"
+    )
+    assert str(config.portfolio.source_map()["tonghuashun-minimax"].url) == (
+        "https://basic.10jqka.com.cn/176/HK0100/field.html"
+    )
+    assert "tonghuashun-minimax" in config.portfolio.targets[1].sources
 
 
 def test_system_config_schedule_is_30_minutes() -> None:
@@ -85,6 +102,26 @@ def test_parse_minimax_docs_fixture() -> None:
     assert "Text Chat (Compatible OpenAI API)" in items[0].title
     assert "Bearer Auth" in items[0].content
     assert "MiniMax-M2.7" in items[0].content
+
+
+def test_parse_minimax_docs_index_fixture() -> None:
+    config = load_app_config(Path("config"))
+    source = config.portfolio.source_map()["minimax-docs-index"]
+    content = Path("tests/fixtures/minimax_llms.txt").read_text()
+    items = parse_web(content, source, ["00700.HK"])
+    assert items[0].source_name == "minimax-docs-index"
+    assert "MiniMax API Docs" in items[0].title
+    assert "MiniMax-M2.7" in items[0].content
+
+
+def test_parse_tonghuashun_minimax_fixture() -> None:
+    config = load_app_config(Path("config"))
+    source = config.portfolio.source_map()["tonghuashun-minimax"]
+    content = Path("tests/fixtures/tonghuashun_minimax.html").read_text()
+    items = parse_web(content, source, ["00700.HK"])
+    assert items[0].source_name == "tonghuashun-minimax"
+    assert "MINIMAX-WP" in items[0].title
+    assert "亏损" in items[0].content
 
 
 def test_analysis_summary_keywords_sentiment() -> None:
@@ -179,7 +216,13 @@ def test_briefing_metadata_sources() -> None:
         {"sample-web": "failed"},
         recovery,
     )
-    assert briefing.metadata_["configured_sources"] == ["sample-rss", "sample-web", "minimax-docs"]
+    assert briefing.metadata_["configured_sources"] == [
+        "sample-rss",
+        "sample-web",
+        "minimax-docs",
+        "minimax-docs-index",
+        "tonghuashun-minimax",
+    ]
     assert briefing.metadata_["failed_sources"] == {"sample-web": "failed"}
     assert briefing.metadata_["source_recovery"] == recovery
     assert "sample-web" in briefing.metadata_["escalated_sources"]

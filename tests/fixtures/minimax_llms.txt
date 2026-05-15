@@ -1,0 +1,4 @@
+# MiniMax API Docs
+
+- [Text Chat (Compatible OpenAI API)](https://platform.minimax.io/docs/api-reference/text-chat-openai.md): Use the OpenAI API compatible format to call MiniMax models.
+- [M2.7 for AI Coding Tools](https://platform.minimax.io/docs/guides/text-ai-coding-tools.md): MiniMax-M2.7 features strong code understanding, multi-turn dialogue, and reasoning capabilities.
