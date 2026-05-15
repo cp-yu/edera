@@ -6,3 +6,4 @@ skills:
   - name: classify-sentiment
 input_type: list[RawItem]
 output_type: list[AnalysisResult]
+parameters: {}

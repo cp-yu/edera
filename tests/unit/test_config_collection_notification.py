@@ -5,11 +5,18 @@ import pytest
 from pydantic import ValidationError
 
 from stockimformation.config.loader import load_app_config
+from stockimformation.config.schema import SourceConfig, SystemConfig
 from stockimformation.models.entities import Advice, RawItem
 from stockimformation.services.analysis import analyze_raw_item
 from stockimformation.services.advisory import generate_advice
 from stockimformation.services.briefing import DISCLAIMER, generate_briefing
-from stockimformation.services.collection import dedupe_raw_items, parse_rss, parse_web
+from stockimformation.services import collection
+from stockimformation.services.collection import (
+    dedupe_raw_items,
+    fetch_source_with_recovery,
+    parse_rss,
+    parse_web,
+)
 from stockimformation.services.notification import format_notification, make_notify_handler, priority_for_advice
 
 
@@ -22,7 +29,7 @@ def test_load_portfolio_holdings() -> None:
 
 def test_source_association() -> None:
     config = load_app_config(Path("config"))
-    assert config.portfolio.targets[0].sources == ["sample-rss", "sample-web"]
+    assert config.portfolio.targets[0].sources == ["sample-rss", "sample-web", "minimax-docs"]
 
 
 def test_rss_source_config() -> None:
@@ -33,6 +40,14 @@ def test_rss_source_config() -> None:
 def test_web_source_rule_config() -> None:
     config = load_app_config(Path("config"))
     assert config.portfolio.source_map()["sample-web"].regex
+
+
+def test_minimax_docs_source_config() -> None:
+    config = load_app_config(Path("config"))
+    source = config.portfolio.source_map()["minimax-docs"]
+    assert source.type == "web"
+    assert str(source.url) == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+    assert "minimax-docs" in config.portfolio.targets[0].sources
 
 
 def test_system_config_schedule_is_30_minutes() -> None:
@@ -58,6 +73,18 @@ def test_parse_web_regex_rule() -> None:
     source = config.portfolio.source_map()["sample-web"]
     items = parse_web("<article>公告 positive growth</article>", source, ["00700.HK"])
     assert items[0].title == "公告 positive growth"
+
+
+def test_parse_minimax_docs_fixture() -> None:
+    config = load_app_config(Path("config"))
+    source = config.portfolio.source_map()["minimax-docs"]
+    content = Path("tests/fixtures/minimax_text_chat.html").read_text()
+    items = parse_web(content, source, ["00700.HK"])
+    assert items[0].url == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+    assert items[0].source_name == "minimax-docs"
+    assert "Text Chat (Compatible OpenAI API)" in items[0].title
+    assert "Bearer Auth" in items[0].content
+    assert "MiniMax-M2.7" in items[0].content
 
 
 def test_analysis_summary_keywords_sentiment() -> None:
@@ -144,9 +171,74 @@ def test_briefing_groups_targets() -> None:
 
 def test_briefing_metadata_sources() -> None:
     config = load_app_config(Path("config"))
-    briefing = generate_briefing("cycle", [_advice("hold", 0.6)], config.portfolio, {"sample-web": "failed"})
-    assert briefing.metadata_["configured_sources"] == ["sample-rss", "sample-web"]
+    recovery: dict[str, object] = {"sample-web": {"recovery_status": "escalated", "escalated": True}}
+    briefing = generate_briefing(
+        "cycle",
+        [_advice("hold", 0.6)],
+        config.portfolio,
+        {"sample-web": "failed"},
+        recovery,
+    )
+    assert briefing.metadata_["configured_sources"] == ["sample-rss", "sample-web", "minimax-docs"]
     assert briefing.metadata_["failed_sources"] == {"sample-web": "failed"}
+    assert briefing.metadata_["source_recovery"] == recovery
+    assert "sample-web" in briefing.metadata_["escalated_sources"]
+
+
+@pytest.mark.asyncio
+async def test_source_recovery_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    async def flaky(_source: SourceConfig, _codes: list[str]) -> list[RawItem]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("timed out")
+        return [_raw_item("https://example.com/recovered")]
+
+    monkeypatch.setattr(collection, "fetch_web_source", flaky)
+    source = SourceConfig.model_validate(
+        {"name": "sample-web", "type": "web", "url": "https://example.com"}
+    )
+    items, summary = await fetch_source_with_recovery(source, ["00700.HK"], SystemConfig())
+    assert len(items) == 1
+    assert summary["recovery_status"] == "recovered"
+    assert summary["attempt_count"] == 1
+    assert summary["recoverable_reason"] == "timeout"
+
+
+@pytest.mark.asyncio
+async def test_source_recovery_exhausted_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def failing(_source: SourceConfig, _codes: list[str]) -> list[RawItem]:
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(collection, "fetch_web_source", failing)
+    source = SourceConfig.model_validate(
+        {"name": "sample-web", "type": "web", "url": "https://example.com"}
+    )
+    _items, summary = await fetch_source_with_recovery(
+        source,
+        ["00700.HK"],
+        SystemConfig(source_recovery_max_attempts=1),
+    )
+    assert summary["recovery_status"] == "escalated"
+    assert summary["attempt_count"] == 1
+    assert summary["escalation_reason"] == "recovery_exhausted"
+
+
+@pytest.mark.asyncio
+async def test_source_recovery_non_recoverable_escalates_without_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def failing(_source: SourceConfig, _codes: list[str]) -> list[RawItem]:
+        raise RuntimeError("bad config")
+
+    monkeypatch.setattr(collection, "fetch_web_source", failing)
+    source = SourceConfig.model_validate(
+        {"name": "sample-web", "type": "web", "url": "https://example.com"}
+    )
+    _items, summary = await fetch_source_with_recovery(source, ["00700.HK"], SystemConfig())
+    assert summary["recovery_status"] == "escalated"
+    assert summary["attempt_count"] == 0
+    assert summary["escalation_reason"] == "non_recoverable"
 
 
 def test_briefing_contains_disclaimer() -> None:

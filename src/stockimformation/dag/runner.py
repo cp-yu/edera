@@ -56,7 +56,7 @@ class DagRunner:
         node_input = NodeInput(
             cycle_id=cycle_id,
             payload=input_payload,
-            metadata={"upstreams": graph.reverse_edges[node]},
+            metadata=self._metadata(graph, node, outputs),
         )
         context = NodeContext(cycle_id=cycle_id, instance_id=node)
         await self._record(node, "running")
@@ -85,6 +85,27 @@ class DagRunner:
         if len(values) == 1:
             return values[0]
         return collect(values)
+
+    def _metadata(
+        self,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+    ) -> dict[str, object]:
+        metadata: dict[str, object] = {"upstreams": graph.reverse_edges[node]}
+        failures: dict[str, str] = {}
+        recovery: dict[str, object] = {}
+        for upstream in graph.reverse_edges[node]:
+            output = outputs.get(upstream)
+            if output is None:
+                continue
+            failures.update(output.metadata.get("failures", {}))
+            recovery.update(output.metadata.get("source_recovery", {}))
+        if failures:
+            metadata["failures"] = failures
+        if recovery:
+            metadata["source_recovery"] = recovery
+        return metadata
 
     def _last_payload(self, graph: DagGraph, payloads: dict[str, object]) -> object:
         sinks = [node for node in graph.nodes if not graph.edges[node]]

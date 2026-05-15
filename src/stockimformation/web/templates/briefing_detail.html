@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  {% if briefing %}
+    <h1>简报详情</h1>
+    <p class="muted">cycle {{ briefing.cycle_id }} · {{ briefing.created_at }}</p>
+    <pre>{{ briefing.content }}</pre>
+    <h2>元数据</h2>
+    <pre>{{ briefing.metadata_ }}</pre>
+  {% else %}
+    <h1>简报不存在</h1>
+    <p class="empty">未找到对应简报。</p>
+  {% endif %}
+</section>
+{% endblock %}

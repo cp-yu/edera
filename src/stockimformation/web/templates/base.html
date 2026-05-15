@@ -10,9 +10,10 @@
   <header class="topbar">
     <a class="brand" href="/">stockImformation</a>
     <nav aria-label="main">
-      <a class="{{ 'active' if active == 'results' else '' }}" href="/results">结果</a>
-      <a class="{{ 'active' if active == 'pipeline' else '' }}" href="/pipeline">管道</a>
-      <a class="{{ 'active' if active == 'config' else '' }}" href="/config">配置</a>
+      <a class="{{ 'active' if active == 'results' else '' }}" href="/results"{% if active == 'results' %} aria-current="page"{% endif %}>结果</a>
+      <a class="{{ 'active' if active == 'sources' else '' }}" href="/sources"{% if active == 'sources' %} aria-current="page"{% endif %}>信息源</a>
+      <a class="{{ 'active' if active == 'pipeline' else '' }}" href="/pipeline"{% if active == 'pipeline' %} aria-current="page"{% endif %}>管道</a>
+      <a class="{{ 'active' if active == 'config' else '' }}" href="/config"{% if active == 'config' %} aria-current="page"{% endif %}>配置</a>
     </nav>
   </header>
   <main>

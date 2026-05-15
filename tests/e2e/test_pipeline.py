@@ -35,6 +35,7 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
         "generate-briefing": make_briefing_handler(config.portfolio),
         "notify-ntfy": make_notify_handler(config.runtime),
     }
+    config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
     result = await DagRunner(executor).run(graph, "cycle-e2e", {"source_names": ["sample-rss"]})
@@ -46,6 +47,45 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
     assert analysis[0]["source_url"] == "https://example.com/tencent"
     assert advice[0]["source_urls"]
     assert "本系统产出仅供学习参考，不构成投资建议。" in briefing["content"]
+    assert notifications[0]["message"]
+    assert result.failures == {}
+
+
+@pytest.mark.asyncio
+async def test_minimax_docs_fixture_generates_web_visible_evidence() -> None:
+    config = load_app_config(Path("config"))
+    minimax_url = "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+    raw_item = _raw(
+        minimax_url,
+        "MiniMax OpenAI compatible chat completions use Bearer Auth and MiniMax-M2.7",
+        ["00700.HK"],
+    )
+    raw_item.source_name = "minimax-docs"
+    raw_item.source_type = "web"
+
+    async def fetch_web(_node_input: NodeInput) -> list[dict[str, object]]:
+        return [raw_item.model_dump(mode="json")]
+
+    handlers = {
+        "fetch-rss": _empty,
+        "fetch-web": fetch_web,
+        "summarize": analyze_handler,
+        "classify-sentiment": analyze_handler,
+        "generate-advice": make_advice_handler(config.portfolio),
+        "generate-briefing": make_briefing_handler(config.portfolio),
+        "notify-ntfy": make_notify_handler(config.runtime),
+    }
+    config.nodes["reader"].type = "function"
+    executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
+    graph = load_graph(config.dags["default"], config.nodes)
+    result = await DagRunner(executor).run(graph, "cycle-minimax", {"source_names": ["minimax-docs"]})
+    analysis = result.node_outputs["reader"].payload
+    advice = result.node_outputs["advisor"].payload
+    briefing = result.node_outputs["briefing-generator"].payload
+    notifications = result.node_outputs["notifier"].payload
+    assert analysis[0]["source_url"] == minimax_url
+    assert minimax_url in advice[0]["source_urls"]
+    assert "minimax-docs" in briefing["content"]
     assert notifications[0]["message"]
     assert result.failures == {}
 
@@ -71,6 +111,7 @@ async def test_reliability_fixture_recovers_next_cycle_after_failure() -> None:
         "generate-briefing": make_briefing_handler(config.portfolio),
         "notify-ntfy": make_notify_handler(config.runtime),
     }
+    config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
     first = await DagRunner(executor).run(graph, "cycle-1", {"source_names": ["sample-rss"]})

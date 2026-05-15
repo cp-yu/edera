@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +29,12 @@ class SystemConfig(BaseModel):
     workspace_root: Path = Path("/tmp/stockimformation/runs")
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=24, ge=0)
+    source_recovery_enabled: bool = True
+    source_recovery_max_attempts: int = Field(default=2, ge=0)
+    source_repair_task_output_dir: Path | None = None
+    price_history_path: Path | None = None
+    price_comparison_horizon_days: int = Field(default=7, ge=1)
+    price_comparison_threshold_percent: float = Field(default=1.0, ge=0.0)
 
     @field_validator("web_host")
     @classmethod
@@ -71,6 +77,8 @@ class SkillRef(BaseModel):
 
 
 class NodeConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     type: Literal["function", "llm"]
     skills: list[SkillRef]
@@ -79,6 +87,7 @@ class NodeConfig(BaseModel):
     output_type: str
     timeout_seconds: float | None = Field(default=None, gt=0)
     source_names: list[str] = Field(default_factory=list)
+    parameters: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("skills")
     @classmethod
@@ -86,6 +95,33 @@ class NodeConfig(BaseModel):
         if not value:
             raise ValueError("node requires at least one skill")
         return value
+
+    @field_validator("parameters")
+    @classmethod
+    def _json_like_parameters(cls, value: dict[str, Any]) -> dict[str, Any]:
+        _validate_parameter_mapping(value)
+        return value
+
+
+def _validate_parameter_mapping(value: dict[str, Any]) -> None:
+    for key, item in value.items():
+        lowered = key.lower()
+        if any(token in lowered for token in ("secret", "token", "password", "credential", "key")):
+            raise ValueError("parameters must not contain credentials")
+        _validate_parameter_value(item)
+
+
+def _validate_parameter_value(value: Any) -> None:
+    if value is None or isinstance(value, str | int | float | bool):
+        return
+    if isinstance(value, list):
+        for item in value:
+            _validate_parameter_value(item)
+        return
+    if isinstance(value, dict):
+        _validate_parameter_mapping(value)
+        return
+    raise ValueError("parameters must be JSON-like")
 
 
 class DagEdge(BaseModel):

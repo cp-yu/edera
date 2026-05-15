@@ -7,10 +7,12 @@ targets:
     sources:
       - sample-rss
       - sample-web
+      - minimax-docs
   - code: "600519.SH"
     name: "Kweichow Moutai"
     sources:
       - sample-rss
+      - minimax-docs
 sources:
   - name: sample-rss
     type: rss
@@ -19,3 +21,7 @@ sources:
     type: web
     url: https://example.com/announcements.html
     regex: '<article>(?P<title>.*?)</article>'
+  - name: minimax-docs
+    type: web
+    url: https://platform.minimax.io/docs/api-reference/text-chat-openai
+    regex: '<main[^>]*>.*?(?P<title>Text Chat \(Compatible OpenAI API\)).*?(?P<content>Bearer Auth.*?MiniMax-M2\.7.*?)</main>'

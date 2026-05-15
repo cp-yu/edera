@@ -44,14 +44,14 @@ class NodeExecutor:
             return NodeOutput(
                 node_name=node_name,
                 ok=False,
-                metadata={"cycle_id": node_input.cycle_id},
+                metadata=_output_metadata(node_input),
                 error=str(exc),
             )
         return NodeOutput(
             node_name=node_name,
             ok=True,
             payload=payload,
-            metadata={"cycle_id": node_input.cycle_id},
+            metadata=_output_metadata(node_input),
         )
 
     async def _execute_payload(
@@ -144,6 +144,14 @@ def _json(value: object) -> str:
     if isinstance(value, BaseModel):
         return value.model_dump_json()
     return json.dumps(value, default=str)
+
+
+def _output_metadata(node_input: NodeInput) -> dict[str, object]:
+    metadata: dict[str, object] = {"cycle_id": node_input.cycle_id}
+    for key in ("failures", "source_recovery"):
+        if key in node_input.metadata:
+            metadata[key] = node_input.metadata[key]
+    return metadata
 
 
 def _agent_contract(input_type: str, output_type: str) -> str:

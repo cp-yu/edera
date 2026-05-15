@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h1>信息源健康</h1>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">信息源</th><th scope="col">最近状态</th><th scope="col">恢复</th><th scope="col">升级</th><th scope="col">最近运行</th><th scope="col">成功率</th><th scope="col">窗口</th><th scope="col">最近失败</th><th scope="col">repair task</th></tr>
+      </thead>
+      <tbody>
+        {% for source in sources %}
+          <tr>
+            <td>{{ source.source_name }}</td>
+            <td>{{ source.latest_status }}</td>
+            <td>{{ source.recovery_status }}{% if source.attempt_count %} / {{ source.attempt_count }}{% endif %}</td>
+            <td>{{ source.escalation_reason if source.escalated else "" }}</td>
+            <td>{{ source.latest_run_at or "" }}</td>
+            <td>{{ "%.0f%%"|format(source.success_rate * 100) if source.success_rate is not none else "未知" }}</td>
+            <td>{{ source.window_size }}</td>
+            <td>{{ source.latest_failure_reason or "" }}</td>
+            <td>
+              {% if source.repair_task %}
+                {{ source.repair_task.task_id }}<br><span class="muted">{{ source.repair_task.created_at }}</span>
+              {% elif source.escalated %}
+                <form method="post" action="/api/sources/{{ source.source_name }}/repair-task">
+                  <button type="submit">生成</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="empty">暂无信息源配置。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section>
+  <h2>执行日志</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">cycle</th><th scope="col">节点/源</th><th scope="col">节点状态</th><th scope="col">管道状态</th><th scope="col">开始</th><th scope="col">结束</th><th scope="col">错误</th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td>{{ log.cycle_id }}</td>
+            <td>{{ log.source_name }}</td>
+            <td>{{ log.node_status }}</td>
+            <td>{{ log.pipeline_status }}</td>
+            <td>{{ log.started_at or "" }}</td>
+            <td>{{ log.ended_at or "" }}</td>
+            <td>{{ log.error or "" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="empty">暂无执行日志。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

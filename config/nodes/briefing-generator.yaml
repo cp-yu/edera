@@ -4,3 +4,4 @@ skills:
   - name: generate-briefing
 input_type: list[Advice]
 output_type: Briefing
+parameters: {}

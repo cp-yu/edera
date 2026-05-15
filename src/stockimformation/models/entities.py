@@ -65,6 +65,58 @@ class AnalysisResult(SQLModel, table=True):
         return value
 
 
+class EventRecord(SQLModel, table=True):
+    __tablename__ = "event_records"
+
+    id: int | None = Field(default=None, primary_key=True)
+    stock_code: str = Field(index=True)
+    title: str
+    normalized_keywords: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    status: str = Field(index=True)
+    heat_score: int = Field(default=0, ge=0, le=100)
+    heat_score_components: dict[str, Any] = Field(
+        default_factory=dict, sa_column=Column(JSON, nullable=False)
+    )
+    contradiction: bool = False
+    evidence_analysis_ids: list[int] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    evidence_raw_item_ids: list[int] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    source_names: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    first_seen_at: datetime
+    last_seen_at: datetime
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("stock_code", "title")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def _valid_status(cls, value: str) -> str:
+        if value not in {"discovered", "verifying", "monitoring", "climax", "fading", "archived"}:
+            raise ValueError("invalid event status")
+        return value
+
+    @model_validator(mode="after")
+    def _has_evidence(self) -> "EventRecord":
+        if not self.evidence_analysis_ids or not self.evidence_raw_item_ids or not self.source_names:
+            raise ValueError("event requires evidence_analysis_ids, evidence_raw_item_ids, and source_names")
+        if not self.normalized_keywords:
+            raise ValueError("event requires normalized_keywords")
+        if self.last_seen_at < self.first_seen_at:
+            raise ValueError("last_seen_at must be after first_seen_at")
+        return self
+
+
 class Advice(SQLModel, table=True):
     __tablename__ = "advices"
 
@@ -193,6 +245,7 @@ __all__ = [
     "Advice",
     "AnalysisResult",
     "Briefing",
+    "EventRecord",
     "NodeRun",
     "PipelineRun",
     "RawItem",

@@ -3,6 +3,88 @@
 <section>
   <h1>配置编辑</h1>
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <section class="portfolio-panel" aria-labelledby="portfolio-title">
+    <div>
+      <h2 id="portfolio-title">标的与信息源</h2>
+      <p id="portfolio-help" class="muted">保存后仅影响后续运行；当前运行继续使用启动快照。</p>
+    </div>
+    <div class="portfolio-grid">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">标的</th>
+              <th scope="col">持仓</th>
+              <th scope="col">信息源</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for target in portfolio.targets %}
+              <tr>
+                <td>{{ target.code }} · {{ target.name }}</td>
+                <td>
+                  {% if target.holding %}
+                    {{ target.holding.quantity }} @ {{ target.holding.cost_price or "-" }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% for source in target.sources %}
+                    <span class="tag">{{ source }}</span>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">信息源</th>
+              <th scope="col">类型</th>
+              <th scope="col">地址</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for source in portfolio.sources %}
+              <tr>
+                <td>{{ source.name }}</td>
+                <td>{{ source.type }}</td>
+                <td>{{ source.url }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <form method="post" action="/config/portfolio" class="editor portfolio-editor">
+      <label for="portfolio-json">portfolio JSON</label>
+      <textarea id="portfolio-json" name="portfolio_json" spellcheck="false" aria-describedby="portfolio-help">{{ portfolio.json }}</textarea>
+      <button type="submit">保存标的与信息源</button>
+    </form>
+  </section>
+  <section class="tuning-panel" aria-labelledby="analysis-tuning-title">
+    <div>
+      <h2 id="analysis-tuning-title">分析参数</h2>
+      <p id="analysis-tuning-help" class="muted">保存后仅影响后续运行；当前运行继续使用启动快照。</p>
+    </div>
+    <div class="tuning-list">
+      {% for item in analysis_tuning %}
+        <a class="tuning-item" href="/config?kind={{ item.kind }}&name={{ item.name }}">
+          <span>{{ item.name }}</span>
+          <span class="muted">{{ item.description }}</span>
+          <span>
+            {% for field in item.fields %}
+              <span class="tag">{{ field }}</span>
+            {% endfor %}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
   <div class="config-layout">
     <nav class="file-list" aria-label="config files">
       {% for file in files %}
@@ -15,7 +97,7 @@
       <input type="hidden" name="kind" value="{{ current.kind }}">
       <input type="hidden" name="name" value="{{ current.name }}">
       <label for="content">{{ current.path }}</label>
-      <textarea id="content" name="content" spellcheck="false">{{ current.content }}</textarea>
+      <textarea id="content" name="content" spellcheck="false" aria-describedby="analysis-tuning-help">{{ current.content }}</textarea>
       <button type="submit">保存</button>
     </form>
   </div>

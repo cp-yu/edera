@@ -8,7 +8,7 @@ from stockimformation.dag.loader import load_graph, topological_layers
 from stockimformation.dag.runner import DagRunner
 from stockimformation.errors import DagError
 from stockimformation.node.executor import NodeExecutor
-from stockimformation.node.models import NodeInput
+from stockimformation.node.models import FunctionHandler, NodeInput
 
 
 @pytest.mark.asyncio
@@ -23,6 +23,7 @@ async def test_default_dag_runs_with_fake_handlers() -> None:
         "generate-briefing": _handler({"content": "briefing"}),
         "notify-ntfy": _handler([{"skipped": True}]),
     }
+    config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
     result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["sample-rss"]})
@@ -42,6 +43,7 @@ async def test_single_source_failure_does_not_block() -> None:
         "generate-briefing": _handler({"content": "briefing"}),
         "notify-ntfy": _handler([{"skipped": True}]),
     }
+    config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
     result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["sample-web"]})
@@ -69,7 +71,7 @@ def test_cycle_rejected() -> None:
         load_graph(dag, config.nodes)
 
 
-def _handler(value: object):
+def _handler(value: object) -> FunctionHandler:
     async def handler(_node_input: NodeInput) -> object:
         await asyncio.sleep(0)
         return value

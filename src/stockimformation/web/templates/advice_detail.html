@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  {% if advice %}
+    <h1>建议详情</h1>
+    <div class="status-line">
+      <span>{{ advice.stock_code }} {{ advice.stock_name }}</span>
+      <span>{{ advice.direction }}</span>
+      <span>confidence={{ "%.2f"|format(advice.confidence) }}</span>
+      <span class="comparison-badge comparison-{{ advice.comparison.verdict }}" title="{{ advice.comparison.unknown_reason or '' }}">
+        复盘 {{ advice.comparison.verdict_label }}{% if advice.comparison.price_change_percent is not none %} {{ "%.2f"|format(advice.comparison.price_change_percent) }}%{% endif %}
+      </span>
+      {% if advice.low_confidence %}<span class="tag">低置信</span>{% endif %}
+    </div>
+    <p>{{ advice.reason }}</p>
+    <h2>价格复盘</h2>
+    <dl class="comparison-detail">
+      <div>
+        <dt>结论</dt>
+        <dd>{{ advice.comparison.verdict_label }}</dd>
+      </div>
+      {% if advice.comparison.verdict == "unknown" %}
+        <div>
+          <dt>原因</dt>
+          <dd>{{ advice.comparison.unknown_reason }}</dd>
+        </div>
+      {% else %}
+        <div>
+          <dt>基准</dt>
+          <dd>{{ advice.comparison.baseline_price }} · {{ advice.comparison.baseline_time }}</dd>
+        </div>
+        <div>
+          <dt>到期</dt>
+          <dd>{{ advice.comparison.horizon_price }} · {{ advice.comparison.horizon_time }}</dd>
+        </div>
+        <div>
+          <dt>变动</dt>
+          <dd>{{ "%.2f"|format(advice.comparison.price_change_percent) }}% / {{ advice.comparison.horizon_days }} 天 / 阈值 {{ "%.2f"|format(advice.comparison.threshold_percent) }}%</dd>
+        </div>
+      {% endif %}
+    </dl>
+    <h2>证据 URL</h2>
+    <ul>
+      {% for url in advice.source_urls %}
+        <li><a href="{{ url }}">{{ url }}</a></li>
+      {% endfor %}
+    </ul>
+    <h2>分析链</h2>
+    {% for analysis in analyses %}
+      <article>
+        <h3>{{ analysis.sentiment }} · confidence={{ "%.2f"|format(analysis.confidence) }}</h3>
+        <p>{{ analysis.summary }}</p>
+        <pre>{{ analysis.source_quote }}</pre>
+      </article>
+    {% else %}
+      <p class="empty">暂无分析记录。</p>
+    {% endfor %}
+    <h2>相关事件</h2>
+    {% for event in related_events %}
+      <article>
+        <div class="status-line">
+          <strong>{{ event.stock_code }}</strong>
+          <span>{{ event.title }}</span>
+          <span class="tag tag-{{ event.status }}">{{ event.status }}</span>
+          <span>heat={{ event.heat_score }}</span>
+          {% if event.contradiction %}<span class="tag tag-warning">矛盾</span>{% endif %}
+        </div>
+        <p class="muted">sources={{ event.source_count }} · evidence={{ event.evidence_count }} · {{ event.last_seen_at }}</p>
+        {% set detail = event_details.get(event.id, {}) %}
+        <details>
+          <summary>事件证据</summary>
+          <ul>
+            {% for analysis in detail.get('analyses', []) %}
+              <li>{{ analysis.sentiment }} · {{ analysis.source_quote }}</li>
+            {% endfor %}
+          </ul>
+          <ul>
+            {% for item in detail.get('raw_items', []) %}
+              <li><a href="{{ item.url }}">{{ item.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </details>
+      </article>
+    {% else %}
+      <p class="empty">暂无相关事件。</p>
+    {% endfor %}
+    <h2>原文</h2>
+    {% for item in raw_items %}
+      <article>
+        <h3>{{ item.title }}</h3>
+        <p><a href="{{ item.url }}">{{ item.url }}</a></p>
+        <pre>{{ item.content }}</pre>
+      </article>
+    {% else %}
+      <p class="empty">暂无原文记录。</p>
+    {% endfor %}
+  {% else %}
+    <h1>建议不存在</h1>
+    <p class="empty">未找到对应建议。</p>
+  {% endif %}
+</section>
+{% endblock %}

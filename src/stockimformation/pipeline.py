@@ -167,6 +167,7 @@ class PipelineController:
                 _build_executor(config),
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
             ).run(graph, cycle_id, {"source_names": [source.name for source in config.portfolio.sources]})
+            await _record_source_runs(factory, cycle_id, result.node_outputs)
             await _persist_outputs(factory, result.node_outputs)
             status = "succeeded" if result.ok else "failed"
             error = "; ".join(f"{node}: {message}" for node, message in result.failures.items()) or None
@@ -238,10 +239,28 @@ async def _persist_outputs(
         await session.commit()
 
 
+async def _record_source_runs(
+    factory: async_sessionmaker[AsyncSession],
+    cycle_id: str,
+    outputs: Mapping[str, NodeOutput],
+) -> None:
+    recovery = _source_recovery(outputs)
+    if not recovery:
+        return
+    async with factory() as session:
+        for source_name, summary in recovery.items():
+            if not isinstance(summary, dict):
+                continue
+            status = "failed" if summary.get("recovery_status") == "escalated" else "succeeded"
+            error = str(summary.get("latest_failure_reason") or "") or None
+            await mark_node_run(session, cycle_id, source_name, status, error)
+        await session.commit()
+
+
 def _build_executor(app_config: AppConfig) -> NodeExecutor:
     handlers = {
-        "fetch-rss": make_fetch_handler(app_config.portfolio, "rss"),
-        "fetch-web": make_fetch_handler(app_config.portfolio, "web"),
+        "fetch-rss": make_fetch_handler(app_config.portfolio, "rss", app_config.system),
+        "fetch-web": make_fetch_handler(app_config.portfolio, "web", app_config.system),
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
         "generate-advice": make_advice_handler(app_config.portfolio),
@@ -263,6 +282,13 @@ def _dict_payload(outputs: Mapping[str, NodeOutput], node_name: str) -> dict[str
     if output is None or not output.ok:
         return {}
     return output.payload if isinstance(output.payload, dict) else {}
+
+
+def _source_recovery(outputs: Mapping[str, NodeOutput]) -> dict[str, object]:
+    recovery: dict[str, object] = {}
+    for output in outputs.values():
+        recovery.update(output.metadata.get("source_recovery", {}))
+    return recovery
 
 
 def _run_dict(run: PipelineRun) -> dict[str, object]:

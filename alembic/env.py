@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
-from stockimformation.models.entities import Advice, AnalysisResult, Briefing, RawItem
+from stockimformation.models.entities import Advice, AnalysisResult, Briefing, EventRecord, RawItem
 
 config = context.config
 
@@ -52,4 +52,4 @@ else:
     run_migrations_online()
 
 
-__all__ = ["Advice", "AnalysisResult", "Briefing", "RawItem"]
+__all__ = ["Advice", "AnalysisResult", "Briefing", "EventRecord", "RawItem"]

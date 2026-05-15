@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from stockimformation.config.schema import NodeConfig
 from stockimformation.config.editor import RuntimeConfigEditor
 from stockimformation.errors import ConfigEditError
 
@@ -37,6 +38,43 @@ def test_config_editor_saves_skill_atomically(tmp_path: Path) -> None:
     editor = RuntimeConfigEditor(root / "config", root / "skills")
     saved = editor.save("skill", "fetch-rss/skill.md", "# skill\n")
     assert Path(saved.path).read_text() == "# skill\n"
+
+
+def test_node_config_accepts_json_like_parameters() -> None:
+    node = NodeConfig.model_validate(
+        {
+            "name": "reader",
+            "type": "llm",
+            "skills": [{"name": "summarize"}],
+            "input_type": "list[RawItem]",
+            "output_type": "list[AnalysisResult]",
+            "parameters": {"confidence_threshold": 0.55, "signals": ["earnings", "guidance"]},
+        }
+    )
+    assert node.parameters["confidence_threshold"] == 0.55
+
+
+def test_node_config_rejects_credentials_in_parameters() -> None:
+    with pytest.raises(ValueError, match="credentials"):
+        NodeConfig.model_validate(
+            {
+                "name": "reader",
+                "type": "llm",
+                "skills": [{"name": "summarize"}],
+                "input_type": "list[RawItem]",
+                "output_type": "list[AnalysisResult]",
+                "parameters": {"api_token": "secret"},
+            }
+        )
+
+
+def test_config_editor_rejects_unknown_node_parameter_without_writing(tmp_path: Path) -> None:
+    root = _copy_config_tree(tmp_path)
+    editor = RuntimeConfigEditor(root / "config", root / "skills")
+    original = (root / "config" / "nodes" / "reader.yaml").read_text()
+    with pytest.raises(ConfigEditError):
+        editor.save("node", "reader", f"{original}\nunsupported_parameter: 1\n")
+    assert (root / "config" / "nodes" / "reader.yaml").read_text() == original
 
 
 def _copy_config_tree(tmp_path: Path) -> Path:
