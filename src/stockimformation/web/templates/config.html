@@ -69,14 +69,27 @@
   <section class="tuning-panel" aria-labelledby="dag-entry-title">
     <div>
       <h2 id="dag-entry-title">DAG 编辑</h2>
-      <p class="muted">通过结构化表单维护节点、边和 fan flags；YAML 原文编辑仍保留。</p>
+      <p class="muted">Node Graph 画布编辑为主入口；表格/YAML 编辑仍保留。</p>
     </div>
     <div class="tuning-list">
       {% for file in files %}
         {% if file.kind == "dag" %}
+          <a class="tuning-item" href="/config/dag-graph?name={{ file.name }}">
+            <span>{{ file.name }}</span>
+            <span class="muted">Node Graph 画布编辑</span>
+            <span>
+              <span class="tag">nodes</span>
+              <span class="tag">edges</span>
+              <span class="tag">inspector</span>
+            </span>
+          </a>
+        {% endif %}
+      {% endfor %}
+      {% for file in files %}
+        {% if file.kind == "dag" %}
           <a class="tuning-item" href="/config?kind=dag&name={{ file.name }}">
             <span>{{ file.name }}</span>
-            <span class="muted">DAG 结构化编辑</span>
+            <span class="muted">DAG 表格编辑 (兜底)</span>
             <span>
               <span class="tag">nodes</span>
               <span class="tag">edges</span>

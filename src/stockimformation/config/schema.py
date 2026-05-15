@@ -135,6 +135,7 @@ class DagConfig(BaseModel):
     name: str
     nodes: list[str]
     edges: list[DagEdge]
+    ui: dict[str, Any] = Field(default_factory=dict)
 
 
 class AppConfig(BaseModel):

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="ng-header">
+    <div>
+      <h1>Node Graph DAG 编辑</h1>
+      <p class="muted" id="ng-dag-label">当前 DAG：<strong>{{ dag_name }}</strong> — 保存后仅影响后续运行</p>
+    </div>
+    <div class="ng-toolbar">
+      <select id="ng-dag-select" aria-label="切换 DAG">
+        {% for name in dag_names %}
+          <option value="{{ name }}" {% if name == dag_name %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <button id="ng-save-dag-btn">保存 DAG</button>
+      <a class="tuning-item" href="/config?kind=dag&name={{ dag_name }}" style="display:inline-flex;align-items:center;text-decoration:none;color:inherit;padding:6px 10px;">表格编辑</a>
+      <a class="tuning-item" href="/config" style="display:inline-flex;align-items:center;text-decoration:none;color:inherit;padding:6px 10px;">YAML 编辑</a>
+    </div>
+  </div>
+  <p id="ng-error" class="error" style="display:none"></p>
+  <div class="ng-layout">
+    <aside class="ng-palette" aria-label="节点 Palette">
+      <h2>节点</h2>
+      <div id="ng-palette-list" class="ng-palette-list">
+        <p class="muted">加载中...</p>
+      </div>
+    </aside>
+    <div class="ng-canvas-wrap">
+      <canvas id="ng-canvas" width="1200" height="700" aria-label="Node Graph 画布"></canvas>
+    </div>
+    <aside class="ng-inspector" aria-label="节点配置 Inspector" id="ng-inspector">
+      <h2>Inspector</h2>
+      <div id="ng-inspector-body">
+        <p class="muted">选中节点以查看配置</p>
+      </div>
+    </aside>
+  </div>
+</section>
+<script src="/static/litegraph.js"></script>
+<script src="/static/node_graph_editor.js"></script>
+{% endblock %}

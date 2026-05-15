@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-05-15T14:22:25.925Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Unknown draft nodes now display explicit UNKNOWN label per spec requirement. Fixed in node_graph_editor.js:240-244."
+    }
+  ],
+  "tasksFileHash": "55a50d74bb51f575643fa89e2f36b4bba221b889ee4ea57ec0fa947e7b36a055",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "canonical",
+    "evidenceFiles": [
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/web/routes.py",
+      "src/stockimformation/web/static/node_graph_editor.js",
+      "src/stockimformation/web/static/styles.css",
+      "src/stockimformation/web/templates/config.html",
+      "src/stockimformation/web/templates/node_graph_editor.html",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_config_editor.py"
+    ],
+    "evidenceFingerprint": "b75b0f6f84d28f34f1904b9fd6cc2f2b95e2f793b21f53f2b755b5ae1852ddb0",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "c44aac4ccdcbba59165c51e7ab567838bd9fdda3"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-15T14:22:56.266Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-15T14:22:25.925Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Unknown draft nodes now display explicit UNKNOWN label per spec requirement. Fixed in node_graph_editor.js:240-244."
+        }
+      ],
+      "tasksFileHash": "55a50d74bb51f575643fa89e2f36b4bba221b889ee4ea57ec0fa947e7b36a055",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "canonical",
+        "evidenceFiles": [
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/web/routes.py",
+          "src/stockimformation/web/static/node_graph_editor.js",
+          "src/stockimformation/web/static/styles.css",
+          "src/stockimformation/web/templates/config.html",
+          "src/stockimformation/web/templates/node_graph_editor.html",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_config_editor.py"
+        ],
+        "evidenceFingerprint": "b75b0f6f84d28f34f1904b9fd6cc2f2b95e2f793b21f53f2b755b5ae1852ddb0",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "c44aac4ccdcbba59165c51e7ab567838bd9fdda3"
+      }
+    }
+  }
+}

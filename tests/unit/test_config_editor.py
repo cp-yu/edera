@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation.config.schema import NodeConfig
+from stockimformation.config.schema import DagConfig, NodeConfig
 from stockimformation.config.editor import RuntimeConfigEditor
 from stockimformation.errors import ConfigEditError
-from stockimformation.web.routes import _dag_payload, _save_dag
+from stockimformation.web.routes import _dag_payload, _graph_dag_payload, _graph_node_payload, _save_dag
 
 
 def test_config_editor_rejects_invalid_system_without_writing(tmp_path: Path) -> None:
@@ -131,3 +131,83 @@ def _copy_dir(source: Path, target: Path) -> None:
             dest.mkdir()
         else:
             dest.write_text(path.read_text())
+
+
+def test_graph_dag_payload_round_trip_preserves_ui_metadata() -> None:
+    payload = _graph_dag_payload(
+        "test-dag",
+        {
+            "nodes": [{"name": "a", "type": "function"}, {"name": "b", "type": "llm"}],
+            "edges": [{"from": "a", "to": "b", "fan_in": True}],
+            "ui": {"nodes": {"a": {"x": 100, "y": 200}, "b": {"x": 300, "y": 400}}},
+        },
+    )
+    assert payload["name"] == "test-dag"
+    assert len(payload["nodes"]) == 2
+    assert payload["nodes"] == ["a", "b"]
+    assert len(payload["edges"]) == 1
+    assert payload["edges"][0]["from"] == "a"
+    assert payload["edges"][0]["to"] == "b"
+    assert payload["edges"][0]["fan_in"] is True
+    assert payload["ui"]["nodes"]["a"]["x"] == 100
+    assert payload["ui"]["nodes"]["b"]["y"] == 400
+
+
+def test_graph_dag_payload_validates_with_dag_config() -> None:
+    payload = _graph_dag_payload(
+        "default",
+        {
+            "nodes": ["rss-fetcher", "reader"],
+            "edges": [{"from": "rss-fetcher", "to": "reader"}],
+            "ui": {},
+        },
+    )
+    DagConfig.model_validate(payload)
+
+
+def test_graph_dag_save_rejects_cycle(tmp_path: Path) -> None:
+    root = _copy_config_tree(tmp_path)
+    editor = RuntimeConfigEditor(root / "config", root / "skills")
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    payload = _graph_dag_payload(
+        "default",
+        {
+            "nodes": ["rss-fetcher", "reader"],
+            "edges": [{"from": "rss-fetcher", "to": "reader"}, {"from": "reader", "to": "rss-fetcher"}],
+            "ui": {},
+        },
+    )
+    with pytest.raises(ConfigEditError):
+        _save_dag(editor, "default", payload)
+    assert dag_path.read_text() == original
+
+
+def test_graph_node_payload_round_trip() -> None:
+    payload = _graph_node_payload(
+        "reader",
+        {
+            "skills": ["summarize"],
+            "model": "gpt-4",
+            "source_names": ["source-a", "source-b"],
+            "timeout_seconds": 30.0,
+            "parameters": {"confidence_threshold": 0.55},
+        },
+    )
+    assert payload["name"] == "reader"
+    assert payload["skills"] == [{"name": "summarize"}]
+    assert payload["model"] == "gpt-4"
+    assert payload["source_names"] == ["source-a", "source-b"]
+    assert payload["timeout_seconds"] == 30.0
+    assert payload["parameters"]["confidence_threshold"] == 0.55
+
+
+def test_graph_node_payload_rejects_credentials() -> None:
+    with pytest.raises(ConfigEditError):
+        _graph_node_payload(
+            "reader",
+            {
+                "skills": ["summarize"],
+                "parameters": {"api_secret": "secret123"},
+            },
+        )

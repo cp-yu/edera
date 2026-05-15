@@ -9,10 +9,11 @@ from uuid import uuid4
 import yaml
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import ValidationError
 
 from stockimformation.config.editor import ConfigKind, EditableFile, RuntimeConfigEditor
-from stockimformation.config.loader import load_node_configs, load_portfolio_config, load_system_config
-from stockimformation.config.schema import DagConfig, PortfolioConfig
+from stockimformation.config.loader import load_dag_configs, load_node_configs, load_portfolio_config, load_system_config
+from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig
 from stockimformation.errors import ConfigEditError, ConfigError
 from stockimformation.models.repository import (
     analyses_for_advice,
@@ -24,7 +25,9 @@ from stockimformation.models.repository import (
     list_event_records,
     list_advices,
     list_briefings,
+    node_runs_for_cycle,
     raw_items_for_analyses,
+    recent_pipeline_runs,
     source_execution_logs,
     source_health_summary,
 )
@@ -442,6 +445,137 @@ async def api_config_save(
         return error_response(400, "config_error", str(exc))
 
 
+@router.get("/config/dag-graph", response_class=HTMLResponse)
+async def dag_graph_page(request: Request, name: str = "default") -> HTMLResponse:
+    editor = _editor(config_dir(request))
+    try:
+        current = editor.read("dag", name)
+    except ConfigEditError:
+        current = editor.list_files()[0]
+    return templates(request).TemplateResponse(
+        request,
+        "node_graph_editor.html",
+        {
+            "active": "config",
+            "dag_name": current.name,
+            "dag_names": [f.name for f in editor.list_files() if f.kind == "dag"],
+        },
+    )
+
+
+@router.get("/api/graph/nodes")
+async def api_graph_node_prototypes(request: Request) -> dict[str, object]:
+    nodes = load_node_configs(config_dir(request) / "nodes")
+    prototypes = []
+    for node in nodes.values():
+        d = node.model_dump(mode="json")
+        # Flatten skills list to simple names for the frontend
+        d["skills"] = [s["name"] for s in d["skills"]]
+        prototypes.append(d)
+    return {"prototypes": prototypes}
+
+
+@router.get("/api/graph/dag/{name}", response_model=None)
+async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    try:
+        dag = load_dag_configs(config_dir(request) / "dags")[name]
+    except KeyError:
+        return error_response(404, "not_found", f"dag {name} not found")
+    nodes = load_node_configs(config_dir(request) / "nodes")
+    node_instances = []
+    for node_name in dag.nodes:
+        node_config = nodes.get(node_name)
+        if node_config:
+            n = node_config.model_dump(mode="json")
+            n["skills"] = [s["name"] for s in n["skills"]]
+            node_instances.append(n)
+        else:
+            node_instances.append({"name": node_name, "type": "function", "input_type": "any", "output_type": "any"})
+    edges = [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag.edges]
+    return {
+        "name": dag.name,
+        "nodes": node_instances,
+        "edges": edges,
+        "ui": dag.ui,
+    }
+
+
+@router.put("/api/graph/dag/{name}", response_model=None)
+async def api_graph_dag_save(
+    request: Request,
+    name: str,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    editor = _editor(config_dir(request))
+    try:
+        payload = _graph_dag_payload(name, body)
+        content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
+        saved = editor.save("dag", name, content)
+        dag_config = DagConfig.model_validate(yaml.safe_load(saved.content) or {})
+        return {
+            "file": saved.__dict__,
+            "dag": {
+                "name": dag_config.name,
+                "nodes": dag_config.nodes,
+                "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag_config.edges],
+                "ui": dag_config.ui,
+            },
+        }
+    except (ConfigEditError, KeyError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.get("/api/graph/node/{name}", response_model=None)
+async def api_graph_node_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    try:
+        nodes = load_node_configs(config_dir(request) / "nodes")
+        node = nodes[name]
+        d = node.model_dump(mode="json")
+        d["skills"] = [s["name"] for s in d["skills"]]
+        return {"node": d}
+    except KeyError:
+        return error_response(404, "not_found", f"node {name} not found")
+
+
+@router.put("/api/graph/node/{name}", response_model=None)
+async def api_graph_node_save(
+    request: Request,
+    name: str,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    editor = _editor(config_dir(request))
+    try:
+        payload = _graph_node_payload(name, body)
+        content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
+        saved = editor.save("node", name, content)
+        node_config = NodeConfig.model_validate(yaml.safe_load(saved.content) or {})
+        d = node_config.model_dump(mode="json")
+        d["skills"] = [s["name"] for s in d["skills"]]
+        return {"file": saved.__dict__, "node": d}
+    except (ConfigEditError, KeyError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.get("/api/graph/runtime-status")
+async def api_graph_runtime_status(request: Request) -> dict[str, object]:
+    ctrl = controller(request)
+    factory = ctrl._factory()
+    async with factory() as session:
+        recent = await recent_pipeline_runs(session)
+    node_statuses: dict[str, dict[str, object]] = {}
+    if recent:
+        async with factory() as session:
+            for run in recent[:1]:
+                node_runs = await node_runs_for_cycle(session, run.cycle_id)
+                for nr in node_runs:
+                    node_statuses[nr.node_name] = {
+                        "status": nr.status,
+                        "error": nr.error,
+                        "cycle_id": nr.cycle_id,
+                    }
+    return {"node_statuses": node_statuses}
+
+
 @router.post("/pipeline/run")
 async def form_pipeline_run(request: Request) -> RedirectResponse:
     await api_pipeline_run(request)
@@ -755,6 +889,47 @@ def _dag_edge_payload(edge: object) -> dict[str, object]:
     if bool(edge.get("fan_in")):
         payload["fan_in"] = True
     return payload
+
+
+def _graph_dag_payload(name: str, body: dict[str, object]) -> dict[str, object]:
+    nodes = body.get("nodes", [])
+    edges = body.get("edges", [])
+    ui = body.get("ui", {})
+    if not isinstance(nodes, list):
+        raise ConfigEditError("dag nodes must be a list")
+    if not isinstance(edges, list):
+        raise ConfigEditError("dag edges must be a list")
+    payload: dict[str, object] = {
+        "name": name,
+        "nodes": [str(node) if isinstance(node, str) else str(node.get("name", "")) for node in nodes],
+        "edges": [_dag_edge_payload(edge) for edge in edges],
+        "ui": ui if isinstance(ui, dict) else {},
+    }
+    try:
+        return DagConfig.model_validate(payload).model_dump(by_alias=True, mode="json")
+    except ValidationError as exc:
+        raise ConfigEditError(str(exc)) from exc
+
+
+def _graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]:
+    skills = body.get("skills", [])
+    if not isinstance(skills, list):
+        skills = []
+    payload: dict[str, object] = {
+        "name": name,
+        "type": body.get("type", "function"),
+        "skills": [{"name": str(s)} if isinstance(s, str) else s for s in skills],
+        "model": body.get("model"),
+        "input_type": body.get("input_type", "any"),
+        "output_type": body.get("output_type", "any"),
+        "timeout_seconds": body.get("timeout_seconds"),
+        "source_names": body.get("source_names", []),
+        "parameters": body.get("parameters", {}),
+    }
+    try:
+        return NodeConfig.model_validate(payload).model_dump(mode="json")
+    except ValidationError as exc:
+        raise ConfigEditError(str(exc)) from exc
 
 
 def _repair_task_payload(

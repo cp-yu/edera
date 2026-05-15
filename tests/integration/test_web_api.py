@@ -532,7 +532,8 @@ async def test_web_config_page_lists_analysis_tuning_entries(tmp_path: Path) -> 
     assert "source_names" in response.text
     assert "parameters" in response.text
     assert "DAG 编辑" in response.text
-    assert "DAG 结构化编辑" in response.text
+    assert "Node Graph 画布编辑" in response.text
+    assert "DAG 表格编辑 (兜底)" in response.text
 
 
 @pytest.mark.asyncio
@@ -1098,3 +1099,197 @@ sources:
     regex: '(?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"'
 """.lstrip()
     )
+
+
+@pytest.mark.asyncio
+async def test_web_graph_nodes_api_returns_prototypes(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.get("/api/graph/nodes")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    data = response.json()
+    assert "prototypes" in data
+    names = [p["name"] for p in data["prototypes"]]
+    assert "rss-fetcher" in names
+    assert "reader" in names
+    assert "advisor" in names
+
+
+@pytest.mark.asyncio
+async def test_web_graph_dag_api_round_trip(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            dag_response = await client.get("/api/graph/dag/default")
+            state = dag_response.json()
+            state["ui"] = {"nodes": {"rss-fetcher": {"x": 100, "y": 200}}}
+            save_response = await client.put("/api/graph/dag/default", json=state)
+        finally:
+            await app.state.controller.shutdown()
+    assert dag_response.status_code == 200
+    assert state["name"] == "default"
+    assert len(state["nodes"]) > 0
+    assert len(state["edges"]) > 0
+    assert save_response.status_code == 200
+    saved = save_response.json()
+    assert saved["dag"]["ui"]["nodes"]["rss-fetcher"]["x"] == 100
+
+
+@pytest.mark.asyncio
+async def test_web_graph_dag_save_rejects_cycle(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.put(
+                "/api/graph/dag/default",
+                json={
+                    "nodes": ["rss-fetcher", "reader"],
+                    "edges": [
+                        {"from": "rss-fetcher", "to": "reader"},
+                        {"from": "reader", "to": "rss-fetcher"},
+                    ],
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 400
+    assert response.json()["error"]["type"] == "config_error"
+    assert dag_path.read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_web_graph_dag_save_rejects_unknown_node(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.put(
+                "/api/graph/dag/default",
+                json={
+                    "nodes": ["rss-fetcher", "missing-node"],
+                    "edges": [{"from": "rss-fetcher", "to": "missing-node"}],
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 400
+    assert "missing node config" in response.json()["error"]["message"]
+    assert dag_path.read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_web_graph_node_read_and_save(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            read_response = await client.get("/api/graph/node/reader")
+            node = read_response.json()["node"]
+            node["timeout_seconds"] = 45.0
+            save_response = await client.put("/api/graph/node/reader", json=node)
+        finally:
+            await app.state.controller.shutdown()
+    assert read_response.status_code == 200
+    assert node["name"] == "reader"
+    assert save_response.status_code == 200
+    assert save_response.json()["node"]["timeout_seconds"] == 45.0
+
+
+@pytest.mark.asyncio
+async def test_web_graph_node_save_rejects_invalid(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    original = (root / "config" / "nodes" / "reader.yaml").read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.put(
+                "/api/graph/node/reader",
+                json={
+                    "skills": ["summarize"],
+                    "parameters": {"api_token": "secret123"},
+                },
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 400
+    assert response.json()["error"]["type"] == "config_error"
+    assert (root / "config" / "nodes" / "reader.yaml").read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_web_graph_runtime_status_maps_nodes(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            async with app.state.controller._factory()() as session:
+                await create_pipeline_run(session, "cycle-graph", "manual", ["rss-fetcher", "reader"])
+                await mark_node_run(session, "cycle-graph", "rss-fetcher", "succeeded")
+                await mark_node_run(session, "cycle-graph", "reader", "failed", "timeout")
+                await finish_pipeline_run(session, "cycle-graph", "failed")
+                await session.commit()
+            response = await client.get("/api/graph/runtime-status")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    statuses = response.json()["node_statuses"]
+    assert statuses["rss-fetcher"]["status"] == "succeeded"
+    assert statuses["reader"]["status"] == "failed"
+    assert statuses["reader"]["error"] == "timeout"
+    assert statuses["reader"]["cycle_id"] == "cycle-graph"
+
+
+@pytest.mark.asyncio
+async def test_web_graph_page_loads(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            page = await client.get("/config/dag-graph")
+            missing = await client.get("/api/graph/dag/missing")
+        finally:
+            await app.state.controller.shutdown()
+    assert page.status_code == 200
+    assert "Node Graph" in page.text
+    assert "ng-canvas" in page.text
+    assert "/static/litegraph.js" in page.text
+    assert "/static/node_graph_editor.js" in page.text
+    assert "inspector" in page.text.lower()
+    assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_web_graph_static_resources_available(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            lg = await client.get("/static/litegraph.js")
+            css = await client.get("/static/litegraph.css")
+            js = await client.get("/static/node_graph_editor.js")
+        finally:
+            await app.state.controller.shutdown()
+    assert lg.status_code == 200
+    assert len(lg.content) > 100000
+    assert css.status_code == 200
+    assert js.status_code == 200
+    assert "StockNode" in js.text
