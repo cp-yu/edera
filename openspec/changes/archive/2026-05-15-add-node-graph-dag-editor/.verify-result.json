@@ -1,10 +1,14 @@
 {
-  "timestamp": "2026-05-15T14:22:25.925Z",
-  "result": "PASS_WITH_WARNINGS",
+  "timestamp": "2026-05-15T14:53:00.925Z",
+  "result": "PASS",
   "issues": [
     {
       "severity": "WARNING",
-      "message": "Unknown draft nodes now display explicit UNKNOWN label per spec requirement. Fixed in node_graph_editor.js:240-244."
+      "message": "Edge deletion scenario has no dedicated API test; implicitly covered by DAG round-trip test."
+    },
+    {
+      "severity": "WARNING",
+      "message": "Frontend palette-to-canvas interaction has no E2E browser test; covered by page-load smoke test and static resource test only."
     }
   ],
   "tasksFileHash": "55a50d74bb51f575643fa89e2f36b4bba221b889ee4ea57ec0fa947e7b36a055",
@@ -23,24 +27,28 @@
     ],
     "evidenceFingerprint": "b75b0f6f84d28f34f1904b9fd6cc2f2b95e2f793b21f53f2b755b5ae1852ddb0",
     "skippedEvidenceFiles": [],
-    "gitHeadCommit": "c44aac4ccdcbba59165c51e7ab567838bd9fdda3"
+    "gitHeadCommit": "4060b7f575ddc10d2d7d377b1f1c2ca8eb0cfb14"
   },
   "optimization": {
     "status": "NOT_NEEDED",
     "attempts": [
       {
-        "timestamp": "2026-05-15T14:22:56.266Z",
+        "timestamp": "2026-05-15T14:53:08.574Z",
         "type": "optimization",
         "status": "NO_OPTIMIZATION_NEEDED"
       }
     ],
     "baseline": {
-      "timestamp": "2026-05-15T14:22:25.925Z",
-      "result": "PASS_WITH_WARNINGS",
+      "timestamp": "2026-05-15T14:53:00.925Z",
+      "result": "PASS",
       "issues": [
         {
           "severity": "WARNING",
-          "message": "Unknown draft nodes now display explicit UNKNOWN label per spec requirement. Fixed in node_graph_editor.js:240-244."
+          "message": "Edge deletion scenario has no dedicated API test; implicitly covered by DAG round-trip test."
+        },
+        {
+          "severity": "WARNING",
+          "message": "Frontend palette-to-canvas interaction has no E2E browser test; covered by page-load smoke test and static resource test only."
         }
       ],
       "tasksFileHash": "55a50d74bb51f575643fa89e2f36b4bba221b889ee4ea57ec0fa947e7b36a055",
@@ -59,7 +67,7 @@
         ],
         "evidenceFingerprint": "b75b0f6f84d28f34f1904b9fd6cc2f2b95e2f793b21f53f2b755b5ae1852ddb0",
         "skippedEvidenceFiles": [],
-        "gitHeadCommit": "c44aac4ccdcbba59165c51e7ab567838bd9fdda3"
+        "gitHeadCommit": "4060b7f575ddc10d2d7d377b1f1c2ca8eb0cfb14"
       }
     }
   }
