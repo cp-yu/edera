@@ -6,7 +6,7 @@ compatibility: Requires openspec CLI workflow orchestration.
 metadata:
   author: openspec
   version: "1.0"
-  generatedBy: "1.2.0-cpyu.8"
+  generatedBy: "1.2.0-cpyu.9"
 ---
 
 ## Role

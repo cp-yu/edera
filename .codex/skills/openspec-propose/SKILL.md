@@ -6,7 +6,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  generatedBy: "1.2.0-cpyu.8"
+  generatedBy: "1.2.0-cpyu.9"
 ---
 
 Propose a new change - create the change and generate all artifacts in one step.
@@ -108,7 +108,10 @@ Before reading other context files, check whether `openspec/project.opsx.yaml` e
 - Run lightweight structure checks for `proposal.md`, `design.md`, and `tasks.md` against the current schema templates, not scattered examples:
   - Read `openspec instructions proposal --change "<name>" --json`, `openspec instructions design --change "<name>" --json`, and `openspec instructions tasks --change "<name>" --json`
   - Check only key required headings and checkbox structure
+  - For `tasks.md`, run a deterministic Actions/Checks structure check equivalent to `validateTaskStructure` in `src/core/parsers/task-structure.ts`
+  - Programmatically verify `Actions` and `Checks` sections, `A`-prefixed action checkboxes, `C`-prefixed check checkboxes, required `Covers:` fields, valid `Covers:` references, every action covered by at least one check, and at least one `Command:`, `Evidence:`, or `Expect:` field on every check
   - Do NOT invent semantic lint rules beyond the current templates
+  - Do NOT judge whether a check is semantically sufficient; defer semantic suitability to verify/reviewer
 - If warnings are found, do exactly one repair pass on the generated artifacts, then re-check once
 - Final summary MUST separate:
   - fixed warnings

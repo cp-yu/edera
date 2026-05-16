@@ -6,7 +6,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "2.0"
-  generatedBy: "1.2.0-cpyu.8"
+  generatedBy: "1.2.0-cpyu.9"
 ---
 
 Bootstrap the OPSX architecture map from the existing codebase.
