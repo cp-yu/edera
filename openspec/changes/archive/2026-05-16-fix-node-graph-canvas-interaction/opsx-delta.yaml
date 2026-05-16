@@ -1,0 +1,9 @@
+modified:
+  domains:
+    - name: web
+      capabilities:
+        - id: node-graph-dag-editor
+          description: Node Graph DAG 编辑器，覆盖画布交互编辑、节点拖动、连线建立、Inspector 配置和运行时状态展示
+          spec: specs/node-graph-dag-editor/spec.md
+added: {}
+removed: {}

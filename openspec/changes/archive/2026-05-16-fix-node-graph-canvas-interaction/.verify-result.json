@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-05-16T11:58:12.385Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "0a0b68e420ce242585a20283dc9f011d5ae32e1035df92c5080456da52424026",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "full",
+    "evidenceFiles": [
+      "src/stockimformation/web/static/node_graph_editor.js",
+      "src/stockimformation/web/static/styles.css",
+      "src/stockimformation/web/templates/node_graph_editor.html"
+    ],
+    "evidenceFingerprint": "c1f0e9e2a1520965135dc630aa91b3aa5219bdd46556b5f5fc2f22c2168e44a0",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "38b82d28057837173f553892ba603dcfca618cac"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-16T11:58:19.448Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-16T11:58:12.385Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "0a0b68e420ce242585a20283dc9f011d5ae32e1035df92c5080456da52424026",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "full",
+        "evidenceFiles": [
+          "src/stockimformation/web/static/node_graph_editor.js",
+          "src/stockimformation/web/static/styles.css",
+          "src/stockimformation/web/templates/node_graph_editor.html"
+        ],
+        "evidenceFingerprint": "c1f0e9e2a1520965135dc630aa91b3aa5219bdd46556b5f5fc2f22c2168e44a0",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "38b82d28057837173f553892ba603dcfca618cac"
+      }
+    }
+  }
+}

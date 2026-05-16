@@ -510,23 +510,47 @@
 
   /* ---- Init ---- */
   async function init() {
+    // Set canvas resolution to match container size before creating renderer
+    const wrap = document.querySelector('.ng-canvas-wrap');
+    if (wrap) {
+      const rect = wrap.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+    }
     graph = new LiteGraph.LGraph();
     canvasRenderer = new LiteGraph.LGraphCanvas(canvas, graph);
     canvasRenderer.background_image = "";
     canvasRenderer.render_canvas_border = false;
 
-    canvas.addEventListener("mousedown", function () {
-      var selNodes = canvasRenderer.selected_nodes || {};
-      var keys = Object.keys(selNodes);
-      if (keys.length === 1) {
-        var node = graph.getNodeById(parseInt(keys[0]));
-        if (node) {
-          renderInspector(node);
+    // ResizeObserver to keep canvas resolution in sync with container
+    const resizeWrap = document.querySelector('.ng-canvas-wrap');
+    if (resizeWrap && window.ResizeObserver) {
+      const resizeObserver = new ResizeObserver(function(entries) {
+        for (const entry of entries) {
+          const cr = entry.contentRect;
+          if (cr.width > 0 && cr.height > 0) {
+            canvas.width = cr.width;
+            canvas.height = cr.height;
+            if (canvasRenderer && canvasRenderer.resize) {
+              canvasRenderer.resize();
+            }
+          }
         }
-      } else {
-        renderInspector(null);
+      });
+      resizeObserver.observe(resizeWrap);
+    }
+
+    // Use LiteGraph's official node selection callbacks
+    canvasRenderer.onNodeSelected = function(node) {
+      if (node) {
+        renderInspector(node);
       }
-    });
+    };
+    canvasRenderer.onNodeDeselected = function() {
+      renderInspector(null);
+    };
 
     graph.onNodeRemoved = function () {
       renderInspector(null);

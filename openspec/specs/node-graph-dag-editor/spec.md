@@ -26,7 +26,7 @@
 - **THEN** 系统 SHALL 返回该 DAG 的节点实例、边、fan flags 和 UI 布局元数据
 
 ### Requirement: Interactive graph editing
-系统 SHALL 支持用户在画布上通过节点和端口交互编辑 DAG 数据流。
+系统 SHALL 支持用户在画布上通过节点和端口交互编辑 DAG 数据流。画布 SHALL 动态匹配容器实际像素尺寸，确保鼠标坐标与节点渲染坐标一致。
 
 #### Scenario: Add node from palette
 - **WHEN** 用户从 palette 添加一个 Node 到画布
@@ -40,6 +40,14 @@
 - **WHEN** 用户删除画布上的连线
 - **THEN** 系统 SHALL 从 DAG 草稿中移除对应边
 
+#### Scenario: Drag node on canvas
+- **WHEN** 用户在画布上拖动节点
+- **THEN** 节点 SHALL 跟随鼠标移动，拖动位置与鼠标位置一致（无坐标偏移）
+
+#### Scenario: Canvas resize follows container
+- **WHEN** 浏览器窗口尺寸变化或容器布局改变
+- **THEN** 画布分辨率 SHALL 自动匹配容器实际像素尺寸，交互坐标保持准确
+
 ### Requirement: Graph DAG save
 系统 MUST 将 Node Graph 草稿保存回现有 DAG 执行语义，并复用后端 DAG 校验。
 
@@ -52,11 +60,15 @@
 - **THEN** 系统 MUST 拒绝保存、返回可读错误并保持原 DAG 文件内容不变
 
 ### Requirement: Node Inspector configuration
-系统 SHALL 在 Node Graph Inspector 中展示并编辑选中节点的可配置字段。
+系统 SHALL 在 Node Graph Inspector 中展示并编辑选中节点的可配置字段。节点选中 SHALL 通过 LiteGraph 的节点选中回调触发，确保选中状态与画布渲染同步。
 
 #### Scenario: Inspect node configuration
 - **WHEN** 用户选中画布中的节点
 - **THEN** 系统 SHALL 在 Inspector 展示该节点的 `skills[]`、`model`、`source_names`、`timeout_seconds` 和 `parameters`
+
+#### Scenario: Deselect node clears Inspector
+- **WHEN** 用户点击画布空白区域取消选中
+- **THEN** Inspector SHALL 清空节点配置显示
 
 #### Scenario: Save node configuration
 - **WHEN** 用户在 Inspector 中保存合法节点配置
