@@ -1,0 +1,28 @@
+# OPSX Delta — frontend-react-spa
+
+## ADDED
+
+domains:
+  - name: frontend
+    description: React SPA 前端 — 工作台、结果浏览、信息源监控、配置管理
+
+capabilities:
+  - id: dag-workbench-ui
+    domain: frontend
+    description: DAG 统一工作台前端，覆盖三栏布局、React Flow 画布、节点 Palette、Inspector 编辑面板、底部工具栏、Target 过滤、节点颜色映射、内联创建和全局保存警告
+    spec: specs/dag-workbench-ui/spec.md
+
+  - id: spa-shell
+    domain: frontend
+    description: SPA 应用外壳，覆盖路由、导航、主题切换、API 客户端层和全局状态管理
+    spec: specs/spa-shell/spec.md
+
+  - id: results-dashboard-ui
+    domain: frontend
+    description: 结果浏览前端，覆盖摘要卡片、简报展示、建议表格、事件表格和筛选功能
+    spec: specs/results-dashboard-ui/spec.md
+
+  - id: sources-monitor-ui
+    domain: frontend
+    description: 信息源健康监控前端，覆盖健康状态卡片和执行日志展示
+    spec: specs/sources-monitor-ui/spec.md
