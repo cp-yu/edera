@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -40,6 +43,14 @@ class RunAlreadyActiveError(Exception):
         super().__init__(f"pipeline run already active: {cycle_id}")
 
 
+@dataclass
+class DagRunContext:
+    dag_name: str
+    cycle_id: str
+    task: asyncio.Task[object]
+    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class PipelineController:
     def __init__(
         self,
@@ -50,23 +61,24 @@ class PipelineController:
         self.scheduler = scheduler or AsyncIOScheduler()
         self.engine: AsyncEngine | None = None
         self.factory: async_sessionmaker[AsyncSession] | None = None
-        self.current_task: asyncio.Task[object] | None = None
-        self.current_cycle_id: str | None = None
-        self._lock = asyncio.Lock()
+        self.active_runs: dict[str, DagRunContext] = {}
+        self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def start(self, run_startup: bool = True) -> None:
         config = load_app_config(self.config_dir)
         self.engine = create_engine(config.system.database_url)
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
-        self.scheduler.add_job(
-            self._start_schedule_run,
-            "interval",
-            minutes=config.system.schedule_minutes,
-            id="default-dag",
-            max_instances=1,
-            coalesce=True,
-        )
+        for dag_name, dag_config in config.dags.items():
+            self.scheduler.add_job(
+                self._start_schedule_run,
+                "interval",
+                minutes=config.system.schedule_minutes,
+                id=f"{dag_name}-dag",
+                max_instances=1,
+                coalesce=True,
+                args=[dag_name],
+            )
         self.scheduler.start()
         if run_startup:
             await self.start_run("startup")
@@ -74,29 +86,29 @@ class PipelineController:
     async def shutdown(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
-        task = self.current_task
-        if task is not None and not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+        for ctx in list(self.active_runs.values()):
+            if not ctx.task.done():
+                ctx.task.cancel()
+                try:
+                    await ctx.task
+                except asyncio.CancelledError:
+                    pass
         if self.engine is not None:
             await self.engine.dispose()
 
-    async def start_run(self, trigger: str = "manual") -> str:
-        async with self._lock:
-            cycle_id, task = self._start_run_locked(trigger)
-        task.add_done_callback(self._clear_finished_task)
+    async def start_run(self, trigger: str = "manual", dag_name: str = "default") -> str:
+        async with self._locks[dag_name]:
+            cycle_id, task = self._start_run_locked(trigger, dag_name)
+        task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
         return cycle_id
 
-    async def run_now(self, trigger: str = "manual") -> str:
-        async with self._lock:
-            cycle_id, task = self._start_run_locked(trigger)
+    async def run_now(self, trigger: str = "manual", dag_name: str = "default") -> str:
+        async with self._locks[dag_name]:
+            cycle_id, task = self._start_run_locked(trigger, dag_name)
         try:
             await task
         finally:
-            self._clear_finished_task(task)
+            self._clear_finished_task(task, dag_name)
         return cycle_id
 
     def pause_scheduler(self) -> None:
@@ -105,62 +117,72 @@ class PipelineController:
     def resume_scheduler(self) -> None:
         self.scheduler.resume()
 
-    async def stop_current(self) -> str | None:
-        task = self.current_task
-        cycle_id = self.current_cycle_id
-        if task is None or task.done() or cycle_id is None:
+    async def stop_current(self, dag_name: str = "default") -> str | None:
+        ctx = self.active_runs.get(dag_name)
+        if ctx is None or ctx.task.done():
             return None
-        task.cancel()
+        ctx.task.cancel()
         try:
-            await task
+            await ctx.task
         except asyncio.CancelledError:
             pass
-        return cycle_id
+        return ctx.cycle_id
 
-    async def status(self) -> dict[str, object]:
+    async def status(self, dag_name: str | None = None) -> dict[str, object]:
         factory = self._factory()
+        if dag_name is not None:
+            async with factory() as session:
+                current = await current_pipeline_run(session, dag_name)
+                recent = await recent_pipeline_runs(session, dag_name=dag_name)
+            ctx = self.active_runs.get(dag_name)
+            return {
+                "scheduler_running": self.scheduler.running,
+                "scheduler_paused": self.scheduler.state == 2,
+                "dag_name": dag_name,
+                "current_cycle_id": current.cycle_id if current else (ctx.cycle_id if ctx else None),
+                "recent_runs": [_run_dict(run) for run in recent],
+            }
         async with factory() as session:
             current = await current_pipeline_run(session)
             recent = await recent_pipeline_runs(session)
         return {
             "scheduler_running": self.scheduler.running,
             "scheduler_paused": self.scheduler.state == 2,
-            "current_cycle_id": current.cycle_id if current else self.current_cycle_id,
+            "active_dags": {name: ctx.cycle_id for name, ctx in self.active_runs.items() if not ctx.task.done()},
             "recent_runs": [_run_dict(run) for run in recent],
         }
 
-    async def _start_schedule_run(self) -> None:
+    async def _start_schedule_run(self, dag_name: str = "default") -> None:
         try:
-            await self.start_run("schedule")
+            await self.start_run("schedule", dag_name)
         except RunAlreadyActiveError:
             return
 
-    def _start_run_locked(self, trigger: str) -> tuple[str, asyncio.Task[object]]:
-        if self.current_task is not None and not self.current_task.done():
-            if self.current_cycle_id is None:
-                raise RunAlreadyActiveError("unknown")
-            raise RunAlreadyActiveError(self.current_cycle_id)
+    def _start_run_locked(self, trigger: str, dag_name: str) -> tuple[str, asyncio.Task[object]]:
+        ctx = self.active_runs.get(dag_name)
+        if ctx is not None and not ctx.task.done():
+            raise RunAlreadyActiveError(ctx.cycle_id)
         cycle_id = uuid4().hex
-        self.current_cycle_id = cycle_id
-        self.current_task = asyncio.create_task(self._run(cycle_id, trigger))
-        return cycle_id, self.current_task
+        task = asyncio.create_task(self._run(cycle_id, trigger, dag_name))
+        self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task)
+        return cycle_id, task
 
-    def _clear_finished_task(self, task: asyncio.Task[object]) -> None:
+    def _clear_finished_task(self, task: asyncio.Task[object], dag_name: str) -> None:
         if task.done() and not task.cancelled():
             try:
                 task.exception()
             except Exception:
                 pass
-        if self.current_task is task and task.done():
-            self.current_task = None
-            self.current_cycle_id = None
+        ctx = self.active_runs.get(dag_name)
+        if ctx is not None and ctx.task is task and task.done():
+            del self.active_runs[dag_name]
 
-    async def _run(self, cycle_id: str, trigger: str) -> object:
+    async def _run(self, cycle_id: str, trigger: str, dag_name: str = "default") -> object:
         config = load_app_config(self.config_dir)
-        graph = load_graph(config.dags["default"], config.nodes)
+        graph = load_graph(config.dags[dag_name], config.nodes)
         factory = self._factory()
         async with factory() as session:
-            await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes))
+            await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes), dag_name)
             await session.commit()
         try:
             result = await DagRunner(

@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-05-17T03:56:09.467Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "1d2842f370ac64cafa52beda5140167107896de6ded40771f6d33c48352fce47",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-orchestrated",
+    "evidenceFiles": [
+      "src/stockimformation/models/entities.py",
+      "src/stockimformation/models/repository.py",
+      "src/stockimformation/pipeline.py",
+      "src/stockimformation/web/app.py",
+      "src/stockimformation/web/deps.py",
+      "src/stockimformation/web/routes.py"
+    ],
+    "evidenceFingerprint": "6c3f479f4c50a802d71df377c6a402e55ab0b1b8972fe99224cee60a98c3116b",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "f60625b1d6a1736b8c1f8b42682e90e073754f8a"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-17T03:57:27.360Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-17T03:56:09.467Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "1d2842f370ac64cafa52beda5140167107896de6ded40771f6d33c48352fce47",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-orchestrated",
+        "evidenceFiles": [
+          "src/stockimformation/models/entities.py",
+          "src/stockimformation/models/repository.py",
+          "src/stockimformation/pipeline.py",
+          "src/stockimformation/web/app.py",
+          "src/stockimformation/web/deps.py",
+          "src/stockimformation/web/routes.py"
+        ],
+        "evidenceFingerprint": "6c3f479f4c50a802d71df377c6a402e55ab0b1b8972fe99224cee60a98c3116b",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "f60625b1d6a1736b8c1f8b42682e90e073754f8a"
+      }
+    }
+  }
+}

@@ -187,6 +187,7 @@ class PipelineRun(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     cycle_id: str = Field(index=True, unique=True)
+    dag_name: str = Field(default="default", index=True)
     trigger: str = Field(index=True)
     status: str = Field(index=True)
     started_at: datetime = Field(default_factory=utc_now, index=True)

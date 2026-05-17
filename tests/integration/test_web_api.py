@@ -37,19 +37,21 @@ class FakeController(PipelineController):
         self.factory = session_factory(self.engine)
         self.scheduler.start()
 
-    async def start_run(self, trigger: str = "manual") -> str:
-        async with self._lock:
-            if self.current_task is not None and not self.current_task.done():
-                raise RunAlreadyActiveError(self.current_cycle_id or "unknown")
+    async def start_run(self, trigger: str = "manual", dag_name: str = "default") -> str:
+        async with self._locks[dag_name]:
+            ctx = self.active_runs.get(dag_name)
+            if ctx is not None and not ctx.task.done():
+                raise RunAlreadyActiveError(ctx.cycle_id)
             cycle_id = "cycle-manual"
-            self.current_cycle_id = cycle_id
-            self.current_task = asyncio.create_task(self._fake_run(cycle_id, trigger))
-            self.current_task.add_done_callback(self._clear_finished_task)
+            task = asyncio.create_task(self._fake_run(cycle_id, trigger, dag_name))
+            from stockimformation.pipeline import DagRunContext
+            self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task)
+            task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
             return cycle_id
 
-    async def _fake_run(self, cycle_id: str, trigger: str) -> None:
+    async def _fake_run(self, cycle_id: str, trigger: str, dag_name: str = "default") -> None:
         async with self._factory()() as session:
-            await create_pipeline_run(session, cycle_id, trigger)
+            await create_pipeline_run(session, cycle_id, trigger, dag_name=dag_name)
             await session.commit()
         await asyncio.sleep(60)
 
@@ -136,27 +138,6 @@ async def test_web_latest_briefing_api_exposes_version_fields(tmp_path: Path) ->
 
 
 @pytest.mark.asyncio
-async def test_web_results_page_mounts_auto_refresh_config(tmp_path: Path) -> None:
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                briefing = Briefing(cycle_id="cycle-refresh", content="briefing", created_at=_dt(2))
-                session.add(briefing)
-                await session.commit()
-                briefing_id = briefing.id
-            response = await client.get("/results?stock_code=00700.HK")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert 'id="result-auto-refresh"' in response.text
-    assert f'data-briefing-id="{briefing_id}"' in response.text
-    assert f'data-briefing-created-at="{_dt(2).replace(tzinfo=None).isoformat()}"' in response.text
-    assert 'data-interval-ms="15000"' in response.text
-
-
-@pytest.mark.asyncio
 async def test_web_results_event_and_advice_context(tmp_path: Path) -> None:
     app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -197,30 +178,9 @@ async def test_web_results_event_and_advice_context(tmp_path: Path) -> None:
                 )
                 await session.commit()
             results_response = await client.get("/api/results")
-            advice_response = await client.get("/results/advices/1")
-            result_page = await client.get("/results")
         finally:
             await app.state.controller.shutdown()
     assert "events" in results_response.json()
-    assert "事件" in result_page.text
-    assert "事件证据" in advice_response.text
-
-
-@pytest.mark.asyncio
-async def test_web_results_empty_page_keeps_auto_refresh_config(tmp_path: Path) -> None:
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.get("/results")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "暂无简报。" in response.text
-    assert 'id="result-auto-refresh"' in response.text
-    assert 'data-briefing-id=""' in response.text
-    assert 'data-briefing-created-at=""' in response.text
-    assert 'data-interval-ms="15000"' in response.text
 
 
 @pytest.mark.asyncio
@@ -336,107 +296,6 @@ async def test_web_results_api_includes_configured_price_comparison(tmp_path: Pa
 
 
 @pytest.mark.asyncio
-async def test_web_advice_detail_page_shows_comparison(tmp_path: Path) -> None:
-    _write_price_config(tmp_path, "prices.csv")
-    (tmp_path / "prices.csv").write_text(
-        "\n".join(
-            [
-                "stock_code,timestamp,close",
-                f"600519.SH,{_dt(2).isoformat()},100",
-                f"600519.SH,{_dt(9).isoformat()},104",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                session.add(_advice_at("600519.SH", "sell", _dt(2)))
-                await session.commit()
-            response = await client.get("/results/advices/1")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "价格复盘" in response.text
-    assert "复盘 偏离" in response.text
-    assert "4.00%" in response.text
-
-
-@pytest.mark.asyncio
-async def test_web_result_deeplink_pages_and_not_found(tmp_path: Path) -> None:
-    minimax_url = "https://platform.minimax.io/docs/api-reference/text-chat-openai"
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                briefing = Briefing(cycle_id="cycle", content="briefing")
-                session.add(briefing)
-                await store_cycle_outputs(
-                    session,
-                    [_raw_item(minimax_url)],
-                    [_analysis(minimax_url)],
-                    [_advice(minimax_url)],
-                    None,
-                )
-                await session.commit()
-                briefing_id = briefing.id
-            briefing_page = await client.get(f"/results/briefings/{briefing_id}")
-            advice_page = await client.get("/results/advices/1")
-            missing_briefing = await client.get("/results/briefings/999")
-            missing_advice = await client.get("/results/advices/999")
-        finally:
-            await app.state.controller.shutdown()
-    assert briefing_page.status_code == 200
-    assert "briefing" in briefing_page.text
-    assert advice_page.status_code == 200
-    assert minimax_url in advice_page.text
-    assert missing_briefing.status_code == 404
-    assert "简报不存在" in missing_briefing.text
-    assert missing_advice.status_code == 404
-    assert "建议不存在" in missing_advice.text
-
-
-@pytest.mark.asyncio
-async def test_web_results_summary_inbox_metadata_and_states(tmp_path: Path) -> None:
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                session.add(
-                    Briefing(
-                        cycle_id="cycle-summary",
-                        content="briefing",
-                        metadata_={
-                            "data_window": {
-                                "start": _dt(1).isoformat(),
-                                "end": _dt(2).isoformat(),
-                            },
-                            "failed_sources": {"sample-web": "timeout"},
-                        },
-                        created_at=_dt(2),
-                    )
-                )
-                session.add(_advice_at("600519.SH", "buy", _dt(2)))
-                session.add(_advice_at("00700.HK", "hold", _dt(1), low_confidence=True))
-                await session.commit()
-            response = await client.get("/results")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "cycle-summary" in response.text
-    assert "失败源 1" in response.text
-    assert "仅供学习参考，不构成投资建议" in response.text
-    assert "summary-item state-buy" in response.text
-    assert "summary-item state-low-confidence" in response.text
-    assert "买入" in response.text
-    assert "低置信度" in response.text
-
-
-@pytest.mark.asyncio
 async def test_web_source_health_api_logs_and_page(tmp_path: Path) -> None:
     _write_portfolio(tmp_path)
     app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
@@ -474,7 +333,6 @@ async def test_web_source_health_api_logs_and_page(tmp_path: Path) -> None:
                 "/api/sources/logs",
                 params={"source_name": "sample-web"},
             )
-            page_response = await client.get("/sources")
             handoff_response = await client.post("/api/sources/sample-web/repair-task")
             reject_response = await client.post("/api/sources/minimax-docs/repair-task")
             health_after_handoff = await client.get("/api/sources/health")
@@ -494,12 +352,6 @@ async def test_web_source_health_api_logs_and_page(tmp_path: Path) -> None:
     assert len(logs) == 1
     assert logs[0]["source_name"] == "sample-web"
     assert logs[0]["pipeline_status"] == "failed"
-    assert page_response.status_code == 200
-    assert "信息源健康" in page_response.text
-    assert "source timeout" in page_response.text
-    assert "recovery_exhausted" in page_response.text
-    assert 'aria-current="page"' in page_response.text
-    assert 'scope="col">信息源' in page_response.text
     handoff = handoff_response.json()
     assert handoff_response.status_code == 200
     assert handoff["source_name"] == "sample-web"
@@ -510,173 +362,6 @@ async def test_web_source_health_api_logs_and_page(tmp_path: Path) -> None:
         source for source in health_after_handoff.json()["sources"] if source["source_name"] == "sample-web"
     )
     assert updated_sample_web["repair_task"]["task_id"] == handoff["task_id"]
-
-
-@pytest.mark.asyncio
-async def test_web_config_page_lists_analysis_tuning_entries(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.get("/config")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "分析参数" in response.text
-    assert "保存后仅影响后续运行" in response.text
-    assert "reader" in response.text
-    assert "advisor" in response.text
-    assert "briefing-generator" in response.text
-    assert "rss-fetcher" in response.text
-    assert "source_names" in response.text
-    assert "parameters" in response.text
-    assert "DAG 编辑" in response.text
-    assert "Node Graph 画布编辑" in response.text
-    assert "DAG 表格编辑 (兜底)" in response.text
-
-
-@pytest.mark.asyncio
-async def test_web_config_page_lists_portfolio_entries(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.get("/config")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "标的与信息源" in response.text
-    assert "00700.HK" in response.text
-    assert "sample-rss" in response.text
-    assert "portfolio JSON" in response.text
-    assert "保存标的与信息源" in response.text
-
-
-@pytest.mark.asyncio
-async def test_web_config_dag_page_shows_structured_editor(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            dag_response = await client.get("/config", params={"kind": "dag", "name": "default"})
-            node_response = await client.get("/config", params={"kind": "node", "name": "reader"})
-        finally:
-            await app.state.controller.shutdown()
-    assert dag_response.status_code == 200
-    assert "DAG 结构化编辑" in dag_response.text
-    assert "data-dag-editor" in dag_response.text
-    assert "rss-fetcher" in dag_response.text
-    assert "fan_in" in dag_response.text
-    assert "保存 DAG 结构" in dag_response.text
-    assert "dags/default.yaml" in dag_response.text
-    assert node_response.status_code == 200
-    assert "data-dag-editor" not in node_response.text
-    assert "保存 DAG 结构" not in node_response.text
-
-
-@pytest.mark.asyncio
-async def test_web_config_dag_form_saves_valid_dag(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post(
-                "/config/dag",
-                data={
-                    "name": "default",
-                    "nodes": ["rss-fetcher", "reader", "advisor"],
-                    "edges_json": (
-                        '[{"from":"rss-fetcher","to":"reader","fan_in":true},'
-                        '{"from":"reader","to":"advisor"}]'
-                    ),
-                },
-            )
-        finally:
-            await app.state.controller.shutdown()
-    saved = (root / "config" / "dags" / "default.yaml").read_text()
-    assert response.status_code == 200
-    assert "DAG 结构化编辑" in response.text
-    assert "fan_in: true" in saved
-    assert "to: advisor" in saved
-
-
-@pytest.mark.asyncio
-async def test_web_config_dag_form_rejects_cycle_without_writing(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    dag_path = root / "config" / "dags" / "default.yaml"
-    original = dag_path.read_text()
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post(
-                "/config/dag",
-                data={
-                    "name": "default",
-                    "nodes": ["rss-fetcher", "reader"],
-                    "edges_json": (
-                        '[{"from":"rss-fetcher","to":"reader"},'
-                        '{"from":"reader","to":"rss-fetcher"}]'
-                    ),
-                },
-            )
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "DAG contains a cycle" in response.text
-    assert dag_path.read_text() == original
-
-
-@pytest.mark.asyncio
-async def test_web_config_dag_form_rejects_unknown_node_without_writing(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    dag_path = root / "config" / "dags" / "default.yaml"
-    original = dag_path.read_text()
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post(
-                "/config/dag",
-                data={
-                    "name": "default",
-                    "nodes": ["rss-fetcher", "missing-node"],
-                    "edges_json": '[{"from":"rss-fetcher","to":"missing-node"}]',
-                },
-            )
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "missing node config" in response.text
-    assert dag_path.read_text() == original
-
-
-@pytest.mark.asyncio
-async def test_web_config_dag_form_rejects_io_mismatch_without_writing(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    dag_path = root / "config" / "dags" / "default.yaml"
-    original = dag_path.read_text()
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post(
-                "/config/dag",
-                data={
-                    "name": "default",
-                    "nodes": ["rss-fetcher", "advisor"],
-                    "edges_json": '[{"from":"rss-fetcher","to":"advisor"}]',
-                },
-            )
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert "I/O type mismatch" in response.text
-    assert dag_path.read_text() == original
 
 
 @pytest.mark.asyncio
@@ -819,14 +504,11 @@ async def test_minimax_multi_source_llm_cycle_surfaces_web_features(
             results = await client.get("/api/results")
             sources = await client.get("/api/sources/health")
             logs = await client.get("/api/sources/logs")
-            config_page = await client.get("/config")
             pipeline_status = await client.get("/api/pipeline/status")
             advice = results.json()["advices"][0]
             advice_detail = await client.get(f"/api/advices/{advice['id']}")
             briefing = results.json()["briefing"]
             briefing_detail = await client.get(f"/api/briefings/{briefing['id']}")
-            results_page = await client.get("/results")
-            sources_page = await client.get("/sources")
         finally:
             await controller.shutdown()
 
@@ -862,12 +544,6 @@ async def test_minimax_multi_source_llm_cycle_surfaces_web_features(
     assert pipeline_status.json()["recent_runs"][0]["status"] == "succeeded"
     assert briefing_detail.status_code == 200
     assert "minimax-docs" in briefing_detail.text
-    assert config_page.status_code == 200
-    assert "tonghuashun-minimax" in config_page.text
-    assert results_page.status_code == 200
-    assert "MINIMAX-WP" in results_page.text
-    assert sources_page.status_code == 200
-    assert "tonghuashun-minimax" in sources_page.text
 
 
 def _raw_item(url: str) -> RawItem:
@@ -1254,42 +930,3 @@ async def test_web_graph_runtime_status_maps_nodes(tmp_path: Path) -> None:
     assert statuses["reader"]["status"] == "failed"
     assert statuses["reader"]["error"] == "timeout"
     assert statuses["reader"]["cycle_id"] == "cycle-graph"
-
-
-@pytest.mark.asyncio
-async def test_web_graph_page_loads(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            page = await client.get("/config/dag-graph")
-            missing = await client.get("/api/graph/dag/missing")
-        finally:
-            await app.state.controller.shutdown()
-    assert page.status_code == 200
-    assert "Node Graph" in page.text
-    assert "ng-canvas" in page.text
-    assert "/static/litegraph.js" in page.text
-    assert "/static/node_graph_editor.js" in page.text
-    assert "inspector" in page.text.lower()
-    assert missing.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_web_graph_static_resources_available(tmp_path: Path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            lg = await client.get("/static/litegraph.js")
-            css = await client.get("/static/litegraph.css")
-            js = await client.get("/static/node_graph_editor.js")
-        finally:
-            await app.state.controller.shutdown()
-    assert lg.status_code == 200
-    assert len(lg.content) > 100000
-    assert css.status_code == 200
-    assert js.status_code == 200
-    assert "StockNode" in js.text

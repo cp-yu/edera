@@ -34,8 +34,16 @@
 - **WHEN** 浏览器发送 OPTIONS 预检请求
 - **THEN** 系统 SHALL 返回 200 和正确的 `Access-Control-Allow-*` 头
 
-## REMOVED Requirements
+## REMOVED Scenarios
 
-### Requirement: Local browser access
+### Requirement: Local-only web binding
+
+#### Scenario: Local browser access
 **Reason**: 前端 SPA 由 nginx 独立托管，FastAPI 不再提供 HTML 页面和静态资源
 **Migration**: 前端静态文件通过 nginx `try_files` 提供，API 通过 nginx `proxy_pass` 转发到 FastAPI
+
+### Requirement: Console navigation
+
+#### Scenario: Navigate console sections
+**Reason**: 前端 SPA 负责导航渲染，后端仅提供 JSON API
+**Migration**: 前端通过 React Router 实现导航，API 通过 `/api/*` 路由提供数据

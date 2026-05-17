@@ -7,8 +7,8 @@ from typing import Any, cast
 from uuid import uuid4
 
 import yaml
-from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from stockimformation.config.editor import ConfigKind, EditableFile, RuntimeConfigEditor
@@ -33,193 +33,12 @@ from stockimformation.models.repository import (
 )
 from stockimformation.pipeline import RunAlreadyActiveError
 from stockimformation.services.price_comparison import PriceComparisonService
-from stockimformation.web.deps import config_dir, controller, error_response, templates
+from stockimformation.web.deps import config_dir, controller, error_response
 
 router = APIRouter()
 
 
-@router.get("/", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
-    return templates(request).TemplateResponse(
-        request,
-        "index.html",
-        {"active": "home"},
-    )
 
-
-@router.get("/results", response_class=HTMLResponse)
-async def results_page(
-    request: Request,
-    stock_code: str | None = None,
-    direction: str | None = None,
-    created_from: datetime | None = None,
-    created_to: datetime | None = None,
-) -> HTMLResponse:
-    data = await _result_summary(request, stock_code, direction, created_from, created_to)
-    return templates(request).TemplateResponse(
-        request,
-        "results.html",
-        {
-            "active": "results",
-            "filters": _filters(stock_code, direction, created_from, created_to),
-            "auto_refresh": _auto_refresh(data["briefing"]),
-            **data,
-        },
-    )
-
-
-@router.get("/results/briefings/{briefing_id}", response_class=HTMLResponse)
-async def briefing_detail_page(request: Request, briefing_id: int) -> HTMLResponse:
-    async with controller(request)._factory()() as session:
-        briefing = await get_briefing(session, briefing_id)
-    return templates(request).TemplateResponse(
-        request,
-        "briefing_detail.html",
-        {"active": "results", "briefing": briefing},
-        status_code=200 if briefing else 404,
-    )
-
-
-@router.get("/results/advices/{advice_id}", response_class=HTMLResponse)
-async def advice_detail_page(request: Request, advice_id: int) -> HTMLResponse:
-    data = await _advice_detail(request, advice_id)
-    return templates(request).TemplateResponse(
-        request,
-        "advice_detail.html",
-        {"active": "results", **data},
-        status_code=200 if data["advice"] else 404,
-    )
-
-
-@router.get("/pipeline", response_class=HTMLResponse)
-async def pipeline_page(request: Request) -> HTMLResponse:
-    return templates(request).TemplateResponse(
-        request,
-        "pipeline.html",
-        {"active": "pipeline", "status": await controller(request).status()},
-    )
-
-
-@router.get("/sources", response_class=HTMLResponse)
-async def sources_page(request: Request) -> HTMLResponse:
-    data = await _source_health(request)
-    return templates(request).TemplateResponse(
-        request,
-        "sources.html",
-        {"active": "sources", **data},
-    )
-
-
-@router.get("/config", response_class=HTMLResponse)
-async def config_page(request: Request, kind: str = "system", name: str = "system") -> HTMLResponse:
-    editor = _editor(config_dir(request))
-    error = None
-    try:
-        current = editor.read(_kind(kind), name)
-    except ConfigEditError as exc:
-        current = editor.list_files()[0]
-        error = str(exc)
-    return templates(request).TemplateResponse(
-        request,
-        "config.html",
-        {
-            "active": "config",
-            "files": editor.list_files(),
-            "current": current,
-            "error": error,
-            "analysis_tuning": _analysis_tuning(editor.list_files()),
-            "dag": _dag_view(config_dir(request), current),
-            "portfolio": _portfolio_view(config_dir(request)),
-        },
-    )
-
-
-@router.post("/config", response_class=HTMLResponse)
-async def save_config(
-    request: Request,
-    kind: str = Form(),
-    name: str = Form(),
-    content: str = Form(),
-) -> HTMLResponse:
-    editor = _editor(config_dir(request))
-    error = None
-    try:
-        current = editor.save(_kind(kind), name, content)
-    except ConfigEditError as exc:
-        current = editor.read(_kind(kind), name)
-        error = str(exc)
-    return templates(request).TemplateResponse(
-        request,
-        "config.html",
-        {
-            "active": "config",
-            "files": editor.list_files(),
-            "current": current,
-            "error": error,
-            "analysis_tuning": _analysis_tuning(editor.list_files()),
-            "dag": _dag_view(config_dir(request), current),
-            "portfolio": _portfolio_view(config_dir(request)),
-        },
-    )
-
-
-@router.post("/config/portfolio", response_class=HTMLResponse)
-async def save_portfolio_config(
-    request: Request,
-    portfolio_json: str = Form(),
-) -> HTMLResponse:
-    editor = _editor(config_dir(request))
-    error = None
-    try:
-        payload = json.loads(portfolio_json)
-        current = _save_portfolio(editor, payload)
-    except (ConfigEditError, json.JSONDecodeError) as exc:
-        current = editor.read("portfolio", "portfolio")
-        error = str(exc)
-    return templates(request).TemplateResponse(
-        request,
-        "config.html",
-        {
-            "active": "config",
-            "files": editor.list_files(),
-            "current": current,
-            "error": error,
-            "analysis_tuning": _analysis_tuning(editor.list_files()),
-            "dag": _dag_view(config_dir(request), current),
-            "portfolio": _portfolio_view(config_dir(request), portfolio_json),
-        },
-    )
-
-
-@router.post("/config/dag", response_class=HTMLResponse)
-async def save_dag_config(
-    request: Request,
-    name: str = Form(),
-    nodes: list[str] = Form(default=[]),
-    edges_json: str = Form(default="[]"),
-) -> HTMLResponse:
-    editor = _editor(config_dir(request))
-    error = None
-    dag_payload: dict[str, object] | None = None
-    try:
-        dag_payload = _dag_payload(name, nodes, json.loads(edges_json))
-        current = _save_dag(editor, name, dag_payload)
-    except (ConfigEditError, json.JSONDecodeError) as exc:
-        current = editor.read("dag", name)
-        error = str(exc)
-    return templates(request).TemplateResponse(
-        request,
-        "config.html",
-        {
-            "active": "config",
-            "files": editor.list_files(),
-            "current": current,
-            "error": error,
-            "analysis_tuning": _analysis_tuning(editor.list_files()),
-            "dag": _dag_view(config_dir(request), current, dag_payload),
-            "portfolio": _portfolio_view(config_dir(request)),
-        },
-    )
 
 
 @router.get("/api/briefings/latest")
@@ -374,6 +193,35 @@ async def api_source_repair_task(
     }
 
 
+@router.post("/api/pipeline/dag/{dag_name}/run", response_model=None)
+async def api_dag_run(request: Request, dag_name: str) -> JSONResponse | dict[str, object]:
+    dags = load_dag_configs(config_dir(request) / "dags")
+    if dag_name not in dags:
+        return error_response(404, "not_found", f"dag '{dag_name}' not found")
+    try:
+        cycle_id = await controller(request).start_run("manual", dag_name)
+    except RunAlreadyActiveError as exc:
+        return error_response(409, "run_already_active", exc.cycle_id)
+    return {"cycle_id": cycle_id}
+
+
+@router.post("/api/pipeline/dag/{dag_name}/stop", response_model=None)
+async def api_dag_stop(request: Request, dag_name: str) -> JSONResponse | dict[str, object]:
+    dags = load_dag_configs(config_dir(request) / "dags")
+    if dag_name not in dags:
+        return error_response(404, "not_found", f"dag '{dag_name}' not found")
+    cycle_id = await controller(request).stop_current(dag_name)
+    return {"stopped": cycle_id is not None, "cycle_id": cycle_id}
+
+
+@router.get("/api/pipeline/dag/{dag_name}/status", response_model=None)
+async def api_dag_status(request: Request, dag_name: str) -> JSONResponse | dict[str, object]:
+    dags = load_dag_configs(config_dir(request) / "dags")
+    if dag_name not in dags:
+        return error_response(404, "not_found", f"dag '{dag_name}' not found")
+    return await controller(request).status(dag_name)
+
+
 @router.post("/api/pipeline/run", response_model=None)
 async def api_pipeline_run(request: Request) -> JSONResponse | dict[str, object]:
     try:
@@ -444,23 +292,6 @@ async def api_config_save(
     except ConfigEditError as exc:
         return error_response(400, "config_error", str(exc))
 
-
-@router.get("/config/dag-graph", response_class=HTMLResponse)
-async def dag_graph_page(request: Request, name: str = "default") -> HTMLResponse:
-    editor = _editor(config_dir(request))
-    try:
-        current = editor.read("dag", name)
-    except ConfigEditError:
-        current = editor.list_files()[0]
-    return templates(request).TemplateResponse(
-        request,
-        "node_graph_editor.html",
-        {
-            "active": "config",
-            "dag_name": current.name,
-            "dag_names": [f.name for f in editor.list_files() if f.kind == "dag"],
-        },
-    )
 
 
 @router.get("/api/graph/nodes")
@@ -576,28 +407,6 @@ async def api_graph_runtime_status(request: Request) -> dict[str, object]:
     return {"node_statuses": node_statuses}
 
 
-@router.post("/pipeline/run")
-async def form_pipeline_run(request: Request) -> RedirectResponse:
-    await api_pipeline_run(request)
-    return RedirectResponse("/pipeline", status_code=303)
-
-
-@router.post("/pipeline/pause")
-async def form_pipeline_pause(request: Request) -> RedirectResponse:
-    await api_pipeline_pause(request)
-    return RedirectResponse("/pipeline", status_code=303)
-
-
-@router.post("/pipeline/resume")
-async def form_pipeline_resume(request: Request) -> RedirectResponse:
-    await api_pipeline_resume(request)
-    return RedirectResponse("/pipeline", status_code=303)
-
-
-@router.post("/pipeline/stop")
-async def form_pipeline_stop(request: Request) -> RedirectResponse:
-    await api_pipeline_stop(request)
-    return RedirectResponse("/pipeline", status_code=303)
 
 
 async def _result_summary(
@@ -733,84 +542,10 @@ def _price_comparison_service(request: Request) -> PriceComparisonService:
     return PriceComparisonService.from_system(system, config_path)
 
 
-def _filters(
-    stock_code: str | None,
-    direction: str | None,
-    created_from: datetime | None,
-    created_to: datetime | None,
-) -> dict[str, str]:
-    return {
-        "stock_code": stock_code or "",
-        "direction": direction or "",
-        "created_from": created_from.isoformat() if created_from else "",
-        "created_to": created_to.isoformat() if created_to else "",
-    }
-
-
-def _auto_refresh(briefing: object) -> dict[str, object]:
-    version = cast(dict[str, object], briefing) if briefing else {}
-    return {
-        "briefing_id": version.get("id") or "",
-        "briefing_created_at": version.get("created_at") or "",
-        "interval_ms": 15_000,
-    }
-
-
-def _analysis_tuning(files: list[EditableFile]) -> list[dict[str, object]]:
-    items: list[dict[str, object]] = []
-    for file in files:
-        if file.kind == "system":
-            items.append(
-                {
-                    "kind": file.kind,
-                    "name": file.name,
-                    "path": file.path,
-                    "fields": ["llm_timeout_seconds"],
-                    "description": "全局 LLM 超时",
-                }
-            )
-        elif file.kind == "node" and file.name in {"reader", "advisor", "briefing-generator"}:
-            items.append(
-                {
-                    "kind": file.kind,
-                    "name": file.name,
-                    "path": file.path,
-                    "fields": ["model", "timeout_seconds", "parameters"],
-                    "description": "分析链节点参数",
-                }
-            )
-        elif file.kind == "node" and "source_names:" in file.content:
-            items.append(
-                {
-                    "kind": file.kind,
-                    "name": file.name,
-                    "path": file.path,
-                    "fields": ["source_names"],
-                    "description": "后续分析输入范围",
-                }
-            )
-    return items
-
-
-def _portfolio_view(config_path: Path, draft: str | None = None) -> dict[str, object]:
-    payload = load_portfolio_config(config_path / "portfolio.yaml").model_dump(mode="json")
-    return {
-        "targets": payload["targets"],
-        "sources": payload["sources"],
-        "json": draft or json.dumps(payload, ensure_ascii=False, indent=2),
-    }
-
-
 def _save_portfolio(editor: RuntimeConfigEditor, body: object) -> EditableFile:
     payload = _portfolio_payload(body)
     content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
     return editor.save("portfolio", "portfolio", content)
-
-
-def _save_dag(editor: RuntimeConfigEditor, name: str, body: object) -> EditableFile:
-    payload = _dag_payload(name, body.get("nodes", []), body.get("edges", [])) if isinstance(body, dict) else {}
-    content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
-    return editor.save("dag", name, content)
 
 
 def _portfolio_payload(body: object) -> dict[str, object]:
@@ -833,47 +568,6 @@ def _portfolio_payload(body: object) -> dict[str, object]:
         raise ConfigEditError(f"target references missing sources: {', '.join(missing)}")
     return portfolio.model_dump(mode="json")
 
-
-def _dag_view(
-    config_path: Path,
-    current: EditableFile,
-    draft: dict[str, object] | None = None,
-) -> dict[str, object] | None:
-    if current.kind != "dag":
-        return None
-    try:
-        payload = draft or DagConfig.model_validate(yaml.safe_load(current.content) or {}).model_dump(
-            by_alias=True,
-            mode="json",
-        )
-    except ValueError:
-        payload = {"name": current.name, "nodes": [], "edges": []}
-    node_names = sorted(load_node_configs(config_path / "nodes"))
-    raw_nodes = payload.get("nodes", [])
-    selected_nodes = [str(node) for node in raw_nodes] if isinstance(raw_nodes, list) else []
-    edges = payload.get("edges", [])
-    if not isinstance(edges, list):
-        edges = []
-    return {
-        "name": str(payload.get("name") or current.name),
-        "nodes": selected_nodes,
-        "all_nodes": node_names,
-        "edges": [edge for edge in edges if isinstance(edge, dict)],
-        "edges_json": json.dumps(edges, ensure_ascii=False),
-    }
-
-
-def _dag_payload(name: str, nodes: object, edges: object) -> dict[str, object]:
-    if not isinstance(nodes, list):
-        raise ConfigEditError("dag nodes must be a list")
-    if not isinstance(edges, list):
-        raise ConfigEditError("dag edges must be a list")
-    payload = {
-        "name": name,
-        "nodes": [str(node) for node in nodes],
-        "edges": [_dag_edge_payload(edge) for edge in edges],
-    }
-    return DagConfig.model_validate(payload).model_dump(by_alias=True, mode="json")
 
 
 def _dag_edge_payload(edge: object) -> dict[str, object]:

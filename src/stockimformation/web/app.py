@@ -6,15 +6,12 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from stockimformation.pipeline import PipelineController
 from stockimformation.web.deps import error_response
 from stockimformation.web.routes import router
-
-WEB_DIR = Path(__file__).parent
 
 
 def create_app(
@@ -35,8 +32,13 @@ def create_app(
     app = FastAPI(title="stockImformation", lifespan=lifespan)
     app.state.config_dir = config_dir
     app.state.controller = controller
-    app.state.templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
-    app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(router)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
     app.add_exception_handler(Exception, _unhandled_error)

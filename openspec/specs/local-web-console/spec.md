@@ -1,30 +1,36 @@
 ## Purpose
 
 定义本机 Web 控制台基础能力，包括默认本机监听、浏览器访问、统一导航和 WebUI API 错误格式。
-
 ## Requirements
-
 ### Requirement: Local-only web binding
-系统 SHALL 提供本机 Web 控制台，并且默认只监听 `127.0.0.1`。
+系统 SHALL 提供本机 API 服务器，默认只监听 `127.0.0.1`，仅提供 JSON API 端点。
 
-#### Scenario: Default local host
-- **WHEN** 用户以默认配置启动 Web 控制台
-- **THEN** 系统 MUST 只绑定 `127.0.0.1`，不得默认绑定 `0.0.0.0`
-
-#### Scenario: Local browser access
-- **WHEN** 用户在本机浏览器访问 Web 控制台地址
-- **THEN** 系统 SHALL 返回控制台页面和所需静态资源
+#### Scenario: Default local host API-only
+- **WHEN** 用户以默认配置启动 Web 服务
+- **THEN** 系统 MUST 只绑定 `127.0.0.1`，仅提供 `/api/*` 路由，不提供 HTML 页面或静态文件
 
 ### Requirement: Console navigation
-系统 SHALL 提供统一导航入口，使用户可以访问结果、运行控制和配置编辑页面。
+系统 SHALL 通过 JSON API 提供所有功能入口，前端 SPA 负责导航渲染。
 
-#### Scenario: Navigate console sections
-- **WHEN** 用户打开控制台首页
-- **THEN** 系统 SHALL 展示结果浏览、管道控制、配置编辑三个主要入口
+#### Scenario: API-only service
+- **WHEN** 客户端访问非 `/api/` 前缀的路径
+- **THEN** 系统 SHALL 返回 404（前端路由由 nginx 处理）
 
 ### Requirement: JSON API error format
-系统 SHALL 对 WebUI 使用的 API 返回一致的错误结构，包含错误类型和可读消息。
+系统 SHALL 对所有 API 返回一致的错误结构，包含错误类型和可读消息。
 
 #### Scenario: API validation error
-- **WHEN** 用户提交非法请求数据
+- **WHEN** 客户端提交非法请求数据
 - **THEN** 系统 MUST 返回非 2xx 状态码和包含错误消息的 JSON 响应
+
+### Requirement: CORS middleware
+系统 SHALL 提供 CORS 中间件支持前端开发服务器跨域访问。
+
+#### Scenario: Allow dev server origin
+- **WHEN** 前端开发服务器（`http://localhost:5173`）发送跨域请求
+- **THEN** 系统 SHALL 返回正确的 CORS 响应头允许该请求
+
+#### Scenario: Preflight OPTIONS request
+- **WHEN** 浏览器发送 OPTIONS 预检请求
+- **THEN** 系统 SHALL 返回 200 和正确的 `Access-Control-Allow-*` 头
+

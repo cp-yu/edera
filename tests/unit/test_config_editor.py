@@ -5,7 +5,7 @@ import pytest
 from stockimformation.config.schema import DagConfig, NodeConfig
 from stockimformation.config.editor import RuntimeConfigEditor
 from stockimformation.errors import ConfigEditError
-from stockimformation.web.routes import _dag_payload, _graph_dag_payload, _graph_node_payload, _save_dag
+from stockimformation.web.routes import _graph_dag_payload, _graph_node_payload
 
 
 def test_config_editor_rejects_invalid_system_without_writing(tmp_path: Path) -> None:
@@ -78,39 +78,6 @@ def test_config_editor_rejects_unknown_node_parameter_without_writing(tmp_path: 
     assert (root / "config" / "nodes" / "reader.yaml").read_text() == original
 
 
-def test_structured_dag_payload_saves_yaml(tmp_path: Path) -> None:
-    root = _copy_config_tree(tmp_path)
-    editor = RuntimeConfigEditor(root / "config", root / "skills")
-    payload = _dag_payload(
-        "default",
-        ["rss-fetcher", "reader", "advisor"],
-        [
-            {"from": "rss-fetcher", "to": "reader", "fan_in": True},
-            {"from": "reader", "to": "advisor"},
-        ],
-    )
-    saved = _save_dag(editor, "default", payload)
-    content = Path(saved.path).read_text()
-    assert "fan_in: true" in content
-    assert "to: advisor" in content
-
-
-def test_structured_dag_save_rejects_invalid_without_writing(tmp_path: Path) -> None:
-    root = _copy_config_tree(tmp_path)
-    editor = RuntimeConfigEditor(root / "config", root / "skills")
-    dag_path = root / "config" / "dags" / "default.yaml"
-    original = dag_path.read_text()
-    payload = _dag_payload(
-        "default",
-        ["rss-fetcher", "reader"],
-        [
-            {"from": "rss-fetcher", "to": "reader"},
-            {"from": "reader", "to": "rss-fetcher"},
-        ],
-    )
-    with pytest.raises(ConfigEditError):
-        _save_dag(editor, "default", payload)
-    assert dag_path.read_text() == original
 
 
 def _copy_config_tree(tmp_path: Path) -> Path:
@@ -163,24 +130,6 @@ def test_graph_dag_payload_validates_with_dag_config() -> None:
         },
     )
     DagConfig.model_validate(payload)
-
-
-def test_graph_dag_save_rejects_cycle(tmp_path: Path) -> None:
-    root = _copy_config_tree(tmp_path)
-    editor = RuntimeConfigEditor(root / "config", root / "skills")
-    dag_path = root / "config" / "dags" / "default.yaml"
-    original = dag_path.read_text()
-    payload = _graph_dag_payload(
-        "default",
-        {
-            "nodes": ["rss-fetcher", "reader"],
-            "edges": [{"from": "rss-fetcher", "to": "reader"}, {"from": "reader", "to": "rss-fetcher"}],
-            "ui": {},
-        },
-    )
-    with pytest.raises(ConfigEditError):
-        _save_dag(editor, "default", payload)
-    assert dag_path.read_text() == original
 
 
 def test_graph_node_payload_round_trip() -> None:

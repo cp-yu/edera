@@ -96,8 +96,9 @@ async def create_pipeline_run(
     cycle_id: str,
     trigger: str,
     node_names: list[str] | None = None,
+    dag_name: str = "default",
 ) -> PipelineRun:
-    run = PipelineRun(cycle_id=cycle_id, trigger=trigger, status="running")
+    run = PipelineRun(cycle_id=cycle_id, trigger=trigger, status="running", dag_name=dag_name)
     session.add(run)
     for node_name in node_names or []:
         session.add(NodeRun(cycle_id=cycle_id, node_name=node_name, status="pending"))
@@ -153,20 +154,28 @@ async def get_pipeline_run(session: AsyncSession, cycle_id: str) -> PipelineRun 
     return result.first()
 
 
-async def current_pipeline_run(session: AsyncSession) -> PipelineRun | None:
-    result = await session.exec(
+async def current_pipeline_run(
+    session: AsyncSession, dag_name: str | None = None
+) -> PipelineRun | None:
+    statement = (
         select(PipelineRun)
         .where(PipelineRun.status == "running")
         .order_by(col(PipelineRun.started_at).desc())
         .limit(1)
     )
+    if dag_name is not None:
+        statement = statement.where(PipelineRun.dag_name == dag_name)
+    result = await session.exec(statement)
     return result.first()
 
 
-async def recent_pipeline_runs(session: AsyncSession, limit: int = 20) -> list[PipelineRun]:
-    result = await session.exec(
-        select(PipelineRun).order_by(col(PipelineRun.started_at).desc()).limit(limit)
-    )
+async def recent_pipeline_runs(
+    session: AsyncSession, limit: int = 20, dag_name: str | None = None
+) -> list[PipelineRun]:
+    statement = select(PipelineRun).order_by(col(PipelineRun.started_at).desc()).limit(limit)
+    if dag_name is not None:
+        statement = statement.where(PipelineRun.dag_name == dag_name)
+    result = await session.exec(statement)
     return list(result.all())
 
 
