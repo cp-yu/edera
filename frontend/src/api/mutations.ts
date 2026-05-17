@@ -26,6 +26,7 @@ export function useRunDag() {
     mutationFn: (dagName: string) =>
       apiFetch<{ cycle_id: string }>(`/api/pipeline/dag/${dagName}/run`, { method: 'POST' }),
     onSuccess: (_data, dagName) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
+    onError: (error: Error) => { window.alert(error.message) },
   })
 }
 
@@ -35,6 +36,7 @@ export function useStopDag() {
     mutationFn: (dagName: string) =>
       apiFetch(`/api/pipeline/dag/${dagName}/stop`, { method: 'POST' }),
     onSuccess: (_data, dagName) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
+    onError: (error: Error) => { window.alert(error.message) },
   })
 }
 
@@ -47,6 +49,7 @@ export function useCreateNode() {
       qc.invalidateQueries({ queryKey: ['dag', dagName] })
       qc.invalidateQueries({ queryKey: ['nodePrototypes'] })
     },
+    onError: (error: Error) => { window.alert(error.message) },
   })
 }
 

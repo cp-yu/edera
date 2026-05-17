@@ -1,10 +1,17 @@
 import { useSourcesHealth, useSourceLogs } from '@/api/queries'
 
 export function SourcesPage() {
-  const { data: healthData, isLoading } = useSourcesHealth()
+  const { data: healthData, isLoading, isError, error, refetch } = useSourcesHealth()
   const { data: logsData } = useSourceLogs()
 
   if (isLoading) return <div className="p-6 text-muted-foreground">加载中...</div>
+
+  if (isError) return (
+    <div className="p-6 space-y-3">
+      <p className="text-sm text-red-600">加载信息源数据失败: {error?.message ?? '未知错误'}</p>
+      <button onClick={() => refetch()} className="rounded border px-3 py-1 text-sm hover:bg-muted">重试</button>
+    </div>
+  )
 
   const sources = healthData?.sources ?? []
   const logs = logsData?.logs ?? []

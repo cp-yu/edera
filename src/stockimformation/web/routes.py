@@ -266,6 +266,22 @@ async def api_portfolio_save(
         return error_response(400, "config_error", str(exc))
 
 
+@router.get("/api/config/portfolio", response_model=None)
+async def api_config_portfolio_read(request: Request) -> JSONResponse | dict[str, object]:
+    path = config_dir(request) / "portfolio.yaml"
+    if not path.exists():
+        return error_response(404, "not_found", "portfolio.yaml not found")
+    return {"content": path.read_text(encoding="utf-8")}
+
+
+@router.get("/api/config/system", response_model=None)
+async def api_config_system_read(request: Request) -> JSONResponse | dict[str, object]:
+    path = config_dir(request) / "system.toml"
+    if not path.exists():
+        return error_response(404, "not_found", "system.toml not found")
+    return {"content": path.read_text(encoding="utf-8")}
+
+
 @router.get("/api/config/{kind}/{name:path}", response_model=None)
 async def api_config_read(request: Request, kind: str, name: str) -> JSONResponse | dict[str, object]:
     try:
@@ -354,6 +370,47 @@ async def api_graph_dag_save(
         }
     except (ConfigEditError, KeyError) as exc:
         return error_response(400, "config_error", str(exc))
+
+
+@router.post("/api/graph/dag/{name}/nodes", response_model=None)
+async def api_graph_dag_create_node(
+    request: Request,
+    name: str,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    dags_dir = config_dir(request) / "dags"
+    dags = load_dag_configs(dags_dir)
+    if name not in dags:
+        return error_response(404, "not_found", f"dag '{name}' not found")
+    node_name = str(body.get("name", ""))
+    if not node_name:
+        return error_response(400, "config_error", "node name is required")
+    nodes_dir = config_dir(request) / "nodes"
+    node_path = nodes_dir / f"{node_name}.yaml"
+    if node_path.exists():
+        return error_response(409, "conflict", f"node '{node_name}' already exists")
+    editor = _editor(config_dir(request))
+    node_payload = _graph_node_payload(node_name, body)
+    node_content = yaml.safe_dump(node_payload, allow_unicode=True, sort_keys=False)
+    editor.save("node", node_name, node_content)
+    dag = dags[name]
+    dag_nodes = list(dag.nodes) + [node_name]
+    dag_payload = {
+        "name": dag.name,
+        "nodes": dag_nodes,
+        "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag.edges],
+        "ui": dag.ui,
+    }
+    dag_content = yaml.safe_dump(
+        DagConfig.model_validate(dag_payload).model_dump(by_alias=True, mode="json"),
+        allow_unicode=True,
+        sort_keys=False,
+    )
+    editor.save("dag", name, dag_content)
+    node_config = NodeConfig.model_validate(node_payload)
+    d = node_config.model_dump(mode="json")
+    d["skills"] = [s["name"] for s in d["skills"]]
+    return {"node": d}
 
 
 @router.get("/api/graph/node/{name}", response_model=None)

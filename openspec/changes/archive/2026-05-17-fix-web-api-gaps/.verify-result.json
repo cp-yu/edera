@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-05-17T06:56:16.717Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "opsx-delta.yaml references sources-monitor-ui capability not present in project.opsx.yaml"
+    },
+    {
+      "severity": "SUGGESTION",
+      "message": "useStopDag onError is extra coverage beyond spec scenarios"
+    }
+  ],
+  "tasksFileHash": "ce4c071ce605b6bcc2a2086df8c031f68ecaf499665e8247fdba37182d3a9e4b",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "full",
+    "evidenceFiles": [
+      "frontend/src/api/mutations.ts",
+      "frontend/src/features/sources/SourcesPage.tsx",
+      "src/stockimformation/web/routes.py"
+    ],
+    "evidenceFingerprint": "35b15b0c4984d495574a1ed5f474ae3b246948ef7668aed9066d3aa1dc0554d6",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "f7b35edb5f9ce43bda6e53e2f0184c461261a078"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-17T06:59:06.229Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Implementation is minimal, follows existing codebase patterns, no dead code or redundant computation found."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-17T06:56:16.717Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "opsx-delta.yaml references sources-monitor-ui capability not present in project.opsx.yaml"
+        },
+        {
+          "severity": "SUGGESTION",
+          "message": "useStopDag onError is extra coverage beyond spec scenarios"
+        }
+      ],
+      "tasksFileHash": "ce4c071ce605b6bcc2a2086df8c031f68ecaf499665e8247fdba37182d3a9e4b",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "full",
+        "evidenceFiles": [
+          "frontend/src/api/mutations.ts",
+          "frontend/src/features/sources/SourcesPage.tsx",
+          "src/stockimformation/web/routes.py"
+        ],
+        "evidenceFingerprint": "35b15b0c4984d495574a1ed5f474ae3b246948ef7668aed9066d3aa1dc0554d6",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "f7b35edb5f9ce43bda6e53e2f0184c461261a078"
+      }
+    }
+  }
+}
