@@ -1,0 +1,6 @@
+# OPSX Delta — fix-runtime-node-polling
+
+MODIFIED:
+  - domain: operations
+    capability: pipeline-control
+    delta: 运行时状态展示新增前端条件轮询，DAG 运行期间每 2s 刷新节点状态

@@ -1,0 +1,14 @@
+# OPSX Delta — fix-web-api-gaps
+
+MODIFIED:
+  - domain: config
+    capability: runtime-config-editing
+    delta: 新增 GET /api/config/portfolio 和 GET /api/config/system 专用读取端点
+
+  - domain: web
+    capability: node-graph-dag-editor
+    delta: 新增 POST /api/graph/dag/{name}/nodes 端点，支持从 UI 创建节点并加入 DAG
+
+  - domain: web
+    capability: sources-monitor-ui
+    delta: 添加 API 错误状态展示和 mutation 错误反馈
