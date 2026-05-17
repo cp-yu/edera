@@ -46,6 +46,7 @@ export function Inspector() {
     <aside className="w-[300px] border-l p-4 bg-card overflow-y-auto space-y-4">
       <h2 className="text-sm font-medium">{node.name}</h2>
       <div className="space-y-3">
+        {/* Common readonly fields */}
         <div>
           <label className="text-xs text-muted-foreground">类型</label>
           <p className="text-sm">{node.type}</p>
@@ -58,31 +59,9 @@ export function Inspector() {
           <label className="text-xs text-muted-foreground">输出</label>
           <p className="text-sm">{node.output_type}</p>
         </div>
-        {node.skills && node.skills.length > 0 && (
-          <div>
-            <label className="text-xs text-muted-foreground">Skills</label>
-            <p className="text-sm">{node.skills.join(', ')}</p>
-          </div>
-        )}
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">模型</label>
-          <input
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-            placeholder="默认"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">超时 (秒)</label>
-          <input
-            value={timeout}
-            onChange={(e) => setTimeout(e.target.value)}
-            type="number"
-            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        {node.source_names && (
+
+        {/* Type-specific editable fields */}
+        {node.type === 'fetcher' && node.source_names && (
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs text-muted-foreground">信息源</label>
@@ -96,6 +75,47 @@ export function Inspector() {
             <p className="text-sm">{node.source_names.join(', ') || '无'}</p>
           </div>
         )}
+
+        {node.type === 'llm' && (
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">模型</label>
+            <input
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+              placeholder="默认"
+            />
+          </div>
+        )}
+
+        {node.type === 'llm' && node.skills && node.skills.length > 0 && (
+          <div>
+            <label className="text-xs text-muted-foreground">Skills</label>
+            <p className="text-sm">{node.skills.join(', ')}</p>
+          </div>
+        )}
+
+        {(node.type === 'fetcher' || node.type === 'llm' || node.type === 'aggregator') && (
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">超时 (秒)</label>
+            <input
+              value={timeout}
+              onChange={(e) => setTimeout(e.target.value)}
+              type="number"
+              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+            />
+          </div>
+        )}
+
+        {(node.type === 'fetcher' || node.type === 'llm' || node.type === 'aggregator') && node.parameters && (
+          <div>
+            <label className="text-xs text-muted-foreground">Parameters</label>
+            <pre className="text-xs bg-muted rounded p-2 mt-1 overflow-x-auto">
+              {JSON.stringify(node.parameters, null, 2)}
+            </pre>
+          </div>
+        )}
+
         <button
           onClick={() => setConfirmOpen(true)}
           disabled={saveNode.isPending}

@@ -11,6 +11,12 @@ domains:
       - id: result-explorer
         description: 结果浏览能力，覆盖简报、建议、分析、原文和失败信息的查询与展示
         spec: specs/result-explorer/spec.md
+      - id: dag-workbench-ui
+        description: DAG 工作台 UI，覆盖画布交互、节点拖拽、连线管理、自动布局和 Inspector 配置
+        spec: specs/dag-workbench-ui/spec.md
+      - id: node-graph-dag-editor
+        description: Node Graph DAG 编辑器，覆盖图编辑交互、DAG 保存、Inspector 配置和运行状态覆盖
+        spec: specs/node-graph-dag-editor/spec.md
 
   - name: operations
     description: 管道操作面 — 调度控制、手动运行、停止运行和状态记录

@@ -1,8 +1,11 @@
 name: web-scraper
 type: function
 skills:
-  - name: fetch-web
+- name: fetch-web
+model: null
 input_type: Any
 output_type: list[RawItem]
+timeout_seconds: 13.0
 source_names:
-  - sample-web
+- sample-web
+parameters: {}

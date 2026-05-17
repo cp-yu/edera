@@ -1,0 +1,23 @@
+# OPSX Delta — fix-react-flow-workbench
+
+## MODIFIED
+
+- domain: web
+  capability: dag-workbench-ui
+  spec: specs/dag-workbench-ui/spec.md
+  changes:
+    - "Node palette with drag-to-add: 补全 onDragOver/onDrop 实现"
+    - "Custom node rendering: 四边 Handle（8个），hover 显示"
+    - "Edge arrows and visual feedback: 新增箭头标记需求"
+    - "Interactive edge management: 新增连线增删需求"
+    - "Node position persistence: 新增位置持久化需求"
+    - "Auto-layout tool: 新增 dagre 自动布局需求"
+    - "Node inspector: 按 node.type 差异化字段"
+
+- domain: web
+  capability: node-graph-dag-editor
+  spec: specs/node-graph-dag-editor/spec.md
+  changes:
+    - "Interactive graph editing: 补全 drop/connect/delete 交互实现"
+    - "Graph DAG save: 扩展 ui.edges 保存 handle 元数据"
+    - "Node Inspector configuration: 按类型差异化字段"

@@ -1,29 +1,4 @@
-# node-graph-dag-editor Specification
-
-## Purpose
-此规约记录变更 add-node-graph-dag-editor 引入的行为，请在后续同步或归档前补全正式 Purpose。
-## Requirements
-### Requirement: Node Graph editor entry
-系统 SHALL 在 Web 控制台提供 Node Graph DAG 编辑入口，并将其作为 DAG 可视化编辑的主入口。
-
-#### Scenario: Open Node Graph editor
-- **WHEN** 用户打开 DAG 编辑入口
-- **THEN** 系统 SHALL 展示包含节点 palette、画布和 Inspector 区域的 Node Graph 页面
-
-#### Scenario: Preserve fallback editors
-- **WHEN** 用户需要直接排查配置
-- **THEN** 系统 SHALL 保留 raw YAML 或结构化表格编辑入口作为兜底
-
-### Requirement: Graph schema API
-系统 SHALL 提供图编辑所需的节点原型和 DAG 图状态 JSON API，避免前端直接解析 YAML。
-
-#### Scenario: Load node prototypes
-- **WHEN** Node Graph 编辑器加载
-- **THEN** 系统 SHALL 返回可用 Node 原型，包括 `name`、`type`、`input_type`、`output_type`、`skills`、`model`、`source_names`、`timeout_seconds` 和 `parameters`
-
-#### Scenario: Load DAG graph state
-- **WHEN** Node Graph 编辑器打开指定 DAG
-- **THEN** 系统 SHALL 返回该 DAG 的节点实例、边、fan flags 和 UI 布局元数据
+## MODIFIED Requirements
 
 ### Requirement: Interactive graph editing
 系统 SHALL 支持用户在画布上通过节点和端口交互编辑 DAG 数据流。画布 SHALL 实现完整的拖放（drop）、连线（connect）和删除（delete）交互。
@@ -69,23 +44,3 @@
 #### Scenario: Deselect node clears Inspector
 - **WHEN** 用户点击画布空白区域取消选中
 - **THEN** Inspector SHALL 清空节点配置显示
-
-#### Scenario: Save node configuration
-- **WHEN** 用户在 Inspector 中保存合法节点配置
-- **THEN** 系统 SHALL 写回对应 `config/nodes/*.yaml`，并让新配置仅影响后续运行
-
-#### Scenario: Reject invalid node configuration
-- **WHEN** 用户在 Inspector 中保存非法节点配置
-- **THEN** 系统 MUST 拒绝保存、返回可读错误并保持原 Node 文件内容不变
-
-### Requirement: Graph runtime status overlay
-系统 SHALL 在 Node Graph 中展示最近或当前运行的节点状态。
-
-#### Scenario: Show node run status
-- **WHEN** Node Graph 编辑器加载运行状态
-- **THEN** 系统 SHALL 在对应节点上展示 `pending`、`running`、`succeeded`、`failed` 或 `unknown` 状态
-
-#### Scenario: Show node failure details
-- **WHEN** 某节点最近运行失败
-- **THEN** 系统 SHALL 在节点或 Inspector 中展示该节点的错误信息
-

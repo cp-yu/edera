@@ -3,6 +3,8 @@ export interface DagEdge {
   to: string
   fan_out?: boolean
   fan_in?: boolean
+  sourceHandle?: string
+  targetHandle?: string
 }
 
 export interface NodePrototype {
@@ -17,11 +19,16 @@ export interface NodePrototype {
   parameters?: Record<string, unknown>
 }
 
+export interface DagUi {
+  nodes?: Record<string, { x: number; y: number }>
+  edges?: Record<string, { sourceHandle?: string; targetHandle?: string }>
+}
+
 export interface DagState {
   name: string
   nodes: NodePrototype[]
   edges: DagEdge[]
-  ui: Record<string, Record<string, { x: number; y: number }>>
+  ui: DagUi
 }
 
 export interface PipelineRun {
