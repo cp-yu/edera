@@ -17,10 +17,11 @@ export function useNodePrototypes() {
   })
 }
 
-export function useRuntimeStatus() {
+export function useRuntimeStatus(polling = false) {
   return useQuery({
     queryKey: ['runtimeStatus'],
     queryFn: () => apiFetch<RuntimeStatus>('/api/graph/runtime-status'),
+    refetchInterval: polling ? 2000 : false,
   })
 }
 

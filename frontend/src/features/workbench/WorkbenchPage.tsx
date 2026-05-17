@@ -9,10 +9,9 @@ import { BottomToolbar } from './components/BottomToolbar'
 export function WorkbenchPage() {
   const { selectedDagName } = useAppStore()
   const dag = useDag(selectedDagName)
-  const runtime = useRuntimeStatus()
   const dagStatus = useDagStatus(selectedDagName, !!dag.data)
-
   const isRunning = !!dagStatus.data?.current_cycle_id
+  const runtime = useRuntimeStatus(isRunning)
 
   return (
     <div className="flex h-full flex-col">
