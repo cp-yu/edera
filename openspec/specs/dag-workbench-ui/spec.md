@@ -1,7 +1,7 @@
 # dag-workbench-ui Specification
 
 ## Purpose
-此规约记录变更 frontend-react-spa 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 DAG Workbench 前端基础能力，覆盖三栏布局、节点面板、Inspector、底部工具栏，以及基于 React Flow 的图编辑主交互。
 ## Requirements
 ### Requirement: Three-column workbench layout
 系统 SHALL 提供固定三栏布局：左侧 Palette（250px）、中间 React Flow Canvas（弹性宽度）、右侧 Inspector（300px），底部工具栏（40px）。
@@ -33,15 +33,19 @@
 - **THEN** 系统 SHALL 按节点类型分组展示（LLM 节点、功能节点等）
 
 ### Requirement: Custom node rendering with target colors
-系统 SHALL 使用自定义 React Flow 节点组件，提供四边 Handle（上下左右各一对 source/target），默认隐藏，hover 时显示。
+系统 SHALL 使用自定义 React Flow 节点组件，按节点连接关系动态生成左 input / 右 output Handle，并保留 target 颜色边框语义。
 
-#### Scenario: Four-side handles on hover
+#### Scenario: Dynamic handles by connectivity
+- **WHEN** 画布渲染节点
+- **THEN** 系统 SHALL 根据当前连接关系动态生成左侧 target Handle 和右侧 source Handle
+
+#### Scenario: Unconnected handles stay discoverable
+- **WHEN** 节点未被 hover 且 Handle 尚未连接
+- **THEN** 系统 SHALL 保持该 Handle 半可见，以便用户直接发起连线
+
+#### Scenario: All handles visible on hover
 - **WHEN** 用户将鼠标悬停在节点上
-- **THEN** 系统 SHALL 显示节点四边的 8 个 Handle（上下左右各一个 source 和一个 target）
-
-#### Scenario: Handles hidden by default
-- **WHEN** 节点未被 hover
-- **THEN** 系统 SHALL 隐藏所有 Handle（opacity: 0）
+- **THEN** 系统 SHALL 显示该节点所有 Handle
 
 #### Scenario: Single target node color
 - **WHEN** 节点仅关联一个 target
@@ -63,15 +67,15 @@
 - **THEN** 系统 SHALL 恢复所有节点为完全不透明
 
 ### Requirement: Edge arrows and visual feedback
-系统 SHALL 在所有连接线末端显示箭头标记，表示数据流方向。
+系统 SHALL 在所有连接线末端显示箭头标记，并在运行时提供执行路径视觉反馈。
 
 #### Scenario: Edge arrow marker
 - **WHEN** 画布渲染连接线
 - **THEN** 系统 SHALL 在 edge 的 target 端显示闭合箭头（MarkerType.ArrowClosed）
 
-#### Scenario: Running animation
+#### Scenario: Running path highlight
 - **WHEN** DAG 正在运行
-- **THEN** 系统 SHALL 对所有 edge 启用动画效果（animated: true）
+- **THEN** 系统 SHALL 对活跃执行路径 edge 加粗并按节点状态着色
 
 ### Requirement: Interactive edge management
 系统 SHALL 支持用户在画布上通过 Handle 交互新增连线，以及选中连线后删除。
@@ -85,26 +89,34 @@
 - **THEN** 系统 SHALL 从画布中移除该 edge
 
 ### Requirement: Node position persistence
-系统 SHALL 持久化用户手动拖拽的节点位置，不因选中/取消选中操作而重置。
+系统 SHALL 在用户拖拽节点后自动持久化位置，采用 localStorage 草稿 + debounce 写后端的混合策略。
 
-#### Scenario: Drag node preserves position
-- **WHEN** 用户拖拽节点到新位置后点击画布空白区域
-- **THEN** 系统 SHALL 保持节点在拖拽后的位置，不回归初始位置
+#### Scenario: Auto-save on drag stop
+- **WHEN** 用户拖拽节点并释放
+- **THEN** 系统 SHALL 立即将当前所有节点位置写入 localStorage 作为草稿
 
-#### Scenario: Position saved to backend
-- **WHEN** 用户保存 DAG
-- **THEN** 系统 SHALL 将所有节点的当前位置写入 `ui.nodes` 元数据
+#### Scenario: Debounce save to backend
+- **WHEN** 节点拖拽停止后 500ms 内无新的拖拽操作
+- **THEN** 系统 SHALL 调用 `PUT /api/graph/dag/{name}` 将完整 UI + 拓扑持久化到后端
+
+#### Scenario: Restore from localStorage on load
+- **WHEN** 画布加载 DAG 且 localStorage 中存在该 DAG 的草稿位置
+- **THEN** 系统 SHALL 优先使用 localStorage 中的位置数据
+
+#### Scenario: Clear localStorage after backend save
+- **WHEN** 后端保存成功
+- **THEN** 系统 SHALL 清除该 DAG 在 localStorage 中的草稿数据
 
 ### Requirement: Auto-layout tool
-系统 SHALL 提供自动布局工具按钮，使用 dagre 算法计算层级布局。
+系统 SHALL 提供自动布局工具按钮，使用 ELK layered 算法计算分层布局。
 
 #### Scenario: Trigger auto-layout
 - **WHEN** 用户点击自动布局按钮
-- **THEN** 系统 SHALL 使用 dagre 算法重新计算所有节点位置并更新画布
+- **THEN** 系统 SHALL 使用 ELK layered 算法重新计算所有节点位置并更新画布
 
 #### Scenario: Layout direction
 - **WHEN** 自动布局执行
-- **THEN** 系统 SHALL 默认使用 TB（top-bottom）方向排布
+- **THEN** 系统 SHALL 默认使用 DOWN 方向排布
 
 ### Requirement: Node inspector with editable/readonly fields
 系统 SHALL 在右侧 Inspector 面板根据节点类型展示差异化的编辑字段。
@@ -168,4 +180,3 @@
 #### Scenario: Run completion notification
 - **WHEN** DAG 运行完成
 - **THEN** 系统 SHALL 停止轮询，显示 toast 通知运行结果，状态指示器更新
-

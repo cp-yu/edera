@@ -14,6 +14,15 @@ domains:
       - id: dag-workbench-ui
         description: DAG 工作台 UI，覆盖画布交互、节点拖拽、连线管理、自动布局和 Inspector 配置
         spec: specs/dag-workbench-ui/spec.md
+      - id: canvas-interaction-enhancement
+        description: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附和撤销重做
+        spec: specs/canvas-interaction-enhancement/spec.md
+      - id: node-visual-system
+        description: 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和分组可视化
+        spec: specs/node-visual-system/spec.md
+      - id: graph-layout-engine
+        description: 图布局引擎，覆盖 ELK 自动布局、全局视口拟合、缩放边界和执行路径高亮
+        spec: specs/graph-layout-engine/spec.md
       - id: node-graph-dag-editor
         description: Node Graph DAG 编辑器，覆盖图编辑交互、DAG 保存、Inspector 配置和运行状态覆盖
         spec: specs/node-graph-dag-editor/spec.md

@@ -1,47 +1,150 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { useEffect } from 'react'
+import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
+import { Database, BrainCircuit, GitMerge } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { blendTargetColors } from '@/lib/colors'
+import { getNodeEdgeColor, getRuntimeState, type HandleSpec, type WorkbenchNodeData } from '../../lib/graph'
 
-const handleBase = { opacity: 0, width: 8, height: 8, transition: 'opacity 0.15s' } as const
-const hTop = { ...handleBase, left: '40%' }
-const hTopSrc = { ...handleBase, left: '60%' }
-const hRight = { ...handleBase, top: '40%' }
-const hRightSrc = { ...handleBase, top: '60%' }
-const hBottom = { ...handleBase, left: '40%' }
-const hBottomSrc = { ...handleBase, left: '60%' }
-const hLeft = { ...handleBase, top: '40%' }
-const hLeftSrc = { ...handleBase, top: '60%' }
+const handleBase = {
+  width: 12,
+  height: 12,
+  borderWidth: 2,
+  borderColor: 'rgba(255,255,255,0.55)',
+  background: 'rgba(15,23,42,0.96)',
+} as const
 
-export function CustomNode({ data }: NodeProps) {
-  const { name, type, status, source_names } = data as {
-    name: string; type: string; status?: string; error?: string; source_names?: string[]
-  }
+const KIND_ICONS = {
+  fetcher: Database,
+  llm: BrainCircuit,
+  aggregator: GitMerge,
+  unknown: GitMerge,
+} as const
 
-  const statusClass =
-    status === 'succeeded' ? 'border-green-500' :
-    status === 'failed' ? 'border-red-500' :
-    status === 'running' ? 'border-blue-500 animate-pulse' :
-    ''
+const KIND_STYLES = {
+  fetcher: {
+    shell: 'border-blue-600/70 bg-slate-950/95 text-slate-50 shadow-blue-950/30',
+    header: 'bg-blue-700/90 text-blue-50',
+    accent: 'text-blue-200',
+  },
+  llm: {
+    shell: 'border-violet-600/70 bg-slate-950/95 text-slate-50 shadow-violet-950/30',
+    header: 'bg-violet-700/90 text-violet-50',
+    accent: 'text-violet-200',
+  },
+  aggregator: {
+    shell: 'border-emerald-600/70 bg-slate-950/95 text-slate-50 shadow-emerald-950/30',
+    header: 'bg-emerald-700/90 text-emerald-50',
+    accent: 'text-emerald-200',
+  },
+  unknown: {
+    shell: 'border-slate-600/70 bg-slate-950/95 text-slate-50 shadow-slate-950/30',
+    header: 'bg-slate-700/90 text-slate-100',
+    accent: 'text-slate-300',
+  },
+} as const
 
-  const targetBorderColor = source_names?.length ? blendTargetColors(source_names) : undefined
+function StatusBadge({ status }: { status?: string }) {
+  const runtime = getRuntimeState(status)
+  if (!runtime) return null
+
+  const tone =
+    runtime === 'running'
+      ? 'bg-blue-500 shadow-[0_0_0_4px_rgba(37,99,235,0.18)] animate-pulse'
+      : runtime === 'succeeded'
+        ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(22,163,74,0.16)]'
+        : runtime === 'failed'
+          ? 'bg-red-500 shadow-[0_0_0_4px_rgba(220,38,38,0.16)]'
+          : 'bg-slate-400 shadow-[0_0_0_4px_rgba(148,163,184,0.16)]'
+
+  return <span className={cn('absolute left-3 top-3 h-3 w-3 rounded-full', tone)} />
+}
+
+function HandleRail({
+  handles,
+  position,
+  color,
+}: {
+  handles: HandleSpec[]
+  position: Position.Left | Position.Right
+  color: string
+}) {
+  if (handles.length === 0) return null
 
   return (
-    <div
-      className={cn('group rounded-lg border-2 bg-card px-4 py-2 shadow-sm min-w-[120px]', statusClass)}
-      style={!statusClass && targetBorderColor ? { borderLeftColor: targetBorderColor, borderLeftWidth: 4 } : undefined}
-    >
-      <Handle id="top-target" type="target" position={Position.Top} style={hTop} className="group-hover:!opacity-100" />
-      <Handle id="top-source" type="source" position={Position.Top} style={hTopSrc} className="group-hover:!opacity-100" />
-      <Handle id="right-target" type="target" position={Position.Right} style={hRight} className="group-hover:!opacity-100" />
-      <Handle id="right-source" type="source" position={Position.Right} style={hRightSrc} className="group-hover:!opacity-100" />
-      <Handle id="bottom-target" type="target" position={Position.Bottom} style={hBottom} className="group-hover:!opacity-100" />
-      <Handle id="bottom-source" type="source" position={Position.Bottom} style={hBottomSrc} className="group-hover:!opacity-100" />
-      <Handle id="left-target" type="target" position={Position.Left} style={hLeft} className="group-hover:!opacity-100" />
-      <Handle id="left-source" type="source" position={Position.Left} style={hLeftSrc} className="group-hover:!opacity-100" />
-
-      <div className="text-sm font-medium">{name}</div>
-      <div className="text-xs text-muted-foreground">{type}</div>
-    </div>
+    <>
+      {handles.map((handle, index) => {
+        const top = `${((index + 1) / (handles.length + 1)) * 100}%`
+        return (
+          <Handle
+            key={handle.id}
+            id={handle.id}
+            type={position === Position.Left ? 'target' : 'source'}
+            position={position}
+            title={handle.label}
+            style={{
+              ...handleBase,
+              top,
+              opacity: handle.connected ? 1 : 0.5,
+              [position === Position.Left ? 'left' : 'right']: -7,
+              boxShadow: `0 0 0 2px ${color}`,
+            }}
+            className="group-hover:!opacity-100 transition-opacity"
+          />
+        )
+      })}
+    </>
   )
 }
 
+export function CustomNode({ id, data, selected }: NodeProps) {
+  const updateNodeInternals = useUpdateNodeInternals()
+  const node = data as WorkbenchNodeData
+  const kindStyle = KIND_STYLES[node.visualKind]
+  const Icon = KIND_ICONS[node.visualKind]
+  const edgeColor = getNodeEdgeColor(node.visualKind)
+  const targetBorderColor = node.source_names?.length ? blendTargetColors(node.source_names) : undefined
+
+  useEffect(() => {
+    updateNodeInternals(id)
+  }, [id, node.inputHandles.length, node.outputHandles.length, updateNodeInternals])
+
+  return (
+    <div
+      className={cn(
+        'group relative overflow-visible rounded-2xl border shadow-xl transition-shadow',
+        kindStyle.shell,
+        selected && 'shadow-2xl ring-2 ring-white/25',
+      )}
+      style={targetBorderColor ? { boxShadow: `inset 3px 0 0 ${targetBorderColor}` } : undefined}
+    >
+      <StatusBadge status={node.status} />
+      <HandleRail handles={node.inputHandles} position={Position.Left} color={edgeColor} />
+      <HandleRail handles={node.outputHandles} position={Position.Right} color={edgeColor} />
+
+      <div className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em]', kindStyle.header)}>
+        <div className="flex items-center gap-2">
+          <Icon size={14} strokeWidth={2.2} />
+          <span>{node.visualKind}</span>
+        </div>
+      </div>
+      <div className="space-y-3 px-4 py-3">
+        <div className="pr-4 text-sm font-semibold">{node.name}</div>
+        <div className={cn('text-[11px] uppercase tracking-[0.14em]', kindStyle.accent)}>
+          {node.input_type || 'none'} {'->'} {node.output_type || 'none'}
+        </div>
+        {node.source_names?.length ? (
+          <div className="flex flex-wrap gap-1">
+            {node.source_names.slice(0, 3).map((sourceName) => (
+              <span
+                key={sourceName}
+                className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-200"
+              >
+                {sourceName}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}

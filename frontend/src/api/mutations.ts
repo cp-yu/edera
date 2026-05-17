@@ -2,12 +2,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
 import type { DagState, NodePrototype } from './types'
 
+function alertMutationError(error: Error) {
+  window.alert(error.message)
+}
+
 export function useSaveDag(dagName: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: { nodes: DagState['nodes'] | string[]; edges: DagState['edges']; ui?: DagState['ui'] }) =>
       apiFetch(`/api/graph/dag/${dagName}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dag', dagName] }) },
+    onError: alertMutationError,
   })
 }
 
@@ -26,7 +31,7 @@ export function useRunDag() {
     mutationFn: (dagName: string) =>
       apiFetch<{ cycle_id: string }>(`/api/pipeline/dag/${dagName}/run`, { method: 'POST' }),
     onSuccess: (_data, dagName) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
-    onError: (error: Error) => { window.alert(error.message) },
+    onError: alertMutationError,
   })
 }
 
@@ -36,7 +41,7 @@ export function useStopDag() {
     mutationFn: (dagName: string) =>
       apiFetch(`/api/pipeline/dag/${dagName}/stop`, { method: 'POST' }),
     onSuccess: (_data, dagName) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
-    onError: (error: Error) => { window.alert(error.message) },
+    onError: alertMutationError,
   })
 }
 
@@ -49,7 +54,7 @@ export function useCreateNode() {
       qc.invalidateQueries({ queryKey: ['dag', dagName] })
       qc.invalidateQueries({ queryKey: ['nodePrototypes'] })
     },
-    onError: (error: Error) => { window.alert(error.message) },
+    onError: alertMutationError,
   })
 }
 

@@ -1,21 +1,65 @@
 name: default
 nodes:
-  - rss-fetcher
-  - web-scraper
-  - reader
-  - advisor
-  - briefing-generator
-  - notifier
+- rss-fetcher
+- web-scraper
+- reader
+- advisor
+- briefing-generator
+- notifier
 edges:
-  - from: rss-fetcher
-    to: reader
-    fan_in: true
-  - from: web-scraper
-    to: reader
-    fan_in: true
-  - from: reader
-    to: advisor
-  - from: advisor
-    to: briefing-generator
-  - from: briefing-generator
-    to: notifier
+- from: rss-fetcher
+  to: reader
+  fan_out: false
+  fan_in: false
+- from: web-scraper
+  to: reader
+  fan_out: false
+  fan_in: false
+- from: reader
+  to: advisor
+  fan_out: false
+  fan_in: false
+- from: advisor
+  to: briefing-generator
+  fan_out: false
+  fan_in: false
+- from: briefing-generator
+  to: notifier
+  fan_out: false
+  fan_in: false
+ui:
+  nodes:
+    rss-fetcher:
+      x: -60
+      y: -12
+    web-scraper:
+      x: -60
+      y: 180
+    reader:
+      x: 500
+      y: 180
+    advisor:
+      x: 752
+      y: 448
+    briefing-generator:
+      x: 1002
+      y: 666
+    notifier:
+      x: 1252
+      y: 884
+  edges:
+    e-rss-fetcher-reader-0:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-web-scraper-reader-1:
+      sourceHandle: output-0
+      targetHandle: input-1
+    e-reader-advisor-2:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-advisor-briefing-generator-3:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-briefing-generator-notifier-4:
+      sourceHandle: output-0
+      targetHandle: input-0

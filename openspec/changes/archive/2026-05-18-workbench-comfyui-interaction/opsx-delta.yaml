@@ -1,0 +1,29 @@
+# OPSX Delta — workbench-comfyui-interaction
+
+ADDED:
+  - domain: web
+    capabilities:
+      - id: canvas-interaction-enhancement
+        description: 画布交互增强，覆盖连线美化、右键菜单、对齐辅助线、snap-to-grid、undo/redo
+        spec: specs/canvas-interaction-enhancement/spec.md
+
+      - id: node-visual-system
+        description: 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge、分组可视化
+        spec: specs/node-visual-system/spec.md
+
+      - id: graph-layout-engine
+        description: 图布局引擎，覆盖 ELK 自动布局、执行路径高亮、搜索快速添加节点
+        spec: specs/graph-layout-engine/spec.md
+
+MODIFIED:
+  - domain: web
+    capabilities:
+      - id: dag-workbench-ui
+        description: DAG 工作台 UI，覆盖画布交互、节点拖拽、连线管理、自动布局和 Inspector 配置
+        spec: specs/dag-workbench-ui/spec.md
+        changes:
+          - 节点位置从手动保存变为拖拽后自动持久化（localStorage 草稿 + debounce 写后端）
+          - Handle 从固定 8 个改为按节点类型动态生成（左 input 右 output）
+          - 自动布局从 dagre 替换为 ELK layered 算法
+
+REMOVED: []
