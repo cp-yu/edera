@@ -122,7 +122,7 @@ Implement tasks from an OpenSpec change.
 | CLI call | `--input` JSON |
 | --- | --- |
 | `openspec verify phase1 "<change-name>" --input '<json>' --json` | `{"result":"PASS","issues":[],"evidenceFiles":["..."],"executionMode":"..."}` |
-| `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"NO_OPTIMIZATION_NEEDED"}` |
+| `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"NO_OPTIMIZATION_NEEDED","summary":"..."}` (summary is required, must be non-empty) |
 | `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"OPTIMIZATION_PROPOSED","summary":"..."}` |
 | `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"SKIPPED"}` |
 | `openspec verify phase2 "<change-name>" --type=verification --input '<json>' --json` | `{"result":"PASS","issues":[]}` |
@@ -130,21 +130,31 @@ Implement tasks from an OpenSpec change.
 
 8. **Phase 2: Optimize under checkpoint protection**
 
+   **Role constraint**: The master agent is an evidence collector and patch applicator in Phase 2. It MUST NOT substitute its own judgment for the optimizer subagent's decision on whether optimization is needed. Always spawn the optimizer subagent as the first action in Phase 2.
+
    - Skip Phase 2 only when the user requested `--skip-optimization` or `optimization.enabled: false`; record `SKIPPED` through `openspec verify phase2`
    - Read `optimization.optRetries` from `openspec/config.yaml`; default to `2`
    - Before the first optimization attempt, create a checkpoint: `git stash push -u -m "apply-opt-checkpoint-r0"`
    - Each complete proposal + patch + reviewer re-verify loop consumes one `optRetries` budget, whether it passes or fails
    - Format or Search/Replace matching problems are handled by the main agent and do not consume retry budget
    - Optimizer subagent: spawn and instruct to invoke the `openspec-optimizer` skill (loads full optimizer contract: role, constraints, optimization principles, Search/Replace format, failed directions protocol). Proposes Search/Replace blocks only; it MUST NOT edit files
-   - Main agent applies Search/Replace blocks atomically, then spawns the reviewer subagent for speculative Phase 1 re-verification
-   - On speculative PASS, accept the patch, record `OPTIMIZATION_PROPOSED` then `verification PASS`, and continue until no opportunities remain or `optRetries` is exhausted
+   - **TIMING CONSTRAINT — hashFiles() samples disk state; the following order is mandatory:**
+     1. Main agent calls `openspec verify phase2 "<change-name>" --type=optimization --input '<json>'` to record `OPTIMIZATION_PROPOSED` with pre-patch file hashes (disk MUST still be in pre-patch state at this point)
+     2. Main agent applies Search/Replace blocks atomically (disk transitions to post-patch state)
+     3. Main agent spawns the reviewer subagent for speculative Phase 1 re-verification
+   - On speculative PASS, record `verification PASS`, and continue until no opportunities remain or `optRetries` is exhausted
    - On speculative FAIL, restore the latest checkpoint with `git reset --hard HEAD`, `git clean -fd`, then `git stash apply stash@{0}`; record the failed direction in `.verify-result.json`
    - When all attempts finish, consume all `apply-opt-checkpoint-*` stash entries only after the final safe workspace state is confirmed
 
 **Simple Change Fast Path**:
-- For pure deletions, renames, or parameter removals with no meaningful optimization room, skip the optimization subagent
-- Call `openspec verify phase2 "<change-name>" --type=optimization --input '{"status":"NO_OPTIMIZATION_NEEDED"}' --json`
-- Use this path only when the change does not benefit from a proposal + patch + re-verify loop
+- You MUST spawn the optimizer subagent at least once for every change, including pure deletions, renames, or parameter removals
+- The optimizer subagent (not the master agent) decides whether optimization opportunities exist
+- If the optimizer subagent returns "No optimization opportunities found", record `NO_OPTIMIZATION_NEEDED` with the optimizer's conclusion as the `summary` field:
+  ```bash
+  openspec verify phase2 "<change-name>" --type=optimization --input '{"status":"NO_OPTIMIZATION_NEEDED","summary":"<optimizer conclusion>"}' --json
+  ```
+- The master agent MUST NOT self-determine that no optimization is needed without spawning the optimizer subagent
+- The only conditions that bypass the optimizer subagent are: `--skip-optimization` flag or `optimization.enabled: false` in config
 
 **Verify CLI Error Recovery Guide**:
 - If the CLI says `Invalid JSON input`: re-check that `--input` is a JSON string, not a file path; `issues` must be an array and `evidenceFiles` must be an array of strings
