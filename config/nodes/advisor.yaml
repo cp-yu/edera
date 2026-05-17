@@ -1,7 +1,10 @@
 name: advisor
 type: function
 skills:
-  - name: generate-advice
+- name: generate-advice
+model: null
 input_type: list[AnalysisResult]
 output_type: list[Advice]
+timeout_seconds: null
+source_names: []
 parameters: {}

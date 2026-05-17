@@ -1,0 +1,23 @@
+# OPSX Delta — replace-reactflow-with-litegraph
+
+## ADDED capabilities
+
+- domain: web
+  capabilities:
+    - id: litegraph-canvas-engine
+      description: LiteGraph 画布引擎集成，覆盖 canvas 挂载、节点渲染、连线交互、缩放平移、框选和事件桥接
+      spec: specs/litegraph-canvas-engine/spec.md
+    - id: dag-litegraph-adapter
+      description: DAG 数据与 LGraph 格式的双向转换层，覆盖加载、保存和草稿持久化
+      spec: specs/dag-litegraph-adapter/spec.md
+
+## MODIFIED capabilities
+
+- domain: web
+  capabilities:
+    - id: dag-workbench-ui
+      description: DAG 工作台 UI，覆盖 LiteGraph 画布交互、节点拖拽、连线管理、手动保存、草稿和 Inspector 配置
+      spec: specs/dag-workbench-ui/spec.md
+    - id: node-graph-dag-editor
+      description: Node Graph DAG 编辑器，覆盖 LiteGraph 图编辑交互、DAG 保存、Inspector 配置和运行状态覆盖
+      spec: specs/node-graph-dag-editor/spec.md
