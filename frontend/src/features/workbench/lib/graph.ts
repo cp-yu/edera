@@ -288,12 +288,7 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
       id: rest.id,
       type: rest.type_name,
       alias: rest.alias,
-      config: {
-        ...(rest.config ?? {}),
-        ...(rest.type === 'llm' ? { skills: rest.skills, model: rest.model } : {}),
-        ...(rest.type === 'function' && rest.source_names ? { source_names: rest.source_names } : {}),
-        ...(rest.parameters ? { parameters: rest.parameters } : {}),
-      },
+      config: rest.config ?? {},
     }
   })
 

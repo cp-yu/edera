@@ -43,6 +43,7 @@ from stockimformation.web.deps import config_dir, controller, error_response
 
 router = APIRouter()
 
+INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "timeout_seconds"}
 
 
 
@@ -318,28 +319,42 @@ async def api_config_save(
 
 @router.get("/api/graph/nodes")
 async def api_graph_node_prototypes(request: Request) -> dict[str, object]:
-    nodes = load_node_configs(config_dir(request) / "nodes")
-    return {"prototypes": [_node_payload(node) for node in nodes.values()]}
+    root = config_dir(request)
+    nodes = load_node_configs(root / "nodes")
+    skills = load_skill_configs(root / "skills")
+    portfolio = load_portfolio_config(root / "portfolio.yaml")
+    model_names = _available_model_names(nodes)
+    return {
+        "prototypes": [_node_payload(node, skills, portfolio, model_names) for node in nodes.values()]
+    }
 
 
 @router.get("/api/graph/node-types")
 async def api_graph_node_types(request: Request) -> dict[str, object]:
-    nodes = load_node_configs(config_dir(request) / "nodes")
-    return {"types": [_node_payload(node) for node in nodes.values()]}
+    root = config_dir(request)
+    nodes = load_node_configs(root / "nodes")
+    skills = load_skill_configs(root / "skills")
+    portfolio = load_portfolio_config(root / "portfolio.yaml")
+    model_names = _available_model_names(nodes)
+    return {"types": [_node_payload(node, skills, portfolio, model_names) for node in nodes.values()]}
 
 
 @router.get("/api/graph/dag/{name}", response_model=None)
 async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    root = config_dir(request)
     try:
-        dag = load_dag_configs(config_dir(request) / "dags")[name]
+        dag = load_dag_configs(root / "dags")[name]
     except KeyError:
         return error_response(404, "not_found", f"dag {name} not found")
-    nodes = load_node_configs(config_dir(request) / "nodes")
+    nodes = load_node_configs(root / "nodes")
+    skills = load_skill_configs(root / "skills")
+    portfolio = load_portfolio_config(root / "portfolio.yaml")
+    model_names = _available_model_names(nodes)
     node_instances = []
     for instance in dag.nodes:
         node_config = nodes.get(instance.type)
         if node_config:
-            n = _node_payload(node_config)
+            n = _node_payload(node_config, skills, portfolio, model_names)
             n.update(
                 {
                     "id": instance.id,
@@ -349,7 +364,7 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
                 }
             )
             for key, value in instance.config.items():
-                if key in {"skills", "model", "source_names", "parameters"}:
+                if key in INSTANCE_CONFIG_FIELDS | {"parameters"}:
                     n[key] = value
             node_instances.append(n)
         else:
@@ -435,14 +450,21 @@ async def api_graph_dag_create_node(
     )
     editor.save("dag", name, dag_content)
     node_config = NodeConfig.model_validate(node_payload)
-    return {"node": _node_payload(node_config)}
+    skills = load_skill_configs(config_dir(request) / "skills")
+    portfolio = load_portfolio_config(config_dir(request) / "portfolio.yaml")
+    model_names = _available_model_names(load_node_configs(nodes_dir))
+    return {"node": _node_payload(node_config, skills, portfolio, model_names)}
 
 
 @router.get("/api/graph/node/{name}", response_model=None)
 async def api_graph_node_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
     try:
-        nodes = load_node_configs(config_dir(request) / "nodes")
-        return {"node": _node_payload(nodes[name])}
+        root = config_dir(request)
+        nodes = load_node_configs(root / "nodes")
+        skills = load_skill_configs(root / "skills")
+        portfolio = load_portfolio_config(root / "portfolio.yaml")
+        model_names = _available_model_names(nodes)
+        return {"node": _node_payload(nodes[name], skills, portfolio, model_names)}
     except KeyError:
         return error_response(404, "not_found", f"node {name} not found")
 
@@ -460,7 +482,11 @@ async def api_graph_node_save(
         saved = editor.save("node", name, content)
         _save_node_assets(config_dir(request).parent, payload, body)
         node_config = NodeConfig.model_validate(yaml.safe_load(saved.content) or {})
-        return {"file": saved.__dict__, "node": _node_payload(node_config)}
+        nodes = load_node_configs(config_dir(request) / "nodes")
+        skills = load_skill_configs(config_dir(request) / "skills")
+        portfolio = load_portfolio_config(config_dir(request) / "portfolio.yaml")
+        model_names = _available_model_names(nodes)
+        return {"file": saved.__dict__, "node": _node_payload(node_config, skills, portfolio, model_names)}
     except (ConfigEditError, KeyError) as exc:
         return error_response(400, "config_error", str(exc))
 
@@ -802,6 +828,7 @@ def _graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]
         "timeout_seconds": body.get("timeout_seconds"),
         "source_names": body.get("source_names", []),
         "parameters": body.get("parameters", {}),
+        "parameters_schema": body.get("parameters_schema", {}),
     }
     try:
         return NodeConfig.model_validate(payload).model_dump(mode="json")
@@ -818,7 +845,7 @@ def _dag_node_payload(node: object) -> dict[str, object]:
     node_id = node.get("id", node.get("name"))
     if not isinstance(node_id, str) or not isinstance(node_type, str):
         raise ConfigEditError("dag node requires id and type")
-    config = node.get("config", {})
+    config = _split_instance_config(node.get("config", {}))
     payload: dict[str, object] = {"id": node_id, "type": node_type}
     alias = node.get("alias")
     if isinstance(alias, str) and alias:
@@ -830,8 +857,109 @@ def _dag_node_payload(node: object) -> dict[str, object]:
     return payload
 
 
-def _node_payload(node: NodeConfig) -> dict[str, object]:
-    return node.model_dump(mode="json")
+def _node_payload(
+    node: NodeConfig,
+    skills: dict[str, SkillConfig] | None = None,
+    portfolio: PortfolioConfig | None = None,
+    model_names: list[str] | None = None,
+) -> dict[str, object]:
+    payload = node.model_dump(mode="json")
+    if skills is not None and portfolio is not None:
+        payload["inspector_schema"] = _build_inspector_schema(
+            node,
+            skills,
+            portfolio,
+            model_names or [],
+        )
+    return payload
+
+
+def _build_inspector_schema(
+    node: NodeConfig,
+    skills: dict[str, SkillConfig],
+    portfolio: PortfolioConfig,
+    model_names: list[str],
+) -> dict[str, object]:
+    properties: dict[str, object] = {}
+    if node.type == "llm":
+        properties["model"] = {
+            "type": "string",
+            "enum": model_names,
+            "default": node.model,
+        }
+        properties["skills"] = {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": sorted(skills),
+            },
+            "default": node.skills,
+        }
+    if node.type == "function" and node.role == "source":
+        properties["source_names"] = {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": sorted(source.name for source in portfolio.sources),
+            },
+            "default": node.source_names,
+        }
+    properties["timeout_seconds"] = {
+        "type": "number",
+        "default": node.timeout_seconds,
+    }
+    for key, value in node.parameters_schema.get("properties", {}).items():
+        if isinstance(value, dict):
+            properties[f"param.{key}"] = value
+    return {"type": "object", "properties": properties}
+
+
+def _available_model_names(nodes: dict[str, NodeConfig]) -> list[str]:
+    models = {node.model for node in nodes.values() if node.model}
+    model_file = Path.home() / ".pi" / "agent" / "models.json"
+    if model_file.exists():
+        try:
+            data = json.loads(model_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = None
+        models.update(_extract_model_names(data))
+    return sorted(models)
+
+
+def _extract_model_names(data: object) -> set[str]:
+    if isinstance(data, list):
+        return {
+            str(item.get("id") or item.get("name"))
+            for item in data
+            if isinstance(item, dict) and (item.get("id") or item.get("name"))
+        }
+    if isinstance(data, dict):
+        if isinstance(data.get("models"), list):
+            return _extract_model_names(data["models"])
+        return {
+            str(key)
+            for key, value in data.items()
+            if isinstance(key, str) and value is not None
+        }
+    return set()
+
+
+def _split_instance_config(raw: object) -> dict[str, object]:
+    if not isinstance(raw, dict):
+        return {}
+    payload: dict[str, object] = {}
+    parameters = dict(raw.get("parameters", {})) if isinstance(raw.get("parameters"), dict) else {}
+    for key, value in raw.items():
+        if key == "parameters":
+            continue
+        if key.startswith("param."):
+            if value is not None:
+                parameters[key.removeprefix("param.")] = value
+            continue
+        payload[key] = value
+    if parameters:
+        payload["parameters"] = parameters
+    return payload
 
 
 def _save_node_assets(root: Path, payload: dict[str, object], body: dict[str, object]) -> None:

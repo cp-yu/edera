@@ -813,6 +813,8 @@ async def test_web_graph_nodes_api_returns_prototypes(tmp_path: Path) -> None:
     assert "rss-fetcher" in names
     assert "reader" in names
     assert "advisor" in names
+    reader = next(item for item in data["prototypes"] if item["name"] == "reader")
+    assert "inspector_schema" in reader
 
 
 @pytest.mark.asyncio
@@ -833,9 +835,50 @@ async def test_web_graph_dag_api_round_trip(tmp_path: Path) -> None:
     assert state["name"] == "default"
     assert len(state["nodes"]) > 0
     assert len(state["edges"]) > 0
+    assert "inspector_schema" in state["nodes"][0]
     assert save_response.status_code == 200
     saved = save_response.json()
     assert saved["dag"]["ui"]["nodes"][node_id]["x"] == 100
+
+
+@pytest.mark.asyncio
+async def test_web_graph_node_types_include_dynamic_inspector_schema(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.get("/api/graph/node-types")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    reader = next(item for item in response.json()["types"] if item["name"] == "reader")
+    schema = reader["inspector_schema"]["properties"]
+    assert reader["model"] in schema["model"]["enum"]
+    assert "summarize" in schema["skills"]["items"]["enum"]
+
+
+@pytest.mark.asyncio
+async def test_web_graph_dag_save_splits_schema_fields(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            state = (await client.get("/api/graph/dag/default")).json()
+            reader = next(node for node in state["nodes"] if node["type_name"] == "reader")
+            reader["config"]["model"] = "gpt-4"
+            reader["config"]["param.temperature"] = 0.3
+            response = await client.put("/api/graph/dag/default", json=state)
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    saved = yaml.safe_load(dag_path.read_text(encoding="utf-8"))
+    reader = next(node for node in saved["nodes"] if node["type"] == "reader")
+    assert reader["config"]["model"] == "gpt-4"
+    assert reader["config"]["parameters"]["temperature"] == 0.3
+    assert "param.temperature" not in reader["config"]
 
 
 @pytest.mark.asyncio

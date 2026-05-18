@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation.config.schema import DagConfig, NodeConfig
+from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig, SkillConfig
 from stockimformation.config.editor import RuntimeConfigEditor
 from stockimformation.errors import ConfigEditError
-from stockimformation.web.routes import _graph_dag_payload, _graph_node_payload
+from stockimformation.web.routes import _build_inspector_schema, _graph_dag_payload, _graph_node_payload
 
 
 def test_config_editor_rejects_invalid_system_without_writing(tmp_path: Path) -> None:
@@ -54,6 +54,41 @@ def test_node_config_accepts_json_like_parameters() -> None:
         }
     )
     assert node.parameters["confidence_threshold"] == 0.55
+
+
+def test_node_config_accepts_parameters_schema() -> None:
+    node = NodeConfig.model_validate(
+        {
+            "name": "reader",
+            "type": "llm",
+            "system_prompt_file": "prompts/reader.md",
+            "skills": [{"name": "summarize"}],
+            "input_type": "list[RawItem]",
+            "output_type": "list[AnalysisResult]",
+            "parameters_schema": {
+                "type": "object",
+                "properties": {
+                    "temperature": {"type": "number", "default": 0.2},
+                },
+            },
+        }
+    )
+    assert node.parameters_schema["properties"]["temperature"]["type"] == "number"
+
+
+def test_node_config_rejects_invalid_parameters_schema() -> None:
+    with pytest.raises(ValueError):
+        NodeConfig.model_validate(
+            {
+                "name": "reader",
+                "type": "llm",
+                "system_prompt_file": "prompts/reader.md",
+                "skills": [{"name": "summarize"}],
+                "input_type": "list[RawItem]",
+                "output_type": "list[AnalysisResult]",
+                "parameters_schema": "not-a-dict",
+            }
+        )
 
 
 def test_node_config_rejects_credentials_in_parameters() -> None:
@@ -167,6 +202,61 @@ def test_graph_node_payload_round_trip() -> None:
     assert payload["source_names"] == ["source-a", "source-b"]
     assert payload["timeout_seconds"] == 30.0
     assert payload["parameters"]["confidence_threshold"] == 0.55
+
+
+def test_graph_dag_payload_splits_schema_fields() -> None:
+    payload = _graph_dag_payload(
+        "default",
+        {
+            "nodes": [
+                {
+                    "id": "reader-instance",
+                    "type": "reader",
+                    "alias": "reader",
+                    "config": {
+                        "model": "gpt-4",
+                        "param.temperature": 0.2,
+                        "parameters": {"existing": True},
+                    },
+                }
+            ],
+            "edges": [],
+            "ui": {},
+        },
+    )
+    config = payload["nodes"][0]["config"]
+    assert config["model"] == "gpt-4"
+    assert config["parameters"] == {"existing": True, "temperature": 0.2}
+
+
+def test_build_inspector_schema_merges_dynamic_and_parameter_fields() -> None:
+    node = NodeConfig.model_validate(
+        {
+            "name": "reader",
+            "type": "llm",
+            "role": "processor",
+            "system_prompt_file": "prompts/reader.md",
+            "skills": ["summarize"],
+            "model": "gpt-4",
+            "input_type": "Any",
+            "output_type": "Any",
+            "parameters_schema": {
+                "type": "object",
+                "properties": {
+                    "temperature": {"type": "number", "default": 0.2},
+                },
+            },
+        }
+    )
+    schema = _build_inspector_schema(
+        node,
+        {"summarize": SkillConfig(name="summarize", description="", handler="summarize")},
+        PortfolioConfig.model_validate({"targets": [], "sources": []}),
+        ["gpt-4", "gpt-5"],
+    )
+    assert schema["properties"]["model"]["enum"] == ["gpt-4", "gpt-5"]
+    assert schema["properties"]["skills"]["items"]["enum"] == ["summarize"]
+    assert schema["properties"]["param.temperature"]["default"] == 0.2
 
 
 def test_graph_node_payload_rejects_credentials() -> None:

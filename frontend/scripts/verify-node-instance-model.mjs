@@ -113,6 +113,7 @@ function nodeType(name, type, role, inputType, outputType, extra = {}) {
     output_type: outputType,
     skills: [],
     parameters: {},
+    inspector_schema: buildInspectorSchema(type, role, extra),
     ...extra,
   }
 }
@@ -250,15 +251,62 @@ async function verifyQuickAddAndMultiInstance(cdp) {
 }
 
 async function verifyInspector(cdp) {
-  const nodeInspector = await evaluate(cdp, `
+  await evaluate(cdp, `
     (async () => {
       document.querySelector('.react-flow__node[data-id="${readerId}"]').dispatchEvent(clickEvent())
       await tick()
-      const text = document.body.textContent
-      return ['Alias', 'Model', 'Skills', 'Parameters'].every((label) => text.includes(label))
     })()
   `)
-  assert(nodeInspector, 'inspector shows node instance fields')
+  await waitFor(cdp, `(() => {
+    const asides = document.querySelectorAll('aside')
+    const inspector = asides[asides.length - 1]
+    return inspector?.querySelector('textarea')
+  })()`)
+  await waitFor(cdp, `(() => {
+    const asides = document.querySelectorAll('aside')
+    const inspector = asides[asides.length - 1]
+    return inspector?.querySelector('input[type="number"]')
+  })()`)
+
+  const nodeInspector = await evaluate(cdp, `
+    (async () => {
+      const asides = [...document.querySelectorAll('aside')]
+      const aside = asides[asides.length - 1]
+      const hasModelSelect = Boolean(aside?.querySelector('select'))
+      const inputs = aside ? [...aside.querySelectorAll('input')] : []
+      const buttons = aside ? [...aside.querySelectorAll('button')] : []
+      const hasNumberInput = Boolean(inputs.find((input) => input.type === 'number'))
+      const hasJsonTextarea = Boolean(aside?.querySelector('textarea'))
+      const hasSkillChip = buttons.some((button) => button.textContent.includes('summarize'))
+      return {
+        hasModelSelect,
+        hasSkillChip,
+        hasNumberInput,
+        hasJsonTextarea,
+      }
+    })()
+  `)
+  assertAll(nodeInspector, 'inspector shows schema-driven fields')
+
+  await evaluate(cdp, `
+    (async () => {
+      const asides = [...document.querySelectorAll('aside')]
+      const aside = asides[asides.length - 1]
+      const select = aside?.querySelector('select')
+      if (!select) throw new Error('model select not found')
+      select.value = ''
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+      await tick()
+      ;[...aside.querySelectorAll('button')]
+        .find((button) => button.textContent.includes('保存实例'))
+        ?.click()
+      await tick()
+    })()
+  `)
+  await waitFor(cdp, `window.__lastDagPut`)
+  const savePayload = await evaluate(cdp, `(() => window.__lastDagPut)()`)
+  const savedReader = savePayload.nodes.find((node) => node.type === 'reader')
+  assert(savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model'), 'inspector diff save drops cleared model')
 
   const edgeInspector = await evaluate(cdp, `
     (async () => {
@@ -270,6 +318,36 @@ async function verifyInspector(cdp) {
     })()
   `)
   assert(edgeInspector, 'inspector shows edge fan_in and fan_out')
+}
+
+function buildInspectorSchema(type, role, extra) {
+  const properties = {
+    timeout_seconds: { type: 'number', default: extra.timeout_seconds ?? null },
+  }
+  if (type === 'llm') {
+    properties.model = {
+      type: 'string',
+      enum: [extra.model ?? 'hf-share/deepseek-v4-flash', 'gpt-4'],
+      default: extra.model ?? null,
+    }
+    properties.skills = {
+      type: 'array',
+      items: { type: 'string', enum: ['summarize'] },
+      default: extra.skills ?? [],
+    }
+    properties['param.profile'] = {
+      type: 'object',
+      default: { mode: 'balanced' },
+    }
+  }
+  if (type === 'function' && role === 'source') {
+    properties.source_names = {
+      type: 'array',
+      items: { type: 'string', enum: ['sample-rss', 'sample-web'] },
+      default: extra.source_names ?? [],
+    }
+  }
+  return { type: 'object', properties }
 }
 
 async function verifyNodesPage(cdp, baseUrl) {
@@ -428,7 +506,10 @@ function installFetchMock(data) {
     if (url.pathname === '/api/graph/skills' && method === 'POST') return json({ skill: JSON.parse(init.body ?? '{}') })
     if (url.pathname.startsWith('/api/graph/skills/') && ['PUT', 'DELETE'].includes(method)) return json({ ok: true })
     if (url.pathname === '/api/graph/dag/default' && method === 'GET') return json(data.dag)
-    if (url.pathname === '/api/graph/dag/default' && method === 'PUT') return json({ dag: data.dag })
+    if (url.pathname === '/api/graph/dag/default' && method === 'PUT') {
+      window.__lastDagPut = JSON.parse(init.body ?? '{}')
+      return json({ dag: data.dag })
+    }
     if (url.pathname === '/api/pipeline/dag/default/status') {
       return json({
         scheduler_running: true,

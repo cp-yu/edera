@@ -9,6 +9,19 @@ export interface DagEdge {
 
 export type NodeRole = 'source' | 'processor' | 'sink'
 
+export interface InspectorSchemaProperty {
+  type?: string
+  enum?: string[]
+  items?: InspectorSchemaProperty
+  properties?: Record<string, InspectorSchemaProperty>
+  default?: unknown
+}
+
+export interface InspectorSchema {
+  type?: string
+  properties?: Record<string, InspectorSchemaProperty>
+}
+
 export interface NodeType {
   name: string
   type: 'function' | 'llm'
@@ -23,6 +36,8 @@ export interface NodeType {
   timeout_seconds?: number
   source_names?: string[]
   parameters?: Record<string, unknown>
+  parameters_schema?: Record<string, unknown>
+  inspector_schema: InspectorSchema
 }
 
 export interface NodeInstance extends NodeType {

@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-05-18T13:30:29.107Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "a1e51c7f15e116ad88e6f3a085015dd8a409a300bf4534a579b1cf2523cfaafe",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "local",
+    "evidenceFiles": [
+      "frontend/scripts/verify-node-instance-model.mjs",
+      "frontend/src/features/workbench/components/Inspector.tsx",
+      "frontend/src/features/workbench/components/SchemaForm.tsx",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/web/routes.py",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_config_editor.py"
+    ],
+    "evidenceFingerprint": "bce8b4ccc0bc3e27ec6398586c9bef1d02f57b7c347ba7d1f87bf532fd5219f8",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "f2edb9827adaa75d377112c7638b2c1533b1c842"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-18T13:30:46.262Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "The implementation already uses minimal targeted changes: backend schema generation/splitting is localized, frontend persistence now preserves sparse instance overrides, and automated coverage was added without expanding runtime scope."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-18T13:30:29.107Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "a1e51c7f15e116ad88e6f3a085015dd8a409a300bf4534a579b1cf2523cfaafe",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "local",
+        "evidenceFiles": [
+          "frontend/scripts/verify-node-instance-model.mjs",
+          "frontend/src/features/workbench/components/Inspector.tsx",
+          "frontend/src/features/workbench/components/SchemaForm.tsx",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/web/routes.py",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_config_editor.py"
+        ],
+        "evidenceFingerprint": "bce8b4ccc0bc3e27ec6398586c9bef1d02f57b7c347ba7d1f87bf532fd5219f8",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "f2edb9827adaa75d377112c7638b2c1533b1c842"
+      }
+    }
+  }
+}

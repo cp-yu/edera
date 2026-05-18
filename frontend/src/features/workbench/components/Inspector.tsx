@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDag } from '@/api/queries'
 import { useSaveDag } from '@/api/mutations'
+import type { InspectorSchema, NodeInstance } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
+import { SchemaForm } from './SchemaForm'
+
+const TOP_LEVEL_FIELDS = new Set(['model', 'skills', 'source_names', 'timeout_seconds'])
 
 export function Inspector() {
   const { selectedDagName, selectedEdgeId, selectedNodeId } = useAppStore()
@@ -10,19 +14,19 @@ export function Inspector() {
   const node = dag?.nodes.find((item) => item.id === selectedNodeId)
   const edge = dag?.edges.find((item, index) => `e-${item.from}-${item.to}-${index}` === selectedEdgeId)
   const [alias, setAlias] = useState('')
-  const [model, setModel] = useState('')
-  const [skills, setSkills] = useState('')
-  const [sourceNames, setSourceNames] = useState('')
-  const [parameters, setParameters] = useState('{}')
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     if (!node) return
     setAlias(node.alias ?? '')
-    setModel(node.model ?? '')
-    setSkills((node.skills ?? []).join(', '))
-    setSourceNames((node.source_names ?? []).join(', '))
-    setParameters(JSON.stringify(node.parameters ?? {}, null, 2))
+    setFormValues(flattenConfig(node.config))
   }, [node])
+
+  const typeDefaults = useMemo(() => (node ? defaultValues(node) : {}), [node])
+  const displayDefaults = useMemo(() => {
+    if (!node) return {}
+    return mergeSchemaDefaults(typeDefaults, node.inspector_schema)
+  }, [node, typeDefaults])
 
   if (edge && dag) {
     const saveEdge = (patch: { fan_in?: boolean; fan_out?: boolean }) => {
@@ -72,23 +76,11 @@ export function Inspector() {
   }
 
   const save = () => {
-    let parsedParameters: Record<string, unknown>
-    try {
-      parsedParameters = JSON.parse(parameters) as Record<string, unknown>
-    } catch {
-      window.alert('parameters 必须是 JSON 对象')
-      return
-    }
     const nodes = dag.nodes.map((item) => {
       if (item.id !== node.id) {
         return { id: item.id, type: item.type_name, alias: item.alias, config: item.config ?? {} }
       }
-      const config = {
-        ...(item.config ?? {}),
-        ...(item.type === 'llm' ? { skills: splitList(skills), model: model || undefined } : {}),
-        ...(item.type === 'function' ? { source_names: splitList(sourceNames) } : {}),
-        parameters: parsedParameters,
-      }
+      const config = buildConfig(item, formValues, typeDefaults)
       return { id: item.id, type: item.type_name, alias: alias || item.type_name, config }
     })
     saveDag.mutate({ nodes, edges: dag.edges, ui: dag.ui })
@@ -101,19 +93,24 @@ export function Inspector() {
         <p className="text-xs text-muted-foreground">{node.type_name} · {node.role}</p>
       </div>
       <Field label="Alias" value={alias} onChange={setAlias} />
+      <Readonly label="类型" value={node.type_name} />
+      <Readonly label="角色" value={node.role} />
       <Readonly label="输入" value={node.input_type} />
       <Readonly label="输出" value={node.output_type} />
-      {node.type === 'llm' && <Field label="Model" value={model} onChange={setModel} />}
-      {node.type === 'llm' && <Field label="Skills" value={skills} onChange={setSkills} />}
-      {node.type === 'function' && <Field label="Source Names" value={sourceNames} onChange={setSourceNames} />}
-      <div>
-        <label className="mb-1 block text-xs text-muted-foreground">Parameters</label>
-        <textarea
-          value={parameters}
-          onChange={(event) => setParameters(event.target.value)}
-          className="min-h-32 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs"
-        />
-      </div>
+      <SchemaForm
+        key={node.id}
+        schema={node.inspector_schema}
+        values={formValues}
+        defaults={displayDefaults}
+        onChange={(name, value) => {
+          setFormValues((current) => {
+            const next = { ...current }
+            if (value === undefined) delete next[name]
+            else next[name] = value
+            return next
+          })
+        }}
+      />
       <button
         onClick={save}
         disabled={saveDag.isPending}
@@ -147,6 +144,74 @@ function Readonly({ label, value }: { label: string; value: string }) {
   )
 }
 
-function splitList(value: string): string[] {
-  return value.split(',').map((item) => item.trim()).filter(Boolean)
+function flattenConfig(config: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!config) return {}
+  const values: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(config)) {
+    if (key === 'parameters' && isRecord(value)) {
+      for (const [paramKey, paramValue] of Object.entries(value)) {
+        values[`param.${paramKey}`] = paramValue
+      }
+      continue
+    }
+    if (TOP_LEVEL_FIELDS.has(key)) values[key] = value
+  }
+  return values
+}
+
+function defaultValues(node: NodeInstance): Record<string, unknown> {
+  const values: Record<string, unknown> = {}
+  if (node.model !== undefined) values.model = node.model
+  if (node.skills) values.skills = node.skills
+  if (node.source_names) values.source_names = node.source_names
+  if (node.timeout_seconds !== undefined) values.timeout_seconds = node.timeout_seconds
+  if (node.parameters) {
+    for (const [key, value] of Object.entries(node.parameters)) {
+      values[`param.${key}`] = value
+    }
+  }
+  return values
+}
+
+function mergeSchemaDefaults(
+  current: Record<string, unknown>,
+  schema: InspectorSchema,
+): Record<string, unknown> {
+  const values = { ...current }
+  for (const [key, property] of Object.entries(schema.properties ?? {})) {
+    if (values[key] === undefined && property.default !== undefined) values[key] = property.default
+  }
+  return values
+}
+
+function buildConfig(
+  node: NodeInstance,
+  formValues: Record<string, unknown>,
+  typeDefaults: Record<string, unknown>,
+): Record<string, unknown> {
+  const config = { ...(node.config ?? {}) }
+  for (const key of TOP_LEVEL_FIELDS) delete config[key]
+  const parameters = isRecord(config.parameters) ? { ...config.parameters } : {}
+  for (const key of Object.keys(node.inspector_schema.properties ?? {})) {
+    if (key.startsWith('param.')) delete parameters[key.slice(6)]
+  }
+  for (const [key, value] of Object.entries(formValues)) {
+    if (isEqual(value, typeDefaults[key])) continue
+    if (key.startsWith('param.')) {
+      parameters[key.slice(6)] = value
+      continue
+    }
+    config[key] = value
+  }
+  if (Object.keys(parameters).length > 0) config.parameters = parameters
+  else delete config.parameters
+  return config
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
 }

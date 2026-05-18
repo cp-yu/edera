@@ -1,0 +1,15 @@
+# OPSX Delta — schema-driven-inspector
+
+ADDED:
+  node-type-registry:
+    domain: web
+    description: 节点类型注册表，覆盖 LLM/Function 类型定义、parameters_schema 字段、CRUD API 和 inspector_schema 自动生成
+    spec: specs/node-type-registry/spec.md
+
+MODIFIED:
+  node-graph-dag-editor:
+    domain: web
+    delta: Node Graph DAG 编辑器，覆盖图编辑交互、DAG 保存、schema 驱动 Inspector 配置和运行状态覆盖
+    spec: specs/node-graph-dag-editor/spec.md
+
+REMOVED: {}

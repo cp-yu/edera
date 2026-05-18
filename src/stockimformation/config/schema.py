@@ -100,6 +100,7 @@ class NodeConfig(BaseModel):
     timeout_seconds: float | None = Field(default=None, gt=0)
     source_names: list[str] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
+    parameters_schema: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("skills", mode="before")
     @classmethod
@@ -124,6 +125,12 @@ class NodeConfig(BaseModel):
         _validate_parameter_mapping(value)
         return value
 
+    @field_validator("parameters_schema")
+    @classmethod
+    def _json_like_parameters_schema(cls, value: dict[str, Any]) -> dict[str, Any]:
+        _validate_json_schema_object(value)
+        return value
+
 
 def _validate_parameter_mapping(value: dict[str, Any]) -> None:
     for key, item in value.items():
@@ -144,6 +151,54 @@ def _validate_parameter_value(value: Any) -> None:
         _validate_parameter_mapping(value)
         return
     raise ValueError("parameters must be JSON-like")
+
+
+def _validate_json_schema_object(value: dict[str, Any], path: str = "parameters_schema") -> None:
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} must be a JSON Schema object")
+    schema_type = value.get("type")
+    if schema_type is not None and schema_type != "object":
+        raise ValueError(f"{path}.type must be 'object'")
+    properties = value.get("properties")
+    if properties is not None:
+        if not isinstance(properties, dict):
+            raise ValueError(f"{path}.properties must be a mapping")
+        for key, item in properties.items():
+            if not isinstance(key, str) or not isinstance(item, dict):
+                raise ValueError(f"{path}.properties entries must be objects")
+            _validate_json_schema_fragment(item, f"{path}.properties.{key}")
+    required = value.get("required")
+    if required is not None:
+        if not isinstance(required, list) or any(not isinstance(item, str) for item in required):
+            raise ValueError(f"{path}.required must be a list of strings")
+
+
+def _validate_json_schema_fragment(value: dict[str, Any], path: str) -> None:
+    schema_type = value.get("type")
+    if schema_type is not None and not isinstance(schema_type, str):
+        raise ValueError(f"{path}.type must be a string")
+    enum = value.get("enum")
+    if enum is not None and not isinstance(enum, list):
+        raise ValueError(f"{path}.enum must be a list")
+    items = value.get("items")
+    if items is not None:
+        if not isinstance(items, dict):
+            raise ValueError(f"{path}.items must be an object")
+        _validate_json_schema_fragment(items, f"{path}.items")
+    properties = value.get("properties")
+    if properties is not None:
+        if not isinstance(properties, dict):
+            raise ValueError(f"{path}.properties must be a mapping")
+        for key, item in properties.items():
+            if not isinstance(key, str) or not isinstance(item, dict):
+                raise ValueError(f"{path}.properties entries must be objects")
+            _validate_json_schema_fragment(item, f"{path}.properties.{key}")
+    required = value.get("required")
+    if required is not None:
+        if not isinstance(required, list) or any(not isinstance(item, str) for item in required):
+            raise ValueError(f"{path}.required must be a list of strings")
+    if "default" in value:
+        _validate_parameter_value(value["default"])
 
 
 class DagEdge(BaseModel):

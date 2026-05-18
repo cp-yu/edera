@@ -70,11 +70,7 @@ function createInstance(prototype: NodeType): NodeInstance {
     id: crypto.randomUUID(),
     type_name: prototype.name,
     alias: prototype.name,
-    config: {
-      ...(prototype.type === 'llm' ? { skills: prototype.skills, model: prototype.model } : {}),
-      ...(prototype.source_names ? { source_names: prototype.source_names } : {}),
-      ...(prototype.parameters ? { parameters: prototype.parameters } : {}),
-    },
+    config: {},
   }
 }
 
@@ -100,6 +96,7 @@ function hydrateInstance(
     config,
     skills: Array.isArray(config.skills) ? config.skills.map(String) : prototype.skills,
     model: typeof config.model === 'string' ? config.model : prototype.model,
+    timeout_seconds: typeof config.timeout_seconds === 'number' ? config.timeout_seconds : prototype.timeout_seconds,
     source_names: Array.isArray(config.source_names) ? config.source_names.map(String) : prototype.source_names,
     parameters: typeof config.parameters === 'object' && config.parameters
       ? config.parameters as Record<string, unknown>
