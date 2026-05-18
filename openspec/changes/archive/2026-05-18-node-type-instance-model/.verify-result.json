@@ -1,12 +1,7 @@
 {
-  "timestamp": "2026-05-18T07:09:07.135Z",
-  "result": "PASS_WITH_WARNINGS",
-  "issues": [
-    {
-      "severity": "WARNING",
-      "message": "Stale tests still assert pre-instance node-name behavior and should be migrated to UUID instance expectations."
-    }
-  ],
+  "timestamp": "2026-05-18T08:42:24.698Z",
+  "result": "PASS",
+  "issues": [],
   "tasksFileHash": "cdd99de3da120560fdb32b5199d8c7fd4fc28a0b4217e9f6011cf39cff7021f5",
   "verificationContext": {
     "contractVersion": "1.0",
@@ -52,13 +47,8 @@
     },
     "baseline": {
       "timestamp": "2026-05-18T07:09:07.135Z",
-      "result": "PASS_WITH_WARNINGS",
-      "issues": [
-        {
-          "severity": "WARNING",
-          "message": "Stale tests still assert pre-instance node-name behavior and should be migrated to UUID instance expectations."
-        }
-      ],
+      "result": "PASS",
+      "issues": [],
       "tasksFileHash": "cdd99de3da120560fdb32b5199d8c7fd4fc28a0b4217e9f6011cf39cff7021f5",
       "verificationContext": {
         "contractVersion": "1.0",

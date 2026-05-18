@@ -54,45 +54,44 @@ class NodeExecutor:
             node_type=config.name,
             dag_name=context.dag_name,
         )
+        effective = _apply_instance_config(config, instance)
+        effective_input = _apply_instance_input(effective, node_input)
         try:
-            payload = await self._execute_payload(config, instance, node_input, context)
+            payload = await self._execute_payload(effective, effective_input, context)
         except Exception as exc:
             return NodeOutput(
                 node_name=node_name,
                 ok=False,
-                metadata=_output_metadata(node_input),
+                metadata=_output_metadata(effective_input),
                 error=str(exc),
             )
         return NodeOutput(
             node_name=node_name,
             ok=True,
             payload=payload,
-            metadata=_output_metadata(node_input),
+            metadata=_output_metadata(effective_input),
         )
 
     async def _execute_payload(
         self,
         config: NodeConfig,
-        instance: DagNodeInstance | None,
         node_input: NodeInput,
         context: NodeContext,
     ) -> object:
-        effective = _apply_instance_config(config, instance)
-        node_input = _apply_instance_input(effective, node_input)
-        timeout = effective.timeout_seconds or self.system.llm_timeout_seconds
-        if effective.type == "function":
-            handler_name = effective.handler or (effective.skills[0] if effective.skills else "")
+        timeout = config.timeout_seconds or self.system.llm_timeout_seconds
+        if config.type == "function":
+            handler_name = config.handler or (config.skills[0] if config.skills else "")
             handler = self.handlers.get(handler_name) or self._load_handler(handler_name)
             if handler is None:
                 raise NodeExecutionError(f"missing function handler: {handler_name}")
             return await asyncio.wait_for(
-                _call_handler(handler, node_input, effective.parameters, context),
+                _call_handler(handler, node_input, config.parameters, context),
                 timeout=timeout,
             )
-        for skill in effective.skills:
+        for skill in config.skills:
             load_skill_handler(skill, self.skill_handlers_dir)
         return await asyncio.wait_for(
-            self._run_pi(effective, effective.skills, node_input, context),
+            self._run_pi(config, config.skills, node_input, context),
             timeout=timeout,
         )
 

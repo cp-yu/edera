@@ -47,23 +47,29 @@ async def test_single_source_failure_does_not_block() -> None:
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
     result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["sample-web"]})
-    assert "rss-fetcher" in result.failures
+    assert _instance_id(graph, "rss-fetcher") in result.failures
     assert result.payload == [{"skipped": True}]
 
 
 def test_topological_layers_have_parallel_sources() -> None:
     config = load_app_config(Path("config"))
     graph = load_graph(config.dags["default"], config.nodes)
-    assert set(topological_layers(graph)[0]) == {"rss-fetcher", "web-scraper"}
+    assert set(topological_layers(graph)[0]) == {
+        _instance_id(graph, "rss-fetcher"),
+        _instance_id(graph, "web-scraper"),
+    }
 
 
 def test_cycle_rejected() -> None:
     config = load_app_config(Path("config"))
+    graph = load_graph(config.dags["default"], config.nodes)
+    notifier_id = _instance_id(graph, "notifier")
+    fetcher_id = _instance_id(graph, "rss-fetcher")
     dag = config.dags["default"].model_copy(
         update={
             "edges": [
                 *config.dags["default"].edges,
-                {"from": "notifier", "to": "rss-fetcher"},
+                {"from": notifier_id, "to": fetcher_id},
             ]
         }
     )
@@ -81,3 +87,7 @@ def _handler(value: object) -> FunctionHandler:
 
 async def _failing_handler(_node_input: NodeInput) -> object:
     raise RuntimeError("source failed")
+
+
+def _instance_id(graph, node_type: str) -> str:
+    return next(node_id for node_id, instance in graph.instances.items() if instance.type == node_type)

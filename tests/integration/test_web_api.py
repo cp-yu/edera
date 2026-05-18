@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 from httpx import ASGITransport, AsyncClient
 
 from stockimformation.config.schema import SourceConfig
@@ -490,6 +491,7 @@ async def test_minimax_multi_source_llm_cycle_surfaces_web_features(
         "minimax-docs-index": Path("tests/fixtures/minimax_llms.txt").read_text(),
         "tonghuashun-minimax": Path("tests/fixtures/tonghuashun_minimax.html").read_text(),
     }
+    monkeypatch.chdir(root)
 
     async def fixture_web_source(source: SourceConfig, stock_codes: list[str]) -> list[RawItem]:
         return collection.parse_web(fixture_by_source[source.name], source, stock_codes)
@@ -688,13 +690,18 @@ def _copy_project_config(tmp_path: Path) -> Path:
     root = tmp_path / "project"
     root.mkdir()
     _copy_dir(Path.cwd() / "config", root / "config")
+    _copy_dir(Path.cwd() / "handlers", root / "handlers")
+    _copy_dir(Path.cwd() / "prompts", root / "prompts")
     _copy_dir(Path.cwd() / "skills", root / "skills")
+    _copy_dir(Path.cwd() / "skill_handlers", root / "skill_handlers")
     return root
 
 
 def _copy_dir(source: Path, target: Path) -> None:
     target.mkdir(parents=True)
     for path in source.rglob("*"):
+        if "__pycache__" in path.parts:
+            continue
         relative = path.relative_to(source)
         dest = target / relative
         if path.is_dir():
@@ -775,6 +782,18 @@ sources:
     regex: '(?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"'
 """.lstrip()
     )
+    dag_path = config_dir / "dags" / "default.yaml"
+    dag = yaml.safe_load(dag_path.read_text())
+    for node in dag["nodes"]:
+        if node["type"] == "rss-fetcher":
+            node["config"]["source_names"] = []
+        if node["type"] == "web-scraper":
+            node["config"]["source_names"] = [
+                "minimax-docs",
+                "minimax-docs-index",
+                "tonghuashun-minimax",
+            ]
+    dag_path.write_text(yaml.safe_dump(dag, allow_unicode=True, sort_keys=False))
 
 
 @pytest.mark.asyncio
@@ -805,7 +824,8 @@ async def test_web_graph_dag_api_round_trip(tmp_path: Path) -> None:
         try:
             dag_response = await client.get("/api/graph/dag/default")
             state = dag_response.json()
-            state["ui"] = {"nodes": {"rss-fetcher": {"x": 100, "y": 200}}}
+            node_id = state["nodes"][0]["id"]
+            state["ui"] = {"nodes": {node_id: {"x": 100, "y": 200}}}
             save_response = await client.put("/api/graph/dag/default", json=state)
         finally:
             await app.state.controller.shutdown()
@@ -815,7 +835,7 @@ async def test_web_graph_dag_api_round_trip(tmp_path: Path) -> None:
     assert len(state["edges"]) > 0
     assert save_response.status_code == 200
     saved = save_response.json()
-    assert saved["dag"]["ui"]["nodes"]["rss-fetcher"]["x"] == 100
+    assert saved["dag"]["ui"]["nodes"][node_id]["x"] == 100
 
 
 @pytest.mark.asyncio
@@ -830,10 +850,13 @@ async def test_web_graph_dag_save_rejects_cycle(tmp_path: Path) -> None:
             response = await client.put(
                 "/api/graph/dag/default",
                 json={
-                    "nodes": ["rss-fetcher", "reader"],
+                    "nodes": [
+                        {"id": "source-instance", "type": "rss-fetcher", "alias": "rss-fetcher", "config": {}},
+                        {"id": "reader-instance", "type": "reader", "alias": "reader", "config": {}},
+                    ],
                     "edges": [
-                        {"from": "rss-fetcher", "to": "reader"},
-                        {"from": "reader", "to": "rss-fetcher"},
+                        {"from": "source-instance", "to": "reader-instance"},
+                        {"from": "reader-instance", "to": "source-instance"},
                     ],
                 },
             )
@@ -856,8 +879,11 @@ async def test_web_graph_dag_save_rejects_unknown_node(tmp_path: Path) -> None:
             response = await client.put(
                 "/api/graph/dag/default",
                 json={
-                    "nodes": ["rss-fetcher", "missing-node"],
-                    "edges": [{"from": "rss-fetcher", "to": "missing-node"}],
+                    "nodes": [
+                        {"id": "source-instance", "type": "rss-fetcher", "alias": "rss-fetcher", "config": {}},
+                        {"id": "missing-instance", "type": "missing-node", "alias": "missing-node", "config": {}},
+                    ],
+                    "edges": [{"from": "source-instance", "to": "missing-instance"}],
                 },
             )
         finally:
