@@ -123,7 +123,7 @@ Implement tasks from an OpenSpec change.
 | --- | --- |
 | `openspec verify phase1 "<change-name>" --input '<json>' --json` | `{"result":"PASS","issues":[],"evidenceFiles":["..."],"executionMode":"..."}` |
 | `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"NO_OPTIMIZATION_NEEDED","summary":"..."}` (summary is required, must be non-empty) |
-| `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"OPTIMIZATION_PROPOSED","summary":"..."}` |
+| `openspec verify phase2 "<change-name>" --type=optimization --files "<affected-files>" --input '<json>' --json` | `{"status":"OPTIMIZATION_PROPOSED","summary":"..."}` |
 | `openspec verify phase2 "<change-name>" --type=optimization --input '<json>' --json` | `{"status":"SKIPPED"}` |
 | `openspec verify phase2 "<change-name>" --type=verification --input '<json>' --json` | `{"result":"PASS","issues":[]}` |
 | `openspec verify phase2 "<change-name>" --type=verification --input '<json>' --json` | `{"result":"FAIL_NEEDS_REMEDIATION","issues":[...],"behaviorRetryCounter":N}` |
@@ -139,7 +139,7 @@ Implement tasks from an OpenSpec change.
    - Format or Search/Replace matching problems are handled by the main agent and do not consume retry budget
    - Optimizer subagent: spawn and instruct to invoke the `openspec-optimizer` skill (loads full optimizer contract: role, constraints, optimization principles, Search/Replace format, failed directions protocol). Proposes Search/Replace blocks only; it MUST NOT edit files
    - **TIMING CONSTRAINT — hashFiles() samples disk state; the following order is mandatory:**
-     1. Main agent calls `openspec verify phase2 "<change-name>" --type=optimization --input '<json>'` to record `OPTIMIZATION_PROPOSED` with pre-patch file hashes (disk MUST still be in pre-patch state at this point)
+     1. Main agent calls `openspec verify phase2 "<change-name>" --type=optimization --files "<affected-files>" --input '<json>'` to record `OPTIMIZATION_PROPOSED` with pre-patch file hashes (disk MUST still be in pre-patch state at this point)
      2. Main agent applies Search/Replace blocks atomically (disk transitions to post-patch state)
      3. Main agent spawns the reviewer subagent for speculative Phase 1 re-verification
    - On speculative PASS, record `verification PASS`, and continue until no opportunities remain or `optRetries` is exhausted
@@ -161,6 +161,7 @@ Implement tasks from an OpenSpec change.
 - If the CLI says `status must be NO_OPTIMIZATION_NEEDED, OPTIMIZATION_PROPOSED, ABORTED_UNSAFE, or SKIPPED`: fix the `--input.status` value and confirm whether `optimization.status` already has `affectedFileHashes`
 - If the CLI says `result must be PASS, PASS_WITH_WARNINGS, or FAIL_NEEDS_REMEDIATION`: fix the `--input.result` value and keep `issues` as an array when provided
 - If the CLI says `尚未提交优化结果，请先调用 phase2 --type=optimization`: call `phase2 --type=optimization` before retrying verification
+- If the CLI says `FILES_REQUIRED`: add `--files "<affected-files>"` with the space-separated list of files the optimizer subagent declared as affected, then retry the same command
 
 **Verify State Machine**:
 ```
