@@ -1,0 +1,39 @@
+schema_version: 1
+
+ADDED:
+  capabilities:
+    - id: cap.config.entity-system
+      type: capability
+      intent: 统一的实体管理系统，支持可扩展的实体类型定义、实体存储、引用解析和字段权限控制
+    - id: cap.config.entity-relations
+      type: capability
+      intent: 实体关系管理，支持无方向关系定义、自动发现和 UI 可视化
+    - id: cap.config.entity-field-permissions
+      type: capability
+      intent: 字段级权限系统，支持黑名单机制、节点实例提权和运行时权限检查
+  relations:
+    - from: cap.config.entity-system
+      type: contains
+      to: dom.config
+    - from: cap.config.entity-relations
+      type: contains
+      to: dom.config
+    - from: cap.config.entity-field-permissions
+      type: contains
+      to: dom.config
+
+MODIFIED:
+  capabilities:
+    - id: cap.config.runtime-config-editing
+      intent: 运行时配置编辑能力，新增实体和关系的配置编辑，废弃 portfolio 配置
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI，Inspector 新增实体选择器和权限配置器，target 过滤器替换为 entity 过滤器
+    - id: cap.dag.node-instance-model
+      intent: 节点实例模型，新增 entities 和 entity_permissions 配置字段
+    - id: cap.dag.node-executor
+      intent: 节点执行器，支持实体上下文注入、权限检查和自动发现
+    - id: cap.data.data-models
+      intent: 数据模型，RawItem.stock_codes 改为 RawItem.tags 支持通用实体标记
+
+REMOVED:
+  capabilities: []
