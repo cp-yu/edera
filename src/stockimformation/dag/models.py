@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from stockimformation.config.schema import DagNodeInstance
 from stockimformation.node.models import NodeOutput
 
 
@@ -10,6 +11,7 @@ from stockimformation.node.models import NodeOutput
 class DagGraph:
     name: str
     nodes: list[str]
+    instances: dict[str, DagNodeInstance]
     edges: dict[str, list[str]]
     reverse_edges: dict[str, list[str]]
     fan_out_edges: set[tuple[str, str]] = field(default_factory=set)

@@ -24,7 +24,7 @@ import { CustomNode } from './nodes/CustomNode'
 import { useSaveDag } from '@/api/mutations'
 import { useNodePrototypes } from '@/api/queries'
 import { targetColor } from '@/lib/colors'
-import type { DagState, RuntimeStatus } from '@/api/types'
+import type { DagNodeRecord, DagState, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
 import { CanvasContextMenu } from './CanvasContextMenu'
 import { QuickAddPanel } from './QuickAddPanel'
 import {
@@ -40,7 +40,8 @@ import {
   getNodeEdgeColor,
   getNodeSize,
   getRuntimeEdgeStates,
-  getRuntimeState,
+  isValidConnection,
+  isWarningConnection,
   normalizeDagEdges,
   normalizeWorkbenchEdges,
   readDraft,
@@ -63,14 +64,57 @@ const MIN_ZOOM = 0.01
 const FIT_VIEW_PADDING = 0.24
 const FIT_VIEW_FRAME_DELAY = 2
 
+function createInstance(prototype: NodeType): NodeInstance {
+  return {
+    ...prototype,
+    id: crypto.randomUUID(),
+    type_name: prototype.name,
+    alias: prototype.name,
+    config: {
+      ...(prototype.type === 'llm' ? { skills: prototype.skills, model: prototype.model } : {}),
+      ...(prototype.source_names ? { source_names: prototype.source_names } : {}),
+      ...(prototype.parameters ? { parameters: prototype.parameters } : {}),
+    },
+  }
+}
+
+function hydrateInstance(
+  instance: NodeInstance | DagNodeRecord,
+  prototypes: Map<string, NodeType>,
+): NodeInstance | null {
+  const typeName = 'type_name' in instance ? instance.type_name : instance.type
+  const prototype = prototypes.get(typeName)
+  if (!prototype) return null
+  const config = instance.config ?? {}
+  return {
+    ...prototype,
+    ...instance,
+    name: prototype.name,
+    type: prototype.type,
+    type_name: typeName,
+    role: prototype.role,
+    input_type: prototype.input_type,
+    output_type: prototype.output_type,
+    handler: prototype.handler,
+    system_prompt_file: prototype.system_prompt_file,
+    config,
+    skills: Array.isArray(config.skills) ? config.skills.map(String) : prototype.skills,
+    model: typeof config.model === 'string' ? config.model : prototype.model,
+    source_names: Array.isArray(config.source_names) ? config.source_names.map(String) : prototype.source_names,
+    parameters: typeof config.parameters === 'object' && config.parameters
+      ? config.parameters as Record<string, unknown>
+      : prototype.parameters,
+  }
+}
+
 interface Props {
   dag: DagState | null
   runtimeStatus: RuntimeStatus | null
   isRunning: boolean
 }
 
-export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
-  const { setSelectedNode, targetFilter, selectedDagName } = useAppStore()
+export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
+  const { setSelectedEdge, setSelectedNode, targetFilter, selectedDagName } = useAppStore()
   const { data: prototypesData } = useNodePrototypes()
   const saveDag = useSaveDag(selectedDagName)
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
@@ -88,6 +132,7 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [guideLines, setGuideLines] = useState<GuideLine[]>([])
+  const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null)
   const pendingDraftRef = useRef<string | null>(null)
 
   const prototypes = prototypesData?.prototypes ?? []
@@ -153,7 +198,7 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
         ...edge,
         data: edge.data ? { ...edge.data } : edge.data,
         style: edge.style ? { ...edge.style } : edge.style,
-        markerEnd: edge.markerEnd ? { ...edge.markerEnd } : edge.markerEnd,
+        markerEnd: edge.markerEnd,
       })),
     }
     const base = historyRef.current.slice(0, historyIndexRef.current + 1)
@@ -198,9 +243,11 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
       targetHandle: edge.targetHandle ?? source.ui?.edges?.[`e-${edge.from}-${edge.to}-${index}`]?.targetHandle,
     })))
 
-    const nodeData = source.nodes.map((node, index) => {
-      const position = uiPositions[node.name] ?? { x: 120 + (index % 4) * 260, y: 80 + Math.floor(index / 4) * 170 }
-      return createWorkbenchNode(node, position, sourceEdges, runtimeStatus)
+    const nodeData = source.nodes.flatMap((node, index) => {
+      const hydrated = hydrateInstance(node, prototypeMap)
+      if (!hydrated) return []
+      const position = uiPositions[hydrated.id] ?? { x: 120 + (index % 4) * 260, y: 80 + Math.floor(index / 4) * 170 }
+      return [createWorkbenchNode(hydrated, position, sourceEdges, runtimeStatus)]
     })
     const nodeMap = new Map(nodeData.map((node) => [node.id, node.data]))
     const edgeData = sourceEdges.map((edge, index) => createWorkbenchEdge(edge, index, nodeMap, runtimeStatus))
@@ -266,13 +313,17 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
   const onConnect = useCallback(
     (connection: Connection) => {
       const sourceNode = nodesRef.current.find((node) => node.id === connection.source)
-      const color = getNodeEdgeColor(sourceNode?.data.visualKind ?? 'unknown')
+      const targetNode = nodesRef.current.find((node) => node.id === connection.target)
+      if (!isValidConnection(sourceNode?.data, targetNode?.data)) return
+      const warning = isWarningConnection(sourceNode?.data, targetNode?.data)
+      const color = warning ? '#ca8a04' : getNodeEdgeColor(sourceNode?.data.visualKind ?? 'unknown')
       const nextEdges = normalizeWorkbenchEdges(addEdge(
         {
           ...connection,
           type: 'default',
           markerEnd: { type: MarkerType.ArrowClosed, color },
-          style: { stroke: color, strokeWidth: 2 },
+          style: { stroke: color, strokeWidth: 2, strokeDasharray: warning ? '6 4' : undefined },
+          data: { warning },
         },
         edgesRef.current,
       ) as WorkbenchEdge[])
@@ -294,13 +345,8 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
     const prototype = prototypeMap.get(prototypeName)
     if (!prototype) return
 
-    const existing = nodesRef.current.find((node) => node.id === prototypeName)
-    if (existing) {
-      setSelectedNode(existing.id)
-      return
-    }
-
-    const nextNode = createWorkbenchNode(prototype, position, edgesRef.current, runtimeStatus)
+    const instance = createInstance(prototype)
+    const nextNode = createWorkbenchNode(instance, position, edgesRef.current, runtimeStatus)
     const nextNodes = [...nodesRef.current, nextNode]
     commitGraph(nextNodes, edgesRef.current)
     setSelectedNode(nextNode.id)
@@ -318,17 +364,28 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
   )
 
   const styledNodes = useMemo(() => {
-    if (targetFilter.length === 0) return nodes
-    return nodes.map((n) => {
+    const source = nodes.find((node) => node.id === connectionSourceId)
+    const visibleNodes = targetFilter.length === 0 ? nodes : nodes.map((n) => {
       const nodeTargets = n.data.source_names ?? []
       const matches = nodeTargets.some((t) => targetFilter.includes(t))
       return { ...n, style: { ...(n.style ?? {}), opacity: matches ? 1 : 0.2 } }
     })
-  }, [nodes, targetFilter])
+    if (!source) return visibleNodes
+    return visibleNodes.map((node) => {
+      if (node.id === source.id) return { ...node, data: { ...node.data, connectionState: undefined } }
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          connectionState: isValidConnection(source.data, node.data) ? 'valid' as const : 'invalid' as const,
+        },
+      }
+    })
+  }, [connectionSourceId, nodes, targetFilter])
 
   const searchItems = useMemo(
-    () => filterSearchItems(buildSearchItems(prototypes), searchQuery),
-    [prototypes, searchQuery],
+    () => filterSearchItems(buildSearchItems(prototypes, nodes.map((node) => node.data)), searchQuery),
+    [nodes, prototypes, searchQuery],
   )
 
   const groupedTargets = useMemo(() => {
@@ -376,8 +433,9 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null)
+    setSelectedEdge(null)
     setContextMenu(null)
-  }, [setSelectedNode])
+  }, [setSelectedEdge, setSelectedNode])
 
   const onNodesChange = useCallback((changes: NodeChange<WorkbenchNode>[]) => {
     setNodes((currentNodes) => applyNodeChanges(changes, currentNodes))
@@ -604,7 +662,15 @@ export function Canvas({ dag, runtimeStatus, isRunning }: Props) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={(_, params) => setConnectionSourceId(params.nodeId)}
+        onConnectEnd={() => setConnectionSourceId(null)}
+        isValidConnection={(connection) => {
+          const sourceNode = nodesRef.current.find((node) => node.id === connection.source)
+          const targetNode = nodesRef.current.find((node) => node.id === connection.target)
+          return isValidConnection(sourceNode?.data, targetNode?.data)
+        }}
         onNodeClick={onNodeClick}
+        onEdgeClick={(_, edge) => setSelectedEdge(edge.id)}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onNodeContextMenu={(event, node) => {

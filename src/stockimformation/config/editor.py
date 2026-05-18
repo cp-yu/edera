@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
+from yaml import YAMLError
 from pydantic import ValidationError
 
 from stockimformation.config.loader import load_dag_configs, load_node_configs
@@ -99,7 +100,7 @@ class RuntimeConfigEditor:
                     raise ConfigEditError("skill document must not be empty")
             else:
                 raise ConfigEditError(f"unsupported config kind: {kind}")
-        except (tomllib.TOMLDecodeError, ValidationError, DagError, ValueError) as exc:
+        except (tomllib.TOMLDecodeError, ValidationError, DagError, ValueError, YAMLError) as exc:
             raise ConfigEditError(str(exc)) from exc
     def _validate_existing_dags(self, nodes: dict[str, NodeConfig]) -> None:
         for dag in load_dag_configs(self.config_dir / "dags").values():

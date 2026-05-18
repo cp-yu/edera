@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -72,8 +72,16 @@ class PortfolioConfig(BaseModel):
         return {source.name: source for source in self.sources}
 
 
-class SkillRef(BaseModel):
+NodeRole = Literal["source", "processor", "sink"]
+
+
+class SkillConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
+    description: str
+    handler: str
+    parameters_schema: dict[str, Any] = Field(default_factory=dict)
 
 
 class NodeConfig(BaseModel):
@@ -81,7 +89,11 @@ class NodeConfig(BaseModel):
 
     name: str
     type: Literal["function", "llm"]
-    skills: list[SkillRef]
+    role: NodeRole = "processor"
+    skills: list[str] = Field(default_factory=list)
+    handler: str | None = None
+    system_prompt_file: str | None = None
+    system_prompt: str | None = None
     model: str | None = None
     input_type: str
     output_type: str
@@ -89,12 +101,22 @@ class NodeConfig(BaseModel):
     source_names: list[str] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("skills")
+    @field_validator("skills", mode="before")
     @classmethod
-    def _has_skill(cls, value: list[SkillRef]) -> list[SkillRef]:
-        if not value:
-            raise ValueError("node requires at least one skill")
+    def _skill_names(cls, value: object) -> object:
+        if isinstance(value, list):
+            return [item.get("name") if isinstance(item, dict) else item for item in value]
         return value
+
+    @model_validator(mode="after")
+    def _type_specific_fields(self) -> NodeConfig:
+        if self.type == "function" and not self.handler and not self.skills:
+            raise ValueError("function node requires handler")
+        if self.type == "llm" and not self.system_prompt_file:
+            raise ValueError("llm node requires system_prompt_file")
+        if self.type == "function" and self.skills:
+            raise ValueError("function node must not define skills")
+        return self
 
     @field_validator("parameters")
     @classmethod
@@ -131,9 +153,24 @@ class DagEdge(BaseModel):
     fan_in: bool = False
 
 
+class DagNodeInstance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    type: str
+    alias: str | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("config")
+    @classmethod
+    def _json_like_config(cls, value: dict[str, Any]) -> dict[str, Any]:
+        _validate_parameter_mapping(value)
+        return value
+
+
 class DagConfig(BaseModel):
     name: str
-    nodes: list[str]
+    nodes: list[DagNodeInstance]
     edges: list[DagEdge]
     ui: dict[str, Any] = Field(default_factory=dict)
 
@@ -143,6 +180,7 @@ class AppConfig(BaseModel):
     portfolio: PortfolioConfig
     runtime: RuntimeSettings
     nodes: dict[str, NodeConfig]
+    skills: dict[str, SkillConfig]
     dags: dict[str, DagConfig]
 
 

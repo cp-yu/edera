@@ -63,12 +63,20 @@ function HandleRail({
   handles,
   position,
   color,
+  connectionState,
 }: {
   handles: HandleSpec[]
   position: Position.Left | Position.Right
   color: string
+  connectionState?: 'valid' | 'invalid'
 }) {
   if (handles.length === 0) return null
+  const feedbackColor =
+    position === Position.Left && connectionState
+      ? connectionState === 'valid'
+        ? '#16a34a'
+        : '#dc2626'
+      : color
 
   return (
     <>
@@ -86,7 +94,8 @@ function HandleRail({
               top,
               opacity: handle.connected ? 1 : 0.5,
               [position === Position.Left ? 'left' : 'right']: -7,
-              boxShadow: `0 0 0 2px ${color}`,
+              background: feedbackColor,
+              boxShadow: `0 0 0 2px ${feedbackColor}`,
             }}
             className="group-hover:!opacity-100 transition-opacity"
           />
@@ -98,7 +107,7 @@ function HandleRail({
 
 export function CustomNode({ id, data, selected }: NodeProps) {
   const updateNodeInternals = useUpdateNodeInternals()
-  const node = data as WorkbenchNodeData
+  const node = data as unknown as WorkbenchNodeData
   const kindStyle = KIND_STYLES[node.visualKind]
   const Icon = KIND_ICONS[node.visualKind]
   const edgeColor = getNodeEdgeColor(node.visualKind)
@@ -118,7 +127,12 @@ export function CustomNode({ id, data, selected }: NodeProps) {
       style={targetBorderColor ? { boxShadow: `inset 3px 0 0 ${targetBorderColor}` } : undefined}
     >
       <StatusBadge status={node.status} />
-      <HandleRail handles={node.inputHandles} position={Position.Left} color={edgeColor} />
+      <HandleRail
+        handles={node.inputHandles}
+        position={Position.Left}
+        color={edgeColor}
+        connectionState={node.connectionState}
+      />
       <HandleRail handles={node.outputHandles} position={Position.Right} color={edgeColor} />
 
       <div className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em]', kindStyle.header)}>

@@ -1,6 +1,6 @@
 name: notifier
 type: function
-skills:
-  - name: notify-ntfy
+role: sink
+handler: notify-ntfy
 input_type: Briefing
 output_type: list[NotificationResult]

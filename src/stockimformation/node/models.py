@@ -32,6 +32,8 @@ class NodeOutput(BaseModel):
 class NodeContext:
     cycle_id: str
     instance_id: str
+    node_type: str = ""
+    dag_name: str = "default"
 
 
-FunctionHandler = Callable[[NodeInput], Awaitable[Any]]
+FunctionHandler = Callable[..., Awaitable[Any]]

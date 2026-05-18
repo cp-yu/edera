@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { DagState, DagStatus, ResultsSummary, RuntimeStatus, SourceHealth, SourceLog, Advice, Briefing } from './types'
+import type { Advice, Briefing, DagState, DagStatus, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
 
 export function useDag(name: string) {
   return useQuery({
@@ -13,7 +13,21 @@ export function useDag(name: string) {
 export function useNodePrototypes() {
   return useQuery({
     queryKey: ['nodePrototypes'],
-    queryFn: () => apiFetch<{ prototypes: DagState['nodes'] }>('/api/graph/nodes'),
+    queryFn: () => apiFetch<{ prototypes: NodeType[] }>('/api/graph/nodes'),
+  })
+}
+
+export function useNodeTypes() {
+  return useQuery({
+    queryKey: ['nodeTypes'],
+    queryFn: () => apiFetch<{ types: NodeType[] }>('/api/graph/node-types'),
+  })
+}
+
+export function useSkills() {
+  return useQuery({
+    queryKey: ['skills'],
+    queryFn: () => apiFetch<{ skills: SkillDefinition[] }>('/api/graph/skills'),
   })
 }
 

@@ -1,0 +1,60 @@
+## ADDED Requirements
+
+### Requirement: Node type definition schema
+系统 SHALL 支持两种节点类型定义格式：LLM 类型和 Function 类型，均通过 YAML 文件在 `config/nodes/` 目录注册。
+
+#### Scenario: LLM node type definition
+- **WHEN** 系统加载 `config/nodes/` 下一个 `type: llm` 的 YAML 文件
+- **THEN** 系统 SHALL 解析以下字段：`name`、`type: llm`、`role`、`system_prompt_file`、`skills`（默认启用列表）、`input_type`、`output_type`、`model`（可选）、`parameters`（可选）
+
+#### Scenario: Function node type definition
+- **WHEN** 系统加载 `config/nodes/` 下一个 `type: function` 的 YAML 文件
+- **THEN** 系统 SHALL 解析以下字段：`name`、`type: function`、`role`、`handler`、`input_type`、`output_type`、`source_names`（可选）、`timeout_seconds`（可选）、`parameters`（可选）
+
+### Requirement: Role declaration
+每个节点类型 SHALL 显式声明 `role` 字段，取值为 `source`、`processor` 或 `sink`。
+
+#### Scenario: Valid role values
+- **WHEN** 系统加载节点类型 YAML
+- **THEN** 系统 SHALL 校验 `role` 字段为 `source | processor | sink` 之一，否则报错
+
+#### Scenario: Role applies to both LLM and Function types
+- **WHEN** 节点类型为 `llm` 且 `role` 为 `source`
+- **THEN** 系统 SHALL 接受该定义（LLM 节点可为任意 role）
+
+### Requirement: System prompt file binding
+LLM 节点类型 SHALL 通过 `system_prompt_file` 字段引用外部 prompt 文件。
+
+#### Scenario: Load system prompt
+- **WHEN** 系统加载 LLM 节点类型且 `system_prompt_file: prompts/reader.md`
+- **THEN** 系统 SHALL 从 `prompts/reader.md` 读取 prompt 内容并关联到该类型
+
+#### Scenario: Missing prompt file
+- **WHEN** `system_prompt_file` 引用的文件不存在
+- **THEN** 系统 SHALL 报告错误并拒绝加载该节点类型
+
+### Requirement: Handler binding for Function nodes
+Function 节点类型 SHALL 通过 `handler` 字段指定执行入口。
+
+#### Scenario: Handler resolution
+- **WHEN** 系统加载 Function 节点类型且 `handler: fetch-rss`
+- **THEN** 系统 SHALL 将其解析为 `handlers/fetch-rss.py` 中的 `run()` 函数
+
+### Requirement: Node type API
+系统 SHALL 提供节点类型的 CRUD API。
+
+#### Scenario: List all node types
+- **WHEN** 前端请求 `GET /api/graph/node-types`
+- **THEN** 系统 SHALL 返回所有节点类型定义，包含 `name`、`type`、`role`、`input_type`、`output_type` 及类型特有字段
+
+#### Scenario: Create LLM node type
+- **WHEN** 前端提交 `POST /api/graph/node-types` 且 `type: llm`
+- **THEN** 系统 SHALL 创建对应 YAML 文件和 prompt 文件，返回新类型定义
+
+#### Scenario: Update node type
+- **WHEN** 前端提交 `PUT /api/graph/node-types/{name}`
+- **THEN** 系统 SHALL 更新对应 YAML 文件，结构性字段变更 SHALL 触发关联 DAG 实例的兼容性检查
+
+#### Scenario: Delete node type
+- **WHEN** 前端提交 `DELETE /api/graph/node-types/{name}` 且该类型在任何 DAG 中无实例引用
+- **THEN** 系统 SHALL 删除对应 YAML 文件

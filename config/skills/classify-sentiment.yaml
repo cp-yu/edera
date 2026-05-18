@@ -1,0 +1,6 @@
+name: classify-sentiment
+description: 判断文本情绪倾向
+handler: classify-sentiment
+parameters_schema:
+  type: object
+  properties: {}

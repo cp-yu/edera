@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-05-18T07:09:07.135Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Stale tests still assert pre-instance node-name behavior and should be migrated to UUID instance expectations."
+    }
+  ],
+  "tasksFileHash": "cdd99de3da120560fdb32b5199d8c7fd4fc28a0b4217e9f6011cf39cff7021f5",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "automated",
+    "evidenceFiles": [
+      "frontend/scripts/verify-node-instance-model.mjs",
+      "frontend/src/features/nodes/NodesPage.tsx",
+      "frontend/src/features/workbench/components/Canvas.tsx",
+      "frontend/src/features/workbench/components/nodes/CustomNode.tsx",
+      "frontend/src/features/workbench/lib/graph.ts",
+      "openspec/changes/node-type-instance-model/tasks.md",
+      "src/stockimformation/config/loader.py",
+      "src/stockimformation/dag/loader.py",
+      "src/stockimformation/node/executor.py",
+      "src/stockimformation/web/routes.py",
+      "tests/integration/test_web_api.py"
+    ],
+    "evidenceFingerprint": "ae93012aaae2e735498f960fdd48174b66515d0b8ecc2d36212c69d66a709f6a",
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "83e3e5d6c3a3343984ede176b0ae283a7ae39a96"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-18T07:33:02.413Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Remove duplicate load_skill call in LLM execution preflight; _run_pi still loads the same skill before invoking pi while skill handler preflight remains.",
+        "files": [
+          "src/stockimformation/node/executor.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-18T07:40:42.957Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "src/stockimformation/node/executor.py": "3ec2923f0d3b99f55063fe97ac981b532cbd029ed92053df188b332f4c625bd5"
+    },
+    "baseline": {
+      "timestamp": "2026-05-18T07:09:07.135Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Stale tests still assert pre-instance node-name behavior and should be migrated to UUID instance expectations."
+        }
+      ],
+      "tasksFileHash": "cdd99de3da120560fdb32b5199d8c7fd4fc28a0b4217e9f6011cf39cff7021f5",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "automated",
+        "evidenceFiles": [
+          "frontend/scripts/verify-node-instance-model.mjs",
+          "frontend/src/features/nodes/NodesPage.tsx",
+          "frontend/src/features/workbench/components/Canvas.tsx",
+          "frontend/src/features/workbench/components/nodes/CustomNode.tsx",
+          "frontend/src/features/workbench/lib/graph.ts",
+          "openspec/changes/node-type-instance-model/tasks.md",
+          "src/stockimformation/config/loader.py",
+          "src/stockimformation/dag/loader.py",
+          "src/stockimformation/node/executor.py",
+          "src/stockimformation/web/routes.py",
+          "tests/integration/test_web_api.py"
+        ],
+        "evidenceFingerprint": "60937f5aa5075177ef7bdad8e3ed3a5a2cc4f9685ea14e2863d4c136829ab643",
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "83e3e5d6c3a3343984ede176b0ae283a7ae39a96"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

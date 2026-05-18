@@ -12,6 +12,7 @@ from stockimformation.config.schema import (
     NodeConfig,
     PortfolioConfig,
     RuntimeSettings,
+    SkillConfig,
     SystemConfig,
 )
 from stockimformation.errors import ConfigError
@@ -42,16 +43,40 @@ def load_portfolio_config(path: Path) -> PortfolioConfig:
 
 def load_node_configs(path: Path) -> dict[str, NodeConfig]:
     configs: dict[str, NodeConfig] = {}
+    root = path.parent.parent
     for file in sorted(path.glob("*.yaml")):
         node = NodeConfig.model_validate(_read_yaml(file))
+        if node.type == "llm" and node.system_prompt_file:
+            prompt_path = root / node.system_prompt_file
+            if not prompt_path.exists():
+                raise ConfigError(f"missing system prompt file: {prompt_path}")
+            node.system_prompt = prompt_path.read_text(encoding="utf-8")
         configs[node.name] = node
     return configs
+
+
+def load_skill_configs(path: Path) -> dict[str, SkillConfig]:
+    configs: dict[str, SkillConfig] = {}
+    if not path.exists():
+        return configs
+    root = path.parent.parent
+    for file in sorted(path.glob("*.yaml")):
+        skill = SkillConfig.model_validate(_read_yaml(file))
+        handler_path = root / "skill_handlers" / f"{skill.handler}.py"
+        if not handler_path.exists():
+            raise ConfigError(f"missing skill handler file: {handler_path}")
+        configs[skill.name] = skill
+    return configs
+
+
+def load_dag_config(path: Path) -> DagConfig:
+    return DagConfig.model_validate(_read_yaml(path))
 
 
 def load_dag_configs(path: Path) -> dict[str, DagConfig]:
     configs: dict[str, DagConfig] = {}
     for file in sorted(path.glob("*.yaml")):
-        dag = DagConfig.model_validate(_read_yaml(file))
+        dag = load_dag_config(file)
         configs[dag.name] = dag
     return configs
 
@@ -62,5 +87,6 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
         portfolio=load_portfolio_config(config_dir / "portfolio.yaml"),
         runtime=RuntimeSettings(),
         nodes=load_node_configs(config_dir / "nodes"),
+        skills=load_skill_configs(config_dir / "skills"),
         dags=load_dag_configs(config_dir / "dags"),
     )

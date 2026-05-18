@@ -911,14 +911,16 @@ async def test_web_graph_node_save_rejects_invalid(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_web_graph_runtime_status_maps_nodes(tmp_path: Path) -> None:
     root = _copy_project_config(tmp_path)
+    fetcher_id = "0194f7a6-7b17-7c01-b601-000000000001"
+    reader_id = "0194f7a6-7b17-7c01-b601-000000000003"
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
         try:
             async with app.state.controller._factory()() as session:
-                await create_pipeline_run(session, "cycle-graph", "manual", ["rss-fetcher", "reader"])
-                await mark_node_run(session, "cycle-graph", "rss-fetcher", "succeeded")
-                await mark_node_run(session, "cycle-graph", "reader", "failed", "timeout")
+                await create_pipeline_run(session, "cycle-graph", "manual", [fetcher_id, reader_id])
+                await mark_node_run(session, "cycle-graph", fetcher_id, "succeeded")
+                await mark_node_run(session, "cycle-graph", reader_id, "failed", "timeout")
                 await finish_pipeline_run(session, "cycle-graph", "failed")
                 await session.commit()
             response = await client.get("/api/graph/runtime-status")
@@ -926,7 +928,10 @@ async def test_web_graph_runtime_status_maps_nodes(tmp_path: Path) -> None:
             await app.state.controller.shutdown()
     assert response.status_code == 200
     statuses = response.json()["node_statuses"]
-    assert statuses["rss-fetcher"]["status"] == "succeeded"
-    assert statuses["reader"]["status"] == "failed"
-    assert statuses["reader"]["error"] == "timeout"
-    assert statuses["reader"]["cycle_id"] == "cycle-graph"
+    assert set(statuses) == {fetcher_id, reader_id}
+    assert "rss-fetcher" not in statuses
+    assert "reader" not in statuses
+    assert statuses[fetcher_id]["status"] == "succeeded"
+    assert statuses[reader_id]["status"] == "failed"
+    assert statuses[reader_id]["error"] == "timeout"
+    assert statuses[reader_id]["cycle_id"] == "cycle-graph"

@@ -7,16 +7,36 @@ export interface DagEdge {
   targetHandle?: string
 }
 
-export interface NodePrototype {
+export type NodeRole = 'source' | 'processor' | 'sink'
+
+export interface NodeType {
   name: string
-  type: string
+  type: 'function' | 'llm'
+  role: NodeRole
   input_type: string
   output_type: string
   skills: string[]
+  handler?: string | null
+  system_prompt_file?: string | null
+  system_prompt?: string | null
   model?: string
   timeout_seconds?: number
   source_names?: string[]
   parameters?: Record<string, unknown>
+}
+
+export interface NodeInstance extends NodeType {
+  id: string
+  type_name: string
+  alias?: string | null
+  config?: Record<string, unknown>
+}
+
+export interface DagNodeRecord {
+  id: string
+  type: string
+  alias?: string | null
+  config?: Record<string, unknown>
 }
 
 export interface DagUi {
@@ -26,9 +46,16 @@ export interface DagUi {
 
 export interface DagState {
   name: string
-  nodes: NodePrototype[]
+  nodes: NodeInstance[]
   edges: DagEdge[]
   ui: DagUi
+}
+
+export interface SkillDefinition {
+  name: string
+  description: string
+  handler: string
+  parameters_schema: Record<string, unknown>
 }
 
 export interface PipelineRun {

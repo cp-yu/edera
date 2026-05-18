@@ -1,5 +1,5 @@
 import type { Edge, Node, XYPosition } from '@xyflow/react'
-import type { DagEdge, DagState, NodePrototype, RuntimeStatus } from '@/api/types'
+import type { DagEdge, DagNodeRecord, DagState, NodeInstance, NodeRole, NodeType, RuntimeStatus } from '@/api/types'
 
 export type NodeKind = 'fetcher' | 'llm' | 'aggregator' | 'unknown'
 export type RuntimeNodeState = 'pending' | 'running' | 'succeeded' | 'failed'
@@ -10,17 +10,20 @@ export interface HandleSpec {
   connected: boolean
 }
 
-export interface WorkbenchNodeData extends NodePrototype {
+export interface WorkbenchNodeData extends NodeInstance {
+  [key: string]: unknown
   status?: string
   error?: string | null
   visualKind: NodeKind
   inputHandles: HandleSpec[]
   outputHandles: HandleSpec[]
+  connectionState?: 'valid' | 'invalid'
 }
 
 export type WorkbenchNode = Node<WorkbenchNodeData>
 export type WorkbenchEdgeData = {
   visualState?: RuntimeNodeState
+  warning?: boolean
 }
 export type WorkbenchEdge = Edge<WorkbenchEdgeData>
 
@@ -42,6 +45,8 @@ export interface SearchItem {
   name: string
   type: string
   kind: NodeKind
+  role: NodeRole
+  aliases: string[]
 }
 
 export interface GraphSnapshot {
@@ -50,7 +55,7 @@ export interface GraphSnapshot {
 }
 
 export interface DagDraft {
-  nodes: DagState['nodes']
+  nodes: DagNodeRecord[]
   edges: DagState['edges']
   ui: DagState['ui']
 }
@@ -77,9 +82,9 @@ export function getDraftStorageKey(dagName: string): string {
   return `workbench:draft:${dagName}`
 }
 
-export function getNodeKind(node: Pick<NodePrototype, 'type' | 'source_names'>): NodeKind {
+export function getNodeKind(node: Pick<NodeType, 'type' | 'role' | 'source_names'>): NodeKind {
   if (node.type === 'llm') return 'llm'
-  if (node.type === 'function' && (node.source_names?.length ?? 0) > 0) return 'fetcher'
+  if (node.role === 'source' || (node.source_names?.length ?? 0) > 0) return 'fetcher'
   if (node.type === 'function') return 'aggregator'
   return 'unknown'
 }
@@ -105,7 +110,7 @@ function getEdgeEndpoints(edge: EdgeLike): { source: string; target: string } {
 
 export function getHandleSpecs(
   nodeId: string,
-  node: Pick<NodePrototype, 'type' | 'input_type' | 'output_type' | 'source_names'>,
+  node: Pick<NodeType, 'role' | 'input_type' | 'output_type'>,
   edges: EdgeLike[],
 ): {
   inputHandles: HandleSpec[]
@@ -120,8 +125,8 @@ export function getHandleSpecs(
     if (endpoints.source === nodeId) outputCount += 1
   }
 
-  const resolvedInputCount = Math.max(1, inputCount)
-  const resolvedOutputCount = Math.max(1, outputCount)
+  const resolvedInputCount = node.role === 'source' ? 0 : Math.max(1, inputCount)
+  const resolvedOutputCount = node.role === 'sink' ? 0 : Math.max(1, outputCount)
   const inputLabel = node.input_type || 'input'
   const outputLabel = node.output_type || 'output'
   const inputHandles = Array.from({ length: resolvedInputCount }, (_, index) => ({
@@ -138,10 +143,10 @@ export function getHandleSpecs(
   return { inputHandles, outputHandles }
 }
 
-export function enrichNodeData(node: NodePrototype, edges: EdgeLike[], runtimeStatus?: RuntimeStatus | null): WorkbenchNodeData {
+export function enrichNodeData(node: NodeInstance, edges: EdgeLike[], runtimeStatus?: RuntimeStatus | null): WorkbenchNodeData {
   const visualKind = getNodeKind(node)
-  const runtime = runtimeStatus?.node_statuses?.[node.name]
-  const handles = getHandleSpecs(node.name, node, edges)
+  const runtime = runtimeStatus?.node_statuses?.[node.id]
+  const handles = getHandleSpecs(node.id, node, edges)
 
   return {
     ...node,
@@ -154,7 +159,7 @@ export function enrichNodeData(node: NodePrototype, edges: EdgeLike[], runtimeSt
 }
 
 export function createWorkbenchNode(
-  node: NodePrototype,
+  node: NodeInstance,
   position: XYPosition,
   edges: EdgeLike[],
   runtimeStatus?: RuntimeStatus | null,
@@ -163,7 +168,7 @@ export function createWorkbenchNode(
   const size = getNodeSize(data.visualKind)
 
   return {
-    id: node.name,
+    id: node.id,
     type: 'custom',
     position,
     data,
@@ -242,6 +247,28 @@ export function getEdgeColor(kind: NodeKind, state?: RuntimeNodeState): string {
   return getNodeEdgeColor(kind)
 }
 
+export function isTypeCompatible(outputType: string, inputType: string): boolean {
+  return outputType === 'Any' || inputType === 'Any' || outputType === inputType
+}
+
+export function isValidConnection(
+  source: WorkbenchNodeData | undefined,
+  target: WorkbenchNodeData | undefined,
+): boolean {
+  if (!source || !target) return false
+  if (source.role === 'sink' || target.role === 'source') return false
+  if (isTypeCompatible(source.output_type, target.input_type)) return true
+  return source.type === 'llm' || target.type === 'llm'
+}
+
+export function isWarningConnection(
+  source: WorkbenchNodeData | undefined,
+  target: WorkbenchNodeData | undefined,
+): boolean {
+  if (!source || !target) return false
+  return !isTypeCompatible(source.output_type, target.input_type) && isValidConnection(source, target)
+}
+
 export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagDraft {
   const uiNodes: NonNullable<DagState['ui']['nodes']> = {}
   const uiEdges: NonNullable<DagState['ui']['edges']> = {}
@@ -257,7 +284,17 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
     void outputHandles
     void status
     void error
-    return rest
+    return {
+      id: rest.id,
+      type: rest.type_name,
+      alias: rest.alias,
+      config: {
+        ...(rest.config ?? {}),
+        ...(rest.type === 'llm' ? { skills: rest.skills, model: rest.model } : {}),
+        ...(rest.type === 'function' && rest.source_names ? { source_names: rest.source_names } : {}),
+        ...(rest.parameters ? { parameters: rest.parameters } : {}),
+      },
+    }
   })
 
   const dagEdges = edges.map((edge) => {
@@ -269,6 +306,8 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
     return {
       from: edge.source,
       to: edge.target,
+      fan_out: Boolean((edge as { fan_out?: boolean }).fan_out),
+      fan_in: Boolean((edge as { fan_in?: boolean }).fan_in),
       sourceHandle: edge.sourceHandle ?? undefined,
       targetHandle: edge.targetHandle ?? undefined,
     }
@@ -304,11 +343,13 @@ export function clearDraftIfMatch(dagName: string, serializedDraft: string): voi
   }
 }
 
-export function buildSearchItems(nodes: NodePrototype[]): SearchItem[] {
+export function buildSearchItems(nodes: NodeType[], instances: NodeInstance[] = []): SearchItem[] {
   return nodes.map((node) => ({
     name: node.name,
     type: node.type,
     kind: getNodeKind(node),
+    role: node.role,
+    aliases: instances.filter((instance) => instance.type_name === node.name).map((instance) => instance.alias ?? ''),
   }))
 }
 
@@ -340,12 +381,12 @@ export function filterSearchItems(items: SearchItem[], query: string): SearchIte
   return items
     .map((item) => ({
       item,
-      score: score(`${item.name} ${item.type} ${item.kind}`),
+      score: score(`${item.name} ${item.type} ${item.kind} ${item.role} ${item.aliases.join(' ')}`),
     }))
     .filter((entry) => entry.score >= 0)
     .sort((a, b) => {
       if (a.score !== b.score) return b.score - a.score
-      return a.name.localeCompare(b.name)
+      return a.item.name.localeCompare(b.item.name)
     })
     .map((entry) => entry.item)
     .slice(0, 12)

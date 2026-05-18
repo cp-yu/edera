@@ -12,8 +12,14 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from stockimformation.config.editor import ConfigKind, EditableFile, RuntimeConfigEditor
-from stockimformation.config.loader import load_dag_configs, load_node_configs, load_portfolio_config, load_system_config
-from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig
+from stockimformation.config.loader import (
+    load_dag_configs,
+    load_node_configs,
+    load_portfolio_config,
+    load_skill_configs,
+    load_system_config,
+)
+from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig, SkillConfig
 from stockimformation.errors import ConfigEditError, ConfigError
 from stockimformation.models.repository import (
     analyses_for_advice,
@@ -313,13 +319,13 @@ async def api_config_save(
 @router.get("/api/graph/nodes")
 async def api_graph_node_prototypes(request: Request) -> dict[str, object]:
     nodes = load_node_configs(config_dir(request) / "nodes")
-    prototypes = []
-    for node in nodes.values():
-        d = node.model_dump(mode="json")
-        # Flatten skills list to simple names for the frontend
-        d["skills"] = [s["name"] for s in d["skills"]]
-        prototypes.append(d)
-    return {"prototypes": prototypes}
+    return {"prototypes": [_node_payload(node) for node in nodes.values()]}
+
+
+@router.get("/api/graph/node-types")
+async def api_graph_node_types(request: Request) -> dict[str, object]:
+    nodes = load_node_configs(config_dir(request) / "nodes")
+    return {"types": [_node_payload(node) for node in nodes.values()]}
 
 
 @router.get("/api/graph/dag/{name}", response_model=None)
@@ -330,14 +336,33 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
         return error_response(404, "not_found", f"dag {name} not found")
     nodes = load_node_configs(config_dir(request) / "nodes")
     node_instances = []
-    for node_name in dag.nodes:
-        node_config = nodes.get(node_name)
+    for instance in dag.nodes:
+        node_config = nodes.get(instance.type)
         if node_config:
-            n = node_config.model_dump(mode="json")
-            n["skills"] = [s["name"] for s in n["skills"]]
+            n = _node_payload(node_config)
+            n.update(
+                {
+                    "id": instance.id,
+                    "type_name": instance.type,
+                    "alias": instance.alias,
+                    "config": instance.config,
+                }
+            )
+            for key, value in instance.config.items():
+                if key in {"skills", "model", "source_names", "parameters"}:
+                    n[key] = value
             node_instances.append(n)
         else:
-            node_instances.append({"name": node_name, "type": "function", "input_type": "any", "output_type": "any"})
+            node_instances.append(
+                {
+                    "id": instance.id,
+                    "name": instance.type,
+                    "type": "function",
+                    "type_name": instance.type,
+                    "input_type": "Any",
+                    "output_type": "Any",
+                }
+            )
     edges = [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag.edges]
     return {
         "name": dag.name,
@@ -363,7 +388,7 @@ async def api_graph_dag_save(
             "file": saved.__dict__,
             "dag": {
                 "name": dag_config.name,
-                "nodes": dag_config.nodes,
+                "nodes": [node.model_dump(mode="json") for node in dag_config.nodes],
                 "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag_config.edges],
                 "ui": dag_config.ui,
             },
@@ -394,7 +419,9 @@ async def api_graph_dag_create_node(
     node_content = yaml.safe_dump(node_payload, allow_unicode=True, sort_keys=False)
     editor.save("node", node_name, node_content)
     dag = dags[name]
-    dag_nodes = list(dag.nodes) + [node_name]
+    dag_nodes = [node.model_dump(mode="json") for node in dag.nodes] + [
+        {"id": uuid4().hex, "type": node_name, "alias": node_name, "config": {}}
+    ]
     dag_payload = {
         "name": dag.name,
         "nodes": dag_nodes,
@@ -408,19 +435,14 @@ async def api_graph_dag_create_node(
     )
     editor.save("dag", name, dag_content)
     node_config = NodeConfig.model_validate(node_payload)
-    d = node_config.model_dump(mode="json")
-    d["skills"] = [s["name"] for s in d["skills"]]
-    return {"node": d}
+    return {"node": _node_payload(node_config)}
 
 
 @router.get("/api/graph/node/{name}", response_model=None)
 async def api_graph_node_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
     try:
         nodes = load_node_configs(config_dir(request) / "nodes")
-        node = nodes[name]
-        d = node.model_dump(mode="json")
-        d["skills"] = [s["name"] for s in d["skills"]]
-        return {"node": d}
+        return {"node": _node_payload(nodes[name])}
     except KeyError:
         return error_response(404, "not_found", f"node {name} not found")
 
@@ -436,12 +458,107 @@ async def api_graph_node_save(
         payload = _graph_node_payload(name, body)
         content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
         saved = editor.save("node", name, content)
+        _save_node_assets(config_dir(request).parent, payload, body)
         node_config = NodeConfig.model_validate(yaml.safe_load(saved.content) or {})
-        d = node_config.model_dump(mode="json")
-        d["skills"] = [s["name"] for s in d["skills"]]
-        return {"file": saved.__dict__, "node": d}
+        return {"file": saved.__dict__, "node": _node_payload(node_config)}
     except (ConfigEditError, KeyError) as exc:
         return error_response(400, "config_error", str(exc))
+
+
+@router.post("/api/graph/node-types", response_model=None)
+async def api_graph_node_type_create(
+    request: Request,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    name = str(body.get("name", ""))
+    if not name:
+        return error_response(400, "config_error", "node type name is required")
+    path = config_dir(request) / "nodes" / f"{name}.yaml"
+    if path.exists():
+        return error_response(409, "conflict", f"node type '{name}' already exists")
+    return await api_graph_node_save(request, name, body)
+
+
+@router.put("/api/graph/node-types/{name}", response_model=None)
+async def api_graph_node_type_update(
+    request: Request,
+    name: str,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    return await api_graph_node_save(request, name, body)
+
+
+@router.delete("/api/graph/node-types/{name}", response_model=None)
+async def api_graph_node_type_delete(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    for dag in load_dag_configs(config_dir(request) / "dags").values():
+        if any(node.type == name for node in dag.nodes):
+            return error_response(409, "conflict", f"node type '{name}' is referenced by DAG '{dag.name}'")
+    path = config_dir(request) / "nodes" / f"{name}.yaml"
+    if not path.exists():
+        return error_response(404, "not_found", f"node type {name} not found")
+    node = NodeConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    path.unlink()
+    _delete_node_assets(config_dir(request).parent, node)
+    return {"deleted": True}
+
+
+@router.get("/api/graph/skills")
+async def api_graph_skills(request: Request) -> dict[str, object]:
+    skills = load_skill_configs(config_dir(request) / "skills")
+    return {"skills": [skill.model_dump(mode="json") for skill in skills.values()]}
+
+
+@router.post("/api/graph/skills", response_model=None)
+async def api_graph_skill_create(
+    request: Request,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    name = str(body.get("name", ""))
+    if not name:
+        return error_response(400, "config_error", "skill name is required")
+    path = config_dir(request) / "skills" / f"{name}.yaml"
+    if path.exists():
+        return error_response(409, "conflict", f"skill '{name}' already exists")
+    return _save_skill(config_dir(request).parent, path, body)
+
+
+@router.put("/api/graph/skills/{name}", response_model=None)
+async def api_graph_skill_update(
+    request: Request,
+    name: str,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    return _save_skill(config_dir(request).parent, config_dir(request) / "skills" / f"{name}.yaml", {**body, "name": name})
+
+
+@router.delete("/api/graph/skills/{name}", response_model=None)
+async def api_graph_skill_delete(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    path = config_dir(request) / "skills" / f"{name}.yaml"
+    if not path.exists():
+        return error_response(404, "not_found", f"skill {name} not found")
+    skill = SkillConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    path.unlink()
+    (config_dir(request).parent / "skill_handlers" / f"{skill.handler}.py").unlink(missing_ok=True)
+    return {"deleted": True}
+
+
+@router.get("/api/graph/handlers/{name}", response_model=None)
+async def api_graph_handler_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    path = config_dir(request).parent / "handlers" / f"{name}.py"
+    if not path.exists():
+        return error_response(404, "not_found", f"handler {name} not found")
+    return {"name": name, "code": path.read_text(encoding="utf-8")}
+
+
+@router.put("/api/graph/handlers/{name}", response_model=None)
+async def api_graph_handler_save(request: Request, name: str, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    code = body.get("code", "")
+    if not isinstance(code, str):
+        return error_response(400, "config_error", "handler code must be a string")
+    path = config_dir(request).parent / "handlers" / f"{name}.py"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(code, encoding="utf-8")
+    return {"name": name, "code": code}
 
 
 @router.get("/api/graph/runtime-status")
@@ -652,7 +769,7 @@ def _graph_dag_payload(name: str, body: dict[str, object]) -> dict[str, object]:
         raise ConfigEditError("dag edges must be a list")
     payload: dict[str, object] = {
         "name": name,
-        "nodes": [str(node) if isinstance(node, str) else str(node.get("name", "")) for node in nodes],
+        "nodes": [_dag_node_payload(node) for node in nodes],
         "edges": [_dag_edge_payload(edge) for edge in edges],
         "ui": ui if isinstance(ui, dict) else {},
     }
@@ -666,13 +783,22 @@ def _graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]
     skills = body.get("skills", [])
     if not isinstance(skills, list):
         skills = []
+    inferred_type = body.get("type")
+    if inferred_type not in {"function", "llm"}:
+        inferred_type = "llm" if skills or body.get("model") else "function"
     payload: dict[str, object] = {
         "name": name,
-        "type": body.get("type", "function"),
-        "skills": [{"name": str(s)} if isinstance(s, str) else s for s in skills],
+        "type": inferred_type,
+        "role": body.get("role", "processor"),
+        "skills": [str(s) for s in skills],
+        "handler": body.get("handler", name if inferred_type == "function" else None),
+        "system_prompt_file": body.get(
+            "system_prompt_file",
+            f"prompts/{name}.md" if inferred_type == "llm" else None,
+        ),
         "model": body.get("model"),
-        "input_type": body.get("input_type", "any"),
-        "output_type": body.get("output_type", "any"),
+        "input_type": body.get("input_type", "Any"),
+        "output_type": body.get("output_type", "Any"),
         "timeout_seconds": body.get("timeout_seconds"),
         "source_names": body.get("source_names", []),
         "parameters": body.get("parameters", {}),
@@ -681,6 +807,83 @@ def _graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]
         return NodeConfig.model_validate(payload).model_dump(mode="json")
     except ValidationError as exc:
         raise ConfigEditError(str(exc)) from exc
+
+
+def _dag_node_payload(node: object) -> dict[str, object]:
+    if isinstance(node, str):
+        return {"id": node, "type": node, "alias": node, "config": {}}
+    if not isinstance(node, dict):
+        raise ConfigEditError("dag node must be a mapping")
+    node_type = node.get("type_name") or node.get("type") or node.get("name")
+    node_id = node.get("id", node.get("name"))
+    if not isinstance(node_id, str) or not isinstance(node_type, str):
+        raise ConfigEditError("dag node requires id and type")
+    config = node.get("config", {})
+    payload: dict[str, object] = {"id": node_id, "type": node_type}
+    alias = node.get("alias")
+    if isinstance(alias, str) and alias:
+        payload["alias"] = alias
+    if isinstance(config, dict):
+        payload["config"] = config
+    else:
+        payload["config"] = {}
+    return payload
+
+
+def _node_payload(node: NodeConfig) -> dict[str, object]:
+    return node.model_dump(mode="json")
+
+
+def _save_node_assets(root: Path, payload: dict[str, object], body: dict[str, object]) -> None:
+    node_type = payload.get("type")
+    if node_type == "llm":
+        prompt_file = payload.get("system_prompt_file")
+        if isinstance(prompt_file, str):
+            path = root / prompt_file
+            prompt = body.get("system_prompt", body.get("prompt"))
+            if isinstance(prompt, str) or not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(prompt if isinstance(prompt, str) else "", encoding="utf-8")
+    if node_type == "function":
+        handler = payload.get("handler")
+        code = body.get("handler_code", body.get("code"))
+        if isinstance(handler, str) and isinstance(code, str):
+            path = root / "handlers" / f"{handler}.py"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(code, encoding="utf-8")
+
+
+def _delete_node_assets(root: Path, node: NodeConfig) -> None:
+    if node.type == "llm" and node.system_prompt_file:
+        (root / node.system_prompt_file).unlink(missing_ok=True)
+    if node.type == "function" and node.handler:
+        (root / "handlers" / f"{node.handler}.py").unlink(missing_ok=True)
+
+
+def _save_skill(root: Path, path: Path, body: dict[str, object]) -> dict[str, object]:
+    raw_handler = body.get("handler", body.get("name"))
+    code = body.get("handler_code", body.get("code"))
+    handler = body.get("name") if isinstance(raw_handler, str) and "\n" in raw_handler else raw_handler
+    if not isinstance(code, str) and isinstance(raw_handler, str) and "\n" in raw_handler:
+        code = raw_handler
+    payload = SkillConfig.model_validate(
+        {
+            "name": body.get("name"),
+            "description": body.get("description", ""),
+            "handler": handler,
+            "parameters_schema": body.get("parameters_schema", {}),
+        }
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump(payload.model_dump(mode="json"), allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    if isinstance(code, str):
+        handler_path = root / "skill_handlers" / f"{payload.handler}.py"
+        handler_path.parent.mkdir(parents=True, exist_ok=True)
+        handler_path.write_text(code, encoding="utf-8")
+    return {"skill": payload.model_dump(mode="json")}
 
 
 def _repair_task_payload(

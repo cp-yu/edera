@@ -30,6 +30,12 @@ export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSe
   if (!open) return null
 
   const active = items[cursor]
+  const groups = [
+    { role: 'source', label: 'Sources' },
+    { role: 'processor', label: 'Processors' },
+    { role: 'sink', label: 'Sinks' },
+  ].map((group) => ({ ...group, items: items.filter((item) => item.role === group.role) }))
+  let itemIndex = 0
 
   return (
     <>
@@ -63,19 +69,29 @@ export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSe
           {items.length === 0 ? (
             <div className="rounded-xl px-3 py-6 text-center text-sm text-muted-foreground">没有匹配节点</div>
           ) : (
-            items.map((item, index) => (
-              <button
-                key={item.name}
-                onMouseEnter={() => setCursor(index)}
-                onClick={() => onSelect(item.name)}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors',
-                  index === cursor ? 'bg-accent/60' : 'hover:bg-accent/40',
-                )}
-              >
-                <span className="text-sm font-medium">{item.name}</span>
-                <span className="text-xs text-muted-foreground">{item.kind}</span>
-              </button>
+            groups.map((group) => group.items.length > 0 && (
+              <div key={group.role} className="mb-2">
+                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.label}
+                </div>
+                {group.items.map((item) => {
+                  const index = itemIndex++
+                  return (
+                    <button
+                      key={item.name}
+                      onMouseEnter={() => setCursor(index)}
+                      onClick={() => onSelect(item.name)}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors',
+                        index === cursor ? 'bg-accent/60' : 'hover:bg-accent/40',
+                      )}
+                    >
+                      <span className="text-sm font-medium">{item.name}</span>
+                      <span className="text-xs text-muted-foreground">{item.kind}</span>
+                    </button>
+                  )
+                })}
+              </div>
             ))
           )}
         </div>

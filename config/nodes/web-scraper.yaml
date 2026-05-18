@@ -1,8 +1,7 @@
 name: web-scraper
 type: function
-skills:
-- name: fetch-web
-model: null
+role: source
+handler: fetch-web
 input_type: Any
 output_type: list[RawItem]
 timeout_seconds: 13.0

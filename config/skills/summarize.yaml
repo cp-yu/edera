@@ -1,0 +1,9 @@
+name: summarize
+description: 对输入文本进行摘要
+handler: summarize
+parameters_schema:
+  type: object
+  properties:
+    max_length:
+      type: integer
+      default: 500

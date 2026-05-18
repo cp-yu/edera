@@ -18,19 +18,23 @@
 - **THEN** 系统 SHALL 重新加载该 DAG 的拓扑、节点配置和运行状态，画布重新渲染
 
 ### Requirement: Node palette with drag-to-add
-系统 SHALL 在左侧面板展示可用节点列表，支持拖拽到画布添加节点引用。画布 SHALL 实现 `onDragOver` 和 `onDrop` 事件处理，将拖拽的节点原型转化为 DAG 节点实例。
+系统 SHALL 在左侧面板按 role 分组展示可用节点类型（Sources / Processors / Sinks），支持拖拽到画布创建节点实例。画布 SHALL 允许同一节点类型被多次拖入，每次创建独立实例。
 
-#### Scenario: Drag node to canvas
-- **WHEN** 用户从 Palette 拖拽一个节点到画布
-- **THEN** 系统 SHALL 在鼠标释放的画布坐标处创建该节点实例，并添加到当前 DAG 拓扑中
+#### Scenario: Grouped display by role
+- **WHEN** 用户打开 Palette 面板
+- **THEN** 系统 SHALL 将节点类型按 `role` 分为三组展示：Sources、Processors、Sinks
 
-#### Scenario: Drop position accuracy
-- **WHEN** 用户在画布任意位置释放拖拽的节点
-- **THEN** 系统 SHALL 使用 `screenToFlowPosition` 将屏幕坐标转换为画布坐标，节点出现在鼠标释放位置
+#### Scenario: Drag to create instance
+- **WHEN** 用户将节点类型从 Palette 拖入画布
+- **THEN** 系统 SHALL 创建一个新的节点实例（生成 UUID），而非引用类型本身
 
-#### Scenario: Group nodes by type
-- **WHEN** Palette 加载节点列表
-- **THEN** 系统 SHALL 按节点类型分组展示（LLM 节点、功能节点等）
+#### Scenario: Multiple instances of same type
+- **WHEN** 用户将同一节点类型拖入画布多次
+- **THEN** 系统 SHALL 为每次拖入创建独立实例（不同 UUID），不做去重限制
+
+#### Scenario: Search matches type name and instance alias
+- **WHEN** 用户在 Palette 搜索框输入关键词
+- **THEN** 系统 SHALL 同时匹配节点类型名称和当前 DAG 中已有实例的别名
 
 ### Requirement: Custom node rendering with target colors
 系统 SHALL 使用自定义 React Flow 节点组件，按节点连接关系动态生成左 input / 右 output Handle，并保留 target 颜色边框语义。
@@ -180,3 +184,19 @@
 #### Scenario: Run completion notification
 - **WHEN** DAG 运行完成
 - **THEN** 系统 SHALL 停止轮询，显示 toast 通知运行结果，状态指示器更新
+
+### Requirement: Edge configuration in Inspector
+系统 SHALL 在用户选中画布上的边时，在 Inspector 面板展示边的配置选项。
+
+#### Scenario: Select edge shows config
+- **WHEN** 用户点击画布上的一条边
+- **THEN** 系统 SHALL 在 Inspector 面板切换为边配置视图，展示 `fan_in` 和 `fan_out` 开关
+
+#### Scenario: Toggle fan_in
+- **WHEN** 用户在边配置面板中切换 `fan_in` 开关
+- **THEN** 系统 SHALL 更新该边的 `fan_in` 属性并持久化到 DAG YAML
+
+#### Scenario: Toggle fan_out
+- **WHEN** 用户在边配置面板中切换 `fan_out` 开关
+- **THEN** 系统 SHALL 更新该边的 `fan_out` 属性并持久化到 DAG YAML
+

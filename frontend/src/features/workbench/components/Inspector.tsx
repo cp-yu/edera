@@ -1,146 +1,152 @@
+import { useEffect, useState } from 'react'
+import { useDag } from '@/api/queries'
+import { useSaveDag } from '@/api/mutations'
 import { useAppStore } from '@/store/useAppStore'
-import { useNodePrototypes } from '@/api/queries'
-import { useSaveNode } from '@/api/mutations'
-import { useState, useEffect } from 'react'
-import { NewSourceDialog } from './NewSourceDialog'
 
 export function Inspector() {
-  const { selectedNodeId } = useAppStore()
-  const { data } = useNodePrototypes()
-  const saveNode = useSaveNode()
-  const node = data?.prototypes.find((n) => n.name === selectedNodeId)
-
+  const { selectedDagName, selectedEdgeId, selectedNodeId } = useAppStore()
+  const { data: dag } = useDag(selectedDagName)
+  const saveDag = useSaveDag(selectedDagName)
+  const node = dag?.nodes.find((item) => item.id === selectedNodeId)
+  const edge = dag?.edges.find((item, index) => `e-${item.from}-${item.to}-${index}` === selectedEdgeId)
+  const [alias, setAlias] = useState('')
   const [model, setModel] = useState('')
-  const [timeout, setTimeout] = useState('')
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
+  const [skills, setSkills] = useState('')
+  const [sourceNames, setSourceNames] = useState('')
+  const [parameters, setParameters] = useState('{}')
 
   useEffect(() => {
-    if (node) {
-      setModel(node.model ?? '')
-      setTimeout(String(node.timeout_seconds ?? ''))
-    }
+    if (!node) return
+    setAlias(node.alias ?? '')
+    setModel(node.model ?? '')
+    setSkills((node.skills ?? []).join(', '))
+    setSourceNames((node.source_names ?? []).join(', '))
+    setParameters(JSON.stringify(node.parameters ?? {}, null, 2))
   }, [node])
 
-  if (!node) {
+  if (edge && dag) {
+    const saveEdge = (patch: { fan_in?: boolean; fan_out?: boolean }) => {
+      const edges = dag.edges.map((item, index) =>
+        `e-${item.from}-${item.to}-${index}` === selectedEdgeId ? { ...item, ...patch } : item,
+      )
+      const nodes = dag.nodes.map((item) => ({
+        id: item.id,
+        type: item.type_name,
+        alias: item.alias,
+        config: item.config ?? {},
+      }))
+      saveDag.mutate({ nodes, edges, ui: dag.ui })
+    }
     return (
-      <aside className="w-[300px] border-l p-4 bg-card">
+      <aside className="w-[300px] space-y-4 overflow-y-auto border-l bg-card p-4">
+        <div>
+          <h2 className="text-sm font-medium">连线配置</h2>
+          <p className="text-xs text-muted-foreground">{edge.from} → {edge.to}</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(edge.fan_in)}
+            onChange={(event) => saveEdge({ fan_in: event.target.checked })}
+          />
+          fan_in
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(edge.fan_out)}
+            onChange={(event) => saveEdge({ fan_out: event.target.checked })}
+          />
+          fan_out
+        </label>
+      </aside>
+    )
+  }
+
+  if (!node || !dag) {
+    return (
+      <aside className="w-[300px] border-l bg-card p-4">
         <p className="text-sm text-muted-foreground">选择节点查看配置</p>
       </aside>
     )
   }
 
-  const doSave = () => {
-    saveNode.mutate({
-      name: node.name,
-      body: {
-        ...node,
-        model: model || undefined,
-        timeout_seconds: timeout ? Number(timeout) : undefined,
-      },
+  const save = () => {
+    let parsedParameters: Record<string, unknown>
+    try {
+      parsedParameters = JSON.parse(parameters) as Record<string, unknown>
+    } catch {
+      window.alert('parameters 必须是 JSON 对象')
+      return
+    }
+    const nodes = dag.nodes.map((item) => {
+      if (item.id !== node.id) {
+        return { id: item.id, type: item.type_name, alias: item.alias, config: item.config ?? {} }
+      }
+      const config = {
+        ...(item.config ?? {}),
+        ...(item.type === 'llm' ? { skills: splitList(skills), model: model || undefined } : {}),
+        ...(item.type === 'function' ? { source_names: splitList(sourceNames) } : {}),
+        parameters: parsedParameters,
+      }
+      return { id: item.id, type: item.type_name, alias: alias || item.type_name, config }
     })
-    setConfirmOpen(false)
+    saveDag.mutate({ nodes, edges: dag.edges, ui: dag.ui })
   }
 
   return (
-    <aside className="w-[300px] border-l p-4 bg-card overflow-y-auto space-y-4">
-      <h2 className="text-sm font-medium">{node.name}</h2>
-      <div className="space-y-3">
-        {/* Common readonly fields */}
-        <div>
-          <label className="text-xs text-muted-foreground">类型</label>
-          <p className="text-sm">{node.type}</p>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground">输入</label>
-          <p className="text-sm">{node.input_type}</p>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground">输出</label>
-          <p className="text-sm">{node.output_type}</p>
-        </div>
-
-        {/* Type-specific editable fields */}
-        {node.type === 'fetcher' && node.source_names && (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-muted-foreground">信息源</label>
-              <button
-                onClick={() => setSourceDialogOpen(true)}
-                className="text-xs text-blue-500 hover:underline"
-              >
-                + New Input Source
-              </button>
-            </div>
-            <p className="text-sm">{node.source_names.join(', ') || '无'}</p>
-          </div>
-        )}
-
-        {node.type === 'llm' && (
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">模型</label>
-            <input
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-              placeholder="默认"
-            />
-          </div>
-        )}
-
-        {node.type === 'llm' && node.skills && node.skills.length > 0 && (
-          <div>
-            <label className="text-xs text-muted-foreground">Skills</label>
-            <p className="text-sm">{node.skills.join(', ')}</p>
-          </div>
-        )}
-
-        {(node.type === 'fetcher' || node.type === 'llm' || node.type === 'aggregator') && (
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">超时 (秒)</label>
-            <input
-              value={timeout}
-              onChange={(e) => setTimeout(e.target.value)}
-              type="number"
-              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
-            />
-          </div>
-        )}
-
-        {(node.type === 'fetcher' || node.type === 'llm' || node.type === 'aggregator') && node.parameters && (
-          <div>
-            <label className="text-xs text-muted-foreground">Parameters</label>
-            <pre className="text-xs bg-muted rounded p-2 mt-1 overflow-x-auto">
-              {JSON.stringify(node.parameters, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        <button
-          onClick={() => setConfirmOpen(true)}
-          disabled={saveNode.isPending}
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {saveNode.isPending ? '保存中...' : '保存节点'}
-        </button>
+    <aside className="w-[300px] space-y-4 overflow-y-auto border-l bg-card p-4">
+      <div>
+        <h2 className="text-sm font-medium">{node.alias || node.name}</h2>
+        <p className="text-xs text-muted-foreground">{node.type_name} · {node.role}</p>
       </div>
-
-      {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmOpen(false)}>
-          <div className="w-[360px] rounded-lg bg-card border shadow-lg p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-medium">确认保存</h3>
-            <p className="text-sm text-muted-foreground">
-              此节点为全局实例，修改将影响所有引用它的 DAG。确定保存？
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmOpen(false)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent/50">取消</button>
-              <button onClick={doSave} className="rounded-md bg-destructive px-3 py-1.5 text-sm text-destructive-foreground hover:bg-destructive/90">确认保存</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <NewSourceDialog open={sourceDialogOpen} onClose={() => setSourceDialogOpen(false)} fetcherName={node.name} />
+      <Field label="Alias" value={alias} onChange={setAlias} />
+      <Readonly label="输入" value={node.input_type} />
+      <Readonly label="输出" value={node.output_type} />
+      {node.type === 'llm' && <Field label="Model" value={model} onChange={setModel} />}
+      {node.type === 'llm' && <Field label="Skills" value={skills} onChange={setSkills} />}
+      {node.type === 'function' && <Field label="Source Names" value={sourceNames} onChange={setSourceNames} />}
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">Parameters</label>
+        <textarea
+          value={parameters}
+          onChange={(event) => setParameters(event.target.value)}
+          className="min-h-32 w-full rounded-md border bg-background px-3 py-2 font-mono text-xs"
+        />
+      </div>
+      <button
+        onClick={save}
+        disabled={saveDag.isPending}
+        className="w-full rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+      >
+        {saveDag.isPending ? '保存中...' : '保存实例'}
+      </button>
     </aside>
   )
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+      />
+    </div>
+  )
+}
+
+function Readonly({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <p className="text-sm">{value}</p>
+    </div>
+  )
+}
+
+function splitList(value: string): string[] {
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
 }

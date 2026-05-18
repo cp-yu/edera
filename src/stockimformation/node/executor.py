@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+import inspect
 import json
 import os
 import shutil
@@ -9,10 +11,10 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from stockimformation.config.schema import NodeConfig, RuntimeSettings, SystemConfig
+from stockimformation.config.schema import DagNodeInstance, NodeConfig, RuntimeSettings, SystemConfig
 from stockimformation.errors import NodeExecutionError
 from stockimformation.node.models import FunctionHandler, NodeContext, NodeInput, NodeOutput
-from stockimformation.node.skills import load_skill
+from stockimformation.node.skills import load_skill, load_skill_handler
 
 
 class NodeExecutor:
@@ -22,13 +24,19 @@ class NodeExecutor:
         system: SystemConfig,
         runtime: RuntimeSettings,
         handlers: dict[str, FunctionHandler] | None = None,
+        instances: dict[str, DagNodeInstance] | None = None,
+        handlers_dir: Path = Path("handlers"),
         skills_dir: Path = Path("skills"),
+        skill_handlers_dir: Path = Path("skill_handlers"),
     ) -> None:
         self.nodes = nodes
         self.system = system
         self.runtime = runtime
         self.handlers = handlers or {}
+        self.instances = instances or {}
+        self.handlers_dir = handlers_dir
         self.skills_dir = skills_dir
+        self.skill_handlers_dir = skill_handlers_dir
 
     async def execute(
         self,
@@ -36,10 +44,18 @@ class NodeExecutor:
         node_input: NodeInput,
         context: NodeContext | None = None,
     ) -> NodeOutput:
-        config = self._node(node_name)
-        context = context or NodeContext(node_input.cycle_id, uuid4().hex)
+        instance = self.instances.get(node_name)
+        context = context or NodeContext(node_input.cycle_id, node_name or uuid4().hex)
+        type_name = instance.type if instance else context.node_type or node_name
+        config = self._node(type_name)
+        context = NodeContext(
+            cycle_id=context.cycle_id,
+            instance_id=context.instance_id,
+            node_type=config.name,
+            dag_name=context.dag_name,
+        )
         try:
-            payload = await self._execute_payload(config, node_input, context)
+            payload = await self._execute_payload(config, instance, node_input, context)
         except Exception as exc:
             return NodeOutput(
                 node_name=node_name,
@@ -57,27 +73,38 @@ class NodeExecutor:
     async def _execute_payload(
         self,
         config: NodeConfig,
+        instance: DagNodeInstance | None,
         node_input: NodeInput,
         context: NodeContext,
     ) -> object:
-        for skill in config.skills:
-            load_skill(skill.name, self.skills_dir)
-        timeout = config.timeout_seconds or self.system.llm_timeout_seconds
-        if config.type == "function":
-            handler = self.handlers.get(config.skills[0].name)
+        effective = _apply_instance_config(config, instance)
+        node_input = _apply_instance_input(effective, node_input)
+        timeout = effective.timeout_seconds or self.system.llm_timeout_seconds
+        if effective.type == "function":
+            handler_name = effective.handler or (effective.skills[0] if effective.skills else "")
+            handler = self.handlers.get(handler_name) or self._load_handler(handler_name)
             if handler is None:
-                raise NodeExecutionError(f"missing function handler: {config.skills[0].name}")
-            return await asyncio.wait_for(handler(node_input), timeout=timeout)
-        return await asyncio.wait_for(self._run_pi(config, node_input, context), timeout=timeout)
+                raise NodeExecutionError(f"missing function handler: {handler_name}")
+            return await asyncio.wait_for(
+                _call_handler(handler, node_input, effective.parameters, context),
+                timeout=timeout,
+            )
+        for skill in effective.skills:
+            load_skill_handler(skill, self.skill_handlers_dir)
+        return await asyncio.wait_for(
+            self._run_pi(effective, effective.skills, node_input, context),
+            timeout=timeout,
+        )
 
     async def _run_pi(
         self,
         config: NodeConfig,
+        skills: list[str],
         node_input: NodeInput,
         context: NodeContext,
     ) -> object:
         workspace = self._prepare_workspace(config, context)
-        skill_paths = [str(load_skill(skill.name, self.skills_dir).path) for skill in config.skills]
+        skill_paths = [str(load_skill(skill, self.skills_dir).path) for skill in skills]
         input_json = _json(node_input)
         args = [self.runtime.pi_bin, "-p", "--no-skills", "--no-tools"]
         for path in skill_paths:
@@ -138,6 +165,63 @@ class NodeExecutor:
             return self.nodes[node_name]
         except KeyError as exc:
             raise NodeExecutionError(f"missing node config: {node_name}") from exc
+
+    def _load_handler(self, name: str) -> FunctionHandler | None:
+        path = self.handlers_dir / f"{name}.py"
+        if not path.exists():
+            return None
+        module_name = f"stockimformation_dynamic_handler_{name.replace('-', '_')}"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        handler = getattr(module, "run", None)
+        return handler if callable(handler) else None
+
+
+async def _call_handler(
+    handler: FunctionHandler,
+    node_input: NodeInput,
+    parameters: dict[str, object],
+    context: NodeContext,
+) -> object:
+    if len(inspect.signature(handler).parameters) == 1:
+        result = handler(node_input)
+    else:
+        result = handler(node_input.payload, parameters, context)
+    if inspect.isawaitable(result):
+        return await result
+    return result
+
+
+def _apply_instance_config(config: NodeConfig, instance: DagNodeInstance | None) -> NodeConfig:
+    if instance is None:
+        return config
+    updates: dict[str, object] = {}
+    if config.type == "llm":
+        skills = instance.config.get("skills")
+        if isinstance(skills, list):
+            updates["skills"] = [str(item) for item in skills]
+        model = instance.config.get("model")
+        if isinstance(model, str):
+            updates["model"] = model
+    if config.type == "function":
+        source_names = instance.config.get("source_names")
+        if isinstance(source_names, list):
+            updates["source_names"] = [str(item) for item in source_names]
+    parameters = instance.config.get("parameters")
+    if isinstance(parameters, dict):
+        updates["parameters"] = parameters
+    return config.model_copy(update=updates)
+
+
+def _apply_instance_input(config: NodeConfig, node_input: NodeInput) -> NodeInput:
+    if config.type != "function" or not config.source_names:
+        return node_input
+    payload = dict(node_input.payload) if isinstance(node_input.payload, dict) else {}
+    payload["source_names"] = config.source_names
+    return NodeInput(cycle_id=node_input.cycle_id, payload=payload, metadata=node_input.metadata)
 
 
 def _json(value: object) -> str:

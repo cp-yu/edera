@@ -16,3 +16,10 @@ def load_skill(name: str, skills_dir: Path = Path("skills")) -> SkillDefinition:
         skill_md=skill_path.read_text(),
         workflow_md=workflow_path.read_text(),
     )
+
+
+def load_skill_handler(name: str, skill_handlers_dir: Path = Path("skill_handlers")) -> Path:
+    path = skill_handlers_dir / f"{name}.py"
+    if not path.exists():
+        raise NodeExecutionError(f"missing skill handler: {name}")
+    return path.resolve()

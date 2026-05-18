@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, BarChart3, Radio, Settings, Moon, Sun } from 'lucide-react'
+import { LayoutDashboard, BarChart3, Radio, Settings, Moon, Sun, Workflow } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
 
@@ -7,6 +7,7 @@ const links = [
   { to: '/workbench', label: '工作台', icon: LayoutDashboard },
   { to: '/results', label: '结果', icon: BarChart3 },
   { to: '/sources', label: '信息源', icon: Radio },
+  { to: '/nodes', label: '节点', icon: Workflow },
   { to: '/config', label: '配置', icon: Settings },
 ]
 

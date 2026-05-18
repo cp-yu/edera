@@ -8,8 +8,8 @@ interface Props {
 }
 
 const SKELETONS = [
-  { label: 'RSS Fetcher', type: 'rss_fetcher', input_type: 'rss_feed', output_type: 'raw_item' },
-  { label: 'Web Fetcher', type: 'web_fetcher', input_type: 'url', output_type: 'raw_item' },
+  { label: 'RSS Fetcher', handler: 'fetch-rss' },
+  { label: 'Web Fetcher', handler: 'fetch-web' },
 ] as const
 
 export function NewFetcherSheet({ open, onClose }: Props) {
@@ -23,7 +23,18 @@ export function NewFetcherSheet({ open, onClose }: Props) {
   const handleCreate = () => {
     if (!name.trim()) return
     createNode.mutate(
-      { dagName: selectedDagName, body: { name: name.trim(), type: skeleton.type, input_type: skeleton.input_type, output_type: skeleton.output_type, skills: [], source_names: [] } },
+      {
+        dagName: selectedDagName,
+        body: {
+          name: name.trim(),
+          type: 'function',
+          role: 'source',
+          handler: skeleton.handler,
+          input_type: 'Any',
+          output_type: 'list[RawItem]',
+          source_names: [],
+        },
+      },
       { onSuccess: () => { setName(''); onClose() } },
     )
   }
@@ -49,10 +60,10 @@ export function NewFetcherSheet({ open, onClose }: Props) {
             <label className="text-xs text-muted-foreground block mb-1">类型</label>
             <div className="space-y-1">
               {SKELETONS.map((s) => (
-                <label key={s.type} className="flex items-center gap-2 text-sm cursor-pointer">
+                <label key={s.handler} className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
                     type="radio"
-                    checked={skeleton.type === s.type}
+                    checked={skeleton.handler === s.handler}
                     onChange={() => setSkeleton(s)}
                     className="accent-primary"
                   />

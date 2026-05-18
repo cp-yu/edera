@@ -18,6 +18,8 @@ class DagRunner:
         self.recorder = recorder
 
     async def run(self, graph: DagGraph, cycle_id: str, initial_payload: object) -> DagRunResult:
+        if not self.executor.instances:
+            self.executor.instances = graph.instances
         outputs: dict[str, NodeOutput] = {}
         failures: dict[str, str] = {}
         payloads: dict[str, object] = {}
@@ -58,7 +60,12 @@ class DagRunner:
             payload=input_payload,
             metadata=self._metadata(graph, node, outputs),
         )
-        context = NodeContext(cycle_id=cycle_id, instance_id=node)
+        context = NodeContext(
+            cycle_id=cycle_id,
+            instance_id=node,
+            node_type=graph.instances[node].type,
+            dag_name=graph.name,
+        )
         await self._record(node, "running")
         output = await self.executor.execute(node, node_input, context)
         await self._record(node, "succeeded" if output.ok else "failed", output.error)

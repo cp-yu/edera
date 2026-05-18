@@ -1,0 +1,44 @@
+# OPSX Delta — node-type-instance-model
+# Merge intent: add 5 new capabilities, modify 4 existing capabilities
+
+ADDED:
+  node-type-registry:
+    domain: web
+    description: 节点类型注册与管理，覆盖 LLM/Function 类型定义、YAML 格式、role 声明、handler/prompt 绑定
+    spec: specs/node-type-registry/spec.md
+  skill-registry:
+    domain: web
+    description: Skill 独立注册与管理，覆盖 skill 定义文件结构、参数 schema、handler 绑定
+    spec: specs/skill-registry/spec.md
+  node-instance-model:
+    domain: web
+    description: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置、多实例支持
+    spec: specs/node-instance-model/spec.md
+  connection-type-validation:
+    domain: web
+    description: 连线类型校验，覆盖 role 约束、I/O 类型匹配规则、实时拖拽反馈
+    spec: specs/connection-type-validation/spec.md
+  node-management-page:
+    domain: web
+    description: 节点管理页面，覆盖 LLM 类型创建编辑、Function 类型创建与代码编辑、Skill CRUD
+    spec: specs/node-management-page/spec.md
+
+MODIFIED:
+  dag-workbench-ui:
+    domain: web
+    delta: DAG 工作台 UI 覆盖画布交互、节点拖拽（按 role 分组、多实例）、连线管理、Inspector 配置（含边配置）
+    spec: specs/dag-workbench-ui/spec.md
+  node-graph-dag-editor:
+    domain: web
+    delta: Node Graph DAG 编辑器覆盖 instance 格式持久化、role 驱动 Handle 渲染、实例级 Inspector
+    spec: specs/node-graph-dag-editor/spec.md
+  node-visual-system:
+    domain: web
+    delta: 节点视觉系统覆盖类型差异化外观、role 驱动 Handle 生成、连线校验视觉反馈、运行状态 badge
+    spec: specs/node-visual-system/spec.md
+  node-executor:
+    domain: operations
+    delta: 节点执行器覆盖 instance ID 调度、动态 handler 加载、实例配置合并
+    spec: specs/node-executor/spec.md
+
+REMOVED: {}

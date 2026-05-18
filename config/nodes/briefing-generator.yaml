@@ -1,7 +1,7 @@
 name: briefing-generator
 type: function
-skills:
-  - name: generate-briefing
+role: processor
+handler: generate-briefing
 input_type: list[Advice]
 output_type: Briefing
 parameters: {}

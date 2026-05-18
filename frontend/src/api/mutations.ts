@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { DagState, NodePrototype } from './types'
+import type { DagNodeRecord, NodeInstance, NodeType, SkillDefinition } from './types'
 
 function alertMutationError(error: Error) {
   window.alert(error.message)
@@ -9,7 +9,7 @@ function alertMutationError(error: Error) {
 export function useSaveDag(dagName: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { nodes: DagState['nodes'] | string[]; edges: DagState['edges']; ui?: DagState['ui'] }) =>
+    mutationFn: (body: { nodes: DagNodeRecord[]; edges: Array<{ from: string; to: string; fan_out?: boolean; fan_in?: boolean }>; ui?: { nodes?: Record<string, { x: number; y: number }>; edges?: Record<string, { sourceHandle?: string; targetHandle?: string }> } }) =>
       apiFetch(`/api/graph/dag/${dagName}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dag', dagName] }) },
     onError: alertMutationError,
@@ -19,7 +19,7 @@ export function useSaveDag(dagName: string) {
 export function useSaveNode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ name, body }: { name: string; body: Partial<NodePrototype> }) =>
+    mutationFn: ({ name, body }: { name: string; body: Partial<NodeType> }) =>
       apiFetch(`/api/graph/node/${name}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['nodePrototypes'] }) },
   })
@@ -48,12 +48,81 @@ export function useStopDag() {
 export function useCreateNode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ dagName, body }: { dagName: string; body: Partial<NodePrototype> }) =>
+    mutationFn: ({ dagName, body }: { dagName: string; body: Partial<NodeInstance> }) =>
       apiFetch(`/api/graph/dag/${dagName}/nodes`, { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: (_data, { dagName }) => {
       qc.invalidateQueries({ queryKey: ['dag', dagName] })
       qc.invalidateQueries({ queryKey: ['nodePrototypes'] })
     },
+    onError: alertMutationError,
+  })
+}
+
+export function useSaveNodeType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, body }: { name: string; body: Partial<NodeType> & Record<string, unknown> }) =>
+      apiFetch(`/api/graph/node-types/${name}`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nodeTypes'] })
+      qc.invalidateQueries({ queryKey: ['nodePrototypes'] })
+    },
+    onError: alertMutationError,
+  })
+}
+
+export function useCreateNodeType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<NodeType> & Record<string, unknown>) =>
+      apiFetch('/api/graph/node-types', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nodeTypes'] })
+      qc.invalidateQueries({ queryKey: ['nodePrototypes'] })
+    },
+    onError: alertMutationError,
+  })
+}
+
+export function useDeleteNodeType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch(`/api/graph/node-types/${name}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nodeTypes'] })
+      qc.invalidateQueries({ queryKey: ['nodePrototypes'] })
+    },
+    onError: alertMutationError,
+  })
+}
+
+export function useSaveSkill() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, body }: { name: string; body: Partial<SkillDefinition> & Record<string, unknown> }) =>
+      apiFetch(`/api/graph/skills/${name}`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['skills'] }) },
+    onError: alertMutationError,
+  })
+}
+
+export function useCreateSkill() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<SkillDefinition> & Record<string, unknown>) =>
+      apiFetch('/api/graph/skills', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['skills'] }) },
+    onError: alertMutationError,
+  })
+}
+
+export function useDeleteSkill() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch(`/api/graph/skills/${name}`, { method: 'DELETE' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['skills'] }) },
     onError: alertMutationError,
   })
 }

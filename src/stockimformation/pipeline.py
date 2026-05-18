@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from stockimformation.config.loader import load_app_config
-from stockimformation.config.schema import AppConfig
+from stockimformation.config.schema import AppConfig, DagNodeInstance
 from stockimformation.dag.loader import load_graph
 from stockimformation.dag.runner import DagRunner
 from stockimformation.models import create_engine, init_db, session_factory
@@ -186,11 +186,11 @@ class PipelineController:
             await session.commit()
         try:
             result = await DagRunner(
-                _build_executor(config),
+                _build_executor(config, graph.instances),
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
             ).run(graph, cycle_id, {"source_names": [source.name for source in config.portfolio.sources]})
             await _record_source_runs(factory, cycle_id, result.node_outputs)
-            await _persist_outputs(factory, result.node_outputs)
+            await _persist_outputs(factory, result.node_outputs, graph.instances)
             status = "succeeded" if result.ok else "failed"
             error = "; ".join(f"{node}: {message}" for node, message in result.failures.items()) or None
             async with factory() as session:
@@ -247,11 +247,12 @@ async def run_default_cycle(config_dir: Path = Path("config")) -> object:
 async def _persist_outputs(
     factory: async_sessionmaker[AsyncSession],
     outputs: Mapping[str, NodeOutput],
+    instances: Mapping[str, DagNodeInstance],
 ) -> None:
-    raw_payload = _list_payload(outputs, "rss-fetcher") + _list_payload(outputs, "web-scraper")
-    analyses_payload = _list_payload(outputs, "reader")
-    advices_payload = _list_payload(outputs, "advisor")
-    briefing_payload = _dict_payload(outputs, "briefing-generator")
+    raw_payload = _list_payload(outputs, _instance_id(instances, "rss-fetcher")) + _list_payload(outputs, _instance_id(instances, "web-scraper"))
+    analyses_payload = _list_payload(outputs, _instance_id(instances, "reader"))
+    advices_payload = _list_payload(outputs, _instance_id(instances, "advisor"))
+    briefing_payload = _dict_payload(outputs, _instance_id(instances, "briefing-generator"))
     raw_items = [RawItem.model_validate(item) for item in raw_payload]
     analyses = [AnalysisResult.model_validate(item) for item in analyses_payload]
     advices = [Advice.model_validate(item) for item in advices_payload]
@@ -279,7 +280,10 @@ async def _record_source_runs(
         await session.commit()
 
 
-def _build_executor(app_config: AppConfig) -> NodeExecutor:
+def _build_executor(
+    app_config: AppConfig,
+    instances: Mapping[str, DagNodeInstance] | None = None,
+) -> NodeExecutor:
     handlers = {
         "fetch-rss": make_fetch_handler(app_config.portfolio, "rss", app_config.system),
         "fetch-web": make_fetch_handler(app_config.portfolio, "web", app_config.system),
@@ -289,7 +293,14 @@ def _build_executor(app_config: AppConfig) -> NodeExecutor:
         "generate-briefing": make_briefing_handler(app_config.portfolio),
         "notify-ntfy": make_notify_handler(app_config.runtime),
     }
-    return NodeExecutor(app_config.nodes, app_config.system, app_config.runtime, handlers)
+    return NodeExecutor(app_config.nodes, app_config.system, app_config.runtime, handlers, dict(instances or {}))
+
+
+def _instance_id(instances: Mapping[str, DagNodeInstance], node_type: str) -> str:
+    for instance_id, instance in instances.items():
+        if instance.type == node_type:
+            return instance_id
+    return node_type
 
 
 def _list_payload(outputs: Mapping[str, NodeOutput], node_name: str) -> list[object]:

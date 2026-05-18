@@ -1,9 +1,7 @@
 ## Purpose
 
 定义 Workbench 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和节点分组可视化。
-
 ## Requirements
-
 ### Requirement: Type-differentiated node appearance
 系统 SHALL 为不同类型的节点提供差异化的视觉外观，使大规模 DAG 场景下快速辨识节点类型。
 
@@ -20,23 +18,19 @@
 - **THEN** 系统 SHALL 使用绿色系配色和汇聚图标
 
 ### Requirement: Dynamic handle generation
-系统 SHALL 按节点连接关系动态生成 Handle，左侧为 input（target），右侧为 output（source）。
+系统 SHALL 根据节点 role 和连接关系动态生成 Handle：source 节点仅生成输出 Handle，sink 节点仅生成输入 Handle，processor 节点两侧均生成。
 
-#### Scenario: Minimum handle availability
-- **WHEN** 节点当前没有任何连线
-- **THEN** 系统 SHALL 仍然提供至少 1 个左侧 input Handle 和 1 个右侧 output Handle
+#### Scenario: Source node handle generation
+- **WHEN** 画布渲染 `role: source` 的节点
+- **THEN** 系统 SHALL 仅在右侧生成输出 Handle，左侧不生成任何 Handle
 
-#### Scenario: Handle count follows connectivity
-- **WHEN** 节点存在 N 条入边或出边
+#### Scenario: Sink node handle generation
+- **WHEN** 画布渲染 `role: sink` 的节点
+- **THEN** 系统 SHALL 仅在左侧生成输入 Handle，右侧不生成任何 Handle
+
+#### Scenario: Processor handle count follows connectivity
+- **WHEN** processor 节点存在 N 条入边或出边
 - **THEN** 系统 SHALL 在对应侧生成不少于 N 个 Handle，并保持均匀分布
-
-#### Scenario: Unconnected handles stay discoverable
-- **WHEN** 节点未被 hover 且某 Handle 尚未连接
-- **THEN** 系统 SHALL 保持该 Handle 半可见，以便用户直接发起连线
-
-#### Scenario: All handles visible on hover
-- **WHEN** 用户将鼠标悬停在节点上
-- **THEN** 系统 SHALL 显示该节点所有 Handle
 
 ### Requirement: Runtime status badge
 系统 SHALL 在节点左上角显示轻量运行状态 badge。
@@ -71,3 +65,19 @@
 #### Scenario: Ungrouped nodes
 - **WHEN** 节点未关联任何 source
 - **THEN** 系统 SHALL 不为该节点绘制分组背景
+
+### Requirement: Connection validation visual feedback
+系统 SHALL 在拖拽连线过程中通过 Handle 颜色变化提供类型兼容性的实时视觉反馈。
+
+#### Scenario: Compatible target — green highlight
+- **WHEN** 用户拖拽连线经过一个类型兼容的目标 Handle
+- **THEN** 系统 SHALL 将该 Handle 高亮为绿色
+
+#### Scenario: Incompatible target — red highlight
+- **WHEN** 用户拖拽连线经过一个类型不兼容的目标 Handle（Function 节点）
+- **THEN** 系统 SHALL 将该 Handle 高亮为红色
+
+#### Scenario: Warning connection line style
+- **WHEN** 一条已建立的连线存在类型不匹配警告（LLM 节点目标）
+- **THEN** 系统 SHALL 将该连线渲染为黄色虚线样式
+

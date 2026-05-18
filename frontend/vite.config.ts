@@ -10,6 +10,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rolldownOptions: {
+      external: ['web-worker'],
+    },
+  },
   server: {
     proxy: {
       '/api': {
