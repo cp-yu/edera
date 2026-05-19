@@ -23,7 +23,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { CustomNode } from './nodes/CustomNode'
 import { useSaveDag } from '@/api/mutations'
 import { useNodePrototypes } from '@/api/queries'
-import { targetColor } from '@/lib/colors'
+import { entityColor } from '@/lib/colors'
 import type { DagNodeRecord, DagState, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
 import { CanvasContextMenu } from './CanvasContextMenu'
 import { QuickAddPanel } from './QuickAddPanel'
@@ -97,7 +97,7 @@ function hydrateInstance(
     skills: Array.isArray(config.skills) ? config.skills.map(String) : prototype.skills,
     model: typeof config.model === 'string' ? config.model : prototype.model,
     timeout_seconds: typeof config.timeout_seconds === 'number' ? config.timeout_seconds : prototype.timeout_seconds,
-    source_names: Array.isArray(config.source_names) ? config.source_names.map(String) : prototype.source_names,
+    entities: Array.isArray(config.entities) ? config.entities.map(String) : prototype.entities,
     parameters: typeof config.parameters === 'object' && config.parameters
       ? config.parameters as Record<string, unknown>
       : prototype.parameters,
@@ -111,7 +111,7 @@ interface Props {
 }
 
 export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
-  const { setSelectedEdge, setSelectedNode, targetFilter, selectedDagName } = useAppStore()
+  const { setSelectedEdge, setSelectedNode, entityFilter, selectedDagName } = useAppStore()
   const { data: prototypesData } = useNodePrototypes()
   const saveDag = useSaveDag(selectedDagName)
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
@@ -362,9 +362,9 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
 
   const styledNodes = useMemo(() => {
     const source = nodes.find((node) => node.id === connectionSourceId)
-    const visibleNodes = targetFilter.length === 0 ? nodes : nodes.map((n) => {
-      const nodeTargets = n.data.source_names ?? []
-      const matches = nodeTargets.some((t) => targetFilter.includes(t))
+    const visibleNodes = entityFilter.length === 0 ? nodes : nodes.map((n) => {
+      const nodeEntities = n.data.entities ?? []
+      const matches = nodeEntities.some((entity) => entityFilter.includes(entity))
       return { ...n, style: { ...(n.style ?? {}), opacity: matches ? 1 : 0.2 } }
     })
     if (!source) return visibleNodes
@@ -378,25 +378,25 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         },
       }
     })
-  }, [connectionSourceId, nodes, targetFilter])
+  }, [connectionSourceId, nodes, entityFilter])
 
   const searchItems = useMemo(
     () => filterSearchItems(buildSearchItems(prototypes, nodes.map((node) => node.data)), searchQuery),
     [nodes, prototypes, searchQuery],
   )
 
-  const groupedTargets = useMemo(() => {
+  const groupedEntities = useMemo(() => {
     const groups = new Map<string, WorkbenchNode[]>()
 
     for (const node of nodes) {
-      for (const sourceName of node.data.source_names ?? []) {
-        const list = groups.get(sourceName) ?? []
+      for (const entity of node.data.entities ?? []) {
+        const list = groups.get(entity) ?? []
         list.push(node)
-        groups.set(sourceName, list)
+        groups.set(entity, list)
       }
     }
 
-    return Array.from(groups.entries()).map(([sourceName, groupedNodes]) => {
+    return Array.from(groups.entries()).map(([entity, groupedNodes]) => {
       const padding = 30
       const positions = groupedNodes.map((node) => {
         const size = getNodeSize(node.data.visualKind)
@@ -414,12 +414,12 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
       const maxBottom = Math.max(...positions.map((item) => item.bottom)) + padding
 
       return {
-        sourceName,
+        entity,
         x: minLeft,
         y: minTop,
         width: maxRight - minLeft,
         height: maxBottom - minTop,
-        color: targetColor(sourceName),
+        color: entityColor(entity),
       }
     })
   }, [nodes])
@@ -732,9 +732,9 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
           nodeColor={(node) => getNodeEdgeColor((node.data as WorkbenchNode['data']).visualKind)}
         />
         <ViewportPortal>
-          {groupedTargets.map((group) => (
+          {groupedEntities.map((group) => (
             <div
-              key={group.sourceName}
+              key={group.entity}
               className="pointer-events-none absolute rounded-[28px] border border-dashed"
               style={{
                 transform: `translate(${group.x}px, ${group.y}px)`,
@@ -751,7 +751,7 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
                   color: group.color,
                 }}
               >
-                {group.sourceName}
+                {group.entity}
               </span>
             </div>
           ))}

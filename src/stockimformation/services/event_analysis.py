@@ -116,7 +116,7 @@ def _build_clusters(raw_by_id: dict[int, RawItem], analyses: list[AnalysisResult
         aid = analysis.id
         if aid is None:
             continue
-        stock_code = raw.stock_codes[0] if raw.stock_codes else ""
+        stock_code = _stock_code_from_tags(raw.tags)
         if not stock_code.strip():
             continue
         seen_at = raw.published_at or analysis.created_at
@@ -172,6 +172,13 @@ def _find_cluster(
         if best is None or candidate > best:
             best = candidate
     return best[2] if best else None
+
+
+def _stock_code_from_tags(tags: list[str]) -> str:
+    for tag in tags:
+        if tag.startswith("stock:"):
+            return tag.removeprefix("stock:")
+    return ""
 
 
 def _match_event(

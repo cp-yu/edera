@@ -23,7 +23,7 @@ class RawItem(SQLModel, table=True):
     content: str
     source_name: str
     source_type: str
-    stock_codes: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     published_at: datetime
     fetched_at: datetime = Field(default_factory=utc_now)
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig, SkillConfig
+from stockimformation.config.schema import DagConfig, EntitiesConfig, EntityTypeConfig, NodeConfig, SkillConfig
 from stockimformation.config.editor import RuntimeConfigEditor
 from stockimformation.errors import ConfigEditError
 from stockimformation.web.routes import _build_inspector_schema, _graph_dag_payload, _graph_node_payload
@@ -25,6 +25,23 @@ def test_config_editor_rejects_invalid_dag(tmp_path: Path) -> None:
     with pytest.raises(ConfigEditError):
         editor.save("dag", "default", invalid)
     assert (root / "config" / "dags" / "default.yaml").read_text() == original
+
+
+def test_config_editor_rejects_invalid_dag_entity_permissions(tmp_path: Path) -> None:
+    root = _copy_config_tree(tmp_path)
+    editor = RuntimeConfigEditor(root / "config", root / "skills")
+    path = root / "config" / "dags" / "default.yaml"
+    original = path.read_text()
+    invalid = original.replace(
+        "    model: hf-share/deepseek-v4-flash\n",
+        "    model: hf-share/deepseek-v4-flash\n"
+        "    entity_permissions:\n"
+        "      stock:\n"
+        "        holding: read-only\n",
+    )
+    with pytest.raises(ConfigEditError):
+        editor.save("dag", "default", invalid)
+    assert path.read_text() == original
 
 
 def test_config_editor_rejects_skill_path_traversal(tmp_path: Path) -> None:
@@ -122,6 +139,7 @@ def _copy_config_tree(tmp_path: Path) -> Path:
     root.mkdir()
     source_root = Path.cwd()
     _copy_dir(source_root / "config", root / "config")
+    _copy_dir(source_root / "schemas", root / "schemas")
     _copy_dir(source_root / "handlers", root / "handlers")
     _copy_dir(source_root / "prompts", root / "prompts")
     _copy_dir(source_root / "skills", root / "skills")
@@ -251,7 +269,8 @@ def test_build_inspector_schema_merges_dynamic_and_parameter_fields() -> None:
     schema = _build_inspector_schema(
         node,
         {"summarize": SkillConfig(name="summarize", description="", handler="summarize")},
-        PortfolioConfig.model_validate({"targets": [], "sources": []}),
+        {"stock": EntityTypeConfig.model_validate({"display_name": "Stock", "business_id_field": "code", "display_template": "{code}"})},
+        EntitiesConfig.model_validate({"entities": []}),
         ["gpt-4", "gpt-5"],
     )
     assert schema["properties"]["model"]["enum"] == ["gpt-4", "gpt-5"]

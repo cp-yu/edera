@@ -4,14 +4,14 @@ nodes:
   type: rss-fetcher
   alias: rss-fetcher
   config:
-    source_names:
-    - sample-rss
+    entities:
+    - rss-source:sample-rss
 - id: 0194f7a6-7b17-7c01-b601-000000000002
   type: web-scraper
   alias: web-scraper
   config:
-    source_names:
-    - sample-web
+    entities:
+    - web-source:sample-web
 - id: 0194f7a6-7b17-7c01-b601-000000000003
   type: reader
   alias: reader

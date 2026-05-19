@@ -82,9 +82,9 @@ export function getDraftStorageKey(dagName: string): string {
   return `workbench:draft:${dagName}`
 }
 
-export function getNodeKind(node: Pick<NodeType, 'type' | 'role' | 'source_names'>): NodeKind {
+export function getNodeKind(node: Pick<NodeType, 'type' | 'role'>): NodeKind {
   if (node.type === 'llm') return 'llm'
-  if (node.role === 'source' || (node.source_names?.length ?? 0) > 0) return 'fetcher'
+  if (node.role === 'source') return 'fetcher'
   if (node.type === 'function') return 'aggregator'
   return 'unknown'
 }

@@ -387,57 +387,58 @@ async def test_web_config_api_saves_valid_analysis_parameters(tmp_path: Path) ->
 
 
 @pytest.mark.asyncio
-async def test_web_config_api_saves_valid_portfolio(tmp_path: Path) -> None:
+async def test_web_config_api_saves_valid_entities(tmp_path: Path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    payload = _portfolio_payload()
-    _targets(payload)[0]["holding"]["quantity"] = 200
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
         try:
-            response = await client.put("/api/config/portfolio", json=payload)
+            payload = yaml.safe_load((await client.get("/api/config/entities")).json()["content"])
+            payload["entities"][0]["attributes"]["holding"]["quantity"] = 200
+            response = await client.post("/api/config/entities", json={"entities": payload["entities"]})
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 200
-    saved = (root / "config" / "portfolio.yaml").read_text()
-    assert "quantity: 200.0" in saved
-    assert response.json()["portfolio"]["targets"][0]["holding"]["quantity"] == 200.0
+    saved = (root / "config" / "entities.yaml").read_text()
+    assert "quantity: 200" in saved
+    assert response.json()["entities"][0]["attributes"]["holding"]["quantity"] == 200
 
 
 @pytest.mark.asyncio
-async def test_web_config_api_rejects_invalid_portfolio(tmp_path: Path) -> None:
+async def test_web_config_api_rejects_invalid_entities(tmp_path: Path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    original = (root / "config" / "portfolio.yaml").read_text()
-    payload = _portfolio_payload()
-    _targets(payload)[0]["holding"]["quantity"] = -1
+    original = (root / "config" / "entities.yaml").read_text()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
         try:
-            response = await client.put("/api/config/portfolio", json=payload)
+            payload = yaml.safe_load((await client.get("/api/config/entities")).json()["content"])
+            del payload["entities"][0]["attributes"]["name"]
+            response = await client.post("/api/config/entities", json={"entities": payload["entities"]})
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 400
     assert response.json()["error"]["type"] == "config_error"
-    assert (root / "config" / "portfolio.yaml").read_text() == original
+    assert (root / "config" / "entities.yaml").read_text() == original
 
 
 @pytest.mark.asyncio
-async def test_web_config_api_rejects_missing_source_reference(tmp_path: Path) -> None:
+async def test_web_config_api_rejects_missing_relation_entity(tmp_path: Path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
-    original = (root / "config" / "portfolio.yaml").read_text()
-    payload = _portfolio_payload()
-    _targets(payload)[0]["sources"] = ["missing-source"]
+    original = (root / "config" / "entity-relations.yaml").read_text()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
         try:
-            response = await client.put("/api/config/portfolio", json=payload)
+            response = await client.post(
+                "/api/config/entity-relations",
+                json={"relations": [{"entities": ["stock:00700.HK", "web-source:missing-source"], "type": "uses-source"}]},
+            )
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 400
     assert "missing-source" in response.json()["error"]["message"]
-    assert (root / "config" / "portfolio.yaml").read_text() == original
+    assert (root / "config" / "entity-relations.yaml").read_text() == original
 
 
 @pytest.mark.asyncio
@@ -493,8 +494,8 @@ async def test_minimax_multi_source_llm_cycle_surfaces_web_features(
     }
     monkeypatch.chdir(root)
 
-    async def fixture_web_source(source: SourceConfig, stock_codes: list[str]) -> list[RawItem]:
-        return collection.parse_web(fixture_by_source[source.name], source, stock_codes)
+    async def fixture_web_source(source: SourceConfig, tags: list[str]) -> list[RawItem]:
+        return collection.parse_web(fixture_by_source[source.name], source, tags)
 
     monkeypatch.setattr(collection, "fetch_web_source", fixture_web_source)
     controller = PipelineController(config_dir)
@@ -555,7 +556,7 @@ def _raw_item(url: str) -> RawItem:
         content="MiniMax OpenAI compatible chat completions use Bearer Auth and MiniMax-M2.7",
         source_name="minimax-docs",
         source_type="web",
-        stock_codes=["00700.HK"],
+        tags=["stock:00700.HK"],
         published_at=datetime.now(timezone.utc),
     )
 
@@ -660,6 +661,51 @@ sources:
     url: https://platform.minimax.io/docs/api-reference/text-chat-openai
 """.lstrip()
     )
+    _write_sample_entities(path)
+
+
+def _write_sample_entities(path: Path) -> None:
+    schemas = path.parent / "schemas" / "entity-types"
+    schemas.mkdir(parents=True, exist_ok=True)
+    schemas.joinpath("stock.yaml").write_text(
+        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nschema: {}\nfield_permissions: {}\n"
+    )
+    schemas.joinpath("web-source.yaml").write_text(
+        "display_name: Web Source\nbusiness_id_field: name\ndisplay_template: '{name}'\nschema: {}\nfield_permissions: {}\n"
+    )
+    path.joinpath("entities.yaml").write_text(
+        """
+entities:
+- id: stock-00700-hk
+  type: stock
+  attributes:
+    code: 00700.HK
+    name: Tencent
+- id: source-sample-web
+  type: web-source
+  attributes:
+    name: sample-web
+    url: https://example.com/announcements.html
+- id: source-minimax-docs
+  type: web-source
+  attributes:
+    name: minimax-docs
+    url: https://platform.minimax.io/docs/api-reference/text-chat-openai
+""".lstrip()
+    )
+    path.joinpath("entity-relations.yaml").write_text(
+        """
+relations:
+- entities:
+  - stock:00700.HK
+  - web-source:sample-web
+  type: uses-source
+- entities:
+  - stock:00700.HK
+  - web-source:minimax-docs
+  type: uses-source
+""".lstrip()
+    )
 
 
 def _portfolio_payload() -> dict[str, object]:
@@ -690,6 +736,7 @@ def _copy_project_config(tmp_path: Path) -> Path:
     root = tmp_path / "project"
     root.mkdir()
     _copy_dir(Path.cwd() / "config", root / "config")
+    _copy_dir(Path.cwd() / "schemas", root / "schemas")
     _copy_dir(Path.cwd() / "handlers", root / "handlers")
     _copy_dir(Path.cwd() / "prompts", root / "prompts")
     _copy_dir(Path.cwd() / "skills", root / "skills")
@@ -755,43 +802,43 @@ retention_count = 20
 retention_hours = 24
 """.lstrip()
     )
-    config_dir.joinpath("portfolio.yaml").write_text(
-        """
-targets:
-  - code: "00700.HK"
-    name: "Tencent"
-    holding:
-      quantity: 100
-      cost_price: 300
-    sources:
-      - minimax-docs
-      - minimax-docs-index
-      - tonghuashun-minimax
-sources:
-  - name: minimax-docs
-    type: web
-    url: https://platform.minimax.io/docs/api-reference/text-chat-openai
-    regex: '<main[^>]*>.*?(?P<title>Text Chat \\(Compatible OpenAI API\\)).*?(?P<content>Bearer Auth.*?MiniMax-M2\\.7.*?)</main>'
-  - name: minimax-docs-index
-    type: web
-    url: https://platform.minimax.io/docs/llms.txt
-    regex: '(?P<title># MiniMax API Docs).*?(?P<content>Text Chat \\(Compatible OpenAI API\\).*?MiniMax-M2\\.7.*?)$'
-  - name: tonghuashun-minimax
-    type: web
-    url: https://basic.10jqka.com.cn/176/HK0100/field.html
-    regex: '(?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"'
-""".lstrip()
+    config_dir.joinpath("entities.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "entities": [
+                    {"id": "stock-00700-hk", "type": "stock", "attributes": {"code": "00700.HK", "name": "Tencent", "holding": {"quantity": 100, "cost_price": 300}}},
+                    {"id": "source-minimax-docs", "type": "web-source", "attributes": {"name": "minimax-docs", "url": "https://platform.minimax.io/docs/api-reference/text-chat-openai", "regex": r"<main[^>]*>.*?(?P<title>Text Chat \(Compatible OpenAI API\)).*?(?P<content>Bearer Auth.*?MiniMax-M2\.7.*?)</main>"}},
+                    {"id": "source-minimax-docs-index", "type": "web-source", "attributes": {"name": "minimax-docs-index", "url": "https://platform.minimax.io/docs/llms.txt", "regex": r"(?P<title># MiniMax API Docs).*?(?P<content>Text Chat \(Compatible OpenAI API\).*?MiniMax-M2\.7.*?)$"}},
+                    {"id": "source-tonghuashun-minimax", "type": "web-source", "attributes": {"name": "tonghuashun-minimax", "url": "https://basic.10jqka.com.cn/176/HK0100/field.html", "regex": r'(?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"'}},
+                ]
+            },
+            allow_unicode=True,
+            sort_keys=False,
+        )
+    )
+    config_dir.joinpath("entity-relations.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "relations": [
+                    {"entities": ["stock:00700.HK", "web-source:minimax-docs"], "type": "uses-source"},
+                    {"entities": ["stock:00700.HK", "web-source:minimax-docs-index"], "type": "uses-source"},
+                    {"entities": ["stock:00700.HK", "web-source:tonghuashun-minimax"], "type": "uses-source"},
+                ]
+            },
+            allow_unicode=True,
+            sort_keys=False,
+        )
     )
     dag_path = config_dir / "dags" / "default.yaml"
     dag = yaml.safe_load(dag_path.read_text())
     for node in dag["nodes"]:
         if node["type"] == "rss-fetcher":
-            node["config"]["source_names"] = []
+            node["config"]["entities"] = []
         if node["type"] == "web-scraper":
-            node["config"]["source_names"] = [
-                "minimax-docs",
-                "minimax-docs-index",
-                "tonghuashun-minimax",
+            node["config"]["entities"] = [
+                "web-source:minimax-docs",
+                "web-source:minimax-docs-index",
+                "web-source:tonghuashun-minimax",
             ]
     dag_path.write_text(yaml.safe_dump(dag, allow_unicode=True, sort_keys=False))
 
@@ -903,6 +950,26 @@ async def test_web_graph_dag_save_rejects_cycle(tmp_path: Path) -> None:
                     ],
                 },
             )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 400
+    assert response.json()["error"]["type"] == "config_error"
+    assert dag_path.read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_web_graph_dag_save_rejects_invalid_entity_permissions(tmp_path: Path) -> None:
+    root = _copy_project_config(tmp_path)
+    dag_path = root / "config" / "dags" / "default.yaml"
+    original = dag_path.read_text()
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            state = (await client.get("/api/graph/dag/default")).json()
+            reader = next(node for node in state["nodes"] if node["type_name"] == "reader")
+            reader["config"]["entity_permissions"] = {"stock": {"holding": "read-only"}}
+            response = await client.put("/api/graph/dag/default", json=state)
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 400

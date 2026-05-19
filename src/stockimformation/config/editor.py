@@ -11,12 +11,25 @@ import yaml
 from yaml import YAMLError
 from pydantic import ValidationError
 
-from stockimformation.config.loader import load_dag_configs, load_node_configs
-from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig, SystemConfig
+from stockimformation.config.loader import (
+    load_dag_configs,
+    load_entities_config,
+    load_entity_type_configs,
+    load_node_configs,
+)
+from stockimformation.config.schema import (
+    DagConfig,
+    EntitiesConfig,
+    EntityRelationsConfig,
+    EntityTypeConfig,
+    NodeConfig,
+    PortfolioConfig,
+    SystemConfig,
+)
 from stockimformation.dag.loader import load_graph
 from stockimformation.errors import ConfigEditError, DagError
 
-ConfigKind = Literal["system", "portfolio", "node", "dag", "skill"]
+ConfigKind = Literal["system", "portfolio", "entities", "entity-relations", "node", "dag", "skill"]
 
 
 @dataclass(frozen=True)
@@ -35,7 +48,8 @@ class RuntimeConfigEditor:
     def list_files(self) -> list[EditableFile]:
         files = [
             self._file("system", "system", self.config_dir / "system.toml"),
-            self._file("portfolio", "portfolio", self.config_dir / "portfolio.yaml"),
+            self._file("entities", "entities", self.config_dir / "entities.yaml"),
+            self._file("entity-relations", "entity-relations", self.config_dir / "entity-relations.yaml"),
         ]
         files.extend(
             self._file("node", path.stem, path)
@@ -65,6 +79,10 @@ class RuntimeConfigEditor:
             return self.config_dir / "system.toml"
         if kind == "portfolio":
             return self.config_dir / "portfolio.yaml"
+        if kind == "entities":
+            return self.config_dir / "entities.yaml"
+        if kind == "entity-relations":
+            return self.config_dir / "entity-relations.yaml"
         if kind == "node":
             return self.config_dir / "nodes" / f"{name}.yaml"
         if kind == "dag":
@@ -88,6 +106,23 @@ class RuntimeConfigEditor:
                 SystemConfig.model_validate(tomllib.loads(content))
             elif kind == "portfolio":
                 PortfolioConfig.model_validate(_yaml_mapping(content))
+            elif kind == "entities":
+                entity_types = load_entity_type_configs(self.config_dir.parent / "schemas" / "entity-types")
+                entities = EntitiesConfig.model_validate(_yaml_mapping(content))
+                from stockimformation.config.loader import _validate_entities
+
+                _validate_entities(entities, entity_types)
+            elif kind == "entity-relations":
+                entity_types = load_entity_type_configs(self.config_dir.parent / "schemas" / "entity-types")
+                entities = load_entities_config(self.config_dir / "entities.yaml", entity_types)
+                relations = EntityRelationsConfig.model_validate(_yaml_mapping(content))
+                from stockimformation.config.loader import _entity_refs
+
+                refs = _entity_refs(entities, entity_types)
+                for relation in relations.relations:
+                    for ref in relation.entities:
+                        if ref not in refs:
+                            raise ConfigEditError(f"Entity not found: {ref}")
             elif kind == "node":
                 node = NodeConfig.model_validate(_yaml_mapping(content))
                 self._validate_existing_dags(nodes={**load_node_configs(self.config_dir / "nodes"), node.name: node})
@@ -95,6 +130,8 @@ class RuntimeConfigEditor:
                 dag = DagConfig.model_validate(_yaml_mapping(content))
                 nodes = load_node_configs(self.config_dir / "nodes")
                 load_graph(dag, nodes)
+                entity_types = load_entity_type_configs(self.config_dir.parent / "schemas" / "entity-types")
+                _validate_dag_entity_permissions(dag, entity_types)
             elif kind == "skill":
                 if not content.strip():
                     raise ConfigEditError("skill document must not be empty")
@@ -128,3 +165,19 @@ def _yaml_mapping(content: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ConfigEditError("YAML content must be a mapping")
     return data
+
+
+def _validate_dag_entity_permissions(
+    dag: DagConfig,
+    entity_types: dict[str, EntityTypeConfig],
+) -> None:
+    from stockimformation.config.entities import validate_permission_overrides
+    from stockimformation.errors import ConfigError
+
+    for node in dag.nodes:
+        permissions = node.config.get("entity_permissions")
+        if isinstance(permissions, dict):
+            try:
+                validate_permission_overrides(entity_types, permissions)
+            except ConfigError as exc:
+                raise ConfigEditError(str(exc)) from exc

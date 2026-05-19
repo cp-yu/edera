@@ -330,6 +330,13 @@ async def raw_items_for_analyses(
     return list(result.all())
 
 
+async def raw_items_for_tag(session: AsyncSession, tag: str) -> list[RawItem]:
+    if not tag:
+        return []
+    result = await session.exec(select(RawItem).order_by(col(RawItem.published_at).desc()))
+    return [item for item in result.all() if tag in item.tags]
+
+
 async def add_event_record(session: AsyncSession, event: EventRecord) -> EventRecord:
     session.add(event)
     await session.flush()

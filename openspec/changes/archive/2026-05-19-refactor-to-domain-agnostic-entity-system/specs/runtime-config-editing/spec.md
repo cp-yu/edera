@@ -63,12 +63,6 @@
 
 ## REMOVED Requirements
 
-### Requirement: View portfolio config
-
-**Reason**: Portfolio 概念被废弃，替换为通用的 entities 系统
-
-**Migration**: 使用 `GET /api/config/entities` 读取实体配置
-
 ### Requirement: Structured portfolio management entry
 
 **Reason**: Portfolio 概念被废弃，替换为通用的 entities 管理

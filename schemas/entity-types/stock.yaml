@@ -1,0 +1,18 @@
+display_name: 股票
+business_id_field: code
+display_template: "{code} {name}"
+schema:
+  type: object
+  required:
+    - code
+    - name
+  properties:
+    code:
+      type: string
+    name:
+      type: string
+    holding:
+      type: object
+field_permissions:
+  code: read-only
+validate: true

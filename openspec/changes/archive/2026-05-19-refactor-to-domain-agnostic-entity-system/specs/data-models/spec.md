@@ -1,8 +1,18 @@
 ## MODIFIED Requirements
 
-### Requirement: RawItem tags field
+### Requirement: RawItem 数据模型
 
-`RawItem` 模型 SHALL 使用通用的 `tags` 字段替代 `stock_codes` 字段，支持任意实体引用。
+系统 SHALL 定义 RawItem 模型存储采集的原始条目，MUST 包含：url（唯一标识）、title、content、source_name、source_type、tags（关联实体引用列表）、published_at、fetched_at。
+
+#### Scenario: 创建 RawItem 记录
+
+- **WHEN** 采集节点抓取到一条新信息
+- **THEN** 系统创建 RawItem 记录，所有必填字段均有值，url 作为去重唯一标识
+
+#### Scenario: URL 去重
+
+- **WHEN** 采集节点尝试创建一条已存在 url 的 RawItem
+- **THEN** 系统跳过该条目，不创建重复记录
 
 #### Scenario: Store entity tags
 

@@ -213,9 +213,13 @@ async def test_scheduler_per_dag_registration(tmp_path: Path) -> None:
 
 
 def _write_full_config(path: Path) -> None:
-    """Write minimal portfolio and nodes config for PipelineController.start()."""
-    path.joinpath("portfolio.yaml").write_text(
-        "targets: []\nsources: []\n"
+    """Write minimal entity and nodes config for PipelineController.start()."""
+    schemas = path.parent / "schemas" / "entity-types"
+    schemas.mkdir(parents=True, exist_ok=True)
+    schemas.joinpath("stock.yaml").write_text(
+        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nschema: {}\nfield_permissions: {}\n"
     )
+    path.joinpath("entities.yaml").write_text("entities: []\n")
+    path.joinpath("entity-relations.yaml").write_text("relations: []\n")
     nodes_dir = path / "nodes"
     nodes_dir.mkdir(exist_ok=True)

@@ -7,19 +7,32 @@ from typing import Any, cast
 from uuid import uuid4
 
 import yaml
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from stockimformation.config.editor import ConfigKind, EditableFile, RuntimeConfigEditor
+from stockimformation.config.editor import ConfigKind, RuntimeConfigEditor
+from stockimformation.config.entities import validate_permission_overrides
 from stockimformation.config.loader import (
+    load_app_config,
     load_dag_configs,
+    load_entities_config,
+    load_entity_relations_config,
+    load_entity_type_configs,
     load_node_configs,
-    load_portfolio_config,
     load_skill_configs,
     load_system_config,
 )
-from stockimformation.config.schema import DagConfig, NodeConfig, PortfolioConfig, SkillConfig
+from stockimformation.config.schema import (
+    DagConfig,
+    EntitiesConfig,
+    EntityConfig,
+    EntityRelationsConfig,
+    EntityTypeConfig,
+    NodeConfig,
+    SkillConfig,
+    entity_ref,
+)
 from stockimformation.errors import ConfigEditError, ConfigError
 from stockimformation.models.repository import (
     analyses_for_advice,
@@ -43,7 +56,7 @@ from stockimformation.web.deps import config_dir, controller, error_response
 
 router = APIRouter()
 
-INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "timeout_seconds"}
+INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "entities", "entity_permissions", "timeout_seconds"}
 
 
 
@@ -169,7 +182,7 @@ async def api_source_repair_task(
     request: Request,
     source_name: str,
 ) -> JSONResponse | dict[str, object]:
-    portfolio = load_portfolio_config(config_dir(request) / "portfolio.yaml")
+    portfolio = load_app_config(config_dir(request)).portfolio
     source = portfolio.source_map().get(source_name)
     if source is None:
         return error_response(404, "not_found", "source not found")
@@ -266,19 +279,105 @@ async def api_portfolio_save(
     request: Request,
     body: dict[str, object],
 ) -> JSONResponse | dict[str, object]:
-    try:
-        file = _save_portfolio(_editor(config_dir(request)), body)
-        return {"file": file.__dict__, "portfolio": _portfolio_payload(body)}
-    except ConfigEditError as exc:
-        return error_response(400, "config_error", str(exc))
+    return error_response(404, "not_found", "portfolio config is deprecated; use entities")
 
 
 @router.get("/api/config/portfolio", response_model=None)
 async def api_config_portfolio_read(request: Request) -> JSONResponse | dict[str, object]:
-    path = config_dir(request) / "portfolio.yaml"
+    return error_response(404, "not_found", "portfolio config is deprecated; use entities")
+
+
+@router.get("/api/config/entities", response_model=None)
+async def api_config_entities_read(request: Request) -> JSONResponse | dict[str, object]:
+    path = config_dir(request) / "entities.yaml"
     if not path.exists():
-        return error_response(404, "not_found", "portfolio.yaml not found")
+        return error_response(404, "not_found", "entities.yaml not found")
     return {"content": path.read_text(encoding="utf-8")}
+
+
+@router.post("/api/config/entities", response_model=None)
+async def api_config_entities_save(
+    request: Request,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    try:
+        content = yaml.safe_dump(EntitiesConfig.model_validate(body).model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        saved = _editor(config_dir(request)).save("entities", "entities", content)
+        root = config_dir(request)
+        entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+        entities = load_entities_config(root / "entities.yaml", entity_types)
+        response = _entities_response(entity_types, entities)
+        response["file"] = saved.__dict__
+        return response
+    except (ConfigEditError, ConfigError, ValidationError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.get("/api/config/entity-relations", response_model=None)
+async def api_config_entity_relations_read(request: Request) -> JSONResponse | dict[str, object]:
+    path = config_dir(request) / "entity-relations.yaml"
+    if not path.exists():
+        return error_response(404, "not_found", "entity-relations.yaml not found")
+    return {"content": path.read_text(encoding="utf-8")}
+
+
+@router.post("/api/config/entity-relations", response_model=None)
+async def api_config_entity_relations_save(
+    request: Request,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    try:
+        content = yaml.safe_dump(EntityRelationsConfig.model_validate(body).model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        saved = _editor(config_dir(request)).save("entity-relations", "entity-relations", content)
+        root = config_dir(request)
+        entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+        entities = load_entities_config(root / "entities.yaml", entity_types)
+        relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
+        return {
+            "file": saved.__dict__,
+            "relations": [relation.model_dump(mode="json") for relation in relations.relations],
+        }
+    except (ConfigEditError, ConfigError, ValidationError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.get("/api/entity-relations", response_model=None)
+async def api_entity_relations_query(
+    request: Request,
+    entity: str | None = None,
+    relation_type: str | None = Query(default=None, alias="type"),
+) -> JSONResponse | dict[str, object]:
+    try:
+        root = config_dir(request)
+        entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+        entities = load_entities_config(root / "entities.yaml", entity_types)
+        relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
+        target_ref = entity_ref(_resolve_entity(entities, entity_types, entity), entity_types) if entity else None
+        matched = []
+        related_refs: set[str] = set()
+        for relation in relations.relations:
+            if relation_type is not None and relation.type != relation_type:
+                continue
+            relation_refs = [_entity_ref_from_any(entities, entity_types, ref) for ref in relation.entities]
+            if target_ref is not None and target_ref not in relation_refs:
+                continue
+            payload = relation.model_dump(mode="json")
+            payload["entities"] = relation_refs
+            matched.append(payload)
+            if target_ref is None:
+                continue
+            related_refs.update(ref for ref in relation_refs if ref != target_ref)
+        related = [
+            item
+            for item in _entity_list_payload(entity_types, entities)
+            if item["ref"] in related_refs
+        ]
+        return {
+            "relations": matched,
+            "entities": related,
+        }
+    except ConfigError as exc:
+        return error_response(400, "config_error", str(exc))
 
 
 @router.get("/api/config/system", response_model=None)
@@ -322,10 +421,11 @@ async def api_graph_node_prototypes(request: Request) -> dict[str, object]:
     root = config_dir(request)
     nodes = load_node_configs(root / "nodes")
     skills = load_skill_configs(root / "skills")
-    portfolio = load_portfolio_config(root / "portfolio.yaml")
+    entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+    entities = load_entities_config(root / "entities.yaml", entity_types)
     model_names = _available_model_names(nodes)
     return {
-        "prototypes": [_node_payload(node, skills, portfolio, model_names) for node in nodes.values()]
+        "prototypes": [_node_payload(node, skills, entity_types, entities, model_names) for node in nodes.values()]
     }
 
 
@@ -334,9 +434,10 @@ async def api_graph_node_types(request: Request) -> dict[str, object]:
     root = config_dir(request)
     nodes = load_node_configs(root / "nodes")
     skills = load_skill_configs(root / "skills")
-    portfolio = load_portfolio_config(root / "portfolio.yaml")
+    entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+    entities = load_entities_config(root / "entities.yaml", entity_types)
     model_names = _available_model_names(nodes)
-    return {"types": [_node_payload(node, skills, portfolio, model_names) for node in nodes.values()]}
+    return {"types": [_node_payload(node, skills, entity_types, entities, model_names) for node in nodes.values()]}
 
 
 @router.get("/api/graph/dag/{name}", response_model=None)
@@ -348,13 +449,15 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
         return error_response(404, "not_found", f"dag {name} not found")
     nodes = load_node_configs(root / "nodes")
     skills = load_skill_configs(root / "skills")
-    portfolio = load_portfolio_config(root / "portfolio.yaml")
+    entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+    entities = load_entities_config(root / "entities.yaml", entity_types)
+    relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
     model_names = _available_model_names(nodes)
     node_instances = []
     for instance in dag.nodes:
         node_config = nodes.get(instance.type)
         if node_config:
-            n = _node_payload(node_config, skills, portfolio, model_names)
+            n = _node_payload(node_config, skills, entity_types, entities, model_names)
             n.update(
                 {
                     "id": instance.id,
@@ -384,6 +487,9 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
         "nodes": node_instances,
         "edges": edges,
         "ui": dag.ui,
+        "entity_types": _entity_types_payload(entity_types),
+        "entities": _entity_list_payload(entity_types, entities),
+        "entity_relations": [relation.model_dump(mode="json") for relation in relations.relations],
     }
 
 
@@ -396,6 +502,7 @@ async def api_graph_dag_save(
     editor = _editor(config_dir(request))
     try:
         payload = _graph_dag_payload(name, body)
+        _validate_graph_entity_permissions(config_dir(request), payload)
         content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
         saved = editor.save("dag", name, content)
         dag_config = DagConfig.model_validate(yaml.safe_load(saved.content) or {})
@@ -408,7 +515,7 @@ async def api_graph_dag_save(
                 "ui": dag_config.ui,
             },
         }
-    except (ConfigEditError, KeyError) as exc:
+    except (ConfigEditError, ConfigError, KeyError) as exc:
         return error_response(400, "config_error", str(exc))
 
 
@@ -451,9 +558,10 @@ async def api_graph_dag_create_node(
     editor.save("dag", name, dag_content)
     node_config = NodeConfig.model_validate(node_payload)
     skills = load_skill_configs(config_dir(request) / "skills")
-    portfolio = load_portfolio_config(config_dir(request) / "portfolio.yaml")
+    entity_types = load_entity_type_configs(config_dir(request).parent / "schemas" / "entity-types")
+    entities = load_entities_config(config_dir(request) / "entities.yaml", entity_types)
     model_names = _available_model_names(load_node_configs(nodes_dir))
-    return {"node": _node_payload(node_config, skills, portfolio, model_names)}
+    return {"node": _node_payload(node_config, skills, entity_types, entities, model_names)}
 
 
 @router.get("/api/graph/node/{name}", response_model=None)
@@ -462,9 +570,10 @@ async def api_graph_node_read(request: Request, name: str) -> JSONResponse | dic
         root = config_dir(request)
         nodes = load_node_configs(root / "nodes")
         skills = load_skill_configs(root / "skills")
-        portfolio = load_portfolio_config(root / "portfolio.yaml")
+        entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+        entities = load_entities_config(root / "entities.yaml", entity_types)
         model_names = _available_model_names(nodes)
-        return {"node": _node_payload(nodes[name], skills, portfolio, model_names)}
+        return {"node": _node_payload(nodes[name], skills, entity_types, entities, model_names)}
     except KeyError:
         return error_response(404, "not_found", f"node {name} not found")
 
@@ -484,9 +593,10 @@ async def api_graph_node_save(
         node_config = NodeConfig.model_validate(yaml.safe_load(saved.content) or {})
         nodes = load_node_configs(config_dir(request) / "nodes")
         skills = load_skill_configs(config_dir(request) / "skills")
-        portfolio = load_portfolio_config(config_dir(request) / "portfolio.yaml")
+        entity_types = load_entity_type_configs(config_dir(request).parent / "schemas" / "entity-types")
+        entities = load_entities_config(config_dir(request) / "entities.yaml", entity_types)
         model_names = _available_model_names(nodes)
-        return {"file": saved.__dict__, "node": _node_payload(node_config, skills, portfolio, model_names)}
+        return {"file": saved.__dict__, "node": _node_payload(node_config, skills, entity_types, entities, model_names)}
     except (ConfigEditError, KeyError) as exc:
         return error_response(400, "config_error", str(exc))
 
@@ -639,7 +749,7 @@ async def _result_summary(
 
 
 async def _source_health(request: Request) -> dict[str, object]:
-    source_names = [source.name for source in load_portfolio_config(config_dir(request) / "portfolio.yaml").sources]
+    source_names = [source.name for source in load_app_config(config_dir(request)).portfolio.sources]
     async with controller(request)._factory()() as session:
         health = await source_health_summary(session, source_names)
         logs = await source_execution_logs(session)
@@ -651,7 +761,7 @@ def _editor(config_path: Path) -> RuntimeConfigEditor:
 
 
 def _kind(value: str) -> ConfigKind:
-    if value not in {"system", "portfolio", "node", "dag", "skill"}:
+    if value not in {"system", "portfolio", "entities", "entity-relations", "node", "dag", "skill"}:
         raise ConfigEditError(f"unsupported config kind: {value}")
     return cast(ConfigKind, value)
 
@@ -742,34 +852,6 @@ def _price_comparison_service(request: Request) -> PriceComparisonService:
     return PriceComparisonService.from_system(system, config_path)
 
 
-def _save_portfolio(editor: RuntimeConfigEditor, body: object) -> EditableFile:
-    payload = _portfolio_payload(body)
-    content = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
-    return editor.save("portfolio", "portfolio", content)
-
-
-def _portfolio_payload(body: object) -> dict[str, object]:
-    if not isinstance(body, dict):
-        raise ConfigEditError("portfolio payload must be a mapping")
-    try:
-        portfolio = PortfolioConfig.model_validate(body)
-    except ValueError as exc:
-        raise ConfigEditError(str(exc)) from exc
-    source_names = {source.name for source in portfolio.sources}
-    missing = sorted(
-        {
-            source_name
-            for target in portfolio.targets
-            for source_name in target.sources
-            if source_name not in source_names
-        }
-    )
-    if missing:
-        raise ConfigEditError(f"target references missing sources: {', '.join(missing)}")
-    return portfolio.model_dump(mode="json")
-
-
-
 def _dag_edge_payload(edge: object) -> dict[str, object]:
     if not isinstance(edge, dict):
         raise ConfigEditError("dag edge must be a mapping")
@@ -803,6 +885,22 @@ def _graph_dag_payload(name: str, body: dict[str, object]) -> dict[str, object]:
         return DagConfig.model_validate(payload).model_dump(by_alias=True, mode="json")
     except ValidationError as exc:
         raise ConfigEditError(str(exc)) from exc
+
+
+def _validate_graph_entity_permissions(config_root: Path, payload: dict[str, object]) -> None:
+    entity_types = load_entity_type_configs(config_root.parent / "schemas" / "entity-types")
+    nodes = payload.get("nodes", [])
+    if not isinstance(nodes, list):
+        return
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        config = node.get("config")
+        if not isinstance(config, dict):
+            continue
+        permissions = config.get("entity_permissions")
+        if isinstance(permissions, dict):
+            validate_permission_overrides(entity_types, permissions)
 
 
 def _graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]:
@@ -860,15 +958,17 @@ def _dag_node_payload(node: object) -> dict[str, object]:
 def _node_payload(
     node: NodeConfig,
     skills: dict[str, SkillConfig] | None = None,
-    portfolio: PortfolioConfig | None = None,
+    entity_types: dict[str, EntityTypeConfig] | None = None,
+    entities: EntitiesConfig | None = None,
     model_names: list[str] | None = None,
 ) -> dict[str, object]:
     payload = node.model_dump(mode="json")
-    if skills is not None and portfolio is not None:
+    if skills is not None and entity_types is not None and entities is not None:
         payload["inspector_schema"] = _build_inspector_schema(
             node,
             skills,
-            portfolio,
+            entity_types,
+            entities,
             model_names or [],
         )
     return payload
@@ -877,7 +977,8 @@ def _node_payload(
 def _build_inspector_schema(
     node: NodeConfig,
     skills: dict[str, SkillConfig],
-    portfolio: PortfolioConfig,
+    entity_types: dict[str, EntityTypeConfig],
+    entities: EntitiesConfig,
     model_names: list[str],
 ) -> dict[str, object]:
     properties: dict[str, object] = {}
@@ -896,14 +997,28 @@ def _build_inspector_schema(
             "default": node.skills,
         }
     if node.type == "function" and node.role == "source":
-        properties["source_names"] = {
+        properties["entities"] = {
             "type": "array",
             "items": {
                 "type": "string",
-                "enum": sorted(source.name for source in portfolio.sources),
+                "enum": sorted(entity_ref(entity, entity_types) for entity in entities.entities if entity.type in {"rss-source", "web-source"}),
             },
-            "default": node.source_names,
+            "default": [_source_ref_for_name(entities, entity_types, name) for name in node.source_names],
         }
+    properties["entity_permissions"] = {
+        "type": "object",
+        "properties": {
+            name: {
+                "type": "object",
+                "properties": {
+                    field: {"type": "string", "enum": ["none", "read-only", "write-only", "read-write"]}
+                    for field in entity_type.field_permissions
+                },
+            }
+            for name, entity_type in entity_types.items()
+        },
+        "default": {},
+    }
     properties["timeout_seconds"] = {
         "type": "number",
         "default": node.timeout_seconds,
@@ -912,6 +1027,73 @@ def _build_inspector_schema(
         if isinstance(value, dict):
             properties[f"param.{key}"] = value
     return {"type": "object", "properties": properties}
+
+
+def _entities_response(
+    entity_types: dict[str, EntityTypeConfig],
+    entities: EntitiesConfig,
+) -> dict[str, object]:
+    return {
+        "entity_types": _entity_types_payload(entity_types),
+        "entities": _entity_list_payload(entity_types, entities),
+    }
+
+
+def _entity_types_payload(entity_types: dict[str, EntityTypeConfig]) -> dict[str, object]:
+    return {
+        name: entity_type.model_dump(mode="json", by_alias=True)
+        for name, entity_type in entity_types.items()
+    }
+
+
+def _entity_list_payload(
+    entity_types: dict[str, EntityTypeConfig],
+    entities: EntitiesConfig,
+) -> list[dict[str, object]]:
+    payload = []
+    for entity in entities.entities:
+        item = entity.model_dump(mode="json")
+        item["ref"] = entity_ref(entity, entity_types)
+        item["display"] = _render_entity_display(entity, entity_types[entity.type])
+        payload.append(item)
+    return payload
+
+
+def _resolve_entity(
+    entities: EntitiesConfig,
+    entity_types: dict[str, EntityTypeConfig],
+    ref: str,
+) -> EntityConfig:
+    for entity in entities.entities:
+        if ref == entity.id or ref == entity_ref(entity, entity_types):
+            return entity
+    raise ConfigError(f"Entity not found: {ref}")
+
+
+def _entity_ref_from_any(
+    entities: EntitiesConfig,
+    entity_types: dict[str, EntityTypeConfig],
+    ref: str,
+) -> str:
+    return entity_ref(_resolve_entity(entities, entity_types, ref), entity_types)
+
+
+def _render_entity_display(entity: EntityConfig, entity_type: EntityTypeConfig) -> str:
+    try:
+        return entity_type.display_template.format(**entity.attributes)
+    except KeyError:
+        return str(entity.attributes.get(entity_type.business_id_field, entity.id))
+
+
+def _source_ref_for_name(
+    entities: EntitiesConfig,
+    entity_types: dict[str, EntityTypeConfig],
+    name: str,
+) -> str:
+    for entity in entities.entities:
+        if entity.type in {"rss-source", "web-source"} and entity.attributes.get("name") == name:
+            return entity_ref(entity, entity_types)
+    return name
 
 
 def _available_model_names(nodes: dict[str, NodeConfig]) -> list[str]:

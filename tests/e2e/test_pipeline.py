@@ -126,14 +126,14 @@ async def _empty(_node_input: NodeInput) -> list[dict[str, object]]:
     return []
 
 
-def _raw(url: str, content: str, stock_codes: list[str]) -> RawItem:
+def _raw(url: str, content: str, tags: list[str]) -> RawItem:
     return RawItem(
         url=url,
         title="title",
         content=content,
         source_name="fixture",
         source_type="rss",
-        stock_codes=stock_codes,
+        tags=tags,
         published_at=datetime.now(timezone.utc),
     )
 

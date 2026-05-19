@@ -35,6 +35,8 @@ export interface NodeType {
   model?: string
   timeout_seconds?: number
   source_names?: string[]
+  entities?: string[]
+  entity_permissions?: Record<string, Record<string, string>>
   parameters?: Record<string, unknown>
   parameters_schema?: Record<string, unknown>
   inspector_schema: InspectorSchema
@@ -45,6 +47,29 @@ export interface NodeInstance extends NodeType {
   type_name: string
   alias?: string | null
   config?: Record<string, unknown>
+}
+
+export interface EntityTypeDefinition {
+  display_name: string
+  business_id_field: string
+  display_template: string
+  schema: Record<string, unknown>
+  field_permissions: Record<string, string>
+  validate: boolean
+}
+
+export interface EntityItem {
+  id: string
+  ref: string
+  type: string
+  display: string
+  attributes: Record<string, unknown>
+}
+
+export interface EntityRelation {
+  entities: string[]
+  type: string
+  metadata: Record<string, unknown>
 }
 
 export interface DagNodeRecord {
@@ -64,6 +89,9 @@ export interface DagState {
   nodes: NodeInstance[]
   edges: DagEdge[]
   ui: DagUi
+  entity_types?: Record<string, EntityTypeDefinition>
+  entities?: EntityItem[]
+  entity_relations?: EntityRelation[]
 }
 
 export interface SkillDefinition {

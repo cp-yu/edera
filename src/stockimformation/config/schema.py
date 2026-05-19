@@ -72,6 +72,74 @@ class PortfolioConfig(BaseModel):
         return {source.name: source for source in self.sources}
 
 
+FieldPermission = Literal["none", "read-only", "write-only", "read-write"]
+
+
+class EntityTypeConfig(BaseModel):
+    display_name: str
+    business_id_field: str
+    display_template: str
+    schema_: dict[str, Any] = Field(default_factory=dict, alias="schema")
+    field_permissions: dict[str, FieldPermission] = Field(default_factory=dict)
+    validate_: bool = Field(default=True, alias="validate")
+
+
+class EntityConfig(BaseModel):
+    id: str
+    type: str
+    attributes: dict[str, Any] = Field(default_factory=dict)
+
+
+class EntitiesConfig(BaseModel):
+    entities: list[EntityConfig] = Field(default_factory=list)
+
+    def by_id(self) -> dict[str, EntityConfig]:
+        return {entity.id: entity for entity in self.entities}
+
+    def to_portfolio(
+        self,
+        entity_types: dict[str, EntityTypeConfig],
+        relations: EntityRelationsConfig | None = None,
+    ) -> PortfolioConfig:
+        source_entities = [entity for entity in self.entities if entity.type in {"rss-source", "web-source"}]
+        stock_entities = [entity for entity in self.entities if entity.type == "stock"]
+        sources = [
+            SourceConfig.model_validate(
+                {
+                    "name": entity.attributes.get("name") or _business_id(entity, entity_types),
+                    "type": "rss" if entity.type == "rss-source" else "web",
+                    "url": entity.attributes.get("url"),
+                    "selector": entity.attributes.get("selector"),
+                    "regex": entity.attributes.get("regex"),
+                }
+            )
+            for entity in source_entities
+        ]
+        source_names_by_stock = _source_names_by_stock(self, entity_types, relations)
+        targets = [
+            TargetConfig.model_validate(
+                {
+                    "code": entity.attributes.get("code"),
+                    "name": entity.attributes.get("name"),
+                    "holding": entity.attributes.get("holding"),
+                    "sources": source_names_by_stock.get(entity_ref(entity, entity_types), []),
+                }
+            )
+            for entity in stock_entities
+        ]
+        return PortfolioConfig(targets=targets, sources=sources)
+
+
+class EntityRelationConfig(BaseModel):
+    entities: list[str]
+    type: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EntityRelationsConfig(BaseModel):
+    relations: list[EntityRelationConfig] = Field(default_factory=list)
+
+
 NodeRole = Literal["source", "processor", "sink"]
 
 
@@ -219,7 +287,8 @@ class DagNodeInstance(BaseModel):
     @field_validator("config")
     @classmethod
     def _json_like_config(cls, value: dict[str, Any]) -> dict[str, Any]:
-        _validate_parameter_mapping(value)
+        checked = {key: item for key, item in value.items() if key != "entity_permissions"}
+        _validate_parameter_mapping(checked)
         return value
 
 
@@ -232,11 +301,56 @@ class DagConfig(BaseModel):
 
 class AppConfig(BaseModel):
     system: SystemConfig
-    portfolio: PortfolioConfig
+    entity_types: dict[str, EntityTypeConfig]
+    entities: EntitiesConfig
+    entity_relations: EntityRelationsConfig
     runtime: RuntimeSettings
     nodes: dict[str, NodeConfig]
     skills: dict[str, SkillConfig]
     dags: dict[str, DagConfig]
 
+    @property
+    def portfolio(self) -> PortfolioConfig:
+        return self.entities.to_portfolio(self.entity_types, self.entity_relations)
+
 
 JsonObject = dict[str, Any]
+
+
+def entity_ref(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]) -> str:
+    business_id = _business_id(entity, entity_types)
+    return f"{entity.type}:{business_id}"
+
+
+def _business_id(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]) -> str:
+    entity_type = entity_types[entity.type]
+    value = entity.attributes.get(entity_type.business_id_field)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"entity {entity.id} missing business id field: {entity_type.business_id_field}")
+    return value
+
+
+def _source_names_by_stock(
+    entities: EntitiesConfig,
+    entity_types: dict[str, EntityTypeConfig],
+    relations: EntityRelationsConfig | None,
+) -> dict[str, list[str]]:
+    if relations is None:
+        return {}
+    refs_by_id = {entity.id: entity_ref(entity, entity_types) for entity in entities.entities}
+    source_names = {
+        entity_ref(entity, entity_types): str(entity.attributes.get("name") or _business_id(entity, entity_types))
+        for entity in entities.entities
+        if entity.type in {"rss-source", "web-source"}
+    }
+    result: dict[str, list[str]] = {}
+    for relation in relations.relations:
+        refs = [refs_by_id.get(ref, ref) for ref in relation.entities]
+        stocks = [ref for ref in refs if ref.startswith("stock:")]
+        sources = [source_names[ref] for ref in refs if ref in source_names]
+        for stock in stocks:
+            result.setdefault(stock, [])
+            for source in sources:
+                if source not in result[stock]:
+                    result[stock].append(source)
+    return result

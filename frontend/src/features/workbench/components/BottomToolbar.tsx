@@ -1,6 +1,6 @@
 import { useAppStore } from '@/store/useAppStore'
 import { useRunDag, useStopDag } from '@/api/mutations'
-import { TargetFilter } from './TargetFilter'
+import { EntityFilter } from './EntityFilter'
 import type { DagStatus } from '@/api/types'
 
 interface Props {
@@ -46,7 +46,7 @@ export function BottomToolbar({ dagStatus, isRunning }: Props) {
       )}
 
       <div className="ml-auto">
-        <TargetFilter />
+        <EntityFilter />
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from stockimformation.config.loader import load_app_config
+from stockimformation.config.entities import EntityStore
 from stockimformation.config.schema import AppConfig, DagNodeInstance
 from stockimformation.dag.loader import load_graph
 from stockimformation.dag.runner import DagRunner
@@ -186,9 +187,9 @@ class PipelineController:
             await session.commit()
         try:
             result = await DagRunner(
-                _build_executor(config, graph.instances),
+                _build_executor(config, graph.instances, self.config_dir),
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
-            ).run(graph, cycle_id, {"source_names": [source.name for source in config.portfolio.sources]})
+            ).run(graph, cycle_id, {"entities": _source_entity_refs(config)})
             await _record_source_runs(factory, cycle_id, result.node_outputs)
             await _persist_outputs(factory, result.node_outputs, graph.instances)
             status = "succeeded" if result.ok else "failed"
@@ -229,7 +230,7 @@ class PipelineController:
 
 
 def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str]:
-    return _build_executor(load_app_config(config_dir)), "default"
+    return _build_executor(load_app_config(config_dir), config_dir=config_dir), "default"
 
 
 async def run_default_cycle(config_dir: Path = Path("config")) -> object:
@@ -283,6 +284,7 @@ async def _record_source_runs(
 def _build_executor(
     app_config: AppConfig,
     instances: Mapping[str, DagNodeInstance] | None = None,
+    config_dir: Path | None = None,
 ) -> NodeExecutor:
     handlers = {
         "fetch-rss": make_fetch_handler(app_config.portfolio, "rss", app_config.system),
@@ -293,7 +295,31 @@ def _build_executor(
         "generate-briefing": make_briefing_handler(app_config.portfolio),
         "notify-ntfy": make_notify_handler(app_config.runtime),
     }
-    return NodeExecutor(app_config.nodes, app_config.system, app_config.runtime, handlers, dict(instances or {}))
+    entity_store = EntityStore(
+        app_config.entities,
+        app_config.entity_types,
+        app_config.entity_relations,
+        config_dir / "entities.yaml" if config_dir is not None else None,
+    )
+    return NodeExecutor(
+        app_config.nodes,
+        app_config.system,
+        app_config.runtime,
+        handlers,
+        dict(instances or {}),
+        entity_store,
+    )
+
+
+def _source_entity_refs(app_config: AppConfig) -> list[str]:
+    refs: list[str] = []
+    for entity in app_config.entities.entities:
+        if entity.type not in {"rss-source", "web-source"}:
+            continue
+        name = entity.attributes.get("name")
+        if isinstance(name, str):
+            refs.append(f"{entity.type}:{name}")
+    return refs
 
 
 def _instance_id(instances: Mapping[str, DagNodeInstance], node_type: str) -> str:

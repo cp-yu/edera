@@ -1,0 +1,16 @@
+display_name: 城市
+business_id_field: code
+display_template: "{name}"
+schema:
+  type: object
+  required:
+    - code
+    - name
+  properties:
+    code:
+      type: string
+    name:
+      type: string
+field_permissions:
+  code: read-only
+validate: true

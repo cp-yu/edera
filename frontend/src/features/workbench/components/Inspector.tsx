@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDag } from '@/api/queries'
 import { useSaveDag } from '@/api/mutations'
-import type { InspectorSchema, NodeInstance } from '@/api/types'
+import type { EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
 import { SchemaForm } from './SchemaForm'
 
-const TOP_LEVEL_FIELDS = new Set(['model', 'skills', 'source_names', 'timeout_seconds'])
+const TOP_LEVEL_FIELDS = new Set(['model', 'skills', 'entities', 'entity_permissions', 'timeout_seconds'])
+const FIELD_PERMISSIONS = ['none', 'read-only', 'write-only', 'read-write'] as const
+type FieldPermission = typeof FIELD_PERMISSIONS[number]
+type PendingPermissionOverride = { type: string; field: string; permission: string }
+
+const ALLOWED_PERMISSION_OVERRIDES: Record<FieldPermission, FieldPermission[]> = {
+  none: ['none', 'read-only', 'write-only', 'read-write'],
+  'read-only': ['read-only', 'read-write'],
+  'write-only': ['write-only', 'read-write'],
+  'read-write': ['read-write'],
+}
 
 export function Inspector() {
   const { selectedDagName, selectedEdgeId, selectedNodeId } = useAppStore()
@@ -27,6 +37,7 @@ export function Inspector() {
     if (!node) return {}
     return mergeSchemaDefaults(typeDefaults, node.inspector_schema)
   }, [node, typeDefaults])
+  const formSchema = useMemo(() => omitSchemaFields(node?.inspector_schema, ['entities', 'entity_permissions']), [node])
 
   if (edge && dag) {
     const saveEdge = (patch: { fan_in?: boolean; fan_out?: boolean }) => {
@@ -99,7 +110,7 @@ export function Inspector() {
       <Readonly label="输出" value={node.output_type} />
       <SchemaForm
         key={node.id}
-        schema={node.inspector_schema}
+        schema={formSchema}
         values={formValues}
         defaults={displayDefaults}
         onChange={(name, value) => {
@@ -111,6 +122,18 @@ export function Inspector() {
           })
         }}
       />
+      <EntitySelector
+        entities={dag.entities ?? []}
+        relations={dag.entity_relations ?? []}
+        value={formValues.entities}
+        node={node}
+        onChange={(value) => setFormValues((current) => ({ ...current, entities: value }))}
+      />
+      <PermissionConfigurator
+        entityTypes={dag.entity_types ?? {}}
+        value={formValues.entity_permissions}
+        onChange={(value) => setFormValues((current) => ({ ...current, entity_permissions: value }))}
+      />
       <button
         onClick={save}
         disabled={saveDag.isPending}
@@ -119,6 +142,211 @@ export function Inspector() {
         {saveDag.isPending ? '保存中...' : '保存实例'}
       </button>
     </aside>
+  )
+}
+
+function EntitySelector({
+  entities,
+  relations,
+  value,
+  node,
+  onChange,
+}: {
+  entities: EntityItem[]
+  relations: EntityRelation[]
+  value: unknown
+  node: NodeInstance
+  onChange: (value: string[]) => void
+}) {
+  const [query, setQuery] = useState('')
+  const selected = Array.isArray(value) ? value.map(String) : []
+  const related = relatedEntityRefs(node, relations)
+  const filtered = entities
+    .filter((entity) => {
+      const text = `${entity.ref} ${entity.display}`.toLowerCase()
+      return text.includes(query.trim().toLowerCase())
+    })
+    .sort((left, right) => Number(related.has(right.ref)) - Number(related.has(left.ref)) || left.type.localeCompare(right.type))
+  const groups = groupEntities(filtered)
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className="block text-xs text-muted-foreground">Entities</label>
+        <p className="text-[11px] text-muted-foreground">按类型选择当前节点可访问的实体</p>
+      </div>
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="搜索实体"
+        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+      />
+      <div className="max-h-48 space-y-3 overflow-y-auto rounded-md border p-2">
+        {groups.map((group) => (
+          <div key={group.type} className="space-y-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{group.type}</div>
+            {group.entities.map((entity) => {
+              const active = selected.includes(entity.ref)
+              return (
+                <button
+                  key={entity.ref}
+                  type="button"
+                  onClick={() => onChange(toggleItem(selected, entity.ref))}
+                  className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs ${active ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                >
+                  <span>{entity.display}</span>
+                  {related.has(entity.ref) && <span className="text-[10px] opacity-70">关联</span>}
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PermissionConfigurator({
+  entityTypes,
+  value,
+  onChange,
+}: {
+  entityTypes: Record<string, EntityTypeDefinition>
+  value: unknown
+  onChange: (value: Record<string, Record<string, string>>) => void
+}) {
+  const permissions = isRecord(value) ? normalizePermissions(value) : {}
+  const [pending, setPending] = useState<PendingPermissionOverride | null>(null)
+  const update = (type: string, field: string, permission: string) => {
+    const next = { ...permissions, [type]: { ...(permissions[type] ?? {}) } }
+    if (!permission) delete next[type][field]
+    else next[type][field] = permission
+    if (Object.keys(next[type]).length === 0) delete next[type]
+    onChange(next)
+  }
+  const startAdd = (type: string, fields: string[]) => {
+    if (fields.length > 0) setPending({ type, field: fields[0], permission: '' })
+  }
+  const confirmAdd = () => {
+    if (!pending?.field || !pending.permission) return
+    update(pending.type, pending.field, pending.permission)
+    setPending(null)
+  }
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className="block text-xs text-muted-foreground">Entity permissions</label>
+        <p className="text-[11px] text-muted-foreground">按实体类型配置字段权限覆盖</p>
+      </div>
+      <div className="space-y-3 rounded-md border p-2">
+        {Object.entries(entityTypes).map(([type, definition]) => {
+          const active = permissions[type] ?? {}
+          const activeFields = Object.keys(active)
+          const availableFields = Object.keys(definition.field_permissions).filter((field) => active[field] === undefined)
+          const pendingForType = pending?.type === type ? pending : null
+          return (
+            <div key={type} className="space-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{definition.display_name}</div>
+              {activeFields.length === 0 && !pendingForType && (
+                <p className="text-[11px] text-muted-foreground">暂无权限覆盖</p>
+              )}
+              {activeFields.map((field) => {
+                const defaultPermission = definition.field_permissions[field]
+                const override = active[field]
+                const options = legalPermissionOptions(defaultPermission)
+                return (
+                  <div key={field} className="flex items-center justify-between gap-2 text-xs">
+                    <span>
+                      {field}
+                      <span className="ml-1 text-[10px] text-muted-foreground">默认: {defaultPermission}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <select
+                        aria-label={`${field} 权限覆盖`}
+                        value={override}
+                        onChange={(event) => update(type, field, event.target.value)}
+                        className="rounded border bg-background px-2 py-1"
+                      >
+                        {options.map((permission) => (
+                          <option key={permission} value={permission}>{permission}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        aria-label={`移除 ${field} 权限覆盖`}
+                        onClick={() => update(type, field, '')}
+                        className="rounded border px-2 py-1 text-muted-foreground hover:text-foreground"
+                      >
+                        移除
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              {pendingForType && (
+                <div className="space-y-1 rounded-md bg-muted/30 p-2 text-xs">
+                  <select
+                    aria-label="选择权限覆盖字段"
+                    value={pendingForType.field}
+                    onChange={(event) => setPending({ type, field: event.target.value, permission: '' })}
+                    className="w-full rounded border bg-background px-2 py-1"
+                  >
+                    {availableFields.map((field) => (
+                      <option key={field} value={field}>{field}</option>
+                    ))}
+                  </select>
+                  {pendingForType.field && (
+                    <p className="text-[11px] text-muted-foreground">
+                      默认权限: {definition.field_permissions[pendingForType.field]}
+                    </p>
+                  )}
+                  <select
+                    aria-label="选择权限级别"
+                    value={pendingForType.permission}
+                    onChange={(event) => setPending({ ...pendingForType, permission: event.target.value })}
+                    className="w-full rounded border bg-background px-2 py-1"
+                  >
+                    <option value="" disabled>选择权限级别</option>
+                    {legalPermissionOptions(definition.field_permissions[pendingForType.field]).map((permission) => (
+                      <option key={permission} value={permission}>{permission}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      aria-label={`确认添加 ${definition.display_name} 权限覆盖`}
+                      onClick={confirmAdd}
+                      disabled={!pendingForType.permission}
+                      className="rounded border px-2 py-1 hover:bg-accent disabled:opacity-50"
+                    >
+                      确认
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPending(null)}
+                      className="rounded border px-2 py-1 text-muted-foreground hover:text-foreground"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!pendingForType && availableFields.length > 0 && (
+                <button
+                  type="button"
+                  aria-label={`添加 ${definition.display_name} 权限覆盖`}
+                  onClick={() => startAdd(type, availableFields)}
+                  className="rounded border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  添加权限覆盖
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -163,7 +391,8 @@ function defaultValues(node: NodeInstance): Record<string, unknown> {
   const values: Record<string, unknown> = {}
   if (node.model !== undefined) values.model = node.model
   if (node.skills) values.skills = node.skills
-  if (node.source_names) values.source_names = node.source_names
+  if (node.entities) values.entities = node.entities
+  if (node.entity_permissions) values.entity_permissions = node.entity_permissions
   if (node.timeout_seconds !== undefined) values.timeout_seconds = node.timeout_seconds
   if (node.parameters) {
     for (const [key, value] of Object.entries(node.parameters)) {
@@ -171,6 +400,61 @@ function defaultValues(node: NodeInstance): Record<string, unknown> {
     }
   }
   return values
+}
+
+function omitSchemaFields(schema: InspectorSchema | undefined, fields: string[]): InspectorSchema {
+  if (!schema) return {}
+  const properties = { ...(schema.properties ?? {}) }
+  for (const field of fields) delete properties[field]
+  return { ...schema, properties }
+}
+
+function groupEntities(entities: EntityItem[]): Array<{ type: string; entities: EntityItem[] }> {
+  const groups = new Map<string, EntityItem[]>()
+  for (const entity of entities) {
+    const group = groups.get(entity.type)
+    if (group) group.push(entity)
+    else groups.set(entity.type, [entity])
+  }
+  return Array.from(groups.entries()).map(([type, items]) => ({ type, entities: items }))
+}
+
+function relatedEntityRefs(node: NodeInstance, relations: EntityRelation[]): Set<string> {
+  const source = node.config?.source
+  const refs = new Set(
+    typeof source === 'string' ? [source] : Array.isArray(node.config?.entities) ? node.config.entities.map(String) : [],
+  )
+  const related = new Set<string>()
+  for (const relation of relations) {
+    if (!relation.entities.some((ref) => refs.has(ref))) continue
+    for (const ref of relation.entities) related.add(ref)
+  }
+  return related
+}
+
+function normalizePermissions(value: Record<string, unknown>): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {}
+  for (const [type, fields] of Object.entries(value)) {
+    if (!isRecord(fields)) continue
+    result[type] = {}
+    for (const [field, permission] of Object.entries(fields)) {
+      if (typeof permission === 'string') result[type][field] = permission
+    }
+  }
+  return result
+}
+
+function toggleItem(items: string[], value: string): string[] {
+  return items.includes(value) ? items.filter((item) => item !== value) : [...items, value]
+}
+
+function legalPermissionOptions(defaultPermission: string): FieldPermission[] {
+  if (!isFieldPermission(defaultPermission)) return [...FIELD_PERMISSIONS]
+  return ALLOWED_PERMISSION_OVERRIDES[defaultPermission]
+}
+
+function isFieldPermission(value: string): value is FieldPermission {
+  return FIELD_PERMISSIONS.includes(value as FieldPermission)
 }
 
 function mergeSchemaDefaults(
@@ -196,7 +480,7 @@ function buildConfig(
     if (key.startsWith('param.')) delete parameters[key.slice(6)]
   }
   for (const [key, value] of Object.entries(formValues)) {
-    if (isEqual(value, typeDefaults[key])) continue
+    if (key !== 'entities' && key !== 'entity_permissions' && isEqual(value, typeDefaults[key])) continue
     if (key.startsWith('param.')) {
       parameters[key.slice(6)] = value
       continue

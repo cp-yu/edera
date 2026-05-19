@@ -18,6 +18,7 @@ from stockimformation.models.repository import (
     mark_node_run,
     events_for_analysis_ids,
     node_runs_for_cycle,
+    raw_items_for_tag,
     recent_pipeline_runs,
     source_execution_logs,
     source_health_summary,
@@ -37,6 +38,33 @@ async def test_add_raw_item_skips_existing_url(tmp_path: Path) -> None:
     assert first is not None
     assert second is None
     assert len(result.all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_raw_items_for_tag_matches_entity_ref(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "repo-tags.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+    async with factory() as session:
+        session.add(_raw_item("https://example.com/a"))
+        session.add(
+            RawItem(
+                url="https://example.com/b",
+                title="title",
+                content="content",
+                source_name="fixture",
+                source_type="rss",
+                tags=["stock:600519.SH"],
+                published_at=_dt(2),
+            )
+        )
+        await session.commit()
+        items = await raw_items_for_tag(session, "stock:00700.HK")
+        partial = await raw_items_for_tag(session, "stock:00700")
+        bare = await raw_items_for_tag(session, "00700.HK")
+    assert [item.url for item in items] == ["https://example.com/a"]
+    assert partial == []
+    assert bare == []
 
 
 @pytest.mark.asyncio
@@ -293,7 +321,7 @@ def _raw_item(url: str) -> RawItem:
         content="content",
         source_name="fixture",
         source_type="rss",
-        stock_codes=["00700.HK"],
+        tags=["stock:00700.HK"],
         published_at=datetime.now(timezone.utc),
     )
 

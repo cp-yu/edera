@@ -11,24 +11,24 @@ const PALETTE = [
   [168, 85, 247],   // purple
 ] as const
 
-export function targetColor(target: string): string {
+export function entityColor(entity: string): string {
   let hash = 0
-  for (let i = 0; i < target.length; i++) hash = ((hash << 5) - hash + target.charCodeAt(i)) | 0
+  for (let i = 0; i < entity.length; i++) hash = ((hash << 5) - hash + entity.charCodeAt(i)) | 0
   const [r, g, b] = PALETTE[Math.abs(hash) % PALETTE.length]
   return `rgb(${r}, ${g}, ${b})`
 }
 
-export function blendTargetColors(targets: string[]): string {
-  if (targets.length === 0) return 'rgb(148, 163, 184)' // slate-400
-  if (targets.length === 1) return targetColor(targets[0])
+export function blendEntityColors(entities: string[]): string {
+  if (entities.length === 0) return 'rgb(148, 163, 184)' // slate-400
+  if (entities.length === 1) return entityColor(entities[0])
   let rSum = 0, gSum = 0, bSum = 0
-  for (const t of targets) {
+  for (const t of entities) {
     let hash = 0
     for (let i = 0; i < t.length; i++) hash = ((hash << 5) - hash + t.charCodeAt(i)) | 0
     const [r, g, b] = PALETTE[Math.abs(hash) % PALETTE.length]
     rSum += r; gSum += g; bSum += b
   }
-  const n = targets.length
+  const n = entities.length
   let r = Math.round(rSum / n), g = Math.round(gSum / n), b = Math.round(bSum / n)
   // Luminance correction: boost if too dark
   const lum = 0.299 * r + 0.587 * g + 0.114 * b

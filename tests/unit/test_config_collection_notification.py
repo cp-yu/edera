@@ -77,7 +77,8 @@ def test_parse_rss_creates_raw_items() -> None:
     items = parse_rss(content, "fixture", ["00700.HK"])
     assert len(items) == 2
     assert items[0].url == "https://example.com/tencent-profit"
-    assert items[0].stock_codes == ["00700.HK"]
+    assert items[0].tags == ["stock:00700.HK"]
+    assert parse_rss(content, "fixture", ["stock:00700.HK"])[0].tags == ["stock:00700.HK"]
 
 
 def test_dedupe_raw_items_by_url() -> None:
@@ -297,7 +298,7 @@ def _raw_item(url: str, content: str = "content") -> RawItem:
         content=content,
         source_name="fixture",
         source_type="rss",
-        stock_codes=["00700.HK"],
+        tags=["stock:00700.HK"],
         published_at=datetime.now(timezone.utc),
     )
 

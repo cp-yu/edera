@@ -4,12 +4,12 @@ interface AppState {
   selectedDagName: string
   selectedNodeId: string | null
   selectedEdgeId: string | null
-  targetFilter: string[]
+  entityFilter: string[]
   theme: 'light' | 'dark'
   setSelectedDag: (name: string) => void
   setSelectedNode: (id: string | null) => void
   setSelectedEdge: (id: string | null) => void
-  setTargetFilter: (targets: string[]) => void
+  setEntityFilter: (entities: string[]) => void
   toggleTheme: () => void
 }
 
@@ -23,12 +23,12 @@ export const useAppStore = create<AppState>((set) => ({
   selectedDagName: 'default',
   selectedNodeId: null,
   selectedEdgeId: null,
-  targetFilter: [],
+  entityFilter: [],
   theme: getInitialTheme(),
   setSelectedDag: (name) => set({ selectedDagName: name, selectedNodeId: null, selectedEdgeId: null }),
   setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
   setSelectedEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null }),
-  setTargetFilter: (targets) => set({ targetFilter: targets }),
+  setEntityFilter: (entities) => set({ entityFilter: entities }),
   toggleTheme: () =>
     set((state) => {
       const next = state.theme === 'light' ? 'dark' : 'light'

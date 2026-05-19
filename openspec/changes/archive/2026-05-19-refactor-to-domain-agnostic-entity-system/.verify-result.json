@@ -1,0 +1,547 @@
+{
+  "timestamp": "2026-05-19T05:47:23.599Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "Inspector entity selector",
+      "task": "A17 实现 Inspector 实体选择器组件",
+      "summary": "Entity selector behavior is implemented, but scenario verification remains mostly source-text/static rather than behavioral UI coverage.",
+      "message": "Entity selector behavior is implemented, but scenario verification remains mostly source-text/static rather than behavioral UI coverage.",
+      "recommendation": "Add a browser or component test that opens the selector, verifies grouping/search/related-priority behavior, selects entities, and asserts the saved DAG config contains entities.",
+      "evidenceCitations": [
+        "openspec/changes/refactor-to-domain-agnostic-entity-system/specs/dag-workbench-ui/spec.md:3-31",
+        "frontend/src/features/workbench/components/Inspector.tsx:125-205",
+        "frontend/src/features/workbench/components/Inspector.tsx:412-432",
+        "tests/e2e/test_inspector.py:4-8",
+        "tests/e2e/test_inspector.py:22-26"
+      ]
+    },
+    {
+      "severity": "WARNING",
+      "requirement": "Inspector permission overrides",
+      "task": "A18 实现 Inspector 权限配置器组件",
+      "summary": "Permission override UI behavior is implemented, but add/select/remove/save behavior is not verified by an actual UI interaction test.",
+      "message": "Permission override UI behavior is implemented, but add/select/remove/save behavior is not verified by an actual UI interaction test.",
+      "recommendation": "Add a browser or component test that adds an override, checks legal permission options, removes an override, saves, and asserts entity_permissions in the saved DAG config.",
+      "evidenceCitations": [
+        "openspec/changes/refactor-to-domain-agnostic-entity-system/specs/dag-workbench-ui/spec.md:33-67",
+        "frontend/src/features/workbench/components/Inspector.tsx:132-136",
+        "frontend/src/features/workbench/components/Inspector.tsx:209-351",
+        "frontend/src/features/workbench/components/Inspector.tsx:451-453",
+        "frontend/src/features/workbench/components/Inspector.tsx:471-493",
+        "tests/e2e/test_inspector.py:10-19"
+      ]
+    }
+  ],
+  "tasksFileHash": "7d3655512cb9e4dfddd8db4d75491c8652b8678237db9215a0be797ab72c7e8d",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "evidenceFiles": [
+      "alembic/versions/0004_raw_item_tags.py",
+      "config/entities.yaml",
+      "config/entity-relations.yaml",
+      "frontend/src/features/workbench/components/BottomToolbar.tsx",
+      "frontend/src/features/workbench/components/Canvas.tsx",
+      "frontend/src/features/workbench/components/EntityFilter.tsx",
+      "frontend/src/features/workbench/components/Inspector.tsx",
+      "frontend/src/store/useAppStore.ts",
+      "openspec/changes/refactor-to-domain-agnostic-entity-system/opsx-delta.yaml",
+      "openspec/project.opsx.yaml",
+      "schemas/entity-types/city.yaml",
+      "schemas/entity-types/rss-source.yaml",
+      "schemas/entity-types/stock.yaml",
+      "schemas/entity-types/web-source.yaml",
+      "src/stockimformation/config/editor.py",
+      "src/stockimformation/config/entities.py",
+      "src/stockimformation/config/loader.py",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/models/entities.py",
+      "src/stockimformation/models/repository.py",
+      "src/stockimformation/node/executor.py",
+      "src/stockimformation/node/models.py",
+      "src/stockimformation/pipeline.py",
+      "src/stockimformation/web/routes.py",
+      "tests/e2e/test_inspector.py",
+      "tests/integration/test_config_api.py",
+      "tests/integration/test_migration.py",
+      "tests/unit/test_dag_serialization.py",
+      "tests/unit/test_entities_config.py",
+      "tests/unit/test_entity_auto_discovery.py",
+      "tests/unit/test_entity_reference.py",
+      "tests/unit/test_entity_relations.py",
+      "tests/unit/test_entity_types.py",
+      "tests/unit/test_field_permissions.py",
+      "tests/unit/test_node_context.py",
+      "tests/unit/test_node_instance_model.py",
+      "tests/unit/test_permission_escalation.py",
+      "tests/unit/test_raw_item_model.py",
+      "tests/unit/test_runtime_permissions.py"
+    ],
+    "evidenceFingerprint": "27361ed00203bf43a4ee20b18cd96968091603726aa7f10d0c5d8c3ded37b945",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "alembic/versions/0004_raw_item_tags.py",
+        "hash": "c45d7a4413b1ecc99b3c763c52974c0ac675b8e221ae0ec3185c3aadb3d4d555"
+      },
+      {
+        "path": "config/entities.yaml",
+        "hash": "13738c3dcdff6603288b8bc4a4b9474210d3e5aad2ec98e3b9c4dc46e60e36b5"
+      },
+      {
+        "path": "config/entity-relations.yaml",
+        "hash": "e57d415ddae48c490e2d30550ae7de4549928b956dcd68a5b6c0141daa838a65"
+      },
+      {
+        "path": "frontend/src/features/workbench/components/BottomToolbar.tsx",
+        "hash": "2cc7fc9c67ba28edd4f239be6dd0591867e57f66c46bccd35d00cb1a5cc79a5a"
+      },
+      {
+        "path": "frontend/src/features/workbench/components/Canvas.tsx",
+        "hash": "1321813157597b799458bfbd9e3d5f461e4b9f50d58ec2514dd24a5f9a47f163"
+      },
+      {
+        "path": "frontend/src/features/workbench/components/EntityFilter.tsx",
+        "hash": "cb1d2885d0502e5d7395fc57cf5f65ecb9f8ce268df949fa251f5e8a03d904ff"
+      },
+      {
+        "path": "frontend/src/features/workbench/components/Inspector.tsx",
+        "hash": "c8d8858d7a1059d61dbb1d35beca5920070b71ae793ae03025625bd87f87db22"
+      },
+      {
+        "path": "frontend/src/store/useAppStore.ts",
+        "hash": "70ab918cdb6b0d3cc7e4d48f337f4cdb45125cdb7f7c6b9fdeeb924046407150"
+      },
+      {
+        "path": "openspec/changes/refactor-to-domain-agnostic-entity-system/opsx-delta.yaml",
+        "hash": "d837991bc7f172d74c046476ccdb20ec311ae45db9d414cdb9c465b483b5fe1b"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "fb46e45814292e9a9e81d68f6a6b83cd822ae67c2da71d417398bf43acdf6028"
+      },
+      {
+        "path": "schemas/entity-types/city.yaml",
+        "hash": "7922dfc87f8bfc8d4256df3a30ec40284927f8c848a6c331a0eee1f323509252"
+      },
+      {
+        "path": "schemas/entity-types/rss-source.yaml",
+        "hash": "1c1e54a552036a5590946d6b1a81f43fabc9777bdb0e09a22ec286147b895574"
+      },
+      {
+        "path": "schemas/entity-types/stock.yaml",
+        "hash": "1c013f0a7c0a07dbdc4d5506052d78477697b3a7c03c30dbc2ea01dfc6fc047a"
+      },
+      {
+        "path": "schemas/entity-types/web-source.yaml",
+        "hash": "2f6e164b0eb5a0a8db118f79fe63483b16edd481cc910f295a15ea5388fbfc84"
+      },
+      {
+        "path": "src/stockimformation/config/editor.py",
+        "hash": "5a02b8f815040ee29a0f9984cc6e6774138f38f7a9e7e8a7db9fdfe367568cb7"
+      },
+      {
+        "path": "src/stockimformation/config/entities.py",
+        "hash": "51db9b6af4807fe36b53994bcaffa90a5de11cfa4087cf22d70e0cc272591f5a"
+      },
+      {
+        "path": "src/stockimformation/config/loader.py",
+        "hash": "5ceaa1047faedc1b741816d80f321058ad99ef579bf89767d6385e078d4d38b0"
+      },
+      {
+        "path": "src/stockimformation/config/schema.py",
+        "hash": "bcdcc6d69d6cd0ca419ebf432859546d99ed7f8ca7d8c3c8e2ef09e43635059a"
+      },
+      {
+        "path": "src/stockimformation/models/entities.py",
+        "hash": "7ed265ad6d336ffde06229a5ee2f505aadd5e4790b04217f34b34d382606081e"
+      },
+      {
+        "path": "src/stockimformation/models/repository.py",
+        "hash": "f2ef8a1ad20fce58372621cacfd9ff4afd65e9c8010651d913a84d988420242f"
+      },
+      {
+        "path": "src/stockimformation/node/executor.py",
+        "hash": "368648da2f163fed8ef43808f3da98bab2c6b5daa24e14090238c34606b0828c"
+      },
+      {
+        "path": "src/stockimformation/node/models.py",
+        "hash": "86b732214187b8b1643c009326d8a901c839c76fc49344ac8d94bd6808e6474b"
+      },
+      {
+        "path": "src/stockimformation/pipeline.py",
+        "hash": "4068d0540a4eba34a443fa43583191897cf779a7f63ef86eb974571a4eee5f06"
+      },
+      {
+        "path": "src/stockimformation/web/routes.py",
+        "hash": "5e8d914b0d6cb971448a7cbe065addce84f97db3796e48d9f57bfbf61fbb49df"
+      },
+      {
+        "path": "tests/e2e/test_inspector.py",
+        "hash": "3315cf2705c8f57953aea1ac75e9c863250bdb9b9196d578cbff13f4401c901c"
+      },
+      {
+        "path": "tests/integration/test_config_api.py",
+        "hash": "b326d0870daa17851b5759fe35703bb63485f20caa84c7228b80905844ce3d4b"
+      },
+      {
+        "path": "tests/integration/test_migration.py",
+        "hash": "3cfcacbb4dd7bf1ab9e45c1b8f90744aba5d3f537bf80a180c938d0a97e226a8"
+      },
+      {
+        "path": "tests/unit/test_dag_serialization.py",
+        "hash": "93ff71cc8f06cefecbf765fe2ba829172d22c107a67d13ebf924928c6423c16c"
+      },
+      {
+        "path": "tests/unit/test_entities_config.py",
+        "hash": "b26fc30e2f061caf4db8848c76c8d68c24b780cd0bc0addbd7676cfa931c8c56"
+      },
+      {
+        "path": "tests/unit/test_entity_auto_discovery.py",
+        "hash": "dfd0c490d319ee4e77c26a9cb71ad8a3fcc8113f5bdf2c87cd83bf0886a6706d"
+      },
+      {
+        "path": "tests/unit/test_entity_reference.py",
+        "hash": "fccb09c10a8248a15f644cb600096ab62445862096a0fcbcb10113a30de3acc1"
+      },
+      {
+        "path": "tests/unit/test_entity_relations.py",
+        "hash": "d4087d2f18f8e0535e3638ec38249524322955f6388b96e211fc2bd89601580b"
+      },
+      {
+        "path": "tests/unit/test_entity_types.py",
+        "hash": "c80b2d8d36db612f19bad6e207d5747ca531c52820258ebccba24c9b0439eab3"
+      },
+      {
+        "path": "tests/unit/test_field_permissions.py",
+        "hash": "a4aaf3ca2e483391c28b59cc6686a87a7c4ad36745c5b29e9c9ca1bf92ab065f"
+      },
+      {
+        "path": "tests/unit/test_node_context.py",
+        "hash": "cb4ba3cd135d0dfeeadd98dc84a83decd8793bf7b4f3313bdbf1fde3cd85d40f"
+      },
+      {
+        "path": "tests/unit/test_node_instance_model.py",
+        "hash": "a49133075873ed37a3dee3ac797ad4dad982bfdac33e83acd1665719805fd360"
+      },
+      {
+        "path": "tests/unit/test_permission_escalation.py",
+        "hash": "3485b56bbacfe7bb3c9a9e48447343fb851cc41491abe354cce1acf0747db3d7"
+      },
+      {
+        "path": "tests/unit/test_raw_item_model.py",
+        "hash": "56202abb24cf77d4960b7510845f47c9573f5d03ad257ea94c116fb436d4bf02"
+      },
+      {
+        "path": "tests/unit/test_runtime_permissions.py",
+        "hash": "730d01c62bb68b6240827e82822b659b5abc89bd1fe592cc29a8348e2b5330bf"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "7146bb61fd26b9ab8679c7d6efe2ddc1db4a4cf1",
+    "gitDiffSummary": "Staged evidence covers entity schemas/config, entity loading and relation validation, UUID/business-id resolution, field permissions, node context/executor integration, RawItem tags migration/model/query support, config APIs, Inspector entity/permission UI, entity filter UI, tests, and archive-time artifact corrections to syncable delta spec headers plus schema-valid no-op opsx-delta."
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-19T05:55:49.088Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Simplify entity ref discovery, reuse existing entity reference helper in config relation validation, and centralize node entity permission override lookup. Behavior is preserved while reducing duplicated control flow.",
+        "files": [
+          "src/stockimformation/config/editor.py",
+          "src/stockimformation/config/entities.py",
+          "src/stockimformation/node/models.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-19T06:05:11.181Z",
+        "type": "verification",
+        "result": "PASS_WITH_WARNINGS",
+        "summary": "Archive-time Phase 2 optimization changed entity discovery and permission override helper structure only. Re-review found no CRITICAL regression; the two UI behavioral coverage warnings remain.",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "src/stockimformation/config/entities.py": "a15dff61de32ac10be82e30acc2e95983026790244634d4e63ea3265a3f9365e",
+      "src/stockimformation/config/editor.py": "9eb2803000e4f447af05f3fde1cebd31170f80d635a60af79edd6003e2025e73",
+      "src/stockimformation/node/models.py": "70c1e6c1df1d889ea54fd009abdf5f7d188be17768c2cd8b71dc6268812721cf"
+    },
+    "baseline": {
+      "timestamp": "2026-05-19T05:47:23.599Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "Inspector entity selector",
+          "task": "A17 实现 Inspector 实体选择器组件",
+          "summary": "Entity selector behavior is implemented, but scenario verification remains mostly source-text/static rather than behavioral UI coverage.",
+          "message": "Entity selector behavior is implemented, but scenario verification remains mostly source-text/static rather than behavioral UI coverage.",
+          "recommendation": "Add a browser or component test that opens the selector, verifies grouping/search/related-priority behavior, selects entities, and asserts the saved DAG config contains entities.",
+          "evidenceCitations": [
+            "openspec/changes/refactor-to-domain-agnostic-entity-system/specs/dag-workbench-ui/spec.md:3-31",
+            "frontend/src/features/workbench/components/Inspector.tsx:125-205",
+            "frontend/src/features/workbench/components/Inspector.tsx:412-432",
+            "tests/e2e/test_inspector.py:4-8",
+            "tests/e2e/test_inspector.py:22-26"
+          ]
+        },
+        {
+          "severity": "WARNING",
+          "requirement": "Inspector permission overrides",
+          "task": "A18 实现 Inspector 权限配置器组件",
+          "summary": "Permission override UI behavior is implemented, but add/select/remove/save behavior is not verified by an actual UI interaction test.",
+          "message": "Permission override UI behavior is implemented, but add/select/remove/save behavior is not verified by an actual UI interaction test.",
+          "recommendation": "Add a browser or component test that adds an override, checks legal permission options, removes an override, saves, and asserts entity_permissions in the saved DAG config.",
+          "evidenceCitations": [
+            "openspec/changes/refactor-to-domain-agnostic-entity-system/specs/dag-workbench-ui/spec.md:33-67",
+            "frontend/src/features/workbench/components/Inspector.tsx:132-136",
+            "frontend/src/features/workbench/components/Inspector.tsx:209-351",
+            "frontend/src/features/workbench/components/Inspector.tsx:451-453",
+            "frontend/src/features/workbench/components/Inspector.tsx:471-493",
+            "tests/e2e/test_inspector.py:10-19"
+          ]
+        }
+      ],
+      "tasksFileHash": "7d3655512cb9e4dfddd8db4d75491c8652b8678237db9215a0be797ab72c7e8d",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "evidenceFiles": [
+          "alembic/versions/0004_raw_item_tags.py",
+          "config/entities.yaml",
+          "config/entity-relations.yaml",
+          "frontend/src/features/workbench/components/BottomToolbar.tsx",
+          "frontend/src/features/workbench/components/Canvas.tsx",
+          "frontend/src/features/workbench/components/EntityFilter.tsx",
+          "frontend/src/features/workbench/components/Inspector.tsx",
+          "frontend/src/store/useAppStore.ts",
+          "openspec/changes/refactor-to-domain-agnostic-entity-system/opsx-delta.yaml",
+          "openspec/project.opsx.yaml",
+          "schemas/entity-types/city.yaml",
+          "schemas/entity-types/rss-source.yaml",
+          "schemas/entity-types/stock.yaml",
+          "schemas/entity-types/web-source.yaml",
+          "src/stockimformation/config/editor.py",
+          "src/stockimformation/config/entities.py",
+          "src/stockimformation/config/loader.py",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/models/entities.py",
+          "src/stockimformation/models/repository.py",
+          "src/stockimformation/node/executor.py",
+          "src/stockimformation/node/models.py",
+          "src/stockimformation/pipeline.py",
+          "src/stockimformation/web/routes.py",
+          "tests/e2e/test_inspector.py",
+          "tests/integration/test_config_api.py",
+          "tests/integration/test_migration.py",
+          "tests/unit/test_dag_serialization.py",
+          "tests/unit/test_entities_config.py",
+          "tests/unit/test_entity_auto_discovery.py",
+          "tests/unit/test_entity_reference.py",
+          "tests/unit/test_entity_relations.py",
+          "tests/unit/test_entity_types.py",
+          "tests/unit/test_field_permissions.py",
+          "tests/unit/test_node_context.py",
+          "tests/unit/test_node_instance_model.py",
+          "tests/unit/test_permission_escalation.py",
+          "tests/unit/test_raw_item_model.py",
+          "tests/unit/test_runtime_permissions.py"
+        ],
+        "evidenceFingerprint": "bd37ce4d39440c26a9bd22e3c9bf403d585c58b2c236ab0c71f29a3855d2154e",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "alembic/versions/0004_raw_item_tags.py",
+            "hash": "c45d7a4413b1ecc99b3c763c52974c0ac675b8e221ae0ec3185c3aadb3d4d555"
+          },
+          {
+            "path": "config/entities.yaml",
+            "hash": "13738c3dcdff6603288b8bc4a4b9474210d3e5aad2ec98e3b9c4dc46e60e36b5"
+          },
+          {
+            "path": "config/entity-relations.yaml",
+            "hash": "e57d415ddae48c490e2d30550ae7de4549928b956dcd68a5b6c0141daa838a65"
+          },
+          {
+            "path": "frontend/src/features/workbench/components/BottomToolbar.tsx",
+            "hash": "2cc7fc9c67ba28edd4f239be6dd0591867e57f66c46bccd35d00cb1a5cc79a5a"
+          },
+          {
+            "path": "frontend/src/features/workbench/components/Canvas.tsx",
+            "hash": "1321813157597b799458bfbd9e3d5f461e4b9f50d58ec2514dd24a5f9a47f163"
+          },
+          {
+            "path": "frontend/src/features/workbench/components/EntityFilter.tsx",
+            "hash": "cb1d2885d0502e5d7395fc57cf5f65ecb9f8ce268df949fa251f5e8a03d904ff"
+          },
+          {
+            "path": "frontend/src/features/workbench/components/Inspector.tsx",
+            "hash": "c8d8858d7a1059d61dbb1d35beca5920070b71ae793ae03025625bd87f87db22"
+          },
+          {
+            "path": "frontend/src/store/useAppStore.ts",
+            "hash": "70ab918cdb6b0d3cc7e4d48f337f4cdb45125cdb7f7c6b9fdeeb924046407150"
+          },
+          {
+            "path": "openspec/changes/refactor-to-domain-agnostic-entity-system/opsx-delta.yaml",
+            "hash": "d837991bc7f172d74c046476ccdb20ec311ae45db9d414cdb9c465b483b5fe1b"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "fb46e45814292e9a9e81d68f6a6b83cd822ae67c2da71d417398bf43acdf6028"
+          },
+          {
+            "path": "schemas/entity-types/city.yaml",
+            "hash": "7922dfc87f8bfc8d4256df3a30ec40284927f8c848a6c331a0eee1f323509252"
+          },
+          {
+            "path": "schemas/entity-types/rss-source.yaml",
+            "hash": "1c1e54a552036a5590946d6b1a81f43fabc9777bdb0e09a22ec286147b895574"
+          },
+          {
+            "path": "schemas/entity-types/stock.yaml",
+            "hash": "1c013f0a7c0a07dbdc4d5506052d78477697b3a7c03c30dbc2ea01dfc6fc047a"
+          },
+          {
+            "path": "schemas/entity-types/web-source.yaml",
+            "hash": "2f6e164b0eb5a0a8db118f79fe63483b16edd481cc910f295a15ea5388fbfc84"
+          },
+          {
+            "path": "src/stockimformation/config/editor.py",
+            "hash": "9eb2803000e4f447af05f3fde1cebd31170f80d635a60af79edd6003e2025e73"
+          },
+          {
+            "path": "src/stockimformation/config/entities.py",
+            "hash": "a15dff61de32ac10be82e30acc2e95983026790244634d4e63ea3265a3f9365e"
+          },
+          {
+            "path": "src/stockimformation/config/loader.py",
+            "hash": "5ceaa1047faedc1b741816d80f321058ad99ef579bf89767d6385e078d4d38b0"
+          },
+          {
+            "path": "src/stockimformation/config/schema.py",
+            "hash": "bcdcc6d69d6cd0ca419ebf432859546d99ed7f8ca7d8c3c8e2ef09e43635059a"
+          },
+          {
+            "path": "src/stockimformation/models/entities.py",
+            "hash": "7ed265ad6d336ffde06229a5ee2f505aadd5e4790b04217f34b34d382606081e"
+          },
+          {
+            "path": "src/stockimformation/models/repository.py",
+            "hash": "f2ef8a1ad20fce58372621cacfd9ff4afd65e9c8010651d913a84d988420242f"
+          },
+          {
+            "path": "src/stockimformation/node/executor.py",
+            "hash": "368648da2f163fed8ef43808f3da98bab2c6b5daa24e14090238c34606b0828c"
+          },
+          {
+            "path": "src/stockimformation/node/models.py",
+            "hash": "70c1e6c1df1d889ea54fd009abdf5f7d188be17768c2cd8b71dc6268812721cf"
+          },
+          {
+            "path": "src/stockimformation/pipeline.py",
+            "hash": "4068d0540a4eba34a443fa43583191897cf779a7f63ef86eb974571a4eee5f06"
+          },
+          {
+            "path": "src/stockimformation/web/routes.py",
+            "hash": "5e8d914b0d6cb971448a7cbe065addce84f97db3796e48d9f57bfbf61fbb49df"
+          },
+          {
+            "path": "tests/e2e/test_inspector.py",
+            "hash": "3315cf2705c8f57953aea1ac75e9c863250bdb9b9196d578cbff13f4401c901c"
+          },
+          {
+            "path": "tests/integration/test_config_api.py",
+            "hash": "b326d0870daa17851b5759fe35703bb63485f20caa84c7228b80905844ce3d4b"
+          },
+          {
+            "path": "tests/integration/test_migration.py",
+            "hash": "3cfcacbb4dd7bf1ab9e45c1b8f90744aba5d3f537bf80a180c938d0a97e226a8"
+          },
+          {
+            "path": "tests/unit/test_dag_serialization.py",
+            "hash": "93ff71cc8f06cefecbf765fe2ba829172d22c107a67d13ebf924928c6423c16c"
+          },
+          {
+            "path": "tests/unit/test_entities_config.py",
+            "hash": "b26fc30e2f061caf4db8848c76c8d68c24b780cd0bc0addbd7676cfa931c8c56"
+          },
+          {
+            "path": "tests/unit/test_entity_auto_discovery.py",
+            "hash": "dfd0c490d319ee4e77c26a9cb71ad8a3fcc8113f5bdf2c87cd83bf0886a6706d"
+          },
+          {
+            "path": "tests/unit/test_entity_reference.py",
+            "hash": "fccb09c10a8248a15f644cb600096ab62445862096a0fcbcb10113a30de3acc1"
+          },
+          {
+            "path": "tests/unit/test_entity_relations.py",
+            "hash": "d4087d2f18f8e0535e3638ec38249524322955f6388b96e211fc2bd89601580b"
+          },
+          {
+            "path": "tests/unit/test_entity_types.py",
+            "hash": "c80b2d8d36db612f19bad6e207d5747ca531c52820258ebccba24c9b0439eab3"
+          },
+          {
+            "path": "tests/unit/test_field_permissions.py",
+            "hash": "a4aaf3ca2e483391c28b59cc6686a87a7c4ad36745c5b29e9c9ca1bf92ab065f"
+          },
+          {
+            "path": "tests/unit/test_node_context.py",
+            "hash": "cb4ba3cd135d0dfeeadd98dc84a83decd8793bf7b4f3313bdbf1fde3cd85d40f"
+          },
+          {
+            "path": "tests/unit/test_node_instance_model.py",
+            "hash": "a49133075873ed37a3dee3ac797ad4dad982bfdac33e83acd1665719805fd360"
+          },
+          {
+            "path": "tests/unit/test_permission_escalation.py",
+            "hash": "3485b56bbacfe7bb3c9a9e48447343fb851cc41491abe354cce1acf0747db3d7"
+          },
+          {
+            "path": "tests/unit/test_raw_item_model.py",
+            "hash": "56202abb24cf77d4960b7510845f47c9573f5d03ad257ea94c116fb436d4bf02"
+          },
+          {
+            "path": "tests/unit/test_runtime_permissions.py",
+            "hash": "730d01c62bb68b6240827e82822b659b5abc89bd1fe592cc29a8348e2b5330bf"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "7146bb61fd26b9ab8679c7d6efe2ddc1db4a4cf1",
+        "gitDiffSummary": "Staged evidence covers entity schemas/config, entity loading and relation validation, UUID/business-id resolution, field permissions, node context/executor integration, RawItem tags migration/model/query support, config APIs, Inspector entity/permission UI, entity filter UI, tests, and archive-time artifact corrections to syncable delta spec headers plus schema-valid no-op opsx-delta."
+      }
+    },
+    "final": {
+      "result": "PASS_WITH_WARNINGS",
+      "summary": "Archive-time Phase 2 optimization changed entity discovery and permission override helper structure only. Re-review found no CRITICAL regression; the two UI behavioral coverage warnings remain.",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "Inspector entity selector",
+          "task": "A17 实现 Inspector 实体选择器组件",
+          "summary": "Prior Phase 1 UI coverage warning remains; the bundle still shows selector behavior is verified mostly by source-text/static evidence.",
+          "message": "Prior Phase 1 UI coverage warning remains; the bundle still shows selector behavior is verified mostly by source-text/static evidence.",
+          "recommendation": "Add a browser or component test that opens the selector, verifies grouping/search/related-priority behavior, selects entities, and asserts the saved DAG config contains entities.",
+          "evidenceCitations": [
+            "openspec/changes/refactor-to-domain-agnostic-entity-system/.verify-result.json:5-33",
+            "openspec/changes/refactor-to-domain-agnostic-entity-system/specs/dag-workbench-ui/spec.md:3-31"
+          ]
+        },
+        {
+          "severity": "WARNING",
+          "requirement": "Inspector permission overrides",
+          "task": "A18 实现 Inspector 权限配置器组件",
+          "summary": "Prior Phase 1 UI coverage warning remains; the bundle still lacks behavioral interaction coverage for add/select/remove/save.",
+          "message": "Prior Phase 1 UI coverage warning remains; the bundle still lacks behavioral interaction coverage for add/select/remove/save.",
+          "recommendation": "Add a browser or component test that adds an override, checks legal permission options, removes an override, saves, and asserts entity_permissions in the saved DAG config.",
+          "evidenceCitations": [
+            "openspec/changes/refactor-to-domain-agnostic-entity-system/.verify-result.json:34-61",
+            "openspec/changes/refactor-to-domain-agnostic-entity-system/specs/dag-workbench-ui/spec.md:32-65"
+          ]
+        }
+      ],
+      "behaviorRetryCounter": 1
+    }
+  }
+}

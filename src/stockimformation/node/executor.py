@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
+from stockimformation.config.entities import EntityStore
 from stockimformation.config.schema import DagNodeInstance, NodeConfig, RuntimeSettings, SystemConfig
 from stockimformation.errors import NodeExecutionError
 from stockimformation.node.models import FunctionHandler, NodeContext, NodeInput, NodeOutput
@@ -25,6 +26,7 @@ class NodeExecutor:
         runtime: RuntimeSettings,
         handlers: dict[str, FunctionHandler] | None = None,
         instances: dict[str, DagNodeInstance] | None = None,
+        entity_store: EntityStore | None = None,
         handlers_dir: Path = Path("handlers"),
         skills_dir: Path = Path("skills"),
         skill_handlers_dir: Path = Path("skill_handlers"),
@@ -34,6 +36,7 @@ class NodeExecutor:
         self.runtime = runtime
         self.handlers = handlers or {}
         self.instances = instances or {}
+        self.entity_store = entity_store
         self.handlers_dir = handlers_dir
         self.skills_dir = skills_dir
         self.skill_handlers_dir = skill_handlers_dir
@@ -53,9 +56,11 @@ class NodeExecutor:
             instance_id=context.instance_id,
             node_type=config.name,
             dag_name=context.dag_name,
+            entity_store=self.entity_store,
+            entity_permissions=_entity_permissions(instance),
         )
         effective = _apply_instance_config(config, instance)
-        effective_input = _apply_instance_input(effective, node_input)
+        effective_input = _apply_instance_input(effective, node_input, instance, self.entity_store)
         try:
             payload = await self._execute_payload(effective, effective_input, context)
         except Exception as exc:
@@ -215,12 +220,54 @@ def _apply_instance_config(config: NodeConfig, instance: DagNodeInstance | None)
     return config.model_copy(update=updates)
 
 
-def _apply_instance_input(config: NodeConfig, node_input: NodeInput) -> NodeInput:
-    if config.type != "function" or not config.source_names:
+def _apply_instance_input(
+    config: NodeConfig,
+    node_input: NodeInput,
+    instance: DagNodeInstance | None,
+    entity_store: EntityStore | None,
+) -> NodeInput:
+    entities = _instance_entities(instance, entity_store)
+    if config.type != "function" or (not config.source_names and not entities):
         return node_input
     payload = dict(node_input.payload) if isinstance(node_input.payload, dict) else {}
-    payload["source_names"] = config.source_names
+    if entities:
+        payload["entities"] = entities
+        payload["source_names"] = _source_names(entities)
+    else:
+        payload["source_names"] = config.source_names
     return NodeInput(cycle_id=node_input.cycle_id, payload=payload, metadata=node_input.metadata)
+
+
+def _entity_permissions(instance: DagNodeInstance | None) -> dict[str, object]:
+    if instance is None:
+        return {}
+    permissions = instance.config.get("entity_permissions")
+    return permissions if isinstance(permissions, dict) else {}
+
+
+def _instance_entities(
+    instance: DagNodeInstance | None,
+    entity_store: EntityStore | None,
+) -> list[str]:
+    if instance is None or entity_store is None:
+        return []
+    raw = instance.config.get("entities")
+    if isinstance(raw, list):
+        return [str(item) for item in raw]
+    source = instance.config.get("source")
+    if isinstance(source, str):
+        return entity_store.related_refs(source)
+    return []
+
+
+def _source_names(entities: list[str]) -> list[str]:
+    names: list[str] = []
+    for ref in entities:
+        if ref.startswith("rss-source:"):
+            names.append(ref.removeprefix("rss-source:"))
+        if ref.startswith("web-source:"):
+            names.append(ref.removeprefix("web-source:"))
+    return names
 
 
 def _json(value: object) -> str:

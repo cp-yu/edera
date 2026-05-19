@@ -1,0 +1,20 @@
+display_name: Web 信息源
+business_id_field: name
+display_template: "{name}"
+schema:
+  type: object
+  required:
+    - name
+    - url
+  properties:
+    name:
+      type: string
+    url:
+      type: string
+    selector:
+      type: string
+    regex:
+      type: string
+field_permissions:
+  url: read-only
+validate: true

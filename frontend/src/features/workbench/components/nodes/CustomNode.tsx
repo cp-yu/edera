@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
 import { Database, BrainCircuit, GitMerge } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { blendTargetColors } from '@/lib/colors'
+import { blendEntityColors } from '@/lib/colors'
 import { getNodeEdgeColor, getRuntimeState, type HandleSpec, type WorkbenchNodeData } from '../../lib/graph'
 
 const handleBase = {
@@ -111,7 +111,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
   const kindStyle = KIND_STYLES[node.visualKind]
   const Icon = KIND_ICONS[node.visualKind]
   const edgeColor = getNodeEdgeColor(node.visualKind)
-  const targetBorderColor = node.source_names?.length ? blendTargetColors(node.source_names) : undefined
+  const entityBorderColor = node.entities?.length ? blendEntityColors(node.entities) : undefined
 
   useEffect(() => {
     updateNodeInternals(id)
@@ -124,7 +124,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
         kindStyle.shell,
         selected && 'shadow-2xl ring-2 ring-white/25',
       )}
-      style={targetBorderColor ? { boxShadow: `inset 3px 0 0 ${targetBorderColor}` } : undefined}
+      style={entityBorderColor ? { boxShadow: `inset 3px 0 0 ${entityBorderColor}` } : undefined}
     >
       <StatusBadge status={node.status} />
       <HandleRail
@@ -146,14 +146,14 @@ export function CustomNode({ id, data, selected }: NodeProps) {
         <div className={cn('text-[11px] uppercase tracking-[0.14em]', kindStyle.accent)}>
           {node.input_type || 'none'} {'->'} {node.output_type || 'none'}
         </div>
-        {node.source_names?.length ? (
+        {node.entities?.length ? (
           <div className="flex flex-wrap gap-1">
-            {node.source_names.slice(0, 3).map((sourceName) => (
+            {node.entities.slice(0, 3).map((entity) => (
               <span
-                key={sourceName}
+                key={entity}
                 className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-200"
               >
-                {sourceName}
+                {entity}
               </span>
             ))}
           </div>

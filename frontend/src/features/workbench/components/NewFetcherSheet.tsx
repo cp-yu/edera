@@ -32,7 +32,7 @@ export function NewFetcherSheet({ open, onClose }: Props) {
           handler: skeleton.handler,
           input_type: 'Any',
           output_type: 'list[RawItem]',
-          source_names: [],
+          entities: [],
         },
       },
       { onSuccess: () => { setName(''); onClose() } },

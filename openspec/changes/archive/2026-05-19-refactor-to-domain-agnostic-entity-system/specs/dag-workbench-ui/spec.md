@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Inspector entity selector
 
@@ -63,7 +63,9 @@
 - **WHEN** 用户点击权限覆盖条目的删除按钮
 - **THEN** 系统 SHALL 从配置中移除该字段的权限覆盖
 
-### Requirement: Target filtering replaced by entity filtering
+## MODIFIED Requirements
+
+### Requirement: Target filtering with opacity
 
 系统 SHALL 将底部工具栏的 target 过滤器替换为 entity 过滤器，支持按任意 entity type 过滤。
 

@@ -1,0 +1,37 @@
+relations:
+- entities:
+  - stock:00700.HK
+  - rss-source:sample-rss
+  type: uses-source
+- entities:
+  - stock:00700.HK
+  - web-source:sample-web
+  type: uses-source
+- entities:
+  - stock:00700.HK
+  - web-source:minimax-docs
+  type: uses-source
+- entities:
+  - stock:00700.HK
+  - web-source:minimax-docs-index
+  type: uses-source
+- entities:
+  - stock:00700.HK
+  - web-source:tonghuashun-minimax
+  type: uses-source
+- entities:
+  - stock:600519.SH
+  - rss-source:sample-rss
+  type: uses-source
+- entities:
+  - stock:600519.SH
+  - web-source:minimax-docs
+  type: uses-source
+- entities:
+  - stock:600519.SH
+  - web-source:minimax-docs-index
+  type: uses-source
+- entities:
+  - stock:600519.SH
+  - web-source:tonghuashun-minimax
+  type: uses-source

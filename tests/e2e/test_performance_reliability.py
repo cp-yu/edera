@@ -86,6 +86,6 @@ def _raw(url: str, content: str) -> RawItem:
         content=content,
         source_name="fixture",
         source_type="rss",
-        stock_codes=["00700.HK"],
+        tags=["stock:00700.HK"],
         published_at=datetime.now(timezone.utc),
     )

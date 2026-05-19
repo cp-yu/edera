@@ -15,27 +15,27 @@ from stockimformation.node.models import FunctionHandler, NodeInput
 RECOVERABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
-def stock_codes_for_source(portfolio: PortfolioConfig, source_name: str) -> list[str]:
-    return [target.code for target in portfolio.targets if source_name in target.sources]
+def tags_for_source(portfolio: PortfolioConfig, source_name: str) -> list[str]:
+    return [stock_tag(target.code) for target in portfolio.targets if source_name in target.sources]
 
 
-async def fetch_rss_source(source: SourceConfig, stock_codes: list[str]) -> list[RawItem]:
+async def fetch_rss_source(source: SourceConfig, tags: list[str]) -> list[RawItem]:
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.get(str(source.url))
         response.raise_for_status()
-    return parse_rss(response.text, source.name, stock_codes)
+    return parse_rss(response.text, source.name, tags)
 
 
-async def fetch_web_source(source: SourceConfig, stock_codes: list[str]) -> list[RawItem]:
+async def fetch_web_source(source: SourceConfig, tags: list[str]) -> list[RawItem]:
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.get(str(source.url))
         response.raise_for_status()
-    return parse_web(response.text, source, stock_codes)
+    return parse_web(response.text, source, tags)
 
 
 async def fetch_source_with_recovery(
     source: SourceConfig,
-    stock_codes: list[str],
+    tags: list[str],
     system: SystemConfig,
 ) -> tuple[list[RawItem], dict[str, object]]:
     attempt_limit = system.source_recovery_max_attempts if system.source_recovery_enabled else 0
@@ -45,7 +45,7 @@ async def fetch_source_with_recovery(
     fetcher = fetch_rss_source if source.type == "rss" else fetch_web_source
     while True:
         try:
-            items = await fetcher(source, stock_codes)
+            items = await fetcher(source, tags)
             if not items:
                 raise ValueError(f"empty source result: {source.name}")
             status = "recovered" if attempt_count else "none"
@@ -76,8 +76,9 @@ async def fetch_source_with_recovery(
             attempt_count += 1
 
 
-def parse_rss(content: str, source_name: str, stock_codes: list[str]) -> list[RawItem]:
+def parse_rss(content: str, source_name: str, tags: list[str]) -> list[RawItem]:
     feed = feedparser.parse(content)
+    entity_tags = entity_tags_from_values(tags)
     items: list[RawItem] = []
     for entry in feed.entries:
         url = str(entry.get("link") or entry.get("id") or "")
@@ -92,14 +93,15 @@ def parse_rss(content: str, source_name: str, stock_codes: list[str]) -> list[Ra
                 content=body,
                 source_name=source_name,
                 source_type="rss",
-                stock_codes=stock_codes,
+                tags=entity_tags,
                 published_at=_published_at(entry),
             )
         )
     return items
 
 
-def parse_web(content: str, source: SourceConfig, stock_codes: list[str]) -> list[RawItem]:
+def parse_web(content: str, source: SourceConfig, tags: list[str]) -> list[RawItem]:
+    entity_tags = entity_tags_from_values(tags)
     if not source.regex:
         title = _strip_html(content)[:120] or str(source.url)
         return [
@@ -109,7 +111,7 @@ def parse_web(content: str, source: SourceConfig, stock_codes: list[str]) -> lis
                 content=_strip_html(content),
                 source_name=source.name,
                 source_type="web",
-                stock_codes=stock_codes,
+                tags=entity_tags,
                 published_at=datetime.now(timezone.utc),
             )
         ]
@@ -127,7 +129,7 @@ def parse_web(content: str, source: SourceConfig, stock_codes: list[str]) -> lis
             content=body,
             source_name=source.name,
             source_type="web",
-            stock_codes=stock_codes,
+            tags=entity_tags,
             published_at=datetime.now(timezone.utc),
         )
     ]
@@ -148,15 +150,15 @@ def make_fetch_handler(
             source = source_map[name]
             if source.type != source_type:
                 continue
-            codes = stock_codes_for_source(portfolio, source.name)
+            tags = tags_for_source(portfolio, source.name)
             if system is None:
                 fetched = (
-                    await fetch_rss_source(source, codes)
+                    await fetch_rss_source(source, tags)
                     if source.type == "rss"
-                    else await fetch_web_source(source, codes)
+                    else await fetch_web_source(source, tags)
                 )
             else:
-                fetched, summary = await fetch_source_with_recovery(source, codes, system)
+                fetched, summary = await fetch_source_with_recovery(source, tags, system)
                 recovery[source.name] = summary
                 if summary["recovery_status"] == "escalated":
                     failures[source.name] = str(summary["latest_failure_reason"])
@@ -175,6 +177,14 @@ def dedupe_raw_items(items: list[RawItem]) -> list[RawItem]:
         seen.add(item.url)
         unique.append(item)
     return unique
+
+
+def entity_tags_from_values(values: list[str]) -> list[str]:
+    return [stock_tag(value) for value in values]
+
+
+def stock_tag(value: str) -> str:
+    return value if ":" in value else f"stock:{value}"
 
 
 def _published_at(entry: Any) -> datetime:
