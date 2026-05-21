@@ -1,0 +1,60 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.unified-entity-model
+      type: capability
+      intent: 统一 Entity 原语，Node/DAG/Trigger/Relation/Output 全部建模为 Entity，EntityType schema 字段即能力声明
+    - id: cap.entity-storage-tiers
+      type: capability
+      intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理
+    - id: cap.trigger-system
+      type: capability
+      intent: Trigger Entity 类型与 Trigger Executor 内核，支持时间/事件/用户/叠加触发，FreeRTOS 事件组 AND/OR 组合
+    - id: cap.dag-condition-branch
+      type: capability
+      intent: DAG edge 条件分支，可替换 condition evaluator handler，支持 output.* + entity ref + 常量
+    - id: cap.single-node-loop
+      type: capability
+      intent: 单节点并行循环（同输入多实例）和串行循环（迭代精炼），停止条件为固定次数或条件满足
+    - id: cap.sub-dag-execution
+      type: capability
+      intent: 子 DAG 作为 Node 嵌套执行，对外黑盒，递归上限可配置
+    - id: cap.config-git-safety
+      type: capability
+      intent: 配置文件夹强制 git 版本管理，DAG run 结束自动 commit，操作互斥锁
+  relations:
+    - from: cap.unified-entity-model
+      type: contains
+      to: dom.core
+    - from: cap.entity-storage-tiers
+      type: contains
+      to: dom.core
+    - from: cap.trigger-system
+      type: contains
+      to: dom.core
+    - from: cap.dag-condition-branch
+      type: contains
+      to: dom.core
+    - from: cap.single-node-loop
+      type: contains
+      to: dom.core
+    - from: cap.sub-dag-execution
+      type: contains
+      to: dom.core
+    - from: cap.config-git-safety
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.entity-management-page
+      intent: 实体管理页面适配统一 Entity 模型，支持所有 EntityType（含 Node、DAG、Trigger）的 CRUD 交互
+    - id: cap.entity-type-crud-api
+      intent: Entity Type CRUD API 扩展，支持 storage_tier 和能力字段声明
+    - id: cap.entity-instance-crud-api
+      intent: Entity Instance CRUD API 适配三层存储路由
+    - id: cap.entity-relation-crud-api
+      intent: Entity Relation 统一为 Entity（type: relation），通过 Entity Store 管理
+
+REMOVED:
+  capabilities: []
