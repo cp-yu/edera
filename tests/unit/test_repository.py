@@ -6,9 +6,18 @@ import pytest
 from sqlmodel import select
 
 from stockimformation.models.database import create_engine, init_db, session_factory, sqlite_url
-from stockimformation.models.entities import Advice, Briefing, EventRecord, NodeRun, PipelineRun, RawItem
+from stockimformation.models.entities import (
+    Advice,
+    Briefing,
+    EventRecord,
+    NodeOutputEntity,
+    NodeRun,
+    PipelineRun,
+    RawItem,
+)
 from stockimformation.models.repository import (
     add_raw_item,
+    cleanup_node_output_entities,
     create_pipeline_run,
     current_pipeline_run,
     finish_pipeline_run,
@@ -17,12 +26,15 @@ from stockimformation.models.repository import (
     list_briefings,
     mark_node_run,
     events_for_analysis_ids,
+    query_node_output_entities,
     node_runs_for_cycle,
     raw_items_for_tag,
     recent_pipeline_runs,
     source_execution_logs,
     source_health_summary,
+    store_node_output_entities,
 )
+from stockimformation.pipeline import _record_node_output
 
 
 @pytest.mark.asyncio
@@ -65,6 +77,103 @@ async def test_raw_items_for_tag_matches_entity_ref(tmp_path: Path) -> None:
     assert [item.url for item in items] == ["https://example.com/a"]
     assert partial == []
     assert bare == []
+
+
+@pytest.mark.asyncio
+async def test_node_output_entity(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "node-outputs.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+    async with factory() as session:
+        await store_node_output_entities(
+            session,
+            "cycle-1",
+            "reader",
+            "analysis",
+            {"summary": "ok", "tags": ["stock:00700.HK"]},
+            session_id="session-1",
+        )
+        await session.commit()
+        entities = await query_node_output_entities(
+            session,
+            entity_type="analysis",
+            cycle_id="cycle-1",
+            node_id="reader",
+            tags=["stock:00700.HK"],
+        )
+    assert len(entities) == 1
+    assert entities[0].type == "analysis"
+    assert entities[0].attributes["cycle_id"] == "cycle-1"
+    assert entities[0].attributes["node_id"] == "reader"
+    assert entities[0].attributes["session_id"] == "session-1"
+    assert entities[0].attributes["payload"]["summary"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_records_node_output_without_legacy_tables(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "pipeline-node-output.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    await _record_node_output(
+        factory,
+        "cycle-1",
+        "reader",
+        "analysis",
+        {"summary": "ok"},
+        "session-1",
+    )
+
+    async with factory() as session:
+        outputs = (await session.exec(select(NodeOutputEntity))).all()
+        raw_items = (await session.exec(select(RawItem))).all()
+
+    assert len(outputs) == 1
+    assert outputs[0].type == "analysis"
+    assert outputs[0].session_id == "session-1"
+    assert raw_items == []
+
+
+@pytest.mark.asyncio
+async def test_retention_cleanup(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "node-output-retention.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+    async with factory() as session:
+        session.add(
+            NodeOutputEntity(
+                entity_id="old",
+                type="analysis",
+                cycle_id="old",
+                node_id="reader",
+                payload={"summary": "old"},
+                created_at=_dt(1),
+            )
+        )
+        session.add(
+            NodeOutputEntity(
+                entity_id="mid",
+                type="analysis",
+                cycle_id="mid",
+                node_id="reader",
+                payload={"summary": "mid"},
+                created_at=_dt(2),
+            )
+        )
+        session.add(
+            NodeOutputEntity(
+                entity_id="new",
+                type="analysis",
+                cycle_id="new",
+                node_id="reader",
+                payload={"summary": "new"},
+                created_at=_dt(3),
+            )
+        )
+        await cleanup_node_output_entities(session, retention_count=2, retention_hours=0)
+        await session.commit()
+        result = await session.exec(select(NodeOutputEntity))
+    assert {item.entity_id for item in result.all()} == {"mid", "new"}
 
 
 @pytest.mark.asyncio

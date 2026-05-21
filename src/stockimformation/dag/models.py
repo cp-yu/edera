@@ -16,6 +16,8 @@ class DagGraph:
     reverse_edges: dict[str, list[str]]
     fan_out_edges: set[tuple[str, str]] = field(default_factory=set)
     fan_in_edges: set[tuple[str, str]] = field(default_factory=set)
+    conditions: dict[tuple[str, str], str] = field(default_factory=dict)
+    fan_in_modes: dict[tuple[str, str], str] = field(default_factory=dict)
 
 
 @dataclass
@@ -24,6 +26,7 @@ class DagRunResult:
     node_outputs: dict[str, NodeOutput]
     failures: dict[str, str]
     payload: Any = None
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:

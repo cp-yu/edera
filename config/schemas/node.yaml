@@ -1,0 +1,35 @@
+display_name: Node
+business_id_field: name
+display_template: "{name}"
+storage_tier: filesystem
+schema:
+  type: object
+  required:
+    - name
+    - type
+    - input_type
+    - output_type
+  properties:
+    name:
+      type: string
+    type:
+      type: string
+    role:
+      type: string
+    handler:
+      type: string
+    skills:
+      type: array
+    system_prompt_file:
+      type: string
+    model:
+      type: string
+    input_type:
+      type: string
+    output_type:
+      type: string
+    parameters:
+      type: object
+    parameters_schema:
+      type: object
+validate: true

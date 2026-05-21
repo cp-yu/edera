@@ -1,0 +1,20 @@
+display_name: Analysis
+business_id_field: id
+display_template: "{summary}"
+storage_tier: database
+schema:
+  type: object
+  properties:
+    id:
+      type: string
+    raw_item_id:
+      type: integer
+    summary:
+      type: string
+    keywords:
+      type: array
+    sentiment:
+      type: string
+    confidence:
+      type: number
+validate: true

@@ -9,3 +9,20 @@ def test_load_stock_schema() -> None:
     assert stock.business_id_field == "code"
     assert stock.display_template
     assert stock.field_permissions["code"] == "read-only"
+
+
+def test_entity_type_capability_detection() -> None:
+    schemas = load_entity_type_configs(Path("schemas/entity-types"))
+    node = schemas["node"]
+    dag = schemas["dag"]
+    trigger = schemas["trigger"]
+    run_metadata = schemas["run-metadata"]
+
+    assert node.storage_tier == "filesystem"
+    assert node.is_executable
+    assert not node.is_dag
+    assert dag.storage_tier == "filesystem"
+    assert dag.is_dag
+    assert trigger.storage_tier == "filesystem"
+    assert trigger.is_trigger
+    assert run_metadata.storage_tier == "memory"

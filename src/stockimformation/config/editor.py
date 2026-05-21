@@ -27,6 +27,7 @@ from stockimformation.config.schema import (
 )
 from stockimformation.dag.loader import load_graph
 from stockimformation.errors import ConfigEditError, DagError
+from stockimformation.config.git import config_write_lock
 
 ConfigKind = Literal["system", "entities", "entity-relations", "node", "dag", "skill"]
 
@@ -70,7 +71,8 @@ class RuntimeConfigEditor:
     def save(self, kind: ConfigKind, name: str, content: str) -> EditableFile:
         path = self._path(kind, name)
         self._validate(kind, name, content)
-        self._atomic_write(path, content)
+        with config_write_lock(self.config_dir):
+            self._atomic_write(path, content)
         return self._file(kind, name, path)
 
     def _path(self, kind: ConfigKind, name: str) -> Path:

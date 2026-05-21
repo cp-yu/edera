@@ -1,0 +1,16 @@
+display_name: Run Metadata
+business_id_field: cycle_id
+display_template: "{cycle_id}"
+storage_tier: memory
+schema:
+  type: object
+  required:
+    - cycle_id
+  properties:
+    cycle_id:
+      type: string
+    warnings:
+      type: array
+    events:
+      type: array
+validate: true

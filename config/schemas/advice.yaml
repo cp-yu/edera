@@ -1,0 +1,18 @@
+display_name: Advice
+business_id_field: id
+display_template: "{direction}"
+storage_tier: database
+schema:
+  type: object
+  properties:
+    id:
+      type: string
+    direction:
+      type: string
+    confidence:
+      type: number
+    reason:
+      type: string
+    evidence:
+      type: array
+validate: true

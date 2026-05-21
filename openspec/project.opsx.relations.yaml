@@ -1,2 +1,23 @@
 schema_version: 1
-relations: []
+relations:
+  - from: cap.unified-entity-model
+    type: contains
+    to: dom.core
+  - from: cap.entity-storage-tiers
+    type: contains
+    to: dom.core
+  - from: cap.trigger-system
+    type: contains
+    to: dom.core
+  - from: cap.dag-condition-branch
+    type: contains
+    to: dom.core
+  - from: cap.single-node-loop
+    type: contains
+    to: dom.core
+  - from: cap.sub-dag-execution
+    type: contains
+    to: dom.core
+  - from: cap.config-git-safety
+    type: contains
+    to: dom.core

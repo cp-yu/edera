@@ -1,0 +1,17 @@
+display_name: Briefing
+business_id_field: cycle_id
+display_template: "{cycle_id}"
+storage_tier: database
+schema:
+  type: object
+  required:
+    - cycle_id
+    - content
+  properties:
+    cycle_id:
+      type: string
+    content:
+      type: string
+    metadata:
+      type: object
+validate: true

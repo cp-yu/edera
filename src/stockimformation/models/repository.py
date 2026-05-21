@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -8,11 +9,13 @@ from stockimformation.models.entities import (
     AnalysisResult,
     Briefing,
     EventRecord,
+    NodeOutputEntity,
     NodeRun,
     PipelineRun,
     RawItem,
     utc_now,
 )
+from stockimformation.config.schema import EntityConfig
 from stockimformation.services.event_analysis import (
     apply_contradiction_flags,
     build_event_record,
@@ -40,6 +43,7 @@ async def store_cycle_outputs(
     analyses: list[AnalysisResult],
     advices: list[Advice],
     briefing: Briefing | None,
+    cycle_id: str = "",
 ) -> None:
     url_to_id: dict[str, int] = {}
     for raw_item in raw_items:
@@ -60,6 +64,11 @@ async def store_cycle_outputs(
         session.add(advice)
     if briefing is not None:
         session.add(briefing)
+    await store_node_output_entities(session, cycle_id, "rss-fetcher", "raw-item", [item.model_dump(mode="json") for item in raw_items])
+    await store_node_output_entities(session, cycle_id, "reader", "analysis", [item.model_dump(mode="json") for item in analyses])
+    await store_node_output_entities(session, cycle_id, "advisor", "advice", [item.model_dump(mode="json") for item in advices])
+    if briefing is not None:
+        await store_node_output_entities(session, briefing.cycle_id, "briefing-generator", "briefing", briefing.model_dump(mode="json"))
     await session.flush()
     existing_events = list((await session.exec(select(EventRecord))).all())
     event_upserts = rebuild_event_records(raw_items, analyses, existing_events)
@@ -89,6 +98,153 @@ async def store_cycle_outputs(
             continue
         session.add(build_event_record(upsert))
     await session.flush()
+
+
+async def store_node_output_entities(
+    session: AsyncSession,
+    cycle_id: str,
+    node_id: str,
+    entity_type: str,
+    payload: object,
+    session_id: str | None = None,
+) -> list[NodeOutputEntity]:
+    values = payload if isinstance(payload, list) else [payload]
+    stored: list[NodeOutputEntity] = []
+    for value in values:
+        if not isinstance(value, dict):
+            value = {"value": value}
+        url = value.get("url") if isinstance(value.get("url"), str) else None
+        if entity_type == "raw-item" and url is not None:
+            existing = await session.exec(
+                select(NodeOutputEntity).where(
+                    NodeOutputEntity.type == "raw-item",
+                    NodeOutputEntity.url == url,
+                )
+            )
+            if existing.first() is not None:
+                continue
+        entity = NodeOutputEntity(
+            entity_id=uuid4().hex,
+            type=entity_type,
+            cycle_id=str(value.get("cycle_id") or cycle_id or ""),
+            node_id=node_id,
+            payload=dict(value),
+            tags=[str(tag) for tag in value.get("tags", [])] if isinstance(value.get("tags"), list) else [],
+            session_id=session_id,
+            url=url,
+        )
+        session.add(entity)
+        stored.append(entity)
+    await session.flush()
+    return stored
+
+
+async def query_node_output_entities(
+    session: AsyncSession,
+    entity_type: str | None = None,
+    cycle_id: str | None = None,
+    node_id: str | None = None,
+    tags: list[str] | None = None,
+    limit: int = 100,
+) -> list[EntityConfig]:
+    statement = select(NodeOutputEntity).order_by(col(NodeOutputEntity.created_at).desc()).limit(limit)
+    if entity_type is not None:
+        statement = statement.where(NodeOutputEntity.type == entity_type)
+    if cycle_id is not None:
+        statement = statement.where(NodeOutputEntity.cycle_id == cycle_id)
+    if node_id is not None:
+        statement = statement.where(NodeOutputEntity.node_id == node_id)
+    result = await session.exec(statement)
+    entities = [node_output_to_entity(item) for item in result.all()]
+    if tags is None:
+        return entities
+    wanted = set(tags)
+    return [entity for entity in entities if wanted.issubset(set(_entity_tags(entity)))]
+
+
+async def save_node_output_entity(
+    session: AsyncSession,
+    entity: EntityConfig,
+) -> EntityConfig:
+    result = await session.exec(select(NodeOutputEntity).where(NodeOutputEntity.entity_id == entity.id))
+    current = result.first()
+    if current is None:
+        raise ValueError(f"node output entity not found: {entity.id}")
+    if current.type != entity.type:
+        raise ValueError(f"node output entity type cannot change: {entity.id}")
+    current.cycle_id = str(entity.attributes.get("cycle_id") or current.cycle_id)
+    current.node_id = str(entity.attributes.get("node_id") or current.node_id)
+    current.session_id = (
+        str(entity.attributes["session_id"]) if entity.attributes.get("session_id") is not None else None
+    )
+    current.url = str(entity.attributes["url"]) if entity.attributes.get("url") is not None else None
+    payload = entity.attributes.get("payload")
+    current.payload = dict(payload) if isinstance(payload, dict) else dict(entity.attributes)
+    tags = entity.attributes.get("tags")
+    current.tags = [str(tag) for tag in tags] if isinstance(tags, list) else []
+    session.add(current)
+    await session.flush()
+    return node_output_to_entity(current)
+
+
+async def delete_node_output_entity(session: AsyncSession, entity_id: str) -> bool:
+    result = await session.exec(select(NodeOutputEntity).where(NodeOutputEntity.entity_id == entity_id))
+    current = result.first()
+    if current is None:
+        return False
+    await session.delete(current)
+    await session.flush()
+    return True
+
+
+def node_output_to_entity(output: NodeOutputEntity) -> EntityConfig:
+    attributes = dict(output.payload)
+    attributes.setdefault("id", output.entity_id)
+    attributes.update(
+        {
+            "cycle_id": output.cycle_id,
+            "node_id": output.node_id,
+            "payload": output.payload,
+        }
+    )
+    if output.session_id:
+        attributes["session_id"] = output.session_id
+    return EntityConfig(id=output.entity_id, type=output.type, attributes=attributes)
+
+
+async def cleanup_node_output_entities(
+    session: AsyncSession,
+    retention_count: int,
+    retention_hours: int,
+    now: datetime | None = None,
+) -> None:
+    current = now or utc_now()
+    if retention_hours > 0:
+        cutoff = current.timestamp() - retention_hours * 3600
+        result = await session.exec(select(NodeOutputEntity))
+        for output in result.all():
+            if output.created_at.timestamp() < cutoff:
+                await session.delete(output)
+    if retention_count > 0:
+        result = await session.exec(
+            select(NodeOutputEntity.cycle_id)
+            .order_by(col(NodeOutputEntity.created_at).desc())
+        )
+        cycles: list[str] = []
+        for cycle in result.all():
+            if cycle not in cycles:
+                cycles.append(cycle)
+        expired = cycles[retention_count:]
+        if expired:
+            result = await session.exec(select(NodeOutputEntity).where(col(NodeOutputEntity.cycle_id).in_(expired)))
+            for output in result.all():
+                await session.delete(output)
+    await session.flush()
+
+
+def _entity_tags(entity: EntityConfig) -> list[str]:
+    tags = entity.attributes.get("tags")
+    return [str(tag) for tag in tags] if isinstance(tags, list) else []
 
 
 async def create_pipeline_run(
@@ -256,7 +412,11 @@ async def node_runs_for_cycle(session: AsyncSession, cycle_id: str) -> list[Node
 
 async def latest_briefing(session: AsyncSession) -> Briefing | None:
     result = await session.exec(select(Briefing).order_by(col(Briefing.created_at).desc()).limit(1))
-    return result.first()
+    briefing = result.first()
+    if briefing is not None:
+        return briefing
+    entities = await _node_outputs(session, "briefing", 1)
+    return _briefing_from_output(entities[0]) if entities else None
 
 
 async def list_briefings(
@@ -271,12 +431,23 @@ async def list_briefings(
     if created_to is not None:
         statement = statement.where(Briefing.created_at <= created_to)
     result = await session.exec(statement.order_by(col(Briefing.created_at).desc()).limit(limit))
-    return list(result.all())
+    briefings = list(result.all())
+    if briefings:
+        return briefings
+    return [
+        item
+        for item in (_briefing_from_output(output) for output in await _node_outputs(session, "briefing", limit))
+        if item is not None and _within_window(item.created_at, created_from, created_to)
+    ]
 
 
 async def get_briefing(session: AsyncSession, briefing_id: int) -> Briefing | None:
     result = await session.exec(select(Briefing).where(Briefing.id == briefing_id))
-    return result.first()
+    briefing = result.first()
+    if briefing is not None:
+        return briefing
+    output = await _node_output_by_row_id(session, "briefing", briefing_id)
+    return _briefing_from_output(output) if output is not None else None
 
 
 async def list_advices(
@@ -297,12 +468,26 @@ async def list_advices(
     if created_to is not None:
         statement = statement.where(Advice.created_at <= created_to)
     result = await session.exec(statement.order_by(col(Advice.created_at).desc()).limit(limit))
-    return list(result.all())
+    advices = list(result.all())
+    if advices:
+        return advices
+    return [
+        item
+        for item in (_advice_from_output(output) for output in await _node_outputs(session, "advice", limit))
+        if item is not None
+        and (stock_code is None or item.stock_code == stock_code)
+        and (direction is None or item.direction == direction)
+        and _within_window(item.created_at, created_from, created_to)
+    ]
 
 
 async def get_advice(session: AsyncSession, advice_id: int) -> Advice | None:
     result = await session.exec(select(Advice).where(Advice.id == advice_id))
-    return result.first()
+    advice = result.first()
+    if advice is not None:
+        return advice
+    output = await _node_output_by_row_id(session, "advice", advice_id)
+    return _advice_from_output(output) if output is not None else None
 
 
 async def analyses_for_advice(session: AsyncSession, advice: Advice) -> list[AnalysisResult]:
@@ -310,12 +495,22 @@ async def analyses_for_advice(session: AsyncSession, advice: Advice) -> list[Ana
     if ids:
         result = await session.exec(select(AnalysisResult).where(col(AnalysisResult.id).in_(ids)))
         by_id = {item.id: item for item in result.all()}
-        return [by_id[item_id] for item_id in ids if item_id in by_id]
+        analyses = [by_id[item_id] for item_id in ids if item_id in by_id]
+        if analyses:
+            return analyses
     if advice.source_urls:
         result = await session.exec(
             select(AnalysisResult).where(col(AnalysisResult.source_url).in_(advice.source_urls))
         )
-        return list(result.all())
+        analyses = list(result.all())
+        if analyses:
+            return _order_analyses(analyses, advice.source_urls)
+        analyses = [
+            item
+            for item in (_analysis_from_output(output) for output in await _node_outputs(session, "analysis"))
+            if item is not None and item.source_url in advice.source_urls
+        ]
+        return _order_analyses(analyses, advice.source_urls)
     return []
 
 
@@ -327,7 +522,16 @@ async def raw_items_for_analyses(
     if not ids:
         return []
     result = await session.exec(select(RawItem).where(col(RawItem.id).in_(ids)))
-    return list(result.all())
+    raw_items = list(result.all())
+    if raw_items:
+        return _order_raw_items(raw_items, [item.source_url for item in analyses])
+    source_urls = {item.source_url for item in analyses}
+    raw_items = [
+        item
+        for item in (_raw_item_from_output(output) for output in await _node_outputs(session, "raw-item"))
+        if item is not None and item.url in source_urls
+    ]
+    return _order_raw_items(raw_items, [item.source_url for item in analyses])
 
 
 async def raw_items_for_tag(session: AsyncSession, tag: str) -> list[RawItem]:
@@ -417,6 +621,94 @@ async def _analyses_for_event(session: AsyncSession, event: EventRecord) -> list
     result = await session.exec(select(AnalysisResult).where(col(AnalysisResult.id).in_(ids)))
     by_id = {item.id: item for item in result.all()}
     return [by_id[item_id] for item_id in ids if item_id in by_id]
+
+
+async def _node_outputs(
+    session: AsyncSession,
+    entity_type: str,
+    limit: int = 100,
+) -> list[NodeOutputEntity]:
+    result = await session.exec(
+        select(NodeOutputEntity)
+        .where(NodeOutputEntity.type == entity_type)
+        .order_by(col(NodeOutputEntity.created_at).desc())
+        .limit(limit)
+    )
+    return list(result.all())
+
+
+async def _node_output_by_row_id(
+    session: AsyncSession,
+    entity_type: str,
+    row_id: int,
+) -> NodeOutputEntity | None:
+    result = await session.exec(
+        select(NodeOutputEntity).where(NodeOutputEntity.type == entity_type, NodeOutputEntity.id == row_id)
+    )
+    return result.first()
+
+
+def _advice_from_output(output: NodeOutputEntity) -> Advice | None:
+    try:
+        return Advice.model_validate({**output.payload, "id": output.id})
+    except ValueError:
+        return None
+
+
+def _briefing_from_output(output: NodeOutputEntity) -> Briefing | None:
+    try:
+        return Briefing.model_validate(
+            {
+                **output.payload,
+                "id": output.id,
+                "cycle_id": output.cycle_id,
+                "created_at": output.created_at,
+            }
+        )
+    except ValueError:
+        return None
+
+
+def _analysis_from_output(output: NodeOutputEntity) -> AnalysisResult | None:
+    try:
+        return AnalysisResult.model_validate({**output.payload, "id": output.id})
+    except ValueError:
+        return None
+
+
+def _raw_item_from_output(output: NodeOutputEntity) -> RawItem | None:
+    try:
+        return RawItem.model_validate({**output.payload, "id": output.id})
+    except ValueError:
+        return None
+
+
+def _within_window(
+    value: datetime,
+    created_from: datetime | None,
+    created_to: datetime | None,
+) -> bool:
+    if created_from is not None and value < created_from:
+        return False
+    if created_to is not None and value > created_to:
+        return False
+    return True
+
+
+def _order_analyses(
+    analyses: list[AnalysisResult],
+    source_urls: list[str],
+) -> list[AnalysisResult]:
+    by_url = {item.source_url: item for item in analyses}
+    return [by_url[url] for url in source_urls if url in by_url]
+
+
+def _order_raw_items(
+    raw_items: list[RawItem],
+    source_urls: list[str],
+) -> list[RawItem]:
+    by_url = {item.url: item for item in raw_items}
+    return [by_url[url] for url in source_urls if url in by_url]
 
 
 def _source_log_dict(node: NodeRun, run: PipelineRun) -> dict[str, object]:

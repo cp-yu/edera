@@ -248,6 +248,11 @@ async def test_entity_instance_crud(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_web_api_entity_crud(tmp_path) -> None:
+    await test_entity_instance_crud(tmp_path)
+
+
+@pytest.mark.asyncio
 async def test_entity_relation_crud(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)

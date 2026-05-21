@@ -54,7 +54,7 @@ MODIFIED:
     - id: cap.entity-instance-crud-api
       intent: Entity Instance CRUD API 适配三层存储路由
     - id: cap.entity-relation-crud-api
-      intent: Entity Relation 统一为 Entity（type: relation），通过 Entity Store 管理
+      intent: "Entity Relation 统一为 Entity（type: relation），通过 Entity Store 管理"
 
 REMOVED:
   capabilities: []

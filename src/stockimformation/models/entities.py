@@ -182,6 +182,29 @@ class Briefing(SQLModel, table=True):
         return value
 
 
+class NodeOutputEntity(SQLModel, table=True):
+    __tablename__ = "node_outputs"
+    __table_args__ = (UniqueConstraint("type", "url", name="uq_node_outputs_type_url"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_id: str = Field(index=True, unique=True)
+    type: str = Field(index=True)
+    cycle_id: str = Field(index=True)
+    node_id: str = Field(index=True)
+    payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    session_id: str | None = Field(default=None, index=True)
+    url: str | None = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("entity_id", "type", "cycle_id", "node_id")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
 class PipelineRun(SQLModel, table=True):
     __tablename__ = "pipeline_runs"
 
@@ -248,6 +271,7 @@ __all__ = [
     "Briefing",
     "EventRecord",
     "NodeRun",
+    "NodeOutputEntity",
     "PipelineRun",
     "RawItem",
     "utc_now",

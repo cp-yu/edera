@@ -1,0 +1,20 @@
+display_name: DAG
+business_id_field: name
+display_template: "{name}"
+storage_tier: filesystem
+schema:
+  type: object
+  required:
+    - name
+    - nodes
+    - edges
+  properties:
+    name:
+      type: string
+    nodes:
+      type: array
+    edges:
+      type: array
+    ui:
+      type: object
+validate: true

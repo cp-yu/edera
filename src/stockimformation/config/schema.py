@@ -30,6 +30,8 @@ class SystemConfig(BaseModel):
     workspace_root: Path = Path("/tmp/stockimformation/runs")
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=24, ge=0)
+    max_dag_depth: int = Field(default=3, ge=1)
+    config_git_commit: bool = True
     source_recovery_enabled: bool = True
     source_recovery_max_attempts: int = Field(default=2, ge=0)
     source_repair_task_output_dir: Path | None = None
@@ -46,15 +48,37 @@ class SystemConfig(BaseModel):
 
 
 FieldPermission = Literal["none", "read-only", "write-only", "read-write"]
+StorageTier = Literal["filesystem", "database", "memory"]
 
 
 class EntityTypeConfig(BaseModel):
     display_name: str
     business_id_field: str
     display_template: str
+    storage_tier: StorageTier = "filesystem"
     schema_: dict[str, Any] = Field(default_factory=dict, alias="schema")
     field_permissions: dict[str, FieldPermission] = Field(default_factory=dict)
     validate_: bool = Field(default=True, alias="validate")
+
+    def has_field(self, name: str) -> bool:
+        properties = self.schema_.get("properties")
+        return isinstance(properties, dict) and name in properties
+
+    @property
+    def is_executable(self) -> bool:
+        return self.has_field("handler") or self.has_field("system_prompt_file")
+
+    @property
+    def is_dag(self) -> bool:
+        return self.has_field("nodes") and self.has_field("edges")
+
+    @property
+    def is_trigger(self) -> bool:
+        return self.has_field("wait_for") and self.has_field("target")
+
+    @property
+    def is_relation(self) -> bool:
+        return self.has_field("from") and self.has_field("to") and self.has_field("relation_type")
 
 
 class EntityConfig(BaseModel):
@@ -215,6 +239,14 @@ class DagEdge(BaseModel):
     to: str
     fan_out: bool = False
     fan_in: bool = False
+    condition: str | None = None
+    fan_in_mode: Literal["collect", "stream"] = "collect"
+
+
+class DagLoopConfig(BaseModel):
+    mode: Literal["parallel", "serial"]
+    count: int | None = Field(default=None, ge=1)
+    until: str | None = None
 
 
 class DagNodeInstance(BaseModel):
@@ -224,6 +256,10 @@ class DagNodeInstance(BaseModel):
     type: str
     alias: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
+    optional: bool = False
+    loop: DagLoopConfig | None = None
+    fallback: Literal["switch_model", "skip"] | None = None
+    fallback_model: str | None = None
 
     @field_validator("config")
     @classmethod

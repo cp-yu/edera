@@ -1,21 +1,24 @@
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import inspect
 import json
 import os
+import re
 import shutil
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from uuid import uuid4
 
 from pydantic import BaseModel
 
 from stockimformation.config.entities import EntityStore
-from stockimformation.config.schema import DagNodeInstance, NodeConfig, RuntimeSettings, SystemConfig
-from stockimformation.errors import NodeExecutionError
+from stockimformation.config.schema import DagNodeInstance, EntityConfig, NodeConfig, RuntimeSettings, SystemConfig
+from stockimformation.errors import ConfigError, NodeExecutionError
 from stockimformation.node.models import FunctionHandler, NodeContext, NodeInput, NodeOutput
 from stockimformation.node.skills import load_skill, load_skill_handler
+
+OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
 
 
 class NodeExecutor:
@@ -30,6 +33,7 @@ class NodeExecutor:
         handlers_dir: Path = Path("handlers"),
         skills_dir: Path = Path("skills"),
         skill_handlers_dir: Path = Path("skill_handlers"),
+        output_recorder: OutputRecorder | None = None,
     ) -> None:
         self.nodes = nodes
         self.system = system
@@ -40,6 +44,7 @@ class NodeExecutor:
         self.handlers_dir = handlers_dir
         self.skills_dir = skills_dir
         self.skill_handlers_dir = skill_handlers_dir
+        self.output_recorder = output_recorder
 
     async def execute(
         self,
@@ -51,6 +56,13 @@ class NodeExecutor:
         context = context or NodeContext(node_input.cycle_id, node_name or uuid4().hex)
         type_name = instance.type if instance else context.node_type or node_name
         config = self._node(type_name)
+        if not config.handler and not config.system_prompt_file:
+            return NodeOutput(
+                node_name=node_name,
+                ok=False,
+                metadata=_output_metadata(node_input),
+                error="Entity is not executable: missing handler or system_prompt_file",
+            )
         context = NodeContext(
             cycle_id=context.cycle_id,
             instance_id=context.instance_id,
@@ -62,7 +74,7 @@ class NodeExecutor:
         effective = _apply_instance_config(config, instance)
         effective_input = _apply_instance_input(effective, node_input, instance, self.entity_store)
         try:
-            payload = await self._execute_payload(effective, effective_input, context)
+            payload, extra_metadata = await self._execute_payload(effective, effective_input, context)
         except Exception as exc:
             return NodeOutput(
                 node_name=node_name,
@@ -70,11 +82,20 @@ class NodeExecutor:
                 metadata=_output_metadata(effective_input),
                 error=str(exc),
             )
+        metadata = {**_output_metadata(effective_input), **extra_metadata}
+        if self.output_recorder is not None:
+            await self.output_recorder(
+                effective_input.cycle_id,
+                node_name,
+                _entity_type_from_output(effective.output_type),
+                payload,
+                metadata.get("session_id") if isinstance(metadata.get("session_id"), str) else None,
+            )
         return NodeOutput(
             node_name=node_name,
             ok=True,
             payload=payload,
-            metadata=_output_metadata(effective_input),
+            metadata=metadata,
         )
 
     async def _execute_payload(
@@ -82,23 +103,25 @@ class NodeExecutor:
         config: NodeConfig,
         node_input: NodeInput,
         context: NodeContext,
-    ) -> object:
+    ) -> tuple[object, dict[str, object]]:
         timeout = config.timeout_seconds or self.system.llm_timeout_seconds
         if config.type == "function":
             handler_name = config.handler or (config.skills[0] if config.skills else "")
             handler = self.handlers.get(handler_name) or self._load_handler(handler_name)
             if handler is None:
                 raise NodeExecutionError(f"missing function handler: {handler_name}")
-            return await asyncio.wait_for(
+            payload = await asyncio.wait_for(
                 _call_handler(handler, node_input, config.parameters, context),
                 timeout=timeout,
             )
+            return payload, {}
         for skill in config.skills:
             load_skill_handler(skill, self.skill_handlers_dir)
-        return await asyncio.wait_for(
+        payload, session_id = await asyncio.wait_for(
             self._run_pi(config, config.skills, node_input, context),
             timeout=timeout,
         )
+        return payload, {"session_id": session_id}
 
     async def _run_pi(
         self,
@@ -106,7 +129,7 @@ class NodeExecutor:
         skills: list[str],
         node_input: NodeInput,
         context: NodeContext,
-    ) -> object:
+    ) -> tuple[object, str]:
         workspace = self._prepare_workspace(config, context)
         skill_paths = [str(load_skill(skill, self.skills_dir).path) for skill in skills]
         input_json = _json(node_input)
@@ -138,7 +161,7 @@ class NodeExecutor:
                 f"pi failed for {config.name}: {stderr.decode(errors='replace').strip()}"
             )
         try:
-            return json.loads(stdout.decode())
+            return json.loads(stdout.decode()), str(workspace / "sessions")
         except json.JSONDecodeError as exc:
             raise NodeExecutionError(f"pi returned invalid JSON for {config.name}") from exc
         finally:
@@ -165,6 +188,11 @@ class NodeExecutor:
             shutil.rmtree(workspace)
 
     def _node(self, node_name: str) -> NodeConfig:
+        if self.entity_store is not None and "node" in self.entity_store.entity_types:
+            try:
+                return _node_from_entity(self.entity_store.resolve(f"node:{node_name}"))
+            except ConfigError:
+                pass
         try:
             return self.nodes[node_name]
         except KeyError as exc:
@@ -174,13 +202,9 @@ class NodeExecutor:
         path = self.handlers_dir / f"{name}.py"
         if not path.exists():
             return None
-        module_name = f"stockimformation_dynamic_handler_{name.replace('-', '_')}"
-        spec = importlib.util.spec_from_file_location(module_name, path)
-        if spec is None or spec.loader is None:
-            return None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        handler = getattr(module, "run", None)
+        namespace: dict[str, object] = {}
+        exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), namespace)
+        handler = namespace.get("run")
         return handler if callable(handler) else None
 
 
@@ -282,6 +306,52 @@ def _output_metadata(node_input: NodeInput) -> dict[str, object]:
         if key in node_input.metadata:
             metadata[key] = node_input.metadata[key]
     return metadata
+
+
+def _node_from_entity(entity: EntityConfig) -> NodeConfig:
+    attrs = dict(entity.attributes)
+    attrs.setdefault("name", entity.id)
+    if attrs.get("handler") or attrs.get("system_prompt_file"):
+        return NodeConfig.model_validate(attrs)
+    return NodeConfig.model_construct(
+        name=str(attrs.get("name") or entity.id),
+        type=attrs.get("type", "function"),
+        role=attrs.get("role", "processor"),
+        skills=[str(item) for item in attrs.get("skills", [])] if isinstance(attrs.get("skills"), list) else [],
+        handler=None,
+        system_prompt_file=None,
+        system_prompt=attrs.get("system_prompt") if isinstance(attrs.get("system_prompt"), str) else None,
+        model=attrs.get("model") if isinstance(attrs.get("model"), str) else None,
+        input_type=str(attrs.get("input_type") or ""),
+        output_type=str(attrs.get("output_type") or ""),
+        timeout_seconds=attrs.get("timeout_seconds") if isinstance(attrs.get("timeout_seconds"), int | float) else None,
+        source_names=[str(item) for item in attrs.get("source_names", [])]
+        if isinstance(attrs.get("source_names"), list)
+        else [],
+        parameters=attrs.get("parameters") if isinstance(attrs.get("parameters"), dict) else {},
+        parameters_schema=attrs.get("parameters_schema") if isinstance(attrs.get("parameters_schema"), dict) else {},
+    )
+
+
+def _entity_type_from_output(output_type: str) -> str:
+    name = output_type.strip()
+    if name.startswith("list[") and name.endswith("]"):
+        name = name[5:-1].strip()
+    normalized = name.replace("_", "-").replace(" ", "-")
+    mapped = {
+        "rawitem": "raw-item",
+        "raw-item": "raw-item",
+        "analysisresult": "analysis",
+        "analysis-result": "analysis",
+        "advice": "advice",
+        "briefing": "briefing",
+    }
+    key = re.sub(r"[^a-z0-9-]", "", _camel_to_kebab(normalized).lower())
+    return mapped.get(key, key or "node-output")
+
+
+def _camel_to_kebab(value: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", "-", value)
 
 
 def _agent_contract(input_type: str, output_type: str) -> str:

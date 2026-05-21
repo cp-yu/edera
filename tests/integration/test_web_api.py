@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-
 import pytest
 import yaml
 from httpx import ASGITransport, AsyncClient

@@ -42,8 +42,13 @@ def load_system_config(path: Path) -> SystemConfig:
 
 def load_entity_type_configs(path: Path) -> dict[str, EntityTypeConfig]:
     configs: dict[str, EntityTypeConfig] = {}
-    for file in sorted(path.glob("*.yaml")):
-        configs[file.stem] = EntityTypeConfig.model_validate(_read_yaml(file))
+    paths = [path]
+    legacy_peer = path.parent.parent / "config" / "schemas"
+    if path.parts[-2:] == ("schemas", "entity-types") and legacy_peer.exists():
+        paths.append(legacy_peer)
+    for schema_path in paths:
+        for file in sorted(schema_path.glob("*.yaml")):
+            configs[file.stem] = EntityTypeConfig.model_validate(_read_yaml(file))
     if not configs:
         raise ConfigError(f"missing entity type schemas: {path}")
     return configs
@@ -54,6 +59,9 @@ def load_entities_config(
     entity_types: dict[str, EntityTypeConfig],
 ) -> EntitiesConfig:
     entities = EntitiesConfig.model_validate(_read_yaml(path))
+    entity_dir = path.parent / "entities"
+    for file in sorted(entity_dir.glob("*.yaml")):
+        entities.entities.append(_entity_from_file(file, None))
     _validate_entities(entities, entity_types)
     return entities
 
@@ -81,8 +89,10 @@ def load_entity_relations_config(
 def load_node_configs(path: Path) -> dict[str, NodeConfig]:
     configs: dict[str, NodeConfig] = {}
     root = path.parent.parent
-    for file in sorted(path.glob("*.yaml")):
-        node = NodeConfig.model_validate(_read_yaml(file))
+    store = _entity_store_or_none(path.parent)
+    entities = store.query("node") if store is not None else [_entity_from_file(file, "node") for file in sorted(path.glob("*.yaml"))]
+    for entity in entities:
+        node = NodeConfig.model_validate(entity.attributes)
         if node.type == "llm" and node.system_prompt_file:
             prompt_path = root / node.system_prompt_file
             if not prompt_path.exists():
@@ -107,13 +117,26 @@ def load_skill_configs(path: Path) -> dict[str, SkillConfig]:
 
 
 def load_dag_config(path: Path) -> DagConfig:
-    return DagConfig.model_validate(_read_yaml(path))
+    raw = _read_yaml(path)
+    if raw.get("type") == "dag" and isinstance(raw.get("attributes"), dict):
+        attrs = dict(raw["attributes"])
+        attrs.setdefault("name", raw.get("id", path.stem))
+        return DagConfig.model_validate(attrs)
+    return DagConfig.model_validate(raw)
 
 
 def load_dag_configs(path: Path) -> dict[str, DagConfig]:
     configs: dict[str, DagConfig] = {}
-    for file in sorted(path.glob("*.yaml")):
-        dag = load_dag_config(file)
+    store = _entity_store_or_none(path.parent)
+    if store is None:
+        for file in sorted(path.glob("*.yaml")):
+            dag = load_dag_config(file)
+            configs[dag.name] = dag
+        return configs
+    for entity in store.query("dag"):
+        attrs = dict(entity.attributes)
+        attrs.setdefault("name", entity.id)
+        dag = DagConfig.model_validate(attrs)
         configs[dag.name] = dag
     return configs
 
@@ -127,9 +150,13 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
         entity_types,
     )
     dags = load_dag_configs(config_dir / "dags")
+    system = load_system_config(config_dir / "system.toml")
+    from stockimformation.dag.loader import validate_sub_dag_nesting
+
+    validate_sub_dag_nesting(dags, system.max_dag_depth)
     _validate_dag_entity_permissions(dags, entity_types)
     return AppConfig(
-        system=load_system_config(config_dir / "system.toml"),
+        system=system,
         entity_types=entity_types,
         entities=entities,
         entity_relations=entity_relations,
@@ -204,6 +231,47 @@ def _validate_entity_attributes(entity: EntityConfig, entity_type: EntityTypeCon
             raise ConfigError(f"entity {entity.id}.{key} must be object")
         if expected == "array" and not isinstance(value, list):
             raise ConfigError(f"entity {entity.id}.{key} must be array")
+
+
+def _entity_from_file(path: Path, forced_type: str | None) -> EntityConfig:
+    raw = _read_yaml(path)
+    if "type" in raw and "attributes" in raw:
+        return EntityConfig.model_validate(raw)
+    entity_type = forced_type or str(raw.get("type") or path.parent.name.rstrip("s"))
+    attrs = dict(raw)
+    attrs.setdefault("name", path.stem)
+    return EntityConfig(id=str(raw.get("id") or path.stem), type=entity_type, attributes=attrs)
+
+
+def _node_from_entity(raw: dict[str, Any], fallback_name: str) -> NodeConfig:
+    if raw.get("type") == "node" and isinstance(raw.get("attributes"), dict):
+        attrs = dict(raw["attributes"])
+        attrs.setdefault("name", raw.get("id", fallback_name))
+        return NodeConfig.model_validate(attrs)
+    return NodeConfig.model_validate(raw)
+
+
+def _entity_store(config_dir: Path):
+    from stockimformation.config.entities import EntityStore
+
+    entity_types = load_entity_type_configs(config_dir.parent / "schemas" / "entity-types")
+    entities = load_entities_config(config_dir / "entities.yaml", entity_types)
+    relations = load_entity_relations_config(config_dir / "entity-relations.yaml", entities, entity_types)
+    return EntityStore(entities, entity_types, relations, config_dir / "entities.yaml")
+
+
+def _entity_store_or_none(config_dir: Path):
+    if not (config_dir.parent / "schemas" / "entity-types").exists() and not (config_dir / "schemas").exists():
+        return None
+    if not (config_dir / "entities.yaml").exists() or not (config_dir / "entity-relations.yaml").exists():
+        return None
+    schema_dir = config_dir / "schemas" if (config_dir / "schemas").exists() else config_dir.parent / "schemas" / "entity-types"
+    if not (schema_dir / "node.yaml").exists() or not (schema_dir / "dag.yaml").exists():
+        return None
+    try:
+        return _entity_store(config_dir)
+    except ConfigError:
+        raise
 
 
 def _entity_refs(

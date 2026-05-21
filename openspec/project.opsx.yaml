@@ -1,69 +1,123 @@
 schema_version: 1
+project:
+  id: proj.stockimformation
+  name: stockImformation
+  intent: 个人股票信息管道，覆盖本机 Web 控制台、配置管理、数据持久化、DAG 运行和交易建议能力
+  scope: 覆盖 stockImformation 应用、配置、运行时管道、Web API 和 OpenSpec 跟踪制品
+  roots:
+    - path: .
 domains:
-  - name: web
-    description: 本机 Web 控制台 — 页面、API、本机访问边界
-    capabilities:
-      - id: local-web-console
-        description: 仅本机访问的 Web 控制台，覆盖导航、页面渲染、HTTP API 和本地访问边界
-        spec: specs/local-web-console/spec.md
-      - id: result-explorer
-        description: 结果浏览能力，覆盖简报、建议、分析、原文和失败信息的查询与展示
-        spec: specs/result-explorer/spec.md
-      - id: dag-workbench-ui
-        description: DAG 工作台 UI，覆盖画布交互、节点拖拽、连线管理、自动布局和 Inspector 配置
-        spec: specs/dag-workbench-ui/spec.md
-      - id: canvas-interaction-enhancement
-        description: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附和撤销重做
-        spec: specs/canvas-interaction-enhancement/spec.md
-      - id: node-visual-system
-        description: 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和分组可视化
-        spec: specs/node-visual-system/spec.md
-      - id: graph-layout-engine
-        description: 图布局引擎，覆盖 ELK 自动布局、全局视口拟合、缩放边界和执行路径高亮
-        spec: specs/graph-layout-engine/spec.md
-      - id: node-graph-dag-editor
-        description: Node Graph DAG 编辑器，覆盖图编辑交互、DAG 保存、Inspector 配置和运行状态覆盖
-        spec: specs/node-graph-dag-editor/spec.md
-      - id: node-instance-model
-        description: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置和多实例支持
-        spec: specs/node-instance-model/spec.md
-  - name: operations
-    description: 管道操作面 — 调度控制、手动运行、停止运行和状态记录
-    capabilities:
-      - id: pipeline-control
-        description: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态与运行记录
-        spec: specs/pipeline-control/spec.md
-      - id: node-executor
-        description: 节点执行器，覆盖实例调度、handler 加载、实体上下文注入和权限检查
-        spec: specs/node-executor/spec.md
-  - name: advisory
-    description: 交易建议域 — 建议生成、历史复盘与建议质量评估
-    capabilities:
-      - id: trade-advisory
-        description: 交易建议能力，覆盖建议生成、审计字段与历史建议价格复盘
-        spec: specs/trade-advisory/spec.md
-  - name: config
-    description: 配置管理域 — 分层配置体系与运行时编辑
-    capabilities:
-      - id: runtime-config-editing
-        description: 运行时配置编辑能力，覆盖 portfolio/system/node/dag/skill 配置读取、校验、保存与错误反馈
-        spec: specs/runtime-config-editing/spec.md
-  - name: data
-    description: 数据层 — 共享模型与持久化
-    capabilities:
-      - id: data-models
-        description: 共享数据模型，覆盖 RawItem、AnalysisResult、Advice、Briefing 和迁移脚本
-        spec: specs/data-models/spec.md
+  - id: dom.web
+    intent: 本机 Web 控制台 — 页面、API、本机访问边界
+    type: domain
+    boundary: 拥有 Web 控制台、API 和前端交互，不拥有管道执行逻辑
+  - id: dom.operations
+    intent: 管道操作面 — 调度控制、手动运行、停止运行和状态记录
+    type: domain
+    boundary: 拥有运行控制、调度状态和节点执行编排
+  - id: dom.advisory
+    intent: 交易建议域 — 建议生成、历史复盘与建议质量评估
+    type: domain
+    boundary: 拥有交易建议和建议质量评估，不拥有原始采集配置
+  - id: dom.config
+    intent: 配置管理域 — 分层配置体系与运行时编辑
+    type: domain
+    boundary: 拥有配置读取、校验、编辑和持久化
+  - id: dom.data
+    intent: 数据层 — 共享模型与持久化
+    type: domain
+    boundary: 拥有数据模型、数据库表、迁移和查询接口
+  - id: dom.core
+    intent: 核心实体与运行时编排域，承载统一 Entity、DAG、Trigger 和配置安全能力
+    type: domain
+    boundary: 拥有统一 Entity 原语、DAG/Trigger 编排和跨层运行时能力
 capabilities:
+  - id: cap.web.local-web-console
+    intent: 仅本机访问的 Web 控制台，覆盖导航、页面渲染、HTTP API 和本地访问边界
+    type: capability
+    domain: dom.web
+  - id: cap.web.result-explorer
+    intent: 结果浏览能力，覆盖简报、建议、分析、原文和失败信息的查询与展示
+    type: capability
+    domain: dom.web
+  - id: cap.web.dag-workbench-ui
+    intent: DAG 工作台 UI，覆盖画布交互、节点拖拽、连线管理、自动布局和 Inspector 配置
+    type: capability
+    domain: dom.web
+  - id: cap.web.canvas-interaction-enhancement
+    intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附和撤销重做
+    type: capability
+    domain: dom.web
+  - id: cap.web.node-visual-system
+    intent: 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和分组可视化
+    type: capability
+    domain: dom.web
+  - id: cap.web.graph-layout-engine
+    intent: 图布局引擎，覆盖 ELK 自动布局、全局视口拟合、缩放边界和执行路径高亮
+    type: capability
+    domain: dom.web
+  - id: cap.web.node-graph-dag-editor
+    intent: Node Graph DAG 编辑器，覆盖图编辑交互、DAG 保存、Inspector 配置和运行状态覆盖
+    type: capability
+    domain: dom.web
+  - id: cap.web.node-instance-model
+    intent: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置和多实例支持
+    type: capability
+    domain: dom.web
+  - id: cap.operations.pipeline-control
+    intent: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态与运行记录
+    type: capability
+    domain: dom.operations
+  - id: cap.operations.node-executor
+    intent: 节点执行器，覆盖实例调度、handler 加载、实体上下文注入和权限检查
+    type: capability
+    domain: dom.operations
+  - id: cap.advisory.trade-advisory
+    intent: 交易建议能力，覆盖建议生成、审计字段与历史建议价格复盘
+    type: capability
+    domain: dom.advisory
+  - id: cap.config.runtime-config-editing
+    intent: 运行时配置编辑能力，覆盖 portfolio/system/node/dag/skill 配置读取、校验、保存与错误反馈
+    type: capability
+    domain: dom.config
+  - id: cap.data.data-models
+    intent: 共享数据模型，覆盖 RawItem、AnalysisResult、Advice、Briefing 和迁移脚本
+    type: capability
+    domain: dom.data
   - id: cap.entity-management-page
-    intent: 实体管理独立页面，覆盖类型/实例/关系三个 tab 的 CRUD 交互、schema-driven 表单和级联删除确认
+    intent: 实体管理页面适配统一 Entity 模型，支持所有 EntityType（含 Node、DAG、Trigger）的 CRUD 交互
     type: capability
+    domain: dom.core
   - id: cap.entity-type-crud-api
-    intent: Entity Type 后端 CRUD API，覆盖创建/读取/更新/删除类型定义文件，含 cascade 删除参数
+    intent: Entity Type CRUD API 扩展，支持 storage_tier 和能力字段声明
     type: capability
+    domain: dom.core
   - id: cap.entity-instance-crud-api
-    intent: Entity Instance 单条 CRUD API，复用 EntityStore 逻辑
+    intent: Entity Instance CRUD API 适配三层存储路由
     type: capability
+    domain: dom.core
   - id: cap.entity-relation-crud-api
-    intent: Entity Relation 单条 CRUD API，关系加 UUID 标识
+    intent: "Entity Relation 统一为 Entity（type: relation），通过 Entity Store 管理"
+    type: capability
+    domain: dom.core
+  - id: cap.unified-entity-model
+    intent: 统一 Entity 原语，Node/DAG/Trigger/Relation/Output 全部建模为 Entity，EntityType schema 字段即能力声明
+    type: capability
+  - id: cap.entity-storage-tiers
+    intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理
+    type: capability
+  - id: cap.trigger-system
+    intent: Trigger Entity 类型与 Trigger Executor 内核，支持时间/事件/用户/叠加触发，FreeRTOS 事件组 AND/OR 组合
+    type: capability
+  - id: cap.dag-condition-branch
+    intent: DAG edge 条件分支，可替换 condition evaluator handler，支持 output.* + entity ref + 常量
+    type: capability
+  - id: cap.single-node-loop
+    intent: 单节点并行循环（同输入多实例）和串行循环（迭代精炼），停止条件为固定次数或条件满足
+    type: capability
+  - id: cap.sub-dag-execution
+    intent: 子 DAG 作为 Node 嵌套执行，对外黑盒，递归上限可配置
+    type: capability
+  - id: cap.config-git-safety
+    intent: 配置文件夹强制 git 版本管理，DAG run 结束自动 commit，操作互斥锁
     type: capability

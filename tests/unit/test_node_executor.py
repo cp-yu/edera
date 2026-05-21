@@ -2,8 +2,14 @@ from pathlib import Path
 
 import pytest
 
+from stockimformation.config.entities import EntityStore
 from stockimformation.config.loader import load_app_config
-from stockimformation.config.schema import DagNodeInstance
+from stockimformation.config.schema import (
+    DagNodeInstance,
+    EntitiesConfig,
+    EntityRelationsConfig,
+    EntityTypeConfig,
+)
 from stockimformation.node.executor import NodeExecutor
 from stockimformation.node.models import NodeContext, NodeInput
 
@@ -74,3 +80,150 @@ def test_llm_workspace_isolated_and_precreated(tmp_path: Path) -> None:
     assert "list[AnalysisResult]" in (workspace / "AGENTS.md").read_text()
     assert (workspace / ".pi" / "SYSTEM.md").read_text()
     assert "defaultModel" in (workspace / ".pi" / "settings.json").read_text()
+
+
+@pytest.mark.asyncio
+async def test_node_entity_execution_reloads_handler_each_run(tmp_path: Path) -> None:
+    config = load_app_config(Path("config"))
+    handler = tmp_path / "dynamic.py"
+    handler.write_text("async def run(node_input):\n    return {'version': 1}\n", encoding="utf-8")
+    node = config.nodes["rss-fetcher"].model_copy(update={"handler": "dynamic"})
+    executor = NodeExecutor({"rss-fetcher": node}, config.system, config.runtime, handlers_dir=tmp_path)
+
+    first = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+    handler.write_text("async def run(node_input):\n    return {'version': 2}\n", encoding="utf-8")
+    second = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+
+    assert first.payload == {"version": 1}
+    assert second.payload == {"version": 2}
+
+
+@pytest.mark.asyncio
+async def test_node_executor_prefers_node_entity() -> None:
+    config = load_app_config(Path("config"))
+
+    async def entity_handler(_node_input: NodeInput) -> dict[str, object]:
+        return {"source": "entity"}
+
+    async def legacy_handler(_node_input: NodeInput) -> dict[str, object]:
+        return {"source": "legacy"}
+
+    store = EntityStore(
+        EntitiesConfig.model_validate(
+            {
+                "entities": [
+                    {
+                        "id": "entity-reader",
+                        "type": "node",
+                        "attributes": {
+                            "name": "reader",
+                            "type": "function",
+                            "handler": "entity-handler",
+                            "input_type": "RawItem",
+                            "output_type": "AnalysisResult",
+                        },
+                    }
+                ]
+            }
+        ),
+        {"node": config.entity_types["node"]},
+        EntityRelationsConfig(),
+    )
+    executor = NodeExecutor(
+        {"reader": config.nodes["reader"].model_copy(update={"handler": "legacy-handler"})},
+        config.system,
+        config.runtime,
+        handlers={"entity-handler": entity_handler, "legacy-handler": legacy_handler},
+        entity_store=store,
+    )
+
+    output = await executor.execute("reader", NodeInput(cycle_id="cycle", payload={}))
+
+    assert output.payload == {"source": "entity"}
+
+
+@pytest.mark.asyncio
+async def test_node_executor_reports_non_executable_entity() -> None:
+    config = load_app_config(Path("config"))
+    store = EntityStore(
+        EntitiesConfig.model_validate(
+            {
+                "entities": [
+                    {
+                        "id": "metadata-node",
+                        "type": "node",
+                        "attributes": {
+                            "name": "metadata",
+                            "type": "function",
+                            "input_type": "JsonObject",
+                            "output_type": "JsonObject",
+                        },
+                    }
+                ]
+            }
+        ),
+        {
+            "node": EntityTypeConfig.model_validate(
+                {
+                    "display_name": "Node",
+                    "business_id_field": "name",
+                    "display_template": "{name}",
+                    "schema": {
+                        "required": ["name", "type", "input_type", "output_type"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "type": {"type": "string"},
+                            "handler": {"type": "string"},
+                            "system_prompt_file": {"type": "string"},
+                            "input_type": {"type": "string"},
+                            "output_type": {"type": "string"},
+                        },
+                    },
+                }
+            )
+        },
+        EntityRelationsConfig(),
+    )
+    executor = NodeExecutor({}, config.system, config.runtime, entity_store=store)
+
+    output = await executor.execute("metadata", NodeInput(cycle_id="cycle", payload={}))
+
+    assert not output.ok
+    assert output.error == "Entity is not executable: missing handler or system_prompt_file"
+
+
+@pytest.mark.asyncio
+async def test_node_executor_records_output_entity_type_and_session_id() -> None:
+    config = load_app_config(Path("config"))
+    recorded: list[tuple[str, str, str, object, str | None]] = []
+
+    class Executor(NodeExecutor):
+        async def _run_pi(self, *_args: object) -> tuple[object, str]:
+            return {"summary": "ok"}, "/tmp/session"
+
+    node = config.nodes["reader"].model_copy(update={"type": "llm", "output_type": "AnalysisResult"})
+    executor = Executor(
+        {"reader": node},
+        config.system,
+        config.runtime,
+        output_recorder=lambda cycle_id, node_id, entity_type, payload, session_id: _record(
+            recorded, cycle_id, node_id, entity_type, payload, session_id
+        ),
+    )
+
+    output = await executor.execute("reader", NodeInput(cycle_id="cycle", payload={}))
+
+    assert output.ok
+    assert output.metadata["session_id"] == "/tmp/session"
+    assert recorded == [("cycle", "reader", "analysis", {"summary": "ok"}, "/tmp/session")]
+
+
+async def _record(
+    recorded: list[tuple[str, str, str, object, str | None]],
+    cycle_id: str,
+    node_id: str,
+    entity_type: str,
+    payload: object,
+    session_id: str | None,
+) -> None:
+    recorded.append((cycle_id, node_id, entity_type, payload, session_id))

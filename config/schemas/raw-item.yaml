@@ -1,0 +1,20 @@
+display_name: Raw Item
+business_id_field: url
+display_template: "{title}"
+storage_tier: database
+schema:
+  type: object
+  required:
+    - url
+  properties:
+    url:
+      type: string
+    title:
+      type: string
+    content:
+      type: string
+    source_name:
+      type: string
+    tags:
+      type: array
+validate: true

@@ -1,0 +1,20 @@
+display_name: Relation
+business_id_field: relation_type
+display_template: "{from} -> {to}"
+storage_tier: filesystem
+schema:
+  type: object
+  required:
+    - from
+    - to
+    - relation_type
+  properties:
+    from:
+      type: string
+    to:
+      type: string
+    relation_type:
+      type: string
+    metadata:
+      type: object
+validate: true

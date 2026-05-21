@@ -1,0 +1,18 @@
+display_name: Trigger
+business_id_field: name
+display_template: "{name}"
+storage_tier: filesystem
+schema:
+  type: object
+  required:
+    - name
+    - wait_for
+    - target
+  properties:
+    name:
+      type: string
+    wait_for:
+      type: object
+    target:
+      type: string
+validate: true

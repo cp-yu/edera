@@ -14,18 +14,20 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from stockimformation.config.loader import load_app_config
 from stockimformation.config.entities import EntityStore
+from stockimformation.config.git import commit_config_changes
 from stockimformation.config.schema import AppConfig, DagNodeInstance
 from stockimformation.dag.loader import load_graph
 from stockimformation.dag.runner import DagRunner
 from stockimformation.models import create_engine, init_db, session_factory
-from stockimformation.models.entities import Advice, AnalysisResult, Briefing, PipelineRun, RawItem
+from stockimformation.models.entities import PipelineRun
 from stockimformation.models.repository import (
+    cleanup_node_output_entities,
     create_pipeline_run,
     current_pipeline_run,
     finish_pipeline_run,
     mark_node_run,
     recent_pipeline_runs,
-    store_cycle_outputs,
+    store_node_output_entities,
 )
 from stockimformation.node.executor import NodeExecutor
 from stockimformation.node.models import NodeOutput
@@ -187,24 +189,38 @@ class PipelineController:
             await session.commit()
         try:
             result = await DagRunner(
-                _build_executor(config, graph.instances, self.config_dir),
+                _build_executor(
+                    config,
+                    graph.instances,
+                    self.config_dir,
+                    output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: _record_node_output(
+                        factory, output_cycle_id, node_id, entity_type, payload, session_id
+                    ),
+                ),
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
             ).run(graph, cycle_id, {"entities": _source_entity_refs(config)})
             await _record_source_runs(factory, cycle_id, result.node_outputs)
-            await _persist_outputs(factory, result.node_outputs, graph.instances)
+            await _persist_outputs(
+                factory,
+                config.system.retention_count,
+                config.system.retention_hours,
+            )
             status = "succeeded" if result.ok else "failed"
             error = "; ".join(f"{node}: {message}" for node, message in result.failures.items()) or None
             async with factory() as session:
                 await finish_pipeline_run(session, cycle_id, status, error)
                 await session.commit()
+            commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             return result.payload
         except asyncio.CancelledError:
             await self._finish_cancelled(cycle_id)
+            commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             raise
         except Exception as exc:
             async with factory() as session:
                 await finish_pipeline_run(session, cycle_id, "failed", str(exc))
                 await session.commit()
+            commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             raise
 
     async def _record_node(
@@ -247,19 +263,24 @@ async def run_default_cycle(config_dir: Path = Path("config")) -> object:
 
 async def _persist_outputs(
     factory: async_sessionmaker[AsyncSession],
-    outputs: Mapping[str, NodeOutput],
-    instances: Mapping[str, DagNodeInstance],
+    retention_count: int,
+    retention_hours: int,
 ) -> None:
-    raw_payload = _list_payload(outputs, _instance_id(instances, "rss-fetcher")) + _list_payload(outputs, _instance_id(instances, "web-scraper"))
-    analyses_payload = _list_payload(outputs, _instance_id(instances, "reader"))
-    advices_payload = _list_payload(outputs, _instance_id(instances, "advisor"))
-    briefing_payload = _dict_payload(outputs, _instance_id(instances, "briefing-generator"))
-    raw_items = [RawItem.model_validate(item) for item in raw_payload]
-    analyses = [AnalysisResult.model_validate(item) for item in analyses_payload]
-    advices = [Advice.model_validate(item) for item in advices_payload]
-    briefing = Briefing.model_validate(briefing_payload) if briefing_payload else None
     async with factory() as session:
-        await store_cycle_outputs(session, raw_items, analyses, advices, briefing)
+        await cleanup_node_output_entities(session, retention_count, retention_hours)
+        await session.commit()
+
+
+async def _record_node_output(
+    factory: async_sessionmaker[AsyncSession],
+    cycle_id: str,
+    node_id: str,
+    entity_type: str,
+    payload: object,
+    session_id: str | None,
+) -> None:
+    async with factory() as session:
+        await store_node_output_entities(session, cycle_id, node_id, entity_type, payload, session_id)
         await session.commit()
 
 
@@ -285,6 +306,7 @@ def _build_executor(
     app_config: AppConfig,
     instances: Mapping[str, DagNodeInstance] | None = None,
     config_dir: Path | None = None,
+    output_recorder=None,
 ) -> NodeExecutor:
     entity_store = EntityStore(
         app_config.entities,
@@ -308,6 +330,7 @@ def _build_executor(
         handlers,
         dict(instances or {}),
         entity_store,
+        output_recorder=output_recorder,
     )
 
 
@@ -320,27 +343,6 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
         if isinstance(name, str):
             refs.append(f"{entity.type}:{name}")
     return refs
-
-
-def _instance_id(instances: Mapping[str, DagNodeInstance], node_type: str) -> str:
-    for instance_id, instance in instances.items():
-        if instance.type == node_type:
-            return instance_id
-    return node_type
-
-
-def _list_payload(outputs: Mapping[str, NodeOutput], node_name: str) -> list[object]:
-    output = outputs.get(node_name)
-    if output is None or not output.ok:
-        return []
-    return output.payload if isinstance(output.payload, list) else []
-
-
-def _dict_payload(outputs: Mapping[str, NodeOutput], node_name: str) -> dict[str, object]:
-    output = outputs.get(node_name)
-    if output is None or not output.ok:
-        return {}
-    return output.payload if isinstance(output.payload, dict) else {}
 
 
 def _source_recovery(outputs: Mapping[str, NodeOutput]) -> dict[str, object]:

@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-05-21T16:25:49.622Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "4a6f5efd1a014d3c3575a7a053351a4a4e04d0b30de5c020664a50b088253f9b",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "archive-yaml-remediation",
+    "evidenceFiles": [
+      "openspec/changes/everything-is-entity/opsx-delta.yaml",
+      "openspec/project.opsx.yaml",
+      "src/stockimformation/models/repository.py",
+      "src/stockimformation/node/executor.py",
+      "src/stockimformation/pipeline.py",
+      "tests/integration/test_web_api.py",
+      "tests/unit/test_node_executor.py",
+      "tests/unit/test_repository.py"
+    ],
+    "evidenceFingerprint": "69a1f03544eba6c9ef216b11e297d572dc4465ba295324c3e60d0f5abf89f4dc",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/everything-is-entity/opsx-delta.yaml",
+        "hash": "34597f8da5c4cc7fb3550c6860a9ef0d175b54ea9b7cc856c7f015fd5c922b5c"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "8536608edf143e7b86c75002e8570028aa72bc36a8ffde384badc075b26c44c6"
+      },
+      {
+        "path": "src/stockimformation/models/repository.py",
+        "hash": "2677567f3fc5e07a30f9fcc47ecd580867d32f670b44a56f07d7819f87f3a68b"
+      },
+      {
+        "path": "src/stockimformation/node/executor.py",
+        "hash": "f4f0923a166b8719218245a25f392258eb74aaae3c2355f49eafa1a6281ba173"
+      },
+      {
+        "path": "src/stockimformation/pipeline.py",
+        "hash": "51196f813efa519874f2dc9cbaff6ddc2d098668b02efce388b66507f67eae84"
+      },
+      {
+        "path": "tests/integration/test_web_api.py",
+        "hash": "c1e4d9401a82375cde21c38488e0da0ecdf60d746b58ee49696451c6f4e7730f"
+      },
+      {
+        "path": "tests/unit/test_node_executor.py",
+        "hash": "7720b192b2c5a0d1a5b4ae858d02149d0d8ed42c0523d0f355fc8db05b0addb9"
+      },
+      {
+        "path": "tests/unit/test_repository.py",
+        "hash": "e8a85b0534e405e8b1e2eb29d93f21af6c16b9ebee7893d6a2f217af23f2a9e4"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "4ad499091329bda465f38048ec6ae759406e8e13"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-21T16:25:54.328Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found after archive YAML remediation"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-21T16:25:49.622Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "4a6f5efd1a014d3c3575a7a053351a4a4e04d0b30de5c020664a50b088253f9b",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "archive-yaml-remediation",
+        "evidenceFiles": [
+          "openspec/changes/everything-is-entity/opsx-delta.yaml",
+          "openspec/project.opsx.yaml",
+          "src/stockimformation/models/repository.py",
+          "src/stockimformation/node/executor.py",
+          "src/stockimformation/pipeline.py",
+          "tests/integration/test_web_api.py",
+          "tests/unit/test_node_executor.py",
+          "tests/unit/test_repository.py"
+        ],
+        "evidenceFingerprint": "6d45dc222279c5fc84711279a43bd1c547ef935fd94abec502edbdccab60c622",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/everything-is-entity/opsx-delta.yaml",
+            "hash": "34597f8da5c4cc7fb3550c6860a9ef0d175b54ea9b7cc856c7f015fd5c922b5c"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "44d57a5c2d240315d3057e90bf2c65d709a8f560d0398a77a5f317f43e09c98b"
+          },
+          {
+            "path": "src/stockimformation/models/repository.py",
+            "hash": "2677567f3fc5e07a30f9fcc47ecd580867d32f670b44a56f07d7819f87f3a68b"
+          },
+          {
+            "path": "src/stockimformation/node/executor.py",
+            "hash": "f4f0923a166b8719218245a25f392258eb74aaae3c2355f49eafa1a6281ba173"
+          },
+          {
+            "path": "src/stockimformation/pipeline.py",
+            "hash": "51196f813efa519874f2dc9cbaff6ddc2d098668b02efce388b66507f67eae84"
+          },
+          {
+            "path": "tests/integration/test_web_api.py",
+            "hash": "c1e4d9401a82375cde21c38488e0da0ecdf60d746b58ee49696451c6f4e7730f"
+          },
+          {
+            "path": "tests/unit/test_node_executor.py",
+            "hash": "7720b192b2c5a0d1a5b4ae858d02149d0d8ed42c0523d0f355fc8db05b0addb9"
+          },
+          {
+            "path": "tests/unit/test_repository.py",
+            "hash": "e8a85b0534e405e8b1e2eb29d93f21af6c16b9ebee7893d6a2f217af23f2a9e4"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "4ad499091329bda465f38048ec6ae759406e8e13"
+      }
+    }
+  }
+}

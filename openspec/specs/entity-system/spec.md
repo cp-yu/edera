@@ -5,36 +5,46 @@
 ## Requirements
 ### Requirement: 实体类型定义
 
-系统 SHALL 支持通过 YAML 文件定义可扩展的实体类型，每个类型包含 schema、业务 ID 字段、显示模板和字段权限。
+系统 SHALL 支持通过 YAML 文件定义可扩展的实体类型，每个类型包含 schema、业务 ID 字段、显示模板、字段权限和存储层级声明。EntityType schema 中特定字段的存在 MUST 作为能力声明。
 
-#### Scenario: 定义股票实体类型
+#### Scenario: 定义 Node EntityType
 
-- **WHEN** 用户创建 `schemas/entity-types/stock.yaml` 文件，包含 `display_name`, `business_id_field`, `display_template`, `schema`, `field_permissions` 字段
-- **THEN** 系统加载该类型定义，并在创建 `type: stock` 的实体时验证 attributes
+- **WHEN** 用户创建 `config/schemas/node.yaml` 文件，schema 中包含 `handler`、`input_type`、`output_type` 字段定义
+- **THEN** 系统加载该类型定义，识别包含 `handler` 字段的 Entity 为可执行节点
+
+#### Scenario: 定义 DAG EntityType
+
+- **WHEN** 用户创建 `config/schemas/dag.yaml` 文件，schema 中包含 `edges`、`nodes` 字段定义
+- **THEN** 系统加载该类型定义，识别包含 `edges` 字段的 Entity 为 DAG
+
+#### Scenario: 定义 Trigger EntityType
+
+- **WHEN** 用户创建 `config/schemas/trigger.yaml` 文件，schema 中包含 `wait_for`、`target` 字段定义
+- **THEN** 系统加载该类型定义，识别包含 `wait_for` 字段的 Entity 为 Trigger
+
+#### Scenario: 存储层级声明
+
+- **WHEN** EntityType 定义中包含 `storage_tier: database`
+- **THEN** 系统将该类型的所有 Entity 实例存储在数据库层
 
 #### Scenario: 字段权限黑名单
 
 - **WHEN** 实体类型定义中 `field_permissions` 声明 `code: read-only`
 - **THEN** 节点默认只能读取 `code` 字段，不能修改
 
-#### Scenario: 未声明字段默认可读写
-
-- **WHEN** 实体类型定义中 `field_permissions` 未声明 `holding` 字段
-- **THEN** 节点可以读取和修改 `holding` 字段
-
 ### Requirement: 实体存储
 
-系统 SHALL 支持在 `config/entities.yaml` 中存储所有类型的实体，每个实体包含 UUID、类型和自由的 attributes。
+系统 SHALL 支持在对应存储层存储所有类型的实体。配置型 Entity 存储在 `config/` 对应职能目录，输出型存储在数据库，瞬态型存储在内存。
 
-#### Scenario: 创建股票实体
+#### Scenario: 创建 Node Entity
 
-- **WHEN** 用户在 `entities.yaml` 中添加实体，包含 `id` (UUID), `type: stock`, `attributes: {code, name, holding}`
-- **THEN** 系统加载该实体，并可通过 UUID 或业务 ID 引用
+- **WHEN** 用户创建一个 `type: node` 的 Entity
+- **THEN** 系统将其持久化到 `config/nodes/` 目录下的 YAML 文件
 
-#### Scenario: 创建信息源实体
+#### Scenario: 创建输出型 Entity
 
-- **WHEN** 用户在 `entities.yaml` 中添加实体，包含 `id` (UUID), `type: rss-source`, `attributes: {name, url}`
-- **THEN** 系统加载该实体，信息源不再是独立概念
+- **WHEN** Node 执行产出一个 `type: analysis` 的 Entity
+- **THEN** 系统将其存储到数据库 `node_outputs` 表
 
 #### Scenario: 实体类型验证
 
@@ -43,22 +53,22 @@
 
 ### Requirement: 实体引用解析
 
-系统 SHALL 支持通过 UUID 或业务 ID 引用实体，业务 ID 格式为 `type:business_id`。
+系统 SHALL 支持通过 UUID 或业务 ID 引用实体，业务 ID 格式为 `type:business_id`。引用解析 MUST 跨存储层透明工作。
 
 #### Scenario: UUID 引用
 
-- **WHEN** 节点配置中使用 `entities: ["550e8400-e29b-41d4-a716-446655440000"]`
-- **THEN** 系统通过 UUID 查找实体
+- **WHEN** 节点配置中使用 UUID 引用
+- **THEN** 系统通过 UUID 在所有存储层查找实体
 
 #### Scenario: 业务 ID 引用
 
-- **WHEN** 节点配置中使用 `entities: ["stock:00700.HK"]`
-- **THEN** 系统根据 `stock` 类型的 `business_id_field` (code) 查找 `attributes.code = "00700.HK"` 的实体
+- **WHEN** 节点配置中使用 `"stock:00700.HK"` 引用
+- **THEN** 系统根据 `stock` 类型的 `business_id_field` 查找对应实体
 
-#### Scenario: 引用不存在的实体
+#### Scenario: 跨存储层引用
 
-- **WHEN** 节点配置中引用的实体不存在
-- **THEN** 系统在配置保存时报错，提示实体不存在
+- **WHEN** 一个配置型 Entity 引用一个输出型 Entity
+- **THEN** 系统透明地从数据库层解析该引用
 
 ### Requirement: 字段权限检查
 
@@ -100,35 +110,20 @@
 
 ### Requirement: 节点上下文实体访问
 
-系统 SHALL 在节点执行时提供实体访问接口，支持读取和保存实体。Pipeline services SHALL 直接使用 `EntityStore` 获取实体数据，不再通过兼容层间接访问。
+系统 SHALL 在节点执行时提供实体访问接口，支持读取和保存实体。接口 MUST 通过统一的 Entity Store 实现。
 
 #### Scenario: 读取实体
 
 - **WHEN** 节点调用 `context.get_entity("stock:00700.HK")`
-- **THEN** 系统返回对应的实体对象，包含 `id`, `type`, `attributes`
+- **THEN** 系统通过 Entity Store 返回对应的实体对象
 
 #### Scenario: 保存实体
 
 - **WHEN** 节点修改实体的 `attributes` 后调用 `context.save_entity(entity)`
-- **THEN** 系统检查权限，保存允许修改的字段，忽略受保护字段
+- **THEN** 系统检查权限，保存到对应存储层
 
 #### Scenario: 创建新实体
 
-- **WHEN** 节点调用 `context.create_entity(type="stock", attributes={...})`
-- **THEN** 系统生成 UUID，验证 attributes，保存到 `entities.yaml`
-
-#### Scenario: Pipeline service 获取 source 实体
-
-- **WHEN** collection service 需要获取信息源列表
-- **THEN** 系统 SHALL 通过 `EntityStore` 按 type 过滤（`rss-source`、`web-source`）获取实体，直接从 `attributes` 读取 URL、regex 等字段
-
-#### Scenario: Pipeline service 获取 stock 实体
-
-- **WHEN** advisory/briefing service 需要获取股票列表
-- **THEN** 系统 SHALL 通过 `EntityStore` 按 type 过滤（`stock`）获取实体，直接从 `attributes` 读取 code、name、holding 等字段
-
-#### Scenario: Pipeline service 获取实体关系
-
-- **WHEN** collection service 需要确定 stock 关联的 sources
-- **THEN** 系统 SHALL 通过 `EntityStore` 查询 `entity-relations` 获取关联关系
+- **WHEN** 节点调用 `context.create_entity(type="analysis", attributes={...})`
+- **THEN** 系统根据 EntityType 的 `storage_tier` 决定存储位置，生成 UUID，校验后保存
 

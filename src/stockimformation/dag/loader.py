@@ -15,6 +15,8 @@ def load_graph(config: DagConfig, nodes: dict[str, NodeConfig]) -> DagGraph:
     reverse: dict[str, list[str]] = {node_id: [] for node_id in instance_ids}
     fan_out: set[tuple[str, str]] = set()
     fan_in: set[tuple[str, str]] = set()
+    conditions: dict[tuple[str, str], str] = {}
+    fan_in_modes: dict[tuple[str, str], str] = {}
     for raw_edge in config.edges:
         edge = raw_edge if isinstance(raw_edge, DagEdge) else DagEdge.model_validate(raw_edge)
         if edge.from_ not in edges or edge.to not in reverse:
@@ -27,8 +29,11 @@ def load_graph(config: DagConfig, nodes: dict[str, NodeConfig]) -> DagGraph:
             fan_out.add((edge.from_, edge.to))
         if edge.fan_in:
             fan_in.add((edge.from_, edge.to))
+        if edge.condition:
+            conditions[(edge.from_, edge.to)] = edge.condition
+        fan_in_modes[(edge.from_, edge.to)] = edge.fan_in_mode
     _assert_acyclic(instance_ids, edges)
-    return DagGraph(config.name, instance_ids, instances, edges, reverse, fan_out, fan_in)
+    return DagGraph(config.name, instance_ids, instances, edges, reverse, fan_out, fan_in, conditions, fan_in_modes)
 
 
 def topological_layers(graph: DagGraph) -> list[list[str]]:
@@ -50,6 +55,14 @@ def topological_layers(graph: DagGraph) -> list[list[str]]:
     if visited != len(graph.nodes):
         raise DagError("DAG contains a cycle")
     return layers
+
+
+def validate_sub_dag_nesting(
+    dags: dict[str, DagConfig],
+    max_depth: int,
+) -> None:
+    for dag_name in dags:
+        _visit_sub_dag(dags, dag_name, max_depth, ())
 
 
 def _check_io(upstream: NodeConfig, downstream: NodeConfig) -> None:
@@ -86,3 +99,20 @@ def _assert_acyclic(nodes: list[str], edges: dict[str, list[str]]) -> None:
 
     for node in nodes:
         visit(node)
+
+
+def _visit_sub_dag(
+    dags: dict[str, DagConfig],
+    dag_name: str,
+    max_depth: int,
+    path: tuple[str, ...],
+) -> None:
+    chain = (*path, dag_name)
+    if dag_name in path:
+        raise DagError(f"sub DAG cycle: {' -> '.join(chain)}")
+    if len(chain) > max_depth:
+        raise DagError(f"max DAG depth exceeded: {' -> '.join(chain)}")
+    dag = dags[dag_name]
+    for node in dag.nodes:
+        if node.type in dags:
+            _visit_sub_dag(dags, node.type, max_depth, chain)
