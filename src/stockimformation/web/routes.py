@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -12,9 +14,8 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from stockimformation.config.editor import ConfigKind, RuntimeConfigEditor
-from stockimformation.config.entities import validate_permission_overrides
+from stockimformation.config.entities import EntityStore, validate_permission_overrides
 from stockimformation.config.loader import (
-    load_app_config,
     load_dag_configs,
     load_entities_config,
     load_entity_relations_config,
@@ -182,8 +183,7 @@ async def api_source_repair_task(
     request: Request,
     source_name: str,
 ) -> JSONResponse | dict[str, object]:
-    portfolio = load_app_config(config_dir(request)).portfolio
-    source = portfolio.source_map().get(source_name)
+    source = _source_map(_entity_store(config_dir(request))).get(source_name)
     if source is None:
         return error_response(404, "not_found", "source not found")
     async with controller(request)._factory()() as session:
@@ -274,16 +274,8 @@ async def api_config_list(request: Request) -> dict[str, object]:
     return {"files": [file.__dict__ for file in _editor(config_dir(request)).list_files()]}
 
 
-@router.put("/api/config/portfolio", response_model=None)
-async def api_portfolio_save(
-    request: Request,
-    body: dict[str, object],
-) -> JSONResponse | dict[str, object]:
-    return error_response(404, "not_found", "portfolio config is deprecated; use entities")
-
-
-@router.get("/api/config/portfolio", response_model=None)
-async def api_config_portfolio_read(request: Request) -> JSONResponse | dict[str, object]:
+@router.api_route("/api/config/portfolio", methods=["GET", "PUT"], response_model=None)
+async def api_removed_config() -> JSONResponse:
     return error_response(404, "not_found", "portfolio config is deprecated; use entities")
 
 
@@ -313,6 +305,90 @@ async def api_config_entities_save(
         return error_response(400, "config_error", str(exc))
 
 
+@router.get("/api/config/entity-types", response_model=None)
+async def api_entity_types_list(request: Request) -> JSONResponse | dict[str, object]:
+    try:
+        return {"types": _entity_types_payload(load_entity_type_configs(config_dir(request).parent / "schemas" / "entity-types"))}
+    except ConfigError as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.post("/api/config/entity-types", response_model=None)
+async def api_entity_type_create(request: Request, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    name = str(body.get("name", "")).strip()
+    content = body.get("content", "")
+    if not name:
+        return error_response(400, "config_error", "entity type name is required")
+    if not isinstance(content, str):
+        return error_response(400, "config_error", "entity type content must be a string")
+    path = _entity_type_path(config_dir(request), name)
+    if path.exists():
+        return error_response(409, "conflict", f"entity type '{name}' already exists")
+    try:
+        _validate_entity_type_content(content)
+        _atomic_write(path, content)
+        return {"created": True, "name": name}
+    except (ConfigEditError, ValidationError, yaml.YAMLError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.get("/api/config/entity-types/{name}", response_model=None)
+async def api_entity_type_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
+    path = _entity_type_path(config_dir(request), name)
+    if not path.exists():
+        return error_response(404, "not_found", f"entity type {name} not found")
+    return {"name": name, "content": path.read_text(encoding="utf-8")}
+
+
+@router.put("/api/config/entity-types/{name}", response_model=None)
+async def api_entity_type_update(request: Request, name: str, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    content = body.get("content", "")
+    if not isinstance(content, str):
+        return error_response(400, "config_error", "entity type content must be a string")
+    path = _entity_type_path(config_dir(request), name)
+    if not path.exists():
+        return error_response(404, "not_found", f"entity type {name} not found")
+    try:
+        _validate_entity_type_content(content)
+        _atomic_write(path, content)
+        return {"updated": True, "name": name}
+    except (ConfigEditError, ValidationError, yaml.YAMLError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.delete("/api/config/entity-types/{name}", response_model=None)
+async def api_entity_type_delete(
+    request: Request,
+    name: str,
+    cascade: bool = False,
+) -> JSONResponse | dict[str, object]:
+    root = config_dir(request)
+    path = _entity_type_path(root, name)
+    if not path.exists():
+        return error_response(404, "not_found", f"entity type {name} not found")
+    store = _entity_store(root)
+    matching = [entity for entity in store.entities.entities if entity.type == name]
+    if matching and not cascade:
+        return JSONResponse(
+            status_code=409,
+            content={"error": {"type": "conflict", "message": f"entity type '{name}' has instances"}, "instance_count": len(matching)},
+        )
+    try:
+        removed_refs = {ref for entity in matching for ref in (entity.id, entity_ref(entity, store.entity_types))}
+        store.entities.entities = [entity for entity in store.entities.entities if entity.type != name]
+        store.relations.relations = [
+            relation for relation in store.relations.relations if not any(ref in removed_refs for ref in relation.entities)
+        ]
+        content = yaml.safe_dump(store.entities.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        _editor(root).save("entities", "entities", content)
+        content = yaml.safe_dump(store.relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        _editor(root).save("entity-relations", "entity-relations", content)
+        path.unlink()
+        return {"deleted": True, "instances_removed": len(matching)}
+    except (ConfigEditError, ConfigError, OSError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
 @router.get("/api/config/entity-relations", response_model=None)
 async def api_config_entity_relations_read(request: Request) -> JSONResponse | dict[str, object]:
     path = config_dir(request) / "entity-relations.yaml"
@@ -338,6 +414,69 @@ async def api_config_entity_relations_save(
             "relations": [relation.model_dump(mode="json") for relation in relations.relations],
         }
     except (ConfigEditError, ConfigError, ValidationError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.get("/api/entities", response_model=None)
+async def api_entities_list(
+    request: Request,
+    type: str | None = None,
+) -> JSONResponse | dict[str, object]:
+    try:
+        store = _entity_store(config_dir(request))
+        entities = EntitiesConfig(
+            entities=[entity for entity in store.entities.entities if type is None or entity.type == type]
+        )
+        return _entities_response(store.entity_types, entities)
+    except ConfigError as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.post("/api/entities", response_model=None)
+async def api_entity_create(request: Request, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    entity_type = str(body.get("type", ""))
+    attributes = body.get("attributes", {})
+    if not isinstance(attributes, dict):
+        return error_response(400, "config_error", "attributes must be a mapping")
+    try:
+        store = _entity_store(config_dir(request))
+        entity = store.create(entity_type, dict(attributes))
+        return {"entity": _entity_payload(store.entity_types, entity)}
+    except (ConfigEditError, ConfigError) as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.put("/api/entities/{entity_id}", response_model=None)
+async def api_entity_update(
+    request: Request,
+    entity_id: str,
+    body: dict[str, object],
+) -> JSONResponse | dict[str, object]:
+    attributes = body.get("attributes", {})
+    if not isinstance(attributes, dict):
+        return error_response(400, "config_error", "attributes must be a mapping")
+    try:
+        store = _entity_store(config_dir(request))
+        current = store.resolve(entity_id)
+        entity = store.save(EntityConfig(id=current.id, type=current.type, attributes=dict(attributes)))
+        return {"entity": _entity_payload(store.entity_types, entity)}
+    except ConfigError as exc:
+        status = 404 if str(exc).startswith("Entity not found:") else 400
+        return error_response(status, "not_found" if status == 404 else "config_error", str(exc))
+    except ConfigEditError as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.delete("/api/entities/{entity_id}", response_model=None)
+async def api_entity_delete(request: Request, entity_id: str) -> JSONResponse | dict[str, object]:
+    try:
+        store = _entity_store(config_dir(request))
+        removed = store.delete(entity_id)
+        return {"deleted": True, "relations_removed": removed}
+    except ConfigError as exc:
+        status = 404 if str(exc).startswith("Entity not found:") else 400
+        return error_response(status, "not_found" if status == 404 else "config_error", str(exc))
+    except ConfigEditError as exc:
         return error_response(400, "config_error", str(exc))
 
 
@@ -380,12 +519,67 @@ async def api_entity_relations_query(
         return error_response(400, "config_error", str(exc))
 
 
+@router.get("/api/entity-relations/types", response_model=None)
+async def api_entity_relation_types(request: Request) -> JSONResponse | dict[str, object]:
+    try:
+        store = _entity_store(config_dir(request))
+        return {"types": sorted({relation.type for relation in store.relations.relations})}
+    except ConfigError as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.post("/api/entity-relations", response_model=None)
+async def api_entity_relation_create(request: Request, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    refs = body.get("entities", [])
+    relation_type = str(body.get("type", ""))
+    metadata = body.get("metadata", {})
+    if not isinstance(refs, list) or any(not isinstance(ref, str) for ref in refs):
+        return error_response(400, "config_error", "entities must be a list of strings")
+    if not relation_type:
+        return error_response(400, "config_error", "relation type is required")
+    if not isinstance(metadata, dict):
+        return error_response(400, "config_error", "metadata must be a mapping")
+    try:
+        store = _entity_store(config_dir(request))
+        relation = store.create_relation(refs, relation_type, dict(metadata))
+        return {"relation": relation.model_dump(mode="json")}
+    except ConfigEditError as exc:
+        return error_response(409, "conflict", str(exc))
+    except ConfigError as exc:
+        return error_response(400, "config_error", str(exc))
+
+
+@router.delete("/api/entity-relations/{relation_id}", response_model=None)
+async def api_entity_relation_delete(request: Request, relation_id: str) -> JSONResponse | dict[str, object]:
+    try:
+        store = _entity_store(config_dir(request))
+        store.delete_relation(relation_id)
+        return {"deleted": True}
+    except ConfigError as exc:
+        status = 404 if str(exc).startswith("Entity relation not found:") else 400
+        return error_response(status, "not_found" if status == 404 else "config_error", str(exc))
+    except ConfigEditError as exc:
+        return error_response(400, "config_error", str(exc))
+
+
 @router.get("/api/config/system", response_model=None)
 async def api_config_system_read(request: Request) -> JSONResponse | dict[str, object]:
     path = config_dir(request) / "system.toml"
     if not path.exists():
         return error_response(404, "not_found", "system.toml not found")
     return {"content": path.read_text(encoding="utf-8")}
+
+
+@router.put("/api/config/system", response_model=None)
+async def api_config_system_save(
+    request: Request,
+    body: dict[str, str],
+) -> JSONResponse | dict[str, object]:
+    try:
+        saved = _editor(config_dir(request)).save("system", "system", body.get("content", ""))
+        return {"file": saved.__dict__, "content": saved.content}
+    except ConfigEditError as exc:
+        return error_response(400, "config_error", str(exc))
 
 
 @router.get("/api/config/{kind}/{name:path}", response_model=None)
@@ -749,11 +943,26 @@ async def _result_summary(
 
 
 async def _source_health(request: Request) -> dict[str, object]:
-    source_names = [source.name for source in load_app_config(config_dir(request)).portfolio.sources]
+    source_names = list(_source_map(_entity_store(config_dir(request))).keys())
     async with controller(request)._factory()() as session:
         health = await source_health_summary(session, source_names)
         logs = await source_execution_logs(session)
     return {"sources": health, "logs": logs}
+
+
+def _entity_store(root: Path) -> EntityStore:
+    entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
+    entities = load_entities_config(root / "entities.yaml", entity_types)
+    relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
+    return EntityStore(entities, entity_types, relations, root / "entities.yaml")
+
+
+def _source_map(store: EntityStore) -> dict[str, EntityConfig]:
+    return {
+        str(entity.attributes.get("name") or entity.id): entity
+        for entity in store.entities.entities
+        if entity.type in {"rss-source", "web-source"}
+    }
 
 
 def _editor(config_path: Path) -> RuntimeConfigEditor:
@@ -761,7 +970,7 @@ def _editor(config_path: Path) -> RuntimeConfigEditor:
 
 
 def _kind(value: str) -> ConfigKind:
-    if value not in {"system", "portfolio", "entities", "entity-relations", "node", "dag", "skill"}:
+    if value not in {"system", "entities", "entity-relations", "node", "dag", "skill"}:
         raise ConfigEditError(f"unsupported config kind: {value}")
     return cast(ConfigKind, value)
 
@@ -850,6 +1059,33 @@ def _price_comparison_service(request: Request) -> PriceComparisonService:
     except (ConfigError, ValueError):
         return PriceComparisonService.disabled()
     return PriceComparisonService.from_system(system, config_path)
+
+
+def _entity_type_path(root: Path, name: str) -> Path:
+    if "/" in name or "\\" in name or name in {"", ".", ".."}:
+        raise ConfigEditError("invalid entity type name")
+    return root.parent / "schemas" / "entity-types" / f"{name}.yaml"
+
+
+def _validate_entity_type_content(content: str) -> None:
+    data = yaml.safe_load(content) or {}
+    if not isinstance(data, dict):
+        raise ConfigEditError("YAML content must be a mapping")
+    EntityTypeConfig.model_validate(data)
+
+
+def _atomic_write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w") as tmp:
+            tmp.write(content)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_name, path)
+    finally:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
 
 
 def _dag_edge_payload(edge: object) -> dict[str, object]:
@@ -1039,6 +1275,16 @@ def _entities_response(
     }
 
 
+def _entity_payload(
+    entity_types: dict[str, EntityTypeConfig],
+    entity: EntityConfig,
+) -> dict[str, object]:
+    item = entity.model_dump(mode="json")
+    item["ref"] = entity_ref(entity, entity_types)
+    item["display"] = _render_entity_display(entity, entity_types[entity.type])
+    return item
+
+
 def _entity_types_payload(entity_types: dict[str, EntityTypeConfig]) -> dict[str, object]:
     return {
         name: entity_type.model_dump(mode="json", by_alias=True)
@@ -1052,10 +1298,7 @@ def _entity_list_payload(
 ) -> list[dict[str, object]]:
     payload = []
     for entity in entities.entities:
-        item = entity.model_dump(mode="json")
-        item["ref"] = entity_ref(entity, entity_types)
-        item["display"] = _render_entity_display(entity, entity_types[entity.type])
-        payload.append(item)
+        payload.append(_entity_payload(entity_types, entity))
     return payload
 
 

@@ -11,6 +11,7 @@ import yaml
 from stockimformation.config.schema import (
     EntitiesConfig,
     EntityConfig,
+    EntityRelationConfig,
     EntityRelationsConfig,
     EntityTypeConfig,
     FieldPermission,
@@ -92,6 +93,62 @@ class EntityStore:
                 return saved
         raise ConfigError(f"Entity not found: {entity.id}")
 
+    def delete(self, entity_id: str) -> int:
+        for index, current in enumerate(self.entities.entities):
+            if current.id != entity_id:
+                continue
+            refs = {current.id, entity_ref(current, self.entity_types)}
+            removed_relations = [
+                relation for relation in self.relations.relations if any(ref in refs for ref in relation.entities)
+            ]
+            next_relations = [
+                relation for relation in self.relations.relations if relation not in removed_relations
+            ]
+            self.entities.entities.pop(index)
+            old_relations = self.relations.relations
+            self.relations.relations = next_relations
+            try:
+                self._validate()
+                self._persist()
+                self._persist_relations()
+            except (ConfigEditError, ConfigError):
+                self.entities.entities.insert(index, current)
+                self.relations.relations = old_relations
+                raise
+            return len(removed_relations)
+        raise ConfigError(f"Entity not found: {entity_id}")
+
+    def create_relation(
+        self,
+        refs: list[str],
+        relation_type: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> EntityRelationConfig:
+        normalized = [entity_ref(self.resolve(ref), self.entity_types) for ref in refs]
+        if any(relation.type == relation_type and [_normalize_relation_ref(self, ref) for ref in relation.entities] == normalized for relation in self.relations.relations):
+            raise ConfigEditError("duplicate entity relation")
+        relation = EntityRelationConfig(entities=normalized, type=relation_type, metadata=metadata or {})
+        self.relations.relations.append(relation)
+        try:
+            self._persist_relations()
+        except ConfigEditError:
+            self.relations.relations.pop()
+            raise
+        return relation
+
+    def delete_relation(self, relation_id: str) -> None:
+        for index, relation in enumerate(self.relations.relations):
+            if relation.id != relation_id:
+                continue
+            removed = self.relations.relations.pop(index)
+            try:
+                self._persist_relations()
+            except ConfigEditError:
+                self.relations.relations.insert(index, removed)
+                raise
+            return
+        raise ConfigError(f"Entity relation not found: {relation_id}")
+
     def _writable_attributes(
         self,
         current: EntityConfig,
@@ -127,6 +184,14 @@ class EntityStore:
 
         content = yaml.safe_dump(self.entities.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
         RuntimeConfigEditor(self.config_path.parent).save("entities", "entities", content)
+
+    def _persist_relations(self) -> None:
+        if self.config_path is None:
+            return
+        from stockimformation.config.editor import RuntimeConfigEditor
+
+        content = yaml.safe_dump(self.relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        RuntimeConfigEditor(self.config_path.parent).save("entity-relations", "entity-relations", content)
 
 
 def field_permission(
@@ -176,3 +241,7 @@ def _override_permission(overrides: dict[str, Any] | None, field: str) -> FieldP
         return None
     value = overrides.get(field)
     return value if value in PERMISSIONS else None
+
+
+def _normalize_relation_ref(store: EntityStore, ref: str) -> str:
+    return entity_ref(store.resolve(ref), store.entity_types)

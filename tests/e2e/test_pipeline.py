@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from stockimformation.config.loader import load_app_config
+from stockimformation.config.entities import EntityStore
 from stockimformation.dag.loader import load_graph
 from stockimformation.dag.runner import DagRunner
 from stockimformation.models.entities import RawItem
@@ -17,6 +18,7 @@ from stockimformation.services.notification import make_notify_handler
 @pytest.mark.asyncio
 async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
     config = load_app_config(Path("config"))
+    entity_store = _entity_store(config)
     raw_items = [
         _raw("https://example.com/tencent", "profit beat positive growth", ["00700.HK"]),
         _raw("https://example.com/moutai", "regulatory negative drop", ["600519.SH"]),
@@ -31,8 +33,8 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
         "fetch-web": _empty,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
-        "generate-advice": make_advice_handler(config.portfolio),
-        "generate-briefing": make_briefing_handler(config.portfolio),
+        "generate-advice": make_advice_handler(entity_store),
+        "generate-briefing": make_briefing_handler(entity_store),
         "notify-ntfy": make_notify_handler(config.runtime),
     }
     config.nodes["reader"].type = "function"
@@ -55,6 +57,7 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
 @pytest.mark.asyncio
 async def test_minimax_docs_fixture_generates_web_visible_evidence() -> None:
     config = load_app_config(Path("config"))
+    entity_store = _entity_store(config)
     minimax_url = "https://platform.minimax.io/docs/api-reference/text-chat-openai"
     raw_item = _raw(
         minimax_url,
@@ -72,8 +75,8 @@ async def test_minimax_docs_fixture_generates_web_visible_evidence() -> None:
         "fetch-web": fetch_web,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
-        "generate-advice": make_advice_handler(config.portfolio),
-        "generate-briefing": make_briefing_handler(config.portfolio),
+        "generate-advice": make_advice_handler(entity_store),
+        "generate-briefing": make_briefing_handler(entity_store),
         "notify-ntfy": make_notify_handler(config.runtime),
     }
     config.nodes["reader"].type = "function"
@@ -95,6 +98,7 @@ async def test_minimax_docs_fixture_generates_web_visible_evidence() -> None:
 @pytest.mark.asyncio
 async def test_reliability_fixture_recovers_next_cycle_after_failure() -> None:
     config = load_app_config(Path("config"))
+    entity_store = _entity_store(config)
     calls = 0
 
     async def flaky(_node_input: NodeInput) -> list[dict[str, object]]:
@@ -109,8 +113,8 @@ async def test_reliability_fixture_recovers_next_cycle_after_failure() -> None:
         "fetch-web": _empty,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
-        "generate-advice": make_advice_handler(config.portfolio),
-        "generate-briefing": make_briefing_handler(config.portfolio),
+        "generate-advice": make_advice_handler(entity_store),
+        "generate-briefing": make_briefing_handler(entity_store),
         "notify-ntfy": make_notify_handler(config.runtime),
     }
     config.nodes["reader"].type = "function"
@@ -144,3 +148,7 @@ def _instance_id(graph, node_type: str) -> str:
 
 def _outputs_by_type(graph, outputs):
     return {graph.instances[node_id].type: output for node_id, output in outputs.items()}
+
+
+def _entity_store(config) -> EntityStore:
+    return EntityStore(config.entities, config.entity_types, config.entity_relations)

@@ -8,33 +8,38 @@ from typing import Any
 import feedparser
 import httpx
 
-from stockimformation.config.schema import PortfolioConfig, SourceConfig, SystemConfig
+from stockimformation.config.entities import EntityStore
+from stockimformation.config.schema import EntityConfig, SystemConfig, entity_ref
 from stockimformation.models.entities import RawItem
 from stockimformation.node.models import FunctionHandler, NodeInput
 
 RECOVERABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
-def tags_for_source(portfolio: PortfolioConfig, source_name: str) -> list[str]:
-    return [stock_tag(target.code) for target in portfolio.targets if source_name in target.sources]
+def tags_for_source(entity_store: EntityStore, source: EntityConfig) -> list[str]:
+    return [
+        ref
+        for ref in entity_store.related_refs(entity_ref(source, entity_store.entity_types))
+        if ref.startswith("stock:")
+    ]
 
 
-async def fetch_rss_source(source: SourceConfig, tags: list[str]) -> list[RawItem]:
+async def fetch_rss_source(source: EntityConfig, tags: list[str]) -> list[RawItem]:
     async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(str(source.url))
+        response = await client.get(str(source.attributes.get("url", "")))
         response.raise_for_status()
-    return parse_rss(response.text, source.name, tags)
+    return parse_rss(response.text, _source_name(source), tags)
 
 
-async def fetch_web_source(source: SourceConfig, tags: list[str]) -> list[RawItem]:
+async def fetch_web_source(source: EntityConfig, tags: list[str]) -> list[RawItem]:
     async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(str(source.url))
+        response = await client.get(str(source.attributes.get("url", "")))
         response.raise_for_status()
     return parse_web(response.text, source, tags)
 
 
 async def fetch_source_with_recovery(
-    source: SourceConfig,
+    source: EntityConfig,
     tags: list[str],
     system: SystemConfig,
 ) -> tuple[list[RawItem], dict[str, object]]:
@@ -42,12 +47,12 @@ async def fetch_source_with_recovery(
     attempt_count = 0
     first_reason: str | None = None
     last_error: str | None = None
-    fetcher = fetch_rss_source if source.type == "rss" else fetch_web_source
+    fetcher = fetch_rss_source if source.type == "rss-source" else fetch_web_source
     while True:
         try:
             items = await fetcher(source, tags)
             if not items:
-                raise ValueError(f"empty source result: {source.name}")
+                raise ValueError(f"empty source result: {_source_name(source)}")
             status = "recovered" if attempt_count else "none"
             return items, _recovery_summary(status, attempt_count, first_reason, last_error)
         except Exception as exc:
@@ -100,34 +105,37 @@ def parse_rss(content: str, source_name: str, tags: list[str]) -> list[RawItem]:
     return items
 
 
-def parse_web(content: str, source: SourceConfig, tags: list[str]) -> list[RawItem]:
+def parse_web(content: str, source: EntityConfig, tags: list[str]) -> list[RawItem]:
     entity_tags = entity_tags_from_values(tags)
-    if not source.regex:
-        title = _strip_html(content)[:120] or str(source.url)
+    url = str(source.attributes.get("url", ""))
+    regex = source.attributes.get("regex")
+    source_name = _source_name(source)
+    if not regex:
+        title = _strip_html(content)[:120] or url
         return [
             RawItem(
-                url=str(source.url),
+                url=url,
                 title=title,
                 content=_strip_html(content),
-                source_name=source.name,
+                source_name=source_name,
                 source_type="web",
                 tags=entity_tags,
                 published_at=datetime.now(timezone.utc),
             )
         ]
-    match = re.search(source.regex, content, flags=re.DOTALL)
+    match = re.search(str(regex), content, flags=re.DOTALL)
     if not match:
-        raise ValueError(f"web rule did not match source: {source.name}")
+        raise ValueError(f"web rule did not match source: {source_name}")
     data = match.groupdict()
     title = _strip_html(data.get("title") or match.group(0))[:120]
     body = _strip_html(data.get("content") or match.group(0))
-    url = data.get("url") or str(source.url)
+    url = data.get("url") or url
     return [
         RawItem(
             url=url,
             title=title,
             content=body,
-            source_name=source.name,
+            source_name=source_name,
             source_type="web",
             tags=entity_tags,
             published_at=datetime.now(timezone.utc),
@@ -136,32 +144,32 @@ def parse_web(content: str, source: SourceConfig, tags: list[str]) -> list[RawIt
 
 
 def make_fetch_handler(
-    portfolio: PortfolioConfig,
+    entity_store: EntityStore,
     source_type: str,
     system: SystemConfig | None = None,
 ) -> FunctionHandler:
     async def handler(node_input: NodeInput) -> list[dict[str, Any]]:
         source_names = node_input.payload.get("source_names", []) if isinstance(node_input.payload, dict) else []
-        source_map = portfolio.source_map()
+        source_map = _source_map(entity_store)
         items: list[RawItem] = []
         failures = node_input.metadata.setdefault("failures", {})
         recovery = node_input.metadata.setdefault("source_recovery", {})
         for name in source_names:
             source = source_map[name]
-            if source.type != source_type:
+            if source.type != f"{source_type}-source":
                 continue
-            tags = tags_for_source(portfolio, source.name)
+            tags = tags_for_source(entity_store, source)
             if system is None:
                 fetched = (
                     await fetch_rss_source(source, tags)
-                    if source.type == "rss"
+                    if source.type == "rss-source"
                     else await fetch_web_source(source, tags)
                 )
             else:
                 fetched, summary = await fetch_source_with_recovery(source, tags, system)
-                recovery[source.name] = summary
+                recovery[_source_name(source)] = summary
                 if summary["recovery_status"] == "escalated":
-                    failures[source.name] = str(summary["latest_failure_reason"])
+                    failures[_source_name(source)] = str(summary["latest_failure_reason"])
             items.extend(fetched)
         return [item.model_dump(mode="json") for item in dedupe_raw_items(items)]
 
@@ -185,6 +193,20 @@ def entity_tags_from_values(values: list[str]) -> list[str]:
 
 def stock_tag(value: str) -> str:
     return value if ":" in value else f"stock:{value}"
+
+
+def _source_name(source: EntityConfig) -> str:
+    return str(source.attributes.get("name") or source.id)
+
+
+def _source_map(entity_store: EntityStore) -> dict[str, EntityConfig]:
+    result: dict[str, EntityConfig] = {}
+    for entity in entity_store.entities.entities:
+        if entity.type not in {"rss-source", "web-source"}:
+            continue
+        result[_source_name(entity)] = entity
+        result[entity_ref(entity, entity_store.entity_types)] = entity
+    return result
 
 
 def _published_at(entry: Any) -> datetime:

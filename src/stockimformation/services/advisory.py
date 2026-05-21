@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from stockimformation.config.schema import PortfolioConfig, TargetConfig
+from stockimformation.config.entities import EntityStore
+from stockimformation.config.schema import EntityConfig
 from stockimformation.models.entities import Advice, AnalysisResult
 from stockimformation.node.models import FunctionHandler, NodeInput
 
 
 def generate_advice(
-    target: TargetConfig,
+    target: EntityConfig,
     analyses: list[AnalysisResult],
     window_start: datetime | None = None,
     window_end: datetime | None = None,
@@ -20,7 +21,8 @@ def generate_advice(
     relevant = [item for item in analyses if item.source_quote and item.source_url]
     bullish = sum(1 for item in relevant if item.sentiment == "bullish")
     bearish = sum(1 for item in relevant if item.sentiment == "bearish")
-    holding = target.holding.model_dump() if target.holding else {"quantity": 0}
+    raw_holding = target.attributes.get("holding")
+    holding = raw_holding if isinstance(raw_holding, dict) else {"quantity": 0}
     if not relevant:
         direction = "hold"
         confidence = 0.35
@@ -44,22 +46,22 @@ def generate_advice(
         reason = "信号不足以支持买入或卖出"
         evidence, quotes, urls = _evidence(relevant)
     return Advice(
-        stock_code=target.code,
-        stock_name=target.name,
+        stock_code=str(target.attributes.get("code", "")),
+        stock_name=str(target.attributes.get("name", "")),
         direction=direction,
         confidence=confidence,
         reason=reason,
         evidence=evidence,
         source_quotes=quotes,
         source_urls=urls,
-        portfolio_snapshot=holding | {"watch_only": target.holding is None},
+        portfolio_snapshot=holding | {"watch_only": raw_holding is None},
         low_confidence=confidence < 0.5,
         data_window_start=window_start,
         data_window_end=window_end,
     )
 
 
-def make_advice_handler(portfolio: PortfolioConfig) -> FunctionHandler:
+def make_advice_handler(entity_store: EntityStore) -> FunctionHandler:
     async def handler(node_input: NodeInput) -> list[dict[str, Any]]:
         analyses = [
             AnalysisResult.model_validate(item)
@@ -67,7 +69,8 @@ def make_advice_handler(portfolio: PortfolioConfig) -> FunctionHandler:
         ]
         return [
             generate_advice(target, analyses).model_dump(mode="json")
-            for target in portfolio.targets
+            for target in entity_store.entities.entities
+            if target.type == "stock"
         ]
 
     return handler

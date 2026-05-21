@@ -4,8 +4,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from stockimformation.config.entities import EntityStore
 from stockimformation.config.loader import load_app_config
-from stockimformation.config.schema import SourceConfig, SystemConfig
+from stockimformation.config.schema import EntityConfig, SystemConfig
 from stockimformation.models.entities import Advice, RawItem
 from stockimformation.services.analysis import analyze_raw_item
 from stockimformation.services.advisory import generate_advice
@@ -22,14 +23,16 @@ from stockimformation.services.notification import format_notification, make_not
 
 def test_load_portfolio_holdings() -> None:
     config = load_app_config(Path("config"))
-    target = config.portfolio.targets[0]
-    assert target.holding is not None
-    assert target.holding.quantity == 100
+    target = _stocks(_store(config))[0]
+    holding = target.attributes.get("holding")
+    assert isinstance(holding, dict)
+    assert holding["quantity"] == 100
 
 
 def test_source_association() -> None:
     config = load_app_config(Path("config"))
-    assert config.portfolio.targets[0].sources == [
+    store = _store(config)
+    assert [ref.split(":", 1)[1] for ref in store.related_refs("stock:00700.HK")] == [
         "sample-rss",
         "sample-web",
         "minimax-docs",
@@ -40,31 +43,33 @@ def test_source_association() -> None:
 
 def test_rss_source_config() -> None:
     config = load_app_config(Path("config"))
-    assert config.portfolio.source_map()["sample-rss"].type == "rss"
+    assert _source_by_name(_store(config), "sample-rss").type == "rss-source"
 
 
 def test_web_source_rule_config() -> None:
     config = load_app_config(Path("config"))
-    assert config.portfolio.source_map()["sample-web"].regex
+    assert _source_by_name(_store(config), "sample-web").attributes.get("regex")
 
 
 def test_minimax_docs_source_config() -> None:
     config = load_app_config(Path("config"))
-    source = config.portfolio.source_map()["minimax-docs"]
-    assert source.type == "web"
-    assert str(source.url) == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
-    assert "minimax-docs" in config.portfolio.targets[0].sources
+    store = _store(config)
+    source = _source_by_name(store, "minimax-docs")
+    assert source.type == "web-source"
+    assert source.attributes["url"] == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+    assert "web-source:minimax-docs" in store.related_refs("stock:00700.HK")
 
 
 def test_minimax_multi_source_config() -> None:
     config = load_app_config(Path("config"))
-    assert str(config.portfolio.source_map()["minimax-docs-index"].url) == (
+    store = _store(config)
+    assert _source_by_name(store, "minimax-docs-index").attributes["url"] == (
         "https://platform.minimax.io/docs/llms.txt"
     )
-    assert str(config.portfolio.source_map()["tonghuashun-minimax"].url) == (
+    assert _source_by_name(store, "tonghuashun-minimax").attributes["url"] == (
         "https://basic.10jqka.com.cn/176/HK0100/field.html"
     )
-    assert "tonghuashun-minimax" in config.portfolio.targets[1].sources
+    assert "web-source:tonghuashun-minimax" in store.related_refs("stock:600519.SH")
 
 
 def test_system_config_schedule_is_30_minutes() -> None:
@@ -88,14 +93,14 @@ def test_dedupe_raw_items_by_url() -> None:
 
 def test_parse_web_regex_rule() -> None:
     config = load_app_config(Path("config"))
-    source = config.portfolio.source_map()["sample-web"]
+    source = _source_by_name(_store(config), "sample-web")
     items = parse_web("<article>公告 positive growth</article>", source, ["00700.HK"])
     assert items[0].title == "公告 positive growth"
 
 
 def test_parse_minimax_docs_fixture() -> None:
     config = load_app_config(Path("config"))
-    source = config.portfolio.source_map()["minimax-docs"]
+    source = _source_by_name(_store(config), "minimax-docs")
     content = Path("tests/fixtures/minimax_text_chat.html").read_text()
     items = parse_web(content, source, ["00700.HK"])
     assert items[0].url == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
@@ -107,7 +112,7 @@ def test_parse_minimax_docs_fixture() -> None:
 
 def test_parse_minimax_docs_index_fixture() -> None:
     config = load_app_config(Path("config"))
-    source = config.portfolio.source_map()["minimax-docs-index"]
+    source = _source_by_name(_store(config), "minimax-docs-index")
     content = Path("tests/fixtures/minimax_llms.txt").read_text()
     items = parse_web(content, source, ["00700.HK"])
     assert items[0].source_name == "minimax-docs-index"
@@ -117,7 +122,7 @@ def test_parse_minimax_docs_index_fixture() -> None:
 
 def test_parse_tonghuashun_minimax_fixture() -> None:
     config = load_app_config(Path("config"))
-    source = config.portfolio.source_map()["tonghuashun-minimax"]
+    source = _source_by_name(_store(config), "tonghuashun-minimax")
     content = Path("tests/fixtures/tonghuashun_minimax.html").read_text()
     items = parse_web(content, source, ["00700.HK"])
     assert items[0].source_name == "tonghuashun-minimax"
@@ -170,11 +175,12 @@ async def test_empty_cycle_status_notification() -> None:
 
 def test_generate_buy_sell_hold_advice() -> None:
     config = load_app_config(Path("config"))
+    stocks = _stocks(_store(config))
     analysis = analyze_raw_item(_raw_item("https://example.com/buy", "profit beat positive growth"))
-    buy = generate_advice(config.portfolio.targets[1], [analysis])
+    buy = generate_advice(stocks[1], [analysis])
     sell_signal = analyze_raw_item(_raw_item("https://example.com/sell", "regulatory negative drop"))
-    sell = generate_advice(config.portfolio.targets[0], [sell_signal])
-    hold = generate_advice(config.portfolio.targets[0], [])
+    sell = generate_advice(stocks[0], [sell_signal])
+    hold = generate_advice(stocks[0], [])
     assert buy.direction == "buy"
     assert sell.direction == "sell"
     assert hold.direction == "hold"
@@ -202,7 +208,7 @@ def test_advice_rejects_missing_evidence() -> None:
 
 def test_briefing_groups_targets() -> None:
     config = load_app_config(Path("config"))
-    briefing = generate_briefing("cycle", [_advice("hold", 0.6)], config.portfolio)
+    briefing = generate_briefing("cycle", [_advice("hold", 0.6)], _store(config))
     assert "00700.HK Tencent" in briefing.content
     assert "600519.SH Kweichow Moutai: 本周期无新增信息" in briefing.content
 
@@ -213,7 +219,7 @@ def test_briefing_metadata_sources() -> None:
     briefing = generate_briefing(
         "cycle",
         [_advice("hold", 0.6)],
-        config.portfolio,
+        _store(config),
         {"sample-web": "failed"},
         recovery,
     )
@@ -233,7 +239,7 @@ def test_briefing_metadata_sources() -> None:
 async def test_source_recovery_success(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
 
-    async def flaky(_source: SourceConfig, _codes: list[str]) -> list[RawItem]:
+    async def flaky(_source: EntityConfig, _codes: list[str]) -> list[RawItem]:
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -241,9 +247,7 @@ async def test_source_recovery_success(monkeypatch: pytest.MonkeyPatch) -> None:
         return [_raw_item("https://example.com/recovered")]
 
     monkeypatch.setattr(collection, "fetch_web_source", flaky)
-    source = SourceConfig.model_validate(
-        {"name": "sample-web", "type": "web", "url": "https://example.com"}
-    )
+    source = _web_source()
     items, summary = await fetch_source_with_recovery(source, ["00700.HK"], SystemConfig())
     assert len(items) == 1
     assert summary["recovery_status"] == "recovered"
@@ -253,13 +257,11 @@ async def test_source_recovery_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_source_recovery_exhausted_escalates(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def failing(_source: SourceConfig, _codes: list[str]) -> list[RawItem]:
+    async def failing(_source: EntityConfig, _codes: list[str]) -> list[RawItem]:
         raise TimeoutError("timed out")
 
     monkeypatch.setattr(collection, "fetch_web_source", failing)
-    source = SourceConfig.model_validate(
-        {"name": "sample-web", "type": "web", "url": "https://example.com"}
-    )
+    source = _web_source()
     _items, summary = await fetch_source_with_recovery(
         source,
         ["00700.HK"],
@@ -272,13 +274,11 @@ async def test_source_recovery_exhausted_escalates(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.asyncio
 async def test_source_recovery_non_recoverable_escalates_without_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def failing(_source: SourceConfig, _codes: list[str]) -> list[RawItem]:
+    async def failing(_source: EntityConfig, _codes: list[str]) -> list[RawItem]:
         raise RuntimeError("bad config")
 
     monkeypatch.setattr(collection, "fetch_web_source", failing)
-    source = SourceConfig.model_validate(
-        {"name": "sample-web", "type": "web", "url": "https://example.com"}
-    )
+    source = _web_source()
     _items, summary = await fetch_source_with_recovery(source, ["00700.HK"], SystemConfig())
     assert summary["recovery_status"] == "escalated"
     assert summary["attempt_count"] == 0
@@ -287,7 +287,7 @@ async def test_source_recovery_non_recoverable_escalates_without_attempt(monkeyp
 
 def test_briefing_contains_disclaimer() -> None:
     config = load_app_config(Path("config"))
-    briefing = generate_briefing("cycle", [_advice("hold", 0.6)], config.portfolio)
+    briefing = generate_briefing("cycle", [_advice("hold", 0.6)], _store(config))
     assert briefing.content.endswith(DISCLAIMER)
 
 
@@ -318,4 +318,24 @@ def _advice(direction: str, confidence: float, low_confidence: bool = False) -> 
         low_confidence=low_confidence,
         data_window_start=now,
         data_window_end=now,
+    )
+
+
+def _store(config) -> EntityStore:
+    return EntityStore(config.entities, config.entity_types, config.entity_relations)
+
+
+def _stocks(store: EntityStore) -> list[EntityConfig]:
+    return [entity for entity in store.entities.entities if entity.type == "stock"]
+
+
+def _source_by_name(store: EntityStore, name: str) -> EntityConfig:
+    return next(entity for entity in store.entities.entities if entity.attributes.get("name") == name)
+
+
+def _web_source() -> EntityConfig:
+    return EntityConfig(
+        id="source-sample-web",
+        type="web-source",
+        attributes={"name": "sample-web", "url": "https://example.com"},
     )

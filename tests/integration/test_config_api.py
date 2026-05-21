@@ -83,6 +83,21 @@ async def test_save_entities(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_system_config(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    content = (root / "config" / "system.toml").read_text().replace("schedule_minutes = 30", "schedule_minutes = 31")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.put("/api/config/system", json={"content": content})
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert "schedule_minutes = 31" in (root / "config" / "system.toml").read_text()
+
+
+@pytest.mark.asyncio
 async def test_get_relations(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
@@ -154,6 +169,110 @@ async def test_query_entity_relations_matches_uuid_refs(tmp_path) -> None:
             await app.state.controller.shutdown()
     assert response.status_code == 200
     assert response.json()["relations"][0]["entities"][0] == "stock:00700.HK"
+
+
+@pytest.mark.asyncio
+async def test_entity_type_crud(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    content = """
+display_name: ETF
+business_id_field: code
+display_template: "{code}"
+schema:
+  type: object
+  required:
+    - code
+  properties:
+    code:
+      type: string
+field_permissions:
+  code: read-only
+validate: true
+""".lstrip()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            created = await client.post("/api/config/entity-types", json={"name": "etf", "content": content})
+            listed = await client.get("/api/config/entity-types")
+            read = await client.get("/api/config/entity-types/etf")
+            updated = await client.put("/api/config/entity-types/etf", json={"content": content.replace("ETF", "ETF 基金")})
+            deleted = await client.delete("/api/config/entity-types/etf")
+        finally:
+            await app.state.controller.shutdown()
+    assert created.status_code == 200
+    assert "stock" in listed.json()["types"]
+    assert read.json()["content"] == content
+    assert updated.status_code == 200
+    assert deleted.json()["deleted"] is True
+
+
+@pytest.mark.asyncio
+async def test_entity_type_delete_requires_cascade_for_instances(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            blocked = await client.delete("/api/config/entity-types/stock")
+            deleted = await client.delete("/api/config/entity-types/stock?cascade=true")
+            stocks = await client.get("/api/entities?type=stock")
+        finally:
+            await app.state.controller.shutdown()
+    assert blocked.status_code == 409
+    assert blocked.json()["instance_count"] == 2
+    assert deleted.status_code == 200
+    assert stocks.json()["entities"] == []
+
+
+@pytest.mark.asyncio
+async def test_entity_instance_crud(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            created = await client.post("/api/entities", json={"type": "stock", "attributes": {"code": "09988.HK", "name": "Alibaba"}})
+            entity = created.json()["entity"]
+            updated = await client.put(
+                f"/api/entities/{entity['id']}",
+                json={"attributes": {"code": "CHANGED", "name": "Alibaba Group"}},
+            )
+            deleted = await client.delete(f"/api/entities/{entity['id']}")
+        finally:
+            await app.state.controller.shutdown()
+    assert created.status_code == 200
+    assert updated.json()["entity"]["attributes"]["code"] == "09988.HK"
+    assert updated.json()["entity"]["attributes"]["name"] == "Alibaba Group"
+    assert deleted.json() == {"deleted": True, "relations_removed": 0}
+
+
+@pytest.mark.asyncio
+async def test_entity_relation_crud(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            listed = await client.get("/api/entity-relations")
+            types = await client.get("/api/entity-relations/types")
+            created = await client.post(
+                "/api/entity-relations",
+                json={"entities": ["stock:600519.SH", "web-source:sample-web"], "type": "uses-source"},
+            )
+            duplicate = await client.post(
+                "/api/entity-relations",
+                json={"entities": ["stock:600519.SH", "web-source:sample-web"], "type": "uses-source"},
+            )
+            deleted = await client.delete(f"/api/entity-relations/{created.json()['relation']['id']}")
+        finally:
+            await app.state.controller.shutdown()
+    assert listed.status_code == 200
+    assert all(relation["id"] for relation in listed.json()["relations"])
+    assert "uses-source" in types.json()["types"]
+    assert created.status_code == 200
+    assert duplicate.status_code == 409
+    assert deleted.json()["deleted"] is True
 
 
 @pytest.mark.asyncio

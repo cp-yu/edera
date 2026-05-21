@@ -1,6 +1,4 @@
-# OPSX Architecture Map — stockImformation
-# Bootstrapped from: web-control-panel change
-
+schema_version: 1
 domains:
   - name: web
     description: 本机 Web 控制台 — 页面、API、本机访问边界
@@ -29,7 +27,6 @@ domains:
       - id: node-instance-model
         description: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置和多实例支持
         spec: specs/node-instance-model/spec.md
-
   - name: operations
     description: 管道操作面 — 调度控制、手动运行、停止运行和状态记录
     capabilities:
@@ -39,24 +36,34 @@ domains:
       - id: node-executor
         description: 节点执行器，覆盖实例调度、handler 加载、实体上下文注入和权限检查
         spec: specs/node-executor/spec.md
-
   - name: advisory
     description: 交易建议域 — 建议生成、历史复盘与建议质量评估
     capabilities:
       - id: trade-advisory
         description: 交易建议能力，覆盖建议生成、审计字段与历史建议价格复盘
         spec: specs/trade-advisory/spec.md
-
   - name: config
     description: 配置管理域 — 分层配置体系与运行时编辑
     capabilities:
       - id: runtime-config-editing
         description: 运行时配置编辑能力，覆盖 portfolio/system/node/dag/skill 配置读取、校验、保存与错误反馈
         spec: specs/runtime-config-editing/spec.md
-
   - name: data
     description: 数据层 — 共享模型与持久化
     capabilities:
       - id: data-models
         description: 共享数据模型，覆盖 RawItem、AnalysisResult、Advice、Briefing 和迁移脚本
         spec: specs/data-models/spec.md
+capabilities:
+  - id: cap.entity-management-page
+    intent: 实体管理独立页面，覆盖类型/实例/关系三个 tab 的 CRUD 交互、schema-driven 表单和级联删除确认
+    type: capability
+  - id: cap.entity-type-crud-api
+    intent: Entity Type 后端 CRUD API，覆盖创建/读取/更新/删除类型定义文件，含 cascade 删除参数
+    type: capability
+  - id: cap.entity-instance-crud-api
+    intent: Entity Instance 单条 CRUD API，复用 EntityStore 逻辑
+    type: capability
+  - id: cap.entity-relation-crud-api
+    intent: Entity Relation 单条 CRUD API，关系加 UUID 标识
+    type: capability

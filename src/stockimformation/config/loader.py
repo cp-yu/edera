@@ -14,7 +14,6 @@ from stockimformation.config.schema import (
     EntityRelationsConfig,
     EntityTypeConfig,
     NodeConfig,
-    PortfolioConfig,
     RuntimeSettings,
     SkillConfig,
     SystemConfig,
@@ -41,10 +40,6 @@ def load_system_config(path: Path) -> SystemConfig:
     return SystemConfig.model_validate(_read_toml(path))
 
 
-def load_portfolio_config(path: Path) -> PortfolioConfig:
-    return PortfolioConfig.model_validate(_read_yaml(path))
-
-
 def load_entity_type_configs(path: Path) -> dict[str, EntityTypeConfig]:
     configs: dict[str, EntityTypeConfig] = {}
     for file in sorted(path.glob("*.yaml")):
@@ -68,12 +63,18 @@ def load_entity_relations_config(
     entities: EntitiesConfig,
     entity_types: dict[str, EntityTypeConfig],
 ) -> EntityRelationsConfig:
-    relations = EntityRelationsConfig.model_validate(_read_yaml(path))
+    raw = _read_yaml(path)
+    relations = EntityRelationsConfig.model_validate(raw)
     refs = _entity_refs(entities, entity_types)
     for relation in relations.relations:
         for ref in relation.entities:
             if ref not in refs:
                 raise ConfigError(f"Entity not found: {ref}")
+    if any(isinstance(item, dict) and "id" not in item for item in raw.get("relations", [])):
+        path.write_text(
+            yaml.safe_dump(relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
     return relations
 
 

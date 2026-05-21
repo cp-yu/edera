@@ -7,6 +7,7 @@ import { BriefingDetail } from '@/features/results/BriefingDetail'
 import { SourcesPage } from '@/features/sources/SourcesPage'
 import { ConfigPage } from '@/features/config/ConfigPage'
 import { NodesPage } from '@/features/nodes/NodesPage'
+import { EntitiesPage } from '@/features/entities/EntitiesPage'
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: 'results/advices/:id', element: <AdviceDetail /> },
       { path: 'results/briefings/:id', element: <BriefingDetail /> },
       { path: 'sources', element: <SourcesPage /> },
+      { path: 'entities', element: <EntitiesPage /> },
       { path: 'nodes', element: <NodesPage /> },
       { path: 'config', element: <ConfigPage /> },
     ],

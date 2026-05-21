@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from stockimformation.config.schema import PortfolioConfig
+from stockimformation.config.entities import EntityStore
 from stockimformation.models.entities import Advice, Briefing
 from stockimformation.node.models import FunctionHandler, NodeInput
 
@@ -13,7 +13,7 @@ DISCLAIMER = "本系统产出仅供学习参考，不构成投资建议。"
 def generate_briefing(
     cycle_id: str,
     advices: list[Advice],
-    portfolio: PortfolioConfig,
+    entity_store: EntityStore,
     failures: dict[str, str] | None = None,
     source_recovery: dict[str, object] | None = None,
 ) -> Briefing:
@@ -21,19 +21,24 @@ def generate_briefing(
     source_recovery = source_recovery or {}
     lines: list[str] = [f"周期: {cycle_id}", ""]
     by_code = {advice.stock_code: advice for advice in advices}
-    for target in portfolio.targets:
-        advice = by_code.get(target.code)
+    stocks = [entity for entity in entity_store.entities.entities if entity.type == "stock"]
+    sources = [entity for entity in entity_store.entities.entities if entity.type in {"rss-source", "web-source"}]
+    for target in stocks:
+        code = str(target.attributes.get("code", ""))
+        name = str(target.attributes.get("name", ""))
+        advice = by_code.get(code)
         if advice is None:
-            lines.append(f"{target.code} {target.name}: 本周期无新增信息")
+            lines.append(f"{code} {name}: 本周期无新增信息")
             continue
         lines.append(
-            f"{target.code} {target.name}: {advice.direction} "
+            f"{code} {name}: {advice.direction} "
             f"confidence={advice.confidence:.2f} {advice.reason}"
         )
+    source_names = [str(source.attributes.get("name") or source.id) for source in sources]
     metadata = {
-        "configured_sources": [source.name for source in portfolio.sources],
+        "configured_sources": source_names,
         "successful_sources": [
-            source.name for source in portfolio.sources if source.name not in failures
+            source_name for source_name in source_names if source_name not in failures
         ],
         "failed_sources": failures,
         "source_recovery": source_recovery,
@@ -51,7 +56,7 @@ def generate_briefing(
     return Briefing(cycle_id=cycle_id, content="\n".join(lines), metadata_=metadata)
 
 
-def make_briefing_handler(portfolio: PortfolioConfig) -> FunctionHandler:
+def make_briefing_handler(entity_store: EntityStore) -> FunctionHandler:
     async def handler(node_input: NodeInput) -> dict[str, Any]:
         advices = [
             Advice.model_validate(item)
@@ -60,7 +65,7 @@ def make_briefing_handler(portfolio: PortfolioConfig) -> FunctionHandler:
         briefing = generate_briefing(
             node_input.cycle_id,
             advices,
-            portfolio,
+            entity_store,
             node_input.metadata.get("failures", {}),
             node_input.metadata.get("source_recovery", {}),
         )

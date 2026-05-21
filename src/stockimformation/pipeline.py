@@ -286,21 +286,21 @@ def _build_executor(
     instances: Mapping[str, DagNodeInstance] | None = None,
     config_dir: Path | None = None,
 ) -> NodeExecutor:
-    handlers = {
-        "fetch-rss": make_fetch_handler(app_config.portfolio, "rss", app_config.system),
-        "fetch-web": make_fetch_handler(app_config.portfolio, "web", app_config.system),
-        "summarize": analyze_handler,
-        "classify-sentiment": analyze_handler,
-        "generate-advice": make_advice_handler(app_config.portfolio),
-        "generate-briefing": make_briefing_handler(app_config.portfolio),
-        "notify-ntfy": make_notify_handler(app_config.runtime),
-    }
     entity_store = EntityStore(
         app_config.entities,
         app_config.entity_types,
         app_config.entity_relations,
         config_dir / "entities.yaml" if config_dir is not None else None,
     )
+    handlers = {
+        "fetch-rss": make_fetch_handler(entity_store, "rss", app_config.system),
+        "fetch-web": make_fetch_handler(entity_store, "web", app_config.system),
+        "summarize": analyze_handler,
+        "classify-sentiment": analyze_handler,
+        "generate-advice": make_advice_handler(entity_store),
+        "generate-briefing": make_briefing_handler(entity_store),
+        "notify-ntfy": make_notify_handler(app_config.runtime),
+    }
     return NodeExecutor(
         app_config.nodes,
         app_config.system,

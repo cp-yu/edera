@@ -23,13 +23,12 @@ from stockimformation.config.schema import (
     EntityRelationsConfig,
     EntityTypeConfig,
     NodeConfig,
-    PortfolioConfig,
     SystemConfig,
 )
 from stockimformation.dag.loader import load_graph
 from stockimformation.errors import ConfigEditError, DagError
 
-ConfigKind = Literal["system", "portfolio", "entities", "entity-relations", "node", "dag", "skill"]
+ConfigKind = Literal["system", "entities", "entity-relations", "node", "dag", "skill"]
 
 
 @dataclass(frozen=True)
@@ -77,8 +76,6 @@ class RuntimeConfigEditor:
     def _path(self, kind: ConfigKind, name: str) -> Path:
         if kind == "system":
             return self.config_dir / "system.toml"
-        if kind == "portfolio":
-            return self.config_dir / "portfolio.yaml"
         if kind == "entities":
             return self.config_dir / "entities.yaml"
         if kind == "entity-relations":
@@ -104,8 +101,6 @@ class RuntimeConfigEditor:
         try:
             if kind == "system":
                 SystemConfig.model_validate(tomllib.loads(content))
-            elif kind == "portfolio":
-                PortfolioConfig.model_validate(_yaml_mapping(content))
             elif kind == "entities":
                 entity_types = load_entity_type_configs(self.config_dir.parent / "schemas" / "entity-types")
                 entities = EntitiesConfig.model_validate(_yaml_mapping(content))

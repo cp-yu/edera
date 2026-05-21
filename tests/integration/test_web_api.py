@@ -9,7 +9,7 @@ import pytest
 import yaml
 from httpx import ASGITransport, AsyncClient
 
-from stockimformation.config.schema import SourceConfig
+from stockimformation.config.schema import EntityConfig
 from stockimformation.models import (
     Advice,
     AnalysisResult,
@@ -298,7 +298,7 @@ async def test_web_results_api_includes_configured_price_comparison(tmp_path: Pa
 
 @pytest.mark.asyncio
 async def test_web_source_health_api_logs_and_page(tmp_path: Path) -> None:
-    _write_portfolio(tmp_path)
+    _write_runtime_config(tmp_path)
     app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
@@ -494,8 +494,9 @@ async def test_minimax_multi_source_llm_cycle_surfaces_web_features(
     }
     monkeypatch.chdir(root)
 
-    async def fixture_web_source(source: SourceConfig, tags: list[str]) -> list[RawItem]:
-        return collection.parse_web(fixture_by_source[source.name], source, tags)
+    async def fixture_web_source(source: EntityConfig, tags: list[str]) -> list[RawItem]:
+        source_name = str(source.attributes.get("name"))
+        return collection.parse_web(fixture_by_source[source_name], source, tags)
 
     monkeypatch.setattr(collection, "fetch_web_source", fixture_web_source)
     controller = PipelineController(config_dir)
@@ -606,7 +607,7 @@ def _dt(day: int) -> datetime:
     return datetime(2026, 1, day, tzinfo=timezone.utc)
 
 
-def _write_portfolio(path: Path) -> None:
+def _write_runtime_config(path: Path) -> None:
     path.joinpath("system.toml").write_text(
         f"""
 database_url = "sqlite+aiosqlite:///{path / "web.db"}"
@@ -620,7 +621,7 @@ retention_count = 20
 retention_hours = 24
 """.lstrip()
     )
-    _write_sample_portfolio(path)
+    _write_sample_entities(path)
 
 
 def _write_price_config(path: Path, price_path: str) -> None:
@@ -638,27 +639,6 @@ retention_hours = 24
 price_history_path = "{price_path}"
 price_comparison_horizon_days = 7
 price_comparison_threshold_percent = 1
-""".lstrip()
-    )
-    _write_sample_portfolio(path)
-
-
-def _write_sample_portfolio(path: Path) -> None:
-    path.joinpath("portfolio.yaml").write_text(
-        """
-targets:
-  - code: "00700.HK"
-    name: "Tencent"
-    sources:
-      - sample-web
-      - minimax-docs
-sources:
-  - name: sample-web
-    type: web
-    url: https://example.com/announcements.html
-  - name: minimax-docs
-    type: web
-    url: https://platform.minimax.io/docs/api-reference/text-chat-openai
 """.lstrip()
     )
     _write_sample_entities(path)
@@ -706,30 +686,6 @@ relations:
   type: uses-source
 """.lstrip()
     )
-
-
-def _portfolio_payload() -> dict[str, object]:
-    return {
-        "targets": [
-            {
-                "code": "00700.HK",
-                "name": "Tencent",
-                "holding": {"quantity": 100, "cost_price": 300},
-                "sources": ["sample-rss"],
-            }
-        ],
-        "sources": [
-            {
-                "name": "sample-rss",
-                "type": "rss",
-                "url": "https://example.com/feed.xml",
-            }
-        ],
-    }
-
-
-def _targets(payload: dict[str, object]) -> list[dict[str, Any]]:
-    return payload["targets"]  # type: ignore[return-value]
 
 
 def _copy_project_config(tmp_path: Path) -> Path:

@@ -1,0 +1,15 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.entity-management-page
+      type: capability
+      intent: 实体管理独立页面，覆盖类型/实例/关系三个 tab 的 CRUD 交互、schema-driven 表单和级联删除确认
+    - id: cap.entity-type-crud-api
+      type: capability
+      intent: Entity Type 后端 CRUD API，覆盖创建/读取/更新/删除类型定义文件，含 cascade 删除参数
+    - id: cap.entity-instance-crud-api
+      type: capability
+      intent: Entity Instance 单条 CRUD API，复用 EntityStore 逻辑
+    - id: cap.entity-relation-crud-api
+      type: capability
+      intent: Entity Relation 单条 CRUD API，关系加 UUID 标识

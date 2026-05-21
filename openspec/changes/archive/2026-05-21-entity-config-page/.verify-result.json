@@ -1,0 +1,227 @@
+{
+  "timestamp": "2026-05-21T03:34:21.007Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "Design D4: 类型删除 cascade 参数",
+      "message": "Cascade type deletion implements normal-path behavior but does not fully satisfy the design all-or-rollback atomicity claim."
+    }
+  ],
+  "tasksFileHash": "8801db97c44cdd328ce91a072d098385ec0fae6066229266a17e3781fd9289a7",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-review",
+    "evidenceFiles": [
+      "config/entity-relations.yaml",
+      "frontend/src/components/layout/SideNav.tsx",
+      "frontend/src/features/config/ConfigPage.tsx",
+      "frontend/src/features/entities/EntitiesPage.tsx",
+      "frontend/src/router/index.tsx",
+      "openspec/changes/entity-config-page/tasks.md",
+      "src/stockimformation/config/entities.py",
+      "src/stockimformation/config/loader.py",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/pipeline.py",
+      "src/stockimformation/services/advisory.py",
+      "src/stockimformation/services/briefing.py",
+      "src/stockimformation/services/collection.py",
+      "src/stockimformation/web/routes.py",
+      "tests/e2e/test_pipeline.py",
+      "tests/integration/test_config_api.py",
+      "tests/unit/test_config_collection_notification.py"
+    ],
+    "evidenceFingerprint": "b0b443d4310201a88698ecc97b7bb5439b82cc4d554e7e29185b2ee0a947888f",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "config/entity-relations.yaml",
+        "hash": "6b0918986bc2db3cfba17bae3069a4a4704e8dec651488fc5d8cb310ebec8597"
+      },
+      {
+        "path": "frontend/src/components/layout/SideNav.tsx",
+        "hash": "4160b4ab4af1dd581dca3995c4afe2a2052862b977f328f8596fee28f0ad2b56"
+      },
+      {
+        "path": "frontend/src/features/config/ConfigPage.tsx",
+        "hash": "bd4cd76772ba3f7ada1059a36f2bbdba226cb1bc51c8ff9030271a99c1bbff06"
+      },
+      {
+        "path": "frontend/src/features/entities/EntitiesPage.tsx",
+        "hash": "d831c9849720927eca88b7182d6fc8fea3f9b4f499377f33698d0508ec0788ff"
+      },
+      {
+        "path": "frontend/src/router/index.tsx",
+        "hash": "dc3a9d618a94373cc894ef807d82522a2745204303512ab9027fbe3856a2b025"
+      },
+      {
+        "path": "openspec/changes/entity-config-page/tasks.md",
+        "hash": "8801db97c44cdd328ce91a072d098385ec0fae6066229266a17e3781fd9289a7"
+      },
+      {
+        "path": "src/stockimformation/config/entities.py",
+        "hash": "73ed42379edcd99749b447579cdb8ea71f20846a1662ce31479a3f7515289e7a"
+      },
+      {
+        "path": "src/stockimformation/config/loader.py",
+        "hash": "5830e4cd77a4bca5cfea8c1a3fe65e671545726cc6d6859fd0331e1c707fd6ac"
+      },
+      {
+        "path": "src/stockimformation/config/schema.py",
+        "hash": "c52061641363abe6aa694e2968e48eac28524c73062d087d8cc9f7e6337aee2c"
+      },
+      {
+        "path": "src/stockimformation/pipeline.py",
+        "hash": "30282722edbd99585076c530411b322c4e5460c61c479a40d74ca1eddb096719"
+      },
+      {
+        "path": "src/stockimformation/services/advisory.py",
+        "hash": "d499204981565dd12dee25049d4530326d1ef57a1e545c3556f6ba1798f41981"
+      },
+      {
+        "path": "src/stockimformation/services/briefing.py",
+        "hash": "e33917461afa4ac1dd17fa500ae0b7c4bb5d0f28fcb6aa1755107e1396d2ae3c"
+      },
+      {
+        "path": "src/stockimformation/services/collection.py",
+        "hash": "999e39685dd468e3513eb1e0564b457ce8fde52590312622a19f7ca65cad0aa1"
+      },
+      {
+        "path": "src/stockimformation/web/routes.py",
+        "hash": "2cd0baf33113bc19a995656530b41c22083e8f6fc97453cedeb3a9060ac949f7"
+      },
+      {
+        "path": "tests/e2e/test_pipeline.py",
+        "hash": "78d6752c1333a14e10f74a05b66c097e90724fc1aad96e67f6ee3defba1dbeb1"
+      },
+      {
+        "path": "tests/integration/test_config_api.py",
+        "hash": "6bac502fdfd2c137a406daa1dfcd2b47ec9ec5448403632d27231503d77b8778"
+      },
+      {
+        "path": "tests/unit/test_config_collection_notification.py",
+        "hash": "270f44feb38399a2196e8ecb510dcf5c3afcba1f9f776680878e7e21893bc1e9"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "910911105313396475f572bc7cad4f5ca82bbc53"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-21T03:37:06.315Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-21T03:34:21.007Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "Design D4: 类型删除 cascade 参数",
+          "message": "Cascade type deletion implements normal-path behavior but does not fully satisfy the design all-or-rollback atomicity claim."
+        }
+      ],
+      "tasksFileHash": "8801db97c44cdd328ce91a072d098385ec0fae6066229266a17e3781fd9289a7",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-review",
+        "evidenceFiles": [
+          "config/entity-relations.yaml",
+          "frontend/src/components/layout/SideNav.tsx",
+          "frontend/src/features/config/ConfigPage.tsx",
+          "frontend/src/features/entities/EntitiesPage.tsx",
+          "frontend/src/router/index.tsx",
+          "openspec/changes/entity-config-page/tasks.md",
+          "src/stockimformation/config/entities.py",
+          "src/stockimformation/config/loader.py",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/pipeline.py",
+          "src/stockimformation/services/advisory.py",
+          "src/stockimformation/services/briefing.py",
+          "src/stockimformation/services/collection.py",
+          "src/stockimformation/web/routes.py",
+          "tests/e2e/test_pipeline.py",
+          "tests/integration/test_config_api.py",
+          "tests/unit/test_config_collection_notification.py"
+        ],
+        "evidenceFingerprint": "b0b443d4310201a88698ecc97b7bb5439b82cc4d554e7e29185b2ee0a947888f",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "config/entity-relations.yaml",
+            "hash": "6b0918986bc2db3cfba17bae3069a4a4704e8dec651488fc5d8cb310ebec8597"
+          },
+          {
+            "path": "frontend/src/components/layout/SideNav.tsx",
+            "hash": "4160b4ab4af1dd581dca3995c4afe2a2052862b977f328f8596fee28f0ad2b56"
+          },
+          {
+            "path": "frontend/src/features/config/ConfigPage.tsx",
+            "hash": "bd4cd76772ba3f7ada1059a36f2bbdba226cb1bc51c8ff9030271a99c1bbff06"
+          },
+          {
+            "path": "frontend/src/features/entities/EntitiesPage.tsx",
+            "hash": "d831c9849720927eca88b7182d6fc8fea3f9b4f499377f33698d0508ec0788ff"
+          },
+          {
+            "path": "frontend/src/router/index.tsx",
+            "hash": "dc3a9d618a94373cc894ef807d82522a2745204303512ab9027fbe3856a2b025"
+          },
+          {
+            "path": "openspec/changes/entity-config-page/tasks.md",
+            "hash": "8801db97c44cdd328ce91a072d098385ec0fae6066229266a17e3781fd9289a7"
+          },
+          {
+            "path": "src/stockimformation/config/entities.py",
+            "hash": "73ed42379edcd99749b447579cdb8ea71f20846a1662ce31479a3f7515289e7a"
+          },
+          {
+            "path": "src/stockimformation/config/loader.py",
+            "hash": "5830e4cd77a4bca5cfea8c1a3fe65e671545726cc6d6859fd0331e1c707fd6ac"
+          },
+          {
+            "path": "src/stockimformation/config/schema.py",
+            "hash": "c52061641363abe6aa694e2968e48eac28524c73062d087d8cc9f7e6337aee2c"
+          },
+          {
+            "path": "src/stockimformation/pipeline.py",
+            "hash": "30282722edbd99585076c530411b322c4e5460c61c479a40d74ca1eddb096719"
+          },
+          {
+            "path": "src/stockimformation/services/advisory.py",
+            "hash": "d499204981565dd12dee25049d4530326d1ef57a1e545c3556f6ba1798f41981"
+          },
+          {
+            "path": "src/stockimformation/services/briefing.py",
+            "hash": "e33917461afa4ac1dd17fa500ae0b7c4bb5d0f28fcb6aa1755107e1396d2ae3c"
+          },
+          {
+            "path": "src/stockimformation/services/collection.py",
+            "hash": "999e39685dd468e3513eb1e0564b457ce8fde52590312622a19f7ca65cad0aa1"
+          },
+          {
+            "path": "src/stockimformation/web/routes.py",
+            "hash": "2cd0baf33113bc19a995656530b41c22083e8f6fc97453cedeb3a9060ac949f7"
+          },
+          {
+            "path": "tests/e2e/test_pipeline.py",
+            "hash": "78d6752c1333a14e10f74a05b66c097e90724fc1aad96e67f6ee3defba1dbeb1"
+          },
+          {
+            "path": "tests/integration/test_config_api.py",
+            "hash": "6bac502fdfd2c137a406daa1dfcd2b47ec9ec5448403632d27231503d77b8778"
+          },
+          {
+            "path": "tests/unit/test_config_collection_notification.py",
+            "hash": "270f44feb38399a2196e8ecb510dcf5c3afcba1f9f776680878e7e21893bc1e9"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "910911105313396475f572bc7cad4f5ca82bbc53"
+      }
+    }
+  }
+}
