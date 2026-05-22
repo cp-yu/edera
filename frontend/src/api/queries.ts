@@ -24,6 +24,14 @@ export function useNodeTypes() {
   })
 }
 
+export function useHandler(name: string | null) {
+  return useQuery({
+    queryKey: ['handler', name],
+    queryFn: () => apiFetch<{ name: string; code: string }>(`/api/graph/handlers/${name}`),
+    enabled: !!name,
+  })
+}
+
 export function useSkills() {
   return useQuery({
     queryKey: ['skills'],

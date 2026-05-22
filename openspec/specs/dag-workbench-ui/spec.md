@@ -239,12 +239,22 @@
 
 ### Requirement: Inspector permission overrides
 
-系统 SHALL 在 Inspector 中提供权限覆盖配置器，支持按需添加字段权限提权。
+系统 SHALL 在 Inspector 中提供权限覆盖配置器，仅展示当前节点已选 entities 对应的 entity type 的权限字段，支持按需添加字段权限提权。
 
-#### Scenario: Display permission overrides section
+#### Scenario: Filter by selected entities
 
-- **WHEN** 用户在 Inspector 中选择节点
-- **THEN** 系统 SHALL 显示"实体权限覆盖"区域，默认为空
+- **WHEN** 节点已选择 entities（如 `["stock:AAPL", "web-source:reuters"]`）
+- **THEN** 系统 SHALL 仅展示 `stock` 和 `web-source` 两个 entity type 的权限字段
+
+#### Scenario: No entities selected
+
+- **WHEN** 节点未选择任何 entity
+- **THEN** 系统 SHALL 不展示权限配置器，或展示空状态提示
+
+#### Scenario: Entity deselection cleans permissions
+
+- **WHEN** 用户取消选择某个 entity，导致其 type 不再被任何已选 entity 引用
+- **THEN** 系统 SHALL 自动清除该 type 的 permission overrides
 
 #### Scenario: Add permission override
 
@@ -253,12 +263,12 @@
 
 #### Scenario: Select field to override
 
-- **WHEN** 用户在字段选择器中选择 entity type 和字段（如 `stock.code`）
+- **WHEN** 用户在字段选择器中选择 entity type 和字段
 - **THEN** 系统 SHALL 显示该字段的默认权限和可选的提权选项
 
 #### Scenario: Select permission level
 
-- **WHEN** 用户选择权限级别（如从 `read-only` 提权到 `read-write`）
+- **WHEN** 用户选择权限级别
 - **THEN** 系统 SHALL 验证是否为合法提权（不能降权）
 
 #### Scenario: Save permission overrides

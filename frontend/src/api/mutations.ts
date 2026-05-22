@@ -97,6 +97,16 @@ export function useDeleteNodeType() {
   })
 }
 
+export function useSaveHandler() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, code }: { name: string; code: string }) =>
+      apiFetch(`/api/graph/handlers/${name}`, { method: 'PUT', body: JSON.stringify({ code }) }),
+    onSuccess: (_data, { name }) => { qc.invalidateQueries({ queryKey: ['handler', name] }) },
+    onError: alertMutationError,
+  })
+}
+
 export function useSaveSkill() {
   const qc = useQueryClient()
   return useMutation({

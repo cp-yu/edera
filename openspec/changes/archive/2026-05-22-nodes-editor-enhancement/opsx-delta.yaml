@@ -1,0 +1,5 @@
+schema_version: 1
+MODIFIED:
+  capabilities:
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI，覆盖画布交互、节点拖拽、连线管理、自动布局、Inspector 配置和按已选实体过滤的权限配置器

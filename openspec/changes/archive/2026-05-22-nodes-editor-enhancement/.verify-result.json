@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-05-22T09:24:04.941Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "e96f37f76040c2167411de47daddce2abf4a59d354fc42f41e7528e909aeea90",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "direct-remediation-review",
+    "evidenceFiles": [
+      "frontend/src/api/mutations.ts",
+      "frontend/src/api/queries.ts",
+      "frontend/src/features/nodes/NodesPage.tsx",
+      "frontend/src/features/workbench/components/Inspector.tsx",
+      "openspec/changes/nodes-editor-enhancement/design.md",
+      "openspec/changes/nodes-editor-enhancement/proposal.md",
+      "openspec/changes/nodes-editor-enhancement/specs/node-management-page/spec.md",
+      "openspec/changes/nodes-editor-enhancement/tasks.md"
+    ],
+    "evidenceFingerprint": "502ad0749d391ff47938847d4b3e3791c2457b0642d2875aeee9e11e19329894",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "frontend/src/api/mutations.ts",
+        "hash": "1ca4cc7b8236c6641e89196eecb8de43ed7ac2837c5b6a14e11837f02205d97a"
+      },
+      {
+        "path": "frontend/src/api/queries.ts",
+        "hash": "529f15b7433e9f044fc50b71e09ab94683fa007b9b83fcbf71433554ef11f4b7"
+      },
+      {
+        "path": "frontend/src/features/nodes/NodesPage.tsx",
+        "hash": "1f47918a40463e9760bcec5aa3b6bdeae47988fc4734e1e9dc6cf6095d7d148b"
+      },
+      {
+        "path": "frontend/src/features/workbench/components/Inspector.tsx",
+        "hash": "884ad56f19f0aa3642b4b4eb7987070c63ea62d6fea8e34dfe2d5363fece0257"
+      },
+      {
+        "path": "openspec/changes/nodes-editor-enhancement/design.md",
+        "hash": "3f66318fddb581effeb9487cf7d277fdb59068504f09cbe7ed406f03bd54e71e"
+      },
+      {
+        "path": "openspec/changes/nodes-editor-enhancement/proposal.md",
+        "hash": "67f2d35ccf14d0e5bfe33b263cca228ea733a0f46945cbc1ce42232408d63ff3"
+      },
+      {
+        "path": "openspec/changes/nodes-editor-enhancement/specs/node-management-page/spec.md",
+        "hash": "343fe66dbb3af79774a22ccc796a5986c6646aa409b18ae40e13b097eb1bcd30"
+      },
+      {
+        "path": "openspec/changes/nodes-editor-enhancement/tasks.md",
+        "hash": "e96f37f76040c2167411de47daddce2abf4a59d354fc42f41e7528e909aeea90"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "dc50bfdcdce1bfe36768796ee9d014edf37e4d56"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-22T09:24:16.463Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Follow-up correction moves Handler from per-card subtab to the intended top-level NodesPage tab; structure is already minimal after remediation."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-22T09:24:04.941Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "e96f37f76040c2167411de47daddce2abf4a59d354fc42f41e7528e909aeea90",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "direct-remediation-review",
+        "evidenceFiles": [
+          "frontend/src/api/mutations.ts",
+          "frontend/src/api/queries.ts",
+          "frontend/src/features/nodes/NodesPage.tsx",
+          "frontend/src/features/workbench/components/Inspector.tsx",
+          "openspec/changes/nodes-editor-enhancement/design.md",
+          "openspec/changes/nodes-editor-enhancement/proposal.md",
+          "openspec/changes/nodes-editor-enhancement/specs/node-management-page/spec.md",
+          "openspec/changes/nodes-editor-enhancement/tasks.md"
+        ],
+        "evidenceFingerprint": "502ad0749d391ff47938847d4b3e3791c2457b0642d2875aeee9e11e19329894",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "frontend/src/api/mutations.ts",
+            "hash": "1ca4cc7b8236c6641e89196eecb8de43ed7ac2837c5b6a14e11837f02205d97a"
+          },
+          {
+            "path": "frontend/src/api/queries.ts",
+            "hash": "529f15b7433e9f044fc50b71e09ab94683fa007b9b83fcbf71433554ef11f4b7"
+          },
+          {
+            "path": "frontend/src/features/nodes/NodesPage.tsx",
+            "hash": "1f47918a40463e9760bcec5aa3b6bdeae47988fc4734e1e9dc6cf6095d7d148b"
+          },
+          {
+            "path": "frontend/src/features/workbench/components/Inspector.tsx",
+            "hash": "884ad56f19f0aa3642b4b4eb7987070c63ea62d6fea8e34dfe2d5363fece0257"
+          },
+          {
+            "path": "openspec/changes/nodes-editor-enhancement/design.md",
+            "hash": "3f66318fddb581effeb9487cf7d277fdb59068504f09cbe7ed406f03bd54e71e"
+          },
+          {
+            "path": "openspec/changes/nodes-editor-enhancement/proposal.md",
+            "hash": "67f2d35ccf14d0e5bfe33b263cca228ea733a0f46945cbc1ce42232408d63ff3"
+          },
+          {
+            "path": "openspec/changes/nodes-editor-enhancement/specs/node-management-page/spec.md",
+            "hash": "343fe66dbb3af79774a22ccc796a5986c6646aa409b18ae40e13b097eb1bcd30"
+          },
+          {
+            "path": "openspec/changes/nodes-editor-enhancement/tasks.md",
+            "hash": "e96f37f76040c2167411de47daddce2abf4a59d354fc42f41e7528e909aeea90"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "dc50bfdcdce1bfe36768796ee9d014edf37e4d56"
+      }
+    }
+  }
+}

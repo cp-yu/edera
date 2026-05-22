@@ -38,6 +38,11 @@ export function Inspector() {
     return mergeSchemaDefaults(typeDefaults, node.inspector_schema)
   }, [node, typeDefaults])
   const formSchema = useMemo(() => omitSchemaFields(node?.inspector_schema, ['entities', 'entity_permissions']), [node])
+  const selectedEntityTypes = useMemo(() => selectedTypes(formValues.entities), [formValues.entities])
+  const permissionEntityTypes = useMemo(
+    () => filterEntityTypes(dag?.entity_types ?? {}, selectedEntityTypes),
+    [dag?.entity_types, selectedEntityTypes],
+  )
 
   if (edge && dag) {
     const saveEdge = (patch: { fan_in?: boolean; fan_out?: boolean }) => {
@@ -127,10 +132,14 @@ export function Inspector() {
         relations={dag.entity_relations ?? []}
         value={formValues.entities}
         node={node}
-        onChange={(value) => setFormValues((current) => ({ ...current, entities: value }))}
+        onChange={(value) => setFormValues((current) => ({
+          ...current,
+          entities: value,
+          entity_permissions: prunePermissions(current.entity_permissions, selectedTypes(value)),
+        }))}
       />
       <PermissionConfigurator
-        entityTypes={dag.entity_types ?? {}}
+        entityTypes={permissionEntityTypes}
         value={formValues.entity_permissions}
         onChange={(value) => setFormValues((current) => ({ ...current, entity_permissions: value }))}
       />
@@ -240,6 +249,9 @@ function PermissionConfigurator({
         <p className="text-[11px] text-muted-foreground">按实体类型配置字段权限覆盖</p>
       </div>
       <div className="space-y-3 rounded-md border p-2">
+        {Object.keys(entityTypes).length === 0 && (
+          <p className="text-[11px] text-muted-foreground">未选择实体</p>
+        )}
         {Object.entries(entityTypes).map(([type, definition]) => {
           const active = permissions[type] ?? {}
           const activeFields = Object.keys(active)
@@ -442,6 +454,28 @@ function normalizePermissions(value: Record<string, unknown>): Record<string, Re
     }
   }
   return result
+}
+
+function selectedTypes(value: unknown): Set<string> {
+  const types = new Set<string>()
+  if (!Array.isArray(value)) return types
+  for (const ref of value) {
+    const [type] = String(ref).split(':')
+    if (type) types.add(type)
+  }
+  return types
+}
+
+function filterEntityTypes(
+  entityTypes: Record<string, EntityTypeDefinition>,
+  selected: Set<string>,
+): Record<string, EntityTypeDefinition> {
+  return Object.fromEntries(Object.entries(entityTypes).filter(([type]) => selected.has(type)))
+}
+
+function prunePermissions(value: unknown, selected: Set<string>): Record<string, Record<string, string>> {
+  const permissions = isRecord(value) ? normalizePermissions(value) : {}
+  return Object.fromEntries(Object.entries(permissions).filter(([type]) => selected.has(type)))
 }
 
 function toggleItem(items: string[], value: string): string[] {
