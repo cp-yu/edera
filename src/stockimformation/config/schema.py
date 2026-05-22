@@ -56,6 +56,7 @@ class EntityTypeConfig(BaseModel):
     business_id_field: str
     display_template: str
     storage_tier: StorageTier = "filesystem"
+    system_protected: bool = False
     schema_: dict[str, Any] = Field(default_factory=dict, alias="schema")
     field_permissions: dict[str, FieldPermission] = Field(default_factory=dict)
     validate_: bool = Field(default=True, alias="validate")

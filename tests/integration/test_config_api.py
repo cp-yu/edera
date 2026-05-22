@@ -208,6 +208,39 @@ validate: true
 
 
 @pytest.mark.asyncio
+async def test_entity_type_read_system_schema(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/config/entity-types/node")
+        missing = await client.get("/api/config/entity-types/unknown")
+    assert response.status_code == 200
+    assert "system_protected: true" in response.json()["content"]
+    assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_entity_type_update_protected(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    content = (root / "config" / "schemas" / "node.yaml").read_text()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.put("/api/config/entity-types/node", json={"content": content})
+    assert response.status_code == 403
+    assert "system protected" in response.json()["error"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_entity_type_delete_protected(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.delete("/api/config/entity-types/node")
+    assert response.status_code == 403
+    assert "system protected" in response.json()["error"]["message"]
+
+
+@pytest.mark.asyncio
 async def test_entity_type_delete_requires_cascade_for_instances(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)

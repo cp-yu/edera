@@ -53,6 +53,7 @@ export interface EntityTypeDefinition {
   display_name: string
   business_id_field: string
   display_template: string
+  system_protected: boolean
   schema: Record<string, unknown>
   field_permissions: Record<string, string>
   validate: boolean

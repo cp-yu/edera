@@ -2,6 +2,7 @@ display_name: Run Metadata
 business_id_field: cycle_id
 display_template: "{cycle_id}"
 storage_tier: memory
+system_protected: true
 schema:
   type: object
   required:

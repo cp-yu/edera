@@ -2,6 +2,7 @@ display_name: DAG
 business_id_field: name
 display_template: "{name}"
 storage_tier: filesystem
+system_protected: true
 schema:
   type: object
   required:

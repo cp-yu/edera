@@ -1,0 +1,15 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.entity-type-protection
+      type: capability
+      intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
+  relations:
+    - from: cap.entity-type-protection
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.entity-type-crud-api
+      intent: Entity Type CRUD API 扩展，支持 storage_tier、能力字段声明和 system_protected 保护检查

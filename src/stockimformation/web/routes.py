@@ -334,7 +334,7 @@ async def api_entity_type_create(request: Request, body: dict[str, object]) -> J
 
 @router.get("/api/config/entity-types/{name}", response_model=None)
 async def api_entity_type_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
-    path = _entity_type_path(config_dir(request), name)
+    path = _resolve_entity_type_path(config_dir(request), name)
     if not path.exists():
         return error_response(404, "not_found", f"entity type {name} not found")
     return {"name": name, "content": path.read_text(encoding="utf-8")}
@@ -345,7 +345,11 @@ async def api_entity_type_update(request: Request, name: str, body: dict[str, ob
     content = body.get("content", "")
     if not isinstance(content, str):
         return error_response(400, "config_error", "entity type content must be a string")
-    path = _entity_type_path(config_dir(request), name)
+    root = config_dir(request)
+    path = _entity_type_path(root, name)
+    protected_error = _protected_entity_type_error(root, name)
+    if protected_error is not None:
+        return protected_error
     if not path.exists():
         return error_response(404, "not_found", f"entity type {name} not found")
     try:
@@ -364,6 +368,9 @@ async def api_entity_type_delete(
 ) -> JSONResponse | dict[str, object]:
     root = config_dir(request)
     path = _entity_type_path(root, name)
+    protected_error = _protected_entity_type_error(root, name)
+    if protected_error is not None:
+        return protected_error
     if not path.exists():
         return error_response(404, "not_found", f"entity type {name} not found")
     store = _entity_store(root)
@@ -1065,6 +1072,27 @@ def _entity_type_path(root: Path, name: str) -> Path:
     if "/" in name or "\\" in name or name in {"", ".", ".."}:
         raise ConfigEditError("invalid entity type name")
     return root.parent / "schemas" / "entity-types" / f"{name}.yaml"
+
+
+def _resolve_entity_type_path(root: Path, name: str) -> Path:
+    path = _entity_type_path(root, name)
+    if path.exists():
+        return path
+    return root / "schemas" / f"{name}.yaml"
+
+
+def _entity_type_config(root: Path, name: str) -> EntityTypeConfig | None:
+    return load_entity_type_configs(root.parent / "schemas" / "entity-types").get(name)
+
+
+def _protected_entity_type_error(root: Path, name: str) -> JSONResponse | None:
+    try:
+        entity_type = _entity_type_config(root, name)
+    except ConfigError as exc:
+        return error_response(400, "config_error", str(exc))
+    if entity_type is not None and entity_type.system_protected:
+        return error_response(403, "forbidden", f"entity type '{name}' is system protected")
+    return None
 
 
 def _validate_entity_type_content(content: str) -> None:

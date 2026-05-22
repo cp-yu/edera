@@ -17,6 +17,7 @@ type EntityType = {
   display_name: string
   business_id_field: string
   display_template: string
+  system_protected?: boolean
   schema?: SchemaNode
   field_permissions?: Record<string, string>
 }
@@ -37,7 +38,7 @@ type Relation = {
 }
 
 type TypeDialog = {
-  mode: 'create' | 'edit'
+  mode: 'create' | 'edit' | 'view'
   name: string
   content: string
 }
@@ -175,6 +176,12 @@ export function EntitiesPage() {
     setTypeDialog({ mode: 'edit', name: response.name, content: response.content })
   }
 
+  const openViewType = async (name: string) => {
+    setFormError(null)
+    const response = await apiFetch<{ name: string; content: string }>(`/api/config/entity-types/${name}`)
+    setTypeDialog({ mode: 'view', name: response.name, content: response.content })
+  }
+
   const confirmDeleteType = (name: string) => {
     const instanceCount = entityList.filter((entity) => entity.type === name).length
     const message = instanceCount
@@ -251,19 +258,26 @@ export function EntitiesPage() {
             新建类型
           </button>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {Object.entries(typeMap).map(([name, type]) => (
-              <article key={name} className="rounded-lg border bg-card p-4 space-y-3">
-                <div>
-                  <h2 className="font-medium">{type.display_name}</h2>
-                  <p className="text-xs text-muted-foreground">{name}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">业务 ID: {type.business_id_field}</p>
-                <div className="flex gap-2">
-                  <button onClick={() => openEditType(name)} className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent">编辑</button>
-                  <button onClick={() => confirmDeleteType(name)} className="rounded-md border px-3 py-1.5 text-xs text-destructive hover:bg-accent">删除</button>
-                </div>
-              </article>
-            ))}
+            {Object.entries(typeMap).map(([name, type]) => {
+              const protectedType = type.system_protected === true || name === 'relation'
+              return (
+                <article key={name} className="rounded-lg border bg-card p-4 space-y-3">
+                  <div>
+                    <h2 className="font-medium">{type.display_name}</h2>
+                    <p className="text-xs text-muted-foreground">{name}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">业务 ID: {type.business_id_field}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => protectedType ? openViewType(name) : openEditType(name)} className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent">
+                      {protectedType ? '查看' : '编辑'}
+                    </button>
+                    {!protectedType && (
+                      <button onClick={() => confirmDeleteType(name)} className="rounded-md border px-3 py-1.5 text-xs text-destructive hover:bg-accent">删除</button>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </section>
       )}
@@ -337,7 +351,7 @@ export function EntitiesPage() {
       {typeDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-3xl rounded-lg border bg-background p-5 shadow-xl space-y-4">
-            <h2 className="font-semibold">{typeDialog.mode === 'create' ? '新建类型' : `编辑 ${typeDialog.name}`}</h2>
+            <h2 className="font-semibold">{typeDialog.mode === 'create' ? '新建类型' : `${typeDialog.mode === 'view' ? '查看' : '编辑'} ${typeDialog.name}`}</h2>
             {typeDialog.mode === 'create' && (
               <input
                 value={typeDialog.name}
@@ -348,11 +362,18 @@ export function EntitiesPage() {
             )}
             <textarea
               value={typeDialog.content}
-              onChange={(event) => setTypeDialog({ ...typeDialog, content: event.target.value })}
-              className="h-[420px] w-full resize-y rounded-md border bg-background px-3 py-2 font-mono text-sm"
+              onChange={(event) => typeDialog.mode !== 'view' && setTypeDialog({ ...typeDialog, content: event.target.value })}
+              readOnly={typeDialog.mode === 'view'}
+              className="h-[420px] w-full resize-y rounded-md border bg-background px-3 py-2 font-mono text-sm read-only:opacity-80"
               spellCheck={false}
             />
-            <DialogActions error={formError} onCancel={() => setTypeDialog(null)} onSave={() => saveType.mutate(typeDialog)} pending={saveType.isPending} />
+            {typeDialog.mode === 'view' ? (
+              <div className="flex justify-end">
+                <button onClick={() => setTypeDialog(null)} className="rounded-md border px-4 py-2 text-sm hover:bg-accent">关闭</button>
+              </div>
+            ) : (
+              <DialogActions error={formError} onCancel={() => setTypeDialog(null)} onSave={() => saveType.mutate(typeDialog)} pending={saveType.isPending} />
+            )}
           </div>
         </div>
       )}

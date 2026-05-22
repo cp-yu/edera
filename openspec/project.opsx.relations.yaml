@@ -21,3 +21,6 @@ relations:
   - from: cap.config-git-safety
     type: contains
     to: dom.core
+  - from: cap.entity-type-protection
+    type: contains
+    to: dom.core

@@ -1,0 +1,295 @@
+{
+  "timestamp": "2026-05-22T07:15:46.963Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "173a76c3324326c33b73de60d8ef538f9e8b5d0f0b06790a8fe2279eee1cad04",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "main-agent",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "config/schemas/dag.yaml",
+      "config/schemas/node.yaml",
+      "config/schemas/run-metadata.yaml",
+      "config/schemas/trigger.yaml",
+      "frontend/package-lock.json",
+      "frontend/package.json",
+      "frontend/playwright.config.ts",
+      "frontend/src/api/types.ts",
+      "frontend/src/features/entities/EntitiesPage.tsx",
+      "frontend/test-results/c5-entity-type-protection/cards.png",
+      "frontend/test-results/c5-entity-type-protection/readonly-dialog.png",
+      "frontend/tests/entities-protection.spec.ts",
+      "openspec/changes/protect-base-entity-types/design.md",
+      "openspec/changes/protect-base-entity-types/opsx-delta.yaml",
+      "openspec/changes/protect-base-entity-types/proposal.md",
+      "openspec/changes/protect-base-entity-types/specs/entity-type-crud-api/spec.md",
+      "openspec/changes/protect-base-entity-types/specs/entity-type-protection/spec.md",
+      "openspec/changes/protect-base-entity-types/tasks.md",
+      "openspec/project.opsx.yaml",
+      "src/stockimformation/config/loader.py",
+      "src/stockimformation/config/schema.py",
+      "src/stockimformation/web/routes.py",
+      "tests/integration/test_config_api.py",
+      "tests/unit/test_entity_types.py"
+    ],
+    "evidenceFingerprint": "ce4a694e3c1d30c9c207eb8f8152fb87c42a4a35eeb3086a529cd45c42c478e6",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "config/schemas/dag.yaml",
+        "hash": "ec23ad1fbad60ad0e7a48520907aac21e5805b68879576b70889adce103e2a0f"
+      },
+      {
+        "path": "config/schemas/node.yaml",
+        "hash": "79baf9ad9e0205940542a75509e9c113ee3621c32d33254823264036db198c8c"
+      },
+      {
+        "path": "config/schemas/run-metadata.yaml",
+        "hash": "c28f0226e25dd054488b1add5a097c69a5b86439953ac8df05d5bf360230042f"
+      },
+      {
+        "path": "config/schemas/trigger.yaml",
+        "hash": "7e18775cc2ea9749afc4cf8623f1292c87ea519f8f163e7768635cb4846248fc"
+      },
+      {
+        "path": "frontend/package-lock.json",
+        "hash": "4035ff8830ee33dc1d31958dff77846d964c494a946717b269d542fb848b373a"
+      },
+      {
+        "path": "frontend/package.json",
+        "hash": "727b100aeab35303363635372f9eb49943c76763b80f7e1214c6ec09983f04a2"
+      },
+      {
+        "path": "frontend/playwright.config.ts",
+        "hash": "f2317399a8be9775d59add8198e24e29a3ac6ce0014b64efa4f32aaa2c85edbc"
+      },
+      {
+        "path": "frontend/src/api/types.ts",
+        "hash": "4260a243128d062d5e56f82c38b3c5d94619074de5359fd3a2dfc7c32c8e6a10"
+      },
+      {
+        "path": "frontend/src/features/entities/EntitiesPage.tsx",
+        "hash": "1247db67171f53e3d0e3839f6d9ce0b8b85da3d58407f119694cf95a2b1a94d7"
+      },
+      {
+        "path": "frontend/test-results/c5-entity-type-protection/cards.png",
+        "hash": "3b8b86fa0517902702bf0489748f6e7d4f3bbdc2bca4610c1260efafe1137978"
+      },
+      {
+        "path": "frontend/test-results/c5-entity-type-protection/readonly-dialog.png",
+        "hash": "59e5c8b4daf81bed78c9e4cfbb1015d2761734e3abb77cd69481721cfd861b25"
+      },
+      {
+        "path": "frontend/tests/entities-protection.spec.ts",
+        "hash": "ba15da0726d61967c72c9f801f775087c98d6e6e11ee33d536dfd71769363fcd"
+      },
+      {
+        "path": "openspec/changes/protect-base-entity-types/design.md",
+        "hash": "e2380f029c4a17d3be7e7699ea22492ca42550f0aa04d46cf7bc653cd3dcbe95"
+      },
+      {
+        "path": "openspec/changes/protect-base-entity-types/opsx-delta.yaml",
+        "hash": "f5d52966e88bc2e1fbc6d38b1c1b5abc443188342a22c14d0cf48a5a0a2838b6"
+      },
+      {
+        "path": "openspec/changes/protect-base-entity-types/proposal.md",
+        "hash": "2485856938639ce9930a6024330677fd2a66b91ea94a0a2b79377f4633143812"
+      },
+      {
+        "path": "openspec/changes/protect-base-entity-types/specs/entity-type-crud-api/spec.md",
+        "hash": "bca2c2ce62675ccdc237d45db4d2f1c110d244fea950b0ff476c3c4a68658e16"
+      },
+      {
+        "path": "openspec/changes/protect-base-entity-types/specs/entity-type-protection/spec.md",
+        "hash": "81a80725caaa887d2da6ae117d14c28c47ddf79f2fce7ee72897210792f8321b"
+      },
+      {
+        "path": "openspec/changes/protect-base-entity-types/tasks.md",
+        "hash": "173a76c3324326c33b73de60d8ef538f9e8b5d0f0b06790a8fe2279eee1cad04"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "bbe8e3c90575a663e080a473a096486890b6369d579abcc3bbe1e1b052aef5f7"
+      },
+      {
+        "path": "src/stockimformation/config/loader.py",
+        "hash": "c926579eb00e858c8fd2d5d80344840b71c97b4dec9f3d2b06aba06f96da1af7"
+      },
+      {
+        "path": "src/stockimformation/config/schema.py",
+        "hash": "0c2e3df4a42930a272b1bdde1ef97a177349b8e9b380ff0fd1354fc972c4fca9"
+      },
+      {
+        "path": "src/stockimformation/web/routes.py",
+        "hash": "5fd3b81a9018b9844514d3dd34b653693c30e6397577012309fdcebd36ee7212"
+      },
+      {
+        "path": "tests/integration/test_config_api.py",
+        "hash": "1a60120a0af8baa7eb567db3bcb734db184843be77dfcf804a90474651c3df7c"
+      },
+      {
+        "path": "tests/unit/test_entity_types.py",
+        "hash": "975a923557d58fb7e1ffbf6e2e22f81e0898e41dc408293f2d46a9616102cfd0"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "7f5abfd318c4ab7bb64ec350b977ddf031aeb2b3"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-22T07:16:25.557Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Post-C5 update only adds a focused Playwright browser test, project-level Playwright config, dependency metadata, and evidence references. No behavior-preserving optimization is needed for this evidence-only follow-up."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-22T07:15:46.963Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "173a76c3324326c33b73de60d8ef538f9e8b5d0f0b06790a8fe2279eee1cad04",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "main-agent",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "config/schemas/dag.yaml",
+          "config/schemas/node.yaml",
+          "config/schemas/run-metadata.yaml",
+          "config/schemas/trigger.yaml",
+          "frontend/package-lock.json",
+          "frontend/package.json",
+          "frontend/playwright.config.ts",
+          "frontend/src/api/types.ts",
+          "frontend/src/features/entities/EntitiesPage.tsx",
+          "frontend/test-results/c5-entity-type-protection/cards.png",
+          "frontend/test-results/c5-entity-type-protection/readonly-dialog.png",
+          "frontend/tests/entities-protection.spec.ts",
+          "openspec/changes/protect-base-entity-types/design.md",
+          "openspec/changes/protect-base-entity-types/opsx-delta.yaml",
+          "openspec/changes/protect-base-entity-types/proposal.md",
+          "openspec/changes/protect-base-entity-types/specs/entity-type-crud-api/spec.md",
+          "openspec/changes/protect-base-entity-types/specs/entity-type-protection/spec.md",
+          "openspec/changes/protect-base-entity-types/tasks.md",
+          "openspec/project.opsx.yaml",
+          "src/stockimformation/config/loader.py",
+          "src/stockimformation/config/schema.py",
+          "src/stockimformation/web/routes.py",
+          "tests/integration/test_config_api.py",
+          "tests/unit/test_entity_types.py"
+        ],
+        "evidenceFingerprint": "7c4de2f71efd57521963ecc99d34db341eaa28b5de11fb564b4860c98464e2d5",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "config/schemas/dag.yaml",
+            "hash": "ec23ad1fbad60ad0e7a48520907aac21e5805b68879576b70889adce103e2a0f"
+          },
+          {
+            "path": "config/schemas/node.yaml",
+            "hash": "79baf9ad9e0205940542a75509e9c113ee3621c32d33254823264036db198c8c"
+          },
+          {
+            "path": "config/schemas/run-metadata.yaml",
+            "hash": "c28f0226e25dd054488b1add5a097c69a5b86439953ac8df05d5bf360230042f"
+          },
+          {
+            "path": "config/schemas/trigger.yaml",
+            "hash": "7e18775cc2ea9749afc4cf8623f1292c87ea519f8f163e7768635cb4846248fc"
+          },
+          {
+            "path": "frontend/package-lock.json",
+            "hash": "4035ff8830ee33dc1d31958dff77846d964c494a946717b269d542fb848b373a"
+          },
+          {
+            "path": "frontend/package.json",
+            "hash": "727b100aeab35303363635372f9eb49943c76763b80f7e1214c6ec09983f04a2"
+          },
+          {
+            "path": "frontend/playwright.config.ts",
+            "hash": "f2317399a8be9775d59add8198e24e29a3ac6ce0014b64efa4f32aaa2c85edbc"
+          },
+          {
+            "path": "frontend/src/api/types.ts",
+            "hash": "4260a243128d062d5e56f82c38b3c5d94619074de5359fd3a2dfc7c32c8e6a10"
+          },
+          {
+            "path": "frontend/src/features/entities/EntitiesPage.tsx",
+            "hash": "1247db67171f53e3d0e3839f6d9ce0b8b85da3d58407f119694cf95a2b1a94d7"
+          },
+          {
+            "path": "frontend/test-results/c5-entity-type-protection/cards.png",
+            "hash": "3b8b86fa0517902702bf0489748f6e7d4f3bbdc2bca4610c1260efafe1137978"
+          },
+          {
+            "path": "frontend/test-results/c5-entity-type-protection/readonly-dialog.png",
+            "hash": "59e5c8b4daf81bed78c9e4cfbb1015d2761734e3abb77cd69481721cfd861b25"
+          },
+          {
+            "path": "frontend/tests/entities-protection.spec.ts",
+            "hash": "ba15da0726d61967c72c9f801f775087c98d6e6e11ee33d536dfd71769363fcd"
+          },
+          {
+            "path": "openspec/changes/protect-base-entity-types/design.md",
+            "hash": "e2380f029c4a17d3be7e7699ea22492ca42550f0aa04d46cf7bc653cd3dcbe95"
+          },
+          {
+            "path": "openspec/changes/protect-base-entity-types/opsx-delta.yaml",
+            "hash": "f5d52966e88bc2e1fbc6d38b1c1b5abc443188342a22c14d0cf48a5a0a2838b6"
+          },
+          {
+            "path": "openspec/changes/protect-base-entity-types/proposal.md",
+            "hash": "2485856938639ce9930a6024330677fd2a66b91ea94a0a2b79377f4633143812"
+          },
+          {
+            "path": "openspec/changes/protect-base-entity-types/specs/entity-type-crud-api/spec.md",
+            "hash": "bca2c2ce62675ccdc237d45db4d2f1c110d244fea950b0ff476c3c4a68658e16"
+          },
+          {
+            "path": "openspec/changes/protect-base-entity-types/specs/entity-type-protection/spec.md",
+            "hash": "81a80725caaa887d2da6ae117d14c28c47ddf79f2fce7ee72897210792f8321b"
+          },
+          {
+            "path": "openspec/changes/protect-base-entity-types/tasks.md",
+            "hash": "173a76c3324326c33b73de60d8ef538f9e8b5d0f0b06790a8fe2279eee1cad04"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "8536608edf143e7b86c75002e8570028aa72bc36a8ffde384badc075b26c44c6"
+          },
+          {
+            "path": "src/stockimformation/config/loader.py",
+            "hash": "c926579eb00e858c8fd2d5d80344840b71c97b4dec9f3d2b06aba06f96da1af7"
+          },
+          {
+            "path": "src/stockimformation/config/schema.py",
+            "hash": "0c2e3df4a42930a272b1bdde1ef97a177349b8e9b380ff0fd1354fc972c4fca9"
+          },
+          {
+            "path": "src/stockimformation/web/routes.py",
+            "hash": "5fd3b81a9018b9844514d3dd34b653693c30e6397577012309fdcebd36ee7212"
+          },
+          {
+            "path": "tests/integration/test_config_api.py",
+            "hash": "1a60120a0af8baa7eb567db3bcb734db184843be77dfcf804a90474651c3df7c"
+          },
+          {
+            "path": "tests/unit/test_entity_types.py",
+            "hash": "975a923557d58fb7e1ffbf6e2e22f81e0898e41dc408293f2d46a9616102cfd0"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "7f5abfd318c4ab7bb64ec350b977ddf031aeb2b3"
+      }
+    }
+  }
+}

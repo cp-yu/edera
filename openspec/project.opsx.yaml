@@ -89,7 +89,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.entity-type-crud-api
-    intent: Entity Type CRUD API 扩展，支持 storage_tier 和能力字段声明
+    intent: Entity Type CRUD API 扩展，支持 storage_tier、能力字段声明和 system_protected 保护检查
     type: capability
     domain: dom.core
   - id: cap.entity-instance-crud-api
@@ -120,4 +120,7 @@ capabilities:
     type: capability
   - id: cap.config-git-safety
     intent: 配置文件夹强制 git 版本管理，DAG run 结束自动 commit，操作互斥锁
+    type: capability
+  - id: cap.entity-type-protection
+    intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability

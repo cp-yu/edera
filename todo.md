@@ -6,8 +6,6 @@ https://github.com/Fincept-Corporation/FinceptTerminal
 uzi项目可以借鉴提示词，搜索。
 
 fincept可以大部分都借鉴。
----
-基础类型的 entity type 不应该出现在web console
 
 
 ----
