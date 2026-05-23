@@ -1,0 +1,36 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      type: capability
+      intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor 提取和依赖校验
+    - id: cap.core.core-bootstrap
+      type: capability
+      intent: 核心启动时扫描扩展目录、解析 manifest、构建 handler registry 和 entity type registry、设置 module path
+    - id: cap.core.handler-context-protocol
+      type: capability
+      intent: 统一 HandlerContext 单参数调用协议、HandlerProtocol 和 EntityStoreProtocol 接口定义，承载于独立 core-types 包
+    - id: cap.core.extension-declarative-storage
+      type: capability
+      intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
+  relations:
+    - from: cap.core.extension-manifest-system
+      type: contains
+      to: dom.core
+    - from: cap.core.core-bootstrap
+      type: contains
+      to: dom.core
+    - from: cap.core.handler-context-protocol
+      type: contains
+      to: dom.core
+    - from: cap.core.extension-declarative-storage
+      type: contains
+      to: dom.core
+MODIFIED:
+  capabilities:
+    - id: cap.operations.node-executor
+      intent: 节点执行器，统一为 function node 执行路径，通过 importlib 从 registry 加载 handler，调用 HandlerContext 单参数协议
+    - id: cap.unified-entity-model
+      intent: 统一 Entity 原语，EntityType 注册来源扩展为 manifest 声明 + 用户配置覆盖的双层优先级
+    - id: cap.operations.pipeline-control
+      intent: 管道控制能力，handler 注册从 bootstrap registry 获取，移除硬编码 handler 字典
