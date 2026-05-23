@@ -5,17 +5,25 @@ nodes:
   alias: rss-fetcher
   config:
     entities:
-    - rss-source:sample-rss
+    - rss-source:hn-rss
+    parameters:
+      max_items_per_source: 8
   optional: false
   loop: null
   fallback: null
   fallback_model: null
 - id: 0194f7a6-7b17-7c01-b601-000000000002
-  type: web-scraper
-  alias: web-scraper
+  type: api-fetcher
+  alias: api-fetcher
   config:
     entities:
-    - web-source:sample-web
+    - api-source:cls-telegraph
+    - api-source:jqka
+    - api-source:solidot
+    - api-source:ithome
+    - api-source:github
+    parameters:
+      max_items_per_source: 8
   optional: false
   loop: null
   fallback: null

@@ -788,7 +788,8 @@ retention_hours = 24
     for node in dag["nodes"]:
         if node["type"] == "rss-fetcher":
             node["config"]["entities"] = []
-        if node["type"] == "web-scraper":
+        if node["type"] == "api-fetcher":
+            node["type"] = "web-scraper"
             node["config"]["entities"] = [
                 "web-source:minimax-docs",
                 "web-source:minimax-docs-index",

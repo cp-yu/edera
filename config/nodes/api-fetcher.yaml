@@ -1,10 +1,15 @@
-name: rss-fetcher
+name: api-fetcher
 type: function
 role: source
-handler: fetch-rss
+handler: fetch-api
 input_type: Any
 output_type: list[RawItem]
+timeout_seconds: 15.0
 source_names:
-  - hn-rss
+- cls-telegraph
+- jqka
+- solidot
+- ithome
+- github
 parameters:
   max_items_per_source: 8

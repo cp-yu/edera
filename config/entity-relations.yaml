@@ -1,55 +1,37 @@
 relations:
 - id: 5bb16d7c48b540cda3195cfa4063be12
   entities:
-  - stock:00700.HK
-  - rss-source:sample-rss
+  - stock:00100.HK
+  - rss-source:hn-rss
   type: uses-source
   metadata: {}
 - id: aae4b12ed23f49529279b4f504f19faf
   entities:
-  - stock:00700.HK
-  - web-source:sample-web
+  - stock:00100.HK
+  - api-source:cls-telegraph
   type: uses-source
   metadata: {}
 - id: a78b6bc63d0b4e7ca48081ff715d4937
   entities:
-  - stock:00700.HK
-  - web-source:minimax-docs
+  - stock:00100.HK
+  - api-source:jqka
   type: uses-source
   metadata: {}
 - id: 88a4475742dd4145a576e220f21efb4f
   entities:
-  - stock:00700.HK
-  - web-source:minimax-docs-index
+  - stock:00100.HK
+  - api-source:solidot
   type: uses-source
   metadata: {}
 - id: cb630d3275884890a041eab926b0adeb
   entities:
-  - stock:00700.HK
-  - web-source:tonghuashun-minimax
+  - stock:00100.HK
+  - api-source:ithome
   type: uses-source
   metadata: {}
 - id: 5581910c6a0049e9a8d0a21ae17be7a9
   entities:
-  - stock:600519.SH
-  - rss-source:sample-rss
-  type: uses-source
-  metadata: {}
-- id: 89511bef0d1048b1838afa94238e2a38
-  entities:
-  - stock:600519.SH
-  - web-source:minimax-docs
-  type: uses-source
-  metadata: {}
-- id: d955b8a4322c40fab11fa60652379aa7
-  entities:
-  - stock:600519.SH
-  - web-source:minimax-docs-index
-  type: uses-source
-  metadata: {}
-- id: d7a0ed2a95bd4f0598ce4ef507c439fd
-  entities:
-  - stock:600519.SH
-  - web-source:tonghuashun-minimax
+  - stock:00100.HK
+  - api-source:github
   type: uses-source
   metadata: {}

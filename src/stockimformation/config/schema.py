@@ -26,7 +26,7 @@ class SystemConfig(BaseModel):
     web_host: str = "127.0.0.1"
     web_port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = "INFO"
-    llm_timeout_seconds: float = Field(default=60.0, gt=0)
+    llm_timeout_seconds: float = Field(default=60.0, ge=0)
     workspace_root: Path = Path("/tmp/stockimformation/runs")
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=24, ge=0)

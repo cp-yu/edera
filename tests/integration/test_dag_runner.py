@@ -17,7 +17,7 @@ async def test_default_dag_runs_with_fake_handlers() -> None:
     config = load_app_config(Path("config"))
     handlers = {
         "fetch-rss": _handler([{"url": "a"}]),
-        "fetch-web": _handler([{"url": "a"}, {"url": "b"}]),
+        "fetch-api": _handler([{"url": "a"}, {"url": "b"}]),
         "summarize": _handler([{"summary": "a"}]),
         "classify-sentiment": _handler([{"summary": "a"}]),
         "generate-advice": _handler([{"direction": "hold"}]),
@@ -27,7 +27,7 @@ async def test_default_dag_runs_with_fake_handlers() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
-    result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["sample-rss"]})
+    result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["hn-rss"]})
     assert result.payload == [{"skipped": True}]
     assert result.failures == {}
 
@@ -37,7 +37,7 @@ async def test_single_source_failure_does_not_block() -> None:
     config = load_app_config(Path("config"))
     handlers = {
         "fetch-rss": _failing_handler,
-        "fetch-web": _handler([{"url": "b"}]),
+        "fetch-api": _handler([{"url": "b"}]),
         "summarize": _handler([{"summary": "b"}]),
         "classify-sentiment": _handler([{"summary": "b"}]),
         "generate-advice": _handler([{"direction": "hold"}]),
@@ -47,7 +47,7 @@ async def test_single_source_failure_does_not_block() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
-    result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["sample-web"]})
+    result = await DagRunner(executor).run(graph, "cycle", {"source_names": ["cls-telegraph"]})
     assert _instance_id(graph, "rss-fetcher") in result.failures
     assert result.payload == [{"skipped": True}]
 
@@ -57,7 +57,7 @@ def test_topological_layers_have_parallel_sources() -> None:
     graph = load_graph(config.dags["default"], config.nodes)
     assert set(topological_layers(graph)[0]) == {
         _instance_id(graph, "rss-fetcher"),
-        _instance_id(graph, "web-scraper"),
+        _instance_id(graph, "api-fetcher"),
     }
 
 
@@ -66,7 +66,7 @@ async def test_node_entity_execution() -> None:
     config = load_app_config(Path("config"))
     handlers = {
         "fetch-rss": _handler([{"url": "a"}]),
-        "fetch-web": _handler([]),
+        "fetch-api": _handler([]),
         "summarize": _handler([]),
         "classify-sentiment": _handler([]),
         "generate-advice": _handler([]),

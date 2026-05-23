@@ -1,0 +1,18 @@
+display_name: API 信息源
+business_id_field: name
+display_template: "{name}"
+schema:
+  type: object
+  required:
+    - name
+    - base_url
+  properties:
+    name:
+      type: string
+    base_url:
+      type: string
+    params:
+      type: object
+field_permissions:
+  base_url: read-only
+validate: true

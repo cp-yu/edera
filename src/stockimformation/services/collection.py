@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from collections.abc import Callable
 from typing import Any
 
 import feedparser
@@ -38,6 +39,25 @@ async def fetch_web_source(source: EntityConfig, tags: list[str]) -> list[RawIte
     return parse_web(response.text, source, tags)
 
 
+async def fetch_api_source(source: EntityConfig, tags: list[str]) -> list[RawItem]:
+    base_url = str(source.attributes.get("base_url") or "")
+    if not base_url:
+        raise ValueError(f"missing api base_url: {_source_name(source)}")
+    params = source.attributes.get("params", {})
+    if not isinstance(params, dict):
+        raise ValueError(f"api params must be object: {_source_name(source)}")
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get(base_url, params=params)
+        response.raise_for_status()
+    data = response.json()
+    if not isinstance(data, dict) or data.get("code") != 200:
+        raise ValueError(f"api source returned error: {_source_name(source)}")
+    records = data.get("data")
+    if not isinstance(records, list):
+        raise ValueError(f"api source data must be list: {_source_name(source)}")
+    return parse_api(records, source, tags)
+
+
 async def fetch_source_with_recovery(
     source: EntityConfig,
     tags: list[str],
@@ -47,7 +67,7 @@ async def fetch_source_with_recovery(
     attempt_count = 0
     first_reason: str | None = None
     last_error: str | None = None
-    fetcher = fetch_rss_source if source.type == "rss-source" else fetch_web_source
+    fetcher = _fetcher_for_source(source)
     while True:
         try:
             items = await fetcher(source, tags)
@@ -143,12 +163,38 @@ def parse_web(content: str, source: EntityConfig, tags: list[str]) -> list[RawIt
     ]
 
 
+def parse_api(records: list[object], source: EntityConfig, tags: list[str]) -> list[RawItem]:
+    entity_tags = entity_tags_from_values(tags)
+    source_name = _source_name(source)
+    items: list[RawItem] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        title = str(record.get("title") or "").strip()
+        url = str(record.get("url") or record.get("id") or "").strip()
+        if not title or not url:
+            continue
+        items.append(
+            RawItem(
+                url=url,
+                title=title,
+                content=_api_content(record, title),
+                source_name=source_name,
+                source_type="api",
+                tags=entity_tags,
+                published_at=_api_published_at(record),
+            )
+        )
+    return items
+
+
 def make_fetch_handler(
     entity_store: EntityStore,
     source_type: str,
     system: SystemConfig | None = None,
 ) -> FunctionHandler:
-    async def handler(node_input: NodeInput) -> list[dict[str, Any]]:
+    async def handler(node_input: NodeInput, parameters: dict[str, object] | None = None, _context: object = None) -> list[dict[str, Any]]:
+        max_items = _positive_int((parameters or {}).get("max_items_per_source"))
         source_names = node_input.payload.get("source_names", []) if isinstance(node_input.payload, dict) else []
         source_map = _source_map(entity_store)
         items: list[RawItem] = []
@@ -160,17 +206,13 @@ def make_fetch_handler(
                 continue
             tags = tags_for_source(entity_store, source)
             if system is None:
-                fetched = (
-                    await fetch_rss_source(source, tags)
-                    if source.type == "rss-source"
-                    else await fetch_web_source(source, tags)
-                )
+                fetched = await _fetcher_for_source(source)(source, tags)
             else:
                 fetched, summary = await fetch_source_with_recovery(source, tags, system)
                 recovery[_source_name(source)] = summary
                 if summary["recovery_status"] == "escalated":
                     failures[_source_name(source)] = str(summary["latest_failure_reason"])
-            items.extend(fetched)
+            items.extend(fetched[:max_items] if max_items is not None else fetched)
         return [item.model_dump(mode="json") for item in dedupe_raw_items(items)]
 
     return handler
@@ -199,14 +241,30 @@ def _source_name(source: EntityConfig) -> str:
     return str(source.attributes.get("name") or source.id)
 
 
+def _positive_int(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if value > 0 else None
+
+
 def _source_map(entity_store: EntityStore) -> dict[str, EntityConfig]:
     result: dict[str, EntityConfig] = {}
     for entity in entity_store.entities.entities:
-        if entity.type not in {"rss-source", "web-source"}:
+        if entity.type not in {"rss-source", "web-source", "api-source"}:
             continue
         result[_source_name(entity)] = entity
         result[entity_ref(entity, entity_store.entity_types)] = entity
     return result
+
+
+def _fetcher_for_source(source: EntityConfig) -> Callable[[EntityConfig, list[str]], Any]:
+    if source.type == "rss-source":
+        return fetch_rss_source
+    if source.type == "web-source":
+        return fetch_web_source
+    if source.type == "api-source":
+        return fetch_api_source
+    raise ValueError(f"unsupported source type: {source.type}")
 
 
 def _published_at(entry: Any) -> datetime:
@@ -217,6 +275,26 @@ def _published_at(entry: Any) -> datetime:
             return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
         except (TypeError, ValueError):
             pass
+    return datetime.now(timezone.utc)
+
+
+def _api_content(record: dict[str, Any], title: str) -> str:
+    extra = record.get("extra")
+    if isinstance(extra, dict):
+        for key in ("content", "desc", "brief"):
+            value = extra.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return title
+
+
+def _api_published_at(record: dict[str, Any]) -> datetime:
+    extra = record.get("extra")
+    value = record.get("pubDate")
+    if value is None and isinstance(extra, dict):
+        value = extra.get("date")
+    if isinstance(value, int | float):
+        return datetime.fromtimestamp(value / 1000, timezone.utc)
     return datetime.now(timezone.utc)
 
 
@@ -236,6 +314,8 @@ def _recoverable_reason(exc: Exception) -> str | None:
     if "empty source result" in message:
         return "empty"
     if "web rule did not match source" in message:
+        return "parse"
+    if message.startswith("api source data must be list") or message.startswith("api source returned error"):
         return "parse"
     return None
 

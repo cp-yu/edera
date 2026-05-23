@@ -22,7 +22,11 @@ def generate_briefing(
     lines: list[str] = [f"周期: {cycle_id}", ""]
     by_code = {advice.stock_code: advice for advice in advices}
     stocks = [entity for entity in entity_store.entities.entities if entity.type == "stock"]
-    sources = [entity for entity in entity_store.entities.entities if entity.type in {"rss-source", "web-source"}]
+    sources = [
+        entity
+        for entity in entity_store.entities.entities
+        if entity.type in {"rss-source", "web-source", "api-source"}
+    ]
     for target in stocks:
         code = str(target.attributes.get("code", ""))
         name = str(target.attributes.get("name", ""))

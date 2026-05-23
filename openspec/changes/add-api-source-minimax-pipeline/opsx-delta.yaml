@@ -1,0 +1,15 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.operations.api-source-collection
+      type: capability
+      intent: JSON API 类型信息源的定义、拉取、内容字段自动探测和 RawItem 转换
+  relations:
+    - from: dom.operations
+      type: contains
+      to: cap.operations.api-source-collection
+
+MODIFIED:
+  capabilities:
+    - id: cap.operations.pipeline-control
+      intent: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态与运行记录，含 fetch-api handler 注册

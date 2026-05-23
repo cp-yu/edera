@@ -968,7 +968,7 @@ def _source_map(store: EntityStore) -> dict[str, EntityConfig]:
     return {
         str(entity.attributes.get("name") or entity.id): entity
         for entity in store.entities.entities
-        if entity.type in {"rss-source", "web-source"}
+        if entity.type in {"rss-source", "web-source", "api-source"}
     }
 
 
@@ -1265,7 +1265,7 @@ def _build_inspector_schema(
             "type": "array",
             "items": {
                 "type": "string",
-                "enum": sorted(entity_ref(entity, entity_types) for entity in entities.entities if entity.type in {"rss-source", "web-source"}),
+                "enum": sorted(entity_ref(entity, entity_types) for entity in entities.entities if entity.type in {"rss-source", "web-source", "api-source"}),
             },
             "default": [_source_ref_for_name(entities, entity_types, name) for name in node.source_names],
         }
@@ -1362,7 +1362,7 @@ def _source_ref_for_name(
     name: str,
 ) -> str:
     for entity in entities.entities:
-        if entity.type in {"rss-source", "web-source"} and entity.attributes.get("name") == name:
+        if entity.type in {"rss-source", "web-source", "api-source"} and entity.attributes.get("name") == name:
             return entity_ref(entity, entity_types)
     return name
 

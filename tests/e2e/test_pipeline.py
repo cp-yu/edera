@@ -30,7 +30,7 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
 
     handlers = {
         "fetch-rss": fetch_rss,
-        "fetch-web": _empty,
+        "fetch-api": _empty,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
         "generate-advice": make_advice_handler(entity_store),
@@ -40,7 +40,7 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
-    result = await DagRunner(executor).run(graph, "cycle-e2e", {"source_names": ["sample-rss"]})
+    result = await DagRunner(executor).run(graph, "cycle-e2e", {"source_names": ["hn-rss"]})
     assert result.payload
     outputs = _outputs_by_type(graph, result.node_outputs)
     briefing = outputs["briefing-generator"].payload
@@ -55,24 +55,24 @@ async def test_fixture_pipeline_generates_e2e_artifacts() -> None:
 
 
 @pytest.mark.asyncio
-async def test_minimax_docs_fixture_generates_web_visible_evidence() -> None:
+async def test_api_fixture_generates_visible_evidence() -> None:
     config = load_app_config(Path("config"))
     entity_store = _entity_store(config)
-    minimax_url = "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+    source_url = "https://api3.cls.cn/share/article/1"
     raw_item = _raw(
-        minimax_url,
-        "MiniMax OpenAI compatible chat completions use Bearer Auth and MiniMax-M2.7",
-        ["00700.HK"],
+        source_url,
+        "MiniMax positive AI product growth",
+        ["00100.HK"],
     )
-    raw_item.source_name = "minimax-docs"
-    raw_item.source_type = "web"
+    raw_item.source_name = "cls-telegraph"
+    raw_item.source_type = "api"
 
-    async def fetch_web(_node_input: NodeInput) -> list[dict[str, object]]:
+    async def fetch_api(_node_input: NodeInput) -> list[dict[str, object]]:
         return [raw_item.model_dump(mode="json")]
 
     handlers = {
         "fetch-rss": _empty,
-        "fetch-web": fetch_web,
+        "fetch-api": fetch_api,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
         "generate-advice": make_advice_handler(entity_store),
@@ -82,15 +82,15 @@ async def test_minimax_docs_fixture_generates_web_visible_evidence() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
-    result = await DagRunner(executor).run(graph, "cycle-minimax", {"source_names": ["minimax-docs"]})
+    result = await DagRunner(executor).run(graph, "cycle-minimax", {"source_names": ["cls-telegraph"]})
     outputs = _outputs_by_type(graph, result.node_outputs)
     analysis = outputs["reader"].payload
     advice = outputs["advisor"].payload
     briefing = outputs["briefing-generator"].payload
     notifications = outputs["notifier"].payload
-    assert analysis[0]["source_url"] == minimax_url
-    assert minimax_url in advice[0]["source_urls"]
-    assert "minimax-docs" in briefing["content"]
+    assert analysis[0]["source_url"] == source_url
+    assert source_url in advice[0]["source_urls"]
+    assert "cls-telegraph" in briefing["content"]
     assert notifications[0]["message"]
     assert result.failures == {}
 
@@ -110,7 +110,7 @@ async def test_reliability_fixture_recovers_next_cycle_after_failure() -> None:
 
     handlers = {
         "fetch-rss": flaky,
-        "fetch-web": _empty,
+        "fetch-api": _empty,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
         "generate-advice": make_advice_handler(entity_store),
@@ -120,8 +120,8 @@ async def test_reliability_fixture_recovers_next_cycle_after_failure() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
     graph = load_graph(config.dags["default"], config.nodes)
-    first = await DagRunner(executor).run(graph, "cycle-1", {"source_names": ["sample-rss"]})
-    second = await DagRunner(executor).run(graph, "cycle-2", {"source_names": ["sample-rss"]})
+    first = await DagRunner(executor).run(graph, "cycle-1", {"source_names": ["hn-rss"]})
+    second = await DagRunner(executor).run(graph, "cycle-2", {"source_names": ["hn-rss"]})
     assert _instance_id(graph, "rss-fetcher") in first.failures
     assert second.failures == {}
 

@@ -104,7 +104,8 @@ class NodeExecutor:
         node_input: NodeInput,
         context: NodeContext,
     ) -> tuple[object, dict[str, object]]:
-        timeout = config.timeout_seconds or self.system.llm_timeout_seconds
+        timeout = config.timeout_seconds if config.timeout_seconds is not None else self.system.llm_timeout_seconds
+        timeout = timeout or None
         if config.type == "function":
             handler_name = config.handler or (config.skills[0] if config.skills else "")
             handler = self.handlers.get(handler_name) or self._load_handler(handler_name)
@@ -214,10 +215,14 @@ async def _call_handler(
     parameters: dict[str, object],
     context: NodeContext,
 ) -> object:
-    if len(inspect.signature(handler).parameters) == 1:
+    signature = inspect.signature(handler)
+    handler_parameters = list(signature.parameters)
+    if len(handler_parameters) == 1:
         result = handler(node_input)
     else:
-        result = handler(node_input.payload, parameters, context)
+        first_parameter = handler_parameters[0] if handler_parameters else ""
+        first_argument = node_input if first_parameter == "node_input" else node_input.payload
+        result = handler(first_argument, parameters, context)
     if inspect.isawaitable(result):
         return await result
     return result
@@ -291,6 +296,8 @@ def _source_names(entities: list[str]) -> list[str]:
             names.append(ref.removeprefix("rss-source:"))
         if ref.startswith("web-source:"):
             names.append(ref.removeprefix("web-source:"))
+        if ref.startswith("api-source:"):
+            names.append(ref.removeprefix("api-source:"))
     return names
 
 

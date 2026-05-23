@@ -6,8 +6,9 @@ from pydantic import ValidationError
 
 from stockimformation.config.entities import EntityStore
 from stockimformation.config.loader import load_app_config
-from stockimformation.config.schema import EntityConfig, SystemConfig
+from stockimformation.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig, SystemConfig
 from stockimformation.models.entities import Advice, RawItem
+from stockimformation.node.models import NodeInput
 from stockimformation.services.analysis import analyze_raw_item
 from stockimformation.services.advisory import generate_advice
 from stockimformation.services.briefing import DISCLAIMER, generate_briefing
@@ -15,6 +16,8 @@ from stockimformation.services import collection
 from stockimformation.services.collection import (
     dedupe_raw_items,
     fetch_source_with_recovery,
+    make_fetch_handler,
+    parse_api,
     parse_rss,
     parse_web,
 )
@@ -32,44 +35,42 @@ def test_load_portfolio_holdings() -> None:
 def test_source_association() -> None:
     config = load_app_config(Path("config"))
     store = _store(config)
-    assert [ref.split(":", 1)[1] for ref in store.related_refs("stock:00700.HK")] == [
-        "sample-rss",
-        "sample-web",
-        "minimax-docs",
-        "minimax-docs-index",
-        "tonghuashun-minimax",
+    assert [ref.split(":", 1)[1] for ref in store.related_refs("stock:00100.HK")] == [
+        "hn-rss",
+        "cls-telegraph",
+        "jqka",
+        "solidot",
+        "ithome",
+        "github",
     ]
 
 
 def test_rss_source_config() -> None:
     config = load_app_config(Path("config"))
-    assert _source_by_name(_store(config), "sample-rss").type == "rss-source"
+    source = _source_by_name(_store(config), "hn-rss")
+    assert source.type == "rss-source"
+    assert source.attributes["url"] == "https://news.ycombinator.com/rss"
 
 
-def test_web_source_rule_config() -> None:
+def test_api_source_config() -> None:
     config = load_app_config(Path("config"))
-    assert _source_by_name(_store(config), "sample-web").attributes.get("regex")
+    source = _source_by_name(_store(config), "cls-telegraph")
+    assert source.type == "api-source"
+    assert source.attributes["base_url"] == "https://news.yltfspace.com/api/news"
+    assert source.attributes["params"] == {"platform": "cls_telegraph"}
 
 
-def test_minimax_docs_source_config() -> None:
+def test_api_source_schema_loaded() -> None:
+    config = load_app_config(Path("config"))
+    assert "api-source" in config.entity_types
+
+
+def test_minimax_multi_api_source_config() -> None:
     config = load_app_config(Path("config"))
     store = _store(config)
-    source = _source_by_name(store, "minimax-docs")
-    assert source.type == "web-source"
-    assert source.attributes["url"] == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
-    assert "web-source:minimax-docs" in store.related_refs("stock:00700.HK")
-
-
-def test_minimax_multi_source_config() -> None:
-    config = load_app_config(Path("config"))
-    store = _store(config)
-    assert _source_by_name(store, "minimax-docs-index").attributes["url"] == (
-        "https://platform.minimax.io/docs/llms.txt"
-    )
-    assert _source_by_name(store, "tonghuashun-minimax").attributes["url"] == (
-        "https://basic.10jqka.com.cn/176/HK0100/field.html"
-    )
-    assert "web-source:tonghuashun-minimax" in store.related_refs("stock:600519.SH")
+    assert _source_by_name(store, "jqka").attributes["params"] == {"platform": "jqka"}
+    assert _source_by_name(store, "solidot").attributes["params"] == {"platform": "solidot"}
+    assert "api-source:github" in store.related_refs("stock:00100.HK")
 
 
 def test_system_config_schedule_is_30_minutes() -> None:
@@ -91,43 +92,56 @@ def test_dedupe_raw_items_by_url() -> None:
     assert dedupe_raw_items([item, item]) == [item]
 
 
-def test_parse_web_regex_rule() -> None:
+@pytest.mark.asyncio
+async def test_fetch_handler_limits_items_per_source(monkeypatch: pytest.MonkeyPatch) -> None:
     config = load_app_config(Path("config"))
-    source = _source_by_name(_store(config), "sample-web")
+    source = _api_source()
+    store = EntityStore(EntitiesConfig(entities=[source]), config.entity_types, EntityRelationsConfig())
+
+    async def fetch_many(_source: EntityConfig, _tags: list[str]) -> list[RawItem]:
+        return [_raw_item(f"https://example.com/{index}") for index in range(3)]
+
+    monkeypatch.setattr(collection, "fetch_api_source", fetch_many)
+    handler = make_fetch_handler(store, "api")
+
+    items = await handler(
+        NodeInput(cycle_id="cycle", payload={"source_names": ["cls-telegraph"]}),
+        {"max_items_per_source": 2},
+        None,
+    )
+
+    assert [item["url"] for item in items] == ["https://example.com/0", "https://example.com/1"]
+
+
+def test_parse_web_regex_rule() -> None:
+    source = _web_source()
     items = parse_web("<article>公告 positive growth</article>", source, ["00700.HK"])
     assert items[0].title == "公告 positive growth"
 
 
-def test_parse_minimax_docs_fixture() -> None:
-    config = load_app_config(Path("config"))
-    source = _source_by_name(_store(config), "minimax-docs")
-    content = Path("tests/fixtures/minimax_text_chat.html").read_text()
-    items = parse_web(content, source, ["00700.HK"])
-    assert items[0].url == "https://platform.minimax.io/docs/api-reference/text-chat-openai"
-    assert items[0].source_name == "minimax-docs"
-    assert "Text Chat (Compatible OpenAI API)" in items[0].title
-    assert "Bearer Auth" in items[0].content
-    assert "MiniMax-M2.7" in items[0].content
+def test_parse_api_content_probe_chain() -> None:
+    source = _api_source()
+    records = [
+        {"title": "a", "url": "https://example.com/a", "extra": {"content": "content"}},
+        {"title": "b", "url": "https://example.com/b", "extra": {"desc": "desc"}},
+        {"title": "c", "url": "https://example.com/c", "extra": {"brief": "brief"}},
+        {"title": "d", "url": "https://example.com/d", "extra": {}},
+    ]
+    items = parse_api(records, source, ["00100.HK"])
+    assert [item.content for item in items] == ["content", "desc", "brief", "d"]
+    assert items[0].source_name == "cls-telegraph"
+    assert items[0].source_type == "api"
 
 
-def test_parse_minimax_docs_index_fixture() -> None:
-    config = load_app_config(Path("config"))
-    source = _source_by_name(_store(config), "minimax-docs-index")
-    content = Path("tests/fixtures/minimax_llms.txt").read_text()
-    items = parse_web(content, source, ["00700.HK"])
-    assert items[0].source_name == "minimax-docs-index"
-    assert "MiniMax API Docs" in items[0].title
-    assert "MiniMax-M2.7" in items[0].content
-
-
-def test_parse_tonghuashun_minimax_fixture() -> None:
-    config = load_app_config(Path("config"))
-    source = _source_by_name(_store(config), "tonghuashun-minimax")
-    content = Path("tests/fixtures/tonghuashun_minimax.html").read_text()
-    items = parse_web(content, source, ["00700.HK"])
-    assert items[0].source_name == "tonghuashun-minimax"
-    assert "MINIMAX-WP" in items[0].title
-    assert "亏损" in items[0].content
+def test_parse_api_timestamp_probe_chain() -> None:
+    source = _api_source()
+    records = [
+        {"title": "a", "url": "https://example.com/a", "pubDate": 1700000000000},
+        {"title": "b", "url": "https://example.com/b", "extra": {"date": 1700000001000}},
+    ]
+    items = parse_api(records, source, [])
+    assert items[0].published_at == datetime.fromtimestamp(1700000000, timezone.utc)
+    assert items[1].published_at == datetime.fromtimestamp(1700000001, timezone.utc)
 
 
 def test_analysis_summary_keywords_sentiment() -> None:
@@ -224,11 +238,12 @@ def test_briefing_metadata_sources() -> None:
         recovery,
     )
     assert briefing.metadata_["configured_sources"] == [
-        "sample-rss",
-        "sample-web",
-        "minimax-docs",
-        "minimax-docs-index",
-        "tonghuashun-minimax",
+        "hn-rss",
+        "cls-telegraph",
+        "jqka",
+        "solidot",
+        "ithome",
+        "github",
     ]
     assert briefing.metadata_["failed_sources"] == {"sample-web": "failed"}
     assert briefing.metadata_["source_recovery"] == recovery
@@ -285,6 +300,19 @@ async def test_source_recovery_non_recoverable_escalates_without_attempt(monkeyp
     assert summary["escalation_reason"] == "non_recoverable"
 
 
+@pytest.mark.asyncio
+async def test_api_source_missing_base_url_records_failure() -> None:
+    config = load_app_config(Path("config"))
+    source = EntityConfig(id="source-bad-api", type="api-source", attributes={"name": "bad-api"})
+    store = EntityStore(EntitiesConfig(entities=[source]), config.entity_types, EntityRelationsConfig())
+    node_input = NodeInput(cycle_id="cycle", payload={"source_names": ["bad-api"]})
+    handler = make_fetch_handler(store, "api", SystemConfig(source_recovery_max_attempts=0))
+
+    assert await handler(node_input) == []
+    assert node_input.metadata["failures"] == {"bad-api": "missing api base_url: bad-api"}
+    assert node_input.metadata["source_recovery"]["bad-api"]["recovery_status"] == "escalated"
+
+
 def test_briefing_contains_disclaimer() -> None:
     config = load_app_config(Path("config"))
     briefing = generate_briefing("cycle", [_advice("hold", 0.6)], _store(config))
@@ -337,5 +365,17 @@ def _web_source() -> EntityConfig:
     return EntityConfig(
         id="source-sample-web",
         type="web-source",
-        attributes={"name": "sample-web", "url": "https://example.com"},
+        attributes={"name": "sample-web", "url": "https://example.com", "regex": "<article>(?P<title>.*?)</article>"},
+    )
+
+
+def _api_source() -> EntityConfig:
+    return EntityConfig(
+        id="source-cls-telegraph",
+        type="api-source",
+        attributes={
+            "name": "cls-telegraph",
+            "base_url": "https://news.yltfspace.com/api/news",
+            "params": {"platform": "cls_telegraph"},
+        },
     )

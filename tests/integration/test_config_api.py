@@ -144,7 +144,7 @@ async def test_query_entity_relations(tmp_path) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
         try:
-            response = await client.get("/api/entity-relations?entity=stock:00700.HK&type=uses-source")
+            response = await client.get("/api/entity-relations?entity=stock:00100.HK&type=uses-source")
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 200
@@ -158,17 +158,17 @@ async def test_query_entity_relations_matches_uuid_refs(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
     relations_path = root / "config" / "entity-relations.yaml"
     payload = yaml.safe_load(relations_path.read_text())
-    payload["relations"][0]["entities"][0] = "stock-00700-hk"
+    payload["relations"][0]["entities"][0] = "stock-hk0100"
     relations_path.write_text(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False))
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
         try:
-            response = await client.get("/api/entity-relations?entity=stock:00700.HK&type=uses-source")
+            response = await client.get("/api/entity-relations?entity=stock:00100.HK&type=uses-source")
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 200
-    assert response.json()["relations"][0]["entities"][0] == "stock:00700.HK"
+    assert response.json()["relations"][0]["entities"][0] == "stock:00100.HK"
 
 
 @pytest.mark.asyncio
@@ -253,7 +253,7 @@ async def test_entity_type_delete_requires_cascade_for_instances(tmp_path) -> No
         finally:
             await app.state.controller.shutdown()
     assert blocked.status_code == 409
-    assert blocked.json()["instance_count"] == 2
+    assert blocked.json()["instance_count"] == 3
     assert deleted.status_code == 200
     assert stocks.json()["entities"] == []
 
@@ -296,11 +296,11 @@ async def test_entity_relation_crud(tmp_path) -> None:
             types = await client.get("/api/entity-relations/types")
             created = await client.post(
                 "/api/entity-relations",
-                json={"entities": ["stock:600519.SH", "web-source:sample-web"], "type": "uses-source"},
+                json={"entities": ["stock:600519.SH", "api-source:github"], "type": "uses-source"},
             )
             duplicate = await client.post(
                 "/api/entity-relations",
-                json={"entities": ["stock:600519.SH", "web-source:sample-web"], "type": "uses-source"},
+                json={"entities": ["stock:600519.SH", "api-source:github"], "type": "uses-source"},
             )
             deleted = await client.delete(f"/api/entity-relations/{created.json()['relation']['id']}")
         finally:

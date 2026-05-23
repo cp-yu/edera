@@ -317,6 +317,7 @@ def _build_executor(
     handlers = {
         "fetch-rss": make_fetch_handler(entity_store, "rss", app_config.system),
         "fetch-web": make_fetch_handler(entity_store, "web", app_config.system),
+        "fetch-api": make_fetch_handler(entity_store, "api", app_config.system),
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
         "generate-advice": make_advice_handler(entity_store),
@@ -337,7 +338,7 @@ def _build_executor(
 def _source_entity_refs(app_config: AppConfig) -> list[str]:
     refs: list[str] = []
     for entity in app_config.entities.entities:
-        if entity.type not in {"rss-source", "web-source"}:
+        if entity.type not in {"rss-source", "web-source", "api-source"}:
             continue
         name = entity.attributes.get("name")
         if isinstance(name, str):

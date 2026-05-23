@@ -1,0 +1,195 @@
+{
+  "timestamp": "2026-05-22T11:49:36.545Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "0a7bfa8c1ced63bfb8726b8084c60fba70a275c0a2f86ab79be5d210b82c3565",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer-subagent",
+    "evidenceFiles": [
+      "config/dags/default.yaml",
+      "config/entities.yaml",
+      "config/entity-relations.yaml",
+      "config/nodes/api-fetcher.yaml",
+      "handlers/fetch-api.py",
+      "schemas/entity-types/api-source.yaml",
+      "src/stockimformation/cli.py",
+      "src/stockimformation/node/executor.py",
+      "src/stockimformation/pipeline.py",
+      "src/stockimformation/services/briefing.py",
+      "src/stockimformation/services/collection.py",
+      "src/stockimformation/web/routes.py",
+      "tests/e2e/test_pipeline.py",
+      "tests/integration/test_dag_runner.py",
+      "tests/unit/test_config_collection_notification.py"
+    ],
+    "evidenceFingerprint": "bf2d293c29b2fa069220ffa8b4c442f078fa54019bd86a34d812fe21c6ff03d5",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "config/dags/default.yaml",
+        "hash": "94f8987bc375ee1f7251d581d11e61bd521e533c489f6ec2c8a7ea14e6ebc4fc"
+      },
+      {
+        "path": "config/entities.yaml",
+        "hash": "3cbc6d208db343071a44cb186782119757ed4d5f1921548328a597783746624a"
+      },
+      {
+        "path": "config/entity-relations.yaml",
+        "hash": "2701a12b2417a4178e98a4d8d54f200eca8fa7ff3258c8f224b2fc8cf64d7387"
+      },
+      {
+        "path": "config/nodes/api-fetcher.yaml",
+        "hash": "c792827605825c4d68c536ee5b90550b494144a92f277a34237437c5639da0f6"
+      },
+      {
+        "path": "handlers/fetch-api.py",
+        "hash": "514a85167fc795cb9c9a5034ef429e82a1ebf2b8c42a87eb4f2dd3530a395c91"
+      },
+      {
+        "path": "schemas/entity-types/api-source.yaml",
+        "hash": "fba211eb3c0b78785004bff37d44e8229968086088fc94de1be3fc1309038cf4"
+      },
+      {
+        "path": "src/stockimformation/cli.py",
+        "hash": "314a404fa089f89644f8a918b730fd3801baed336a1bf136cfebd0ecf79e8899"
+      },
+      {
+        "path": "src/stockimformation/node/executor.py",
+        "hash": "5ad693acb869e16af0fd523ad6562ce1183efd3495c8f75612129dfa1b06ad22"
+      },
+      {
+        "path": "src/stockimformation/pipeline.py",
+        "hash": "94a8b79a44448fc07e1af2ae2aa5fbef063d8de5086297a2df7501083c420bde"
+      },
+      {
+        "path": "src/stockimformation/services/briefing.py",
+        "hash": "1ba2299482219401c9e2c7a14dccf03e1b9e142466451baf0374d99efa0b932f"
+      },
+      {
+        "path": "src/stockimformation/services/collection.py",
+        "hash": "91ad103d80f2d4460b8b0736bacf377c77fcc6cbee2d6aceb38693f5417d5c5a"
+      },
+      {
+        "path": "src/stockimformation/web/routes.py",
+        "hash": "9238e7b8ce35e360e56f1ba0760ec65801a4f7fad33e5ee1dba5b22730cbf196"
+      },
+      {
+        "path": "tests/e2e/test_pipeline.py",
+        "hash": "f74590c047bd9fb757d4240345d307345f1d3b77de70a949d346286621ddaf40"
+      },
+      {
+        "path": "tests/integration/test_dag_runner.py",
+        "hash": "ffc1475a9b65b9315e428bee85d98526de0f6a69753890c7a0b223f51899d4ef"
+      },
+      {
+        "path": "tests/unit/test_config_collection_notification.py",
+        "hash": "2d790b133616aa59b70996ee32033614656b1261e5af8672c71eb5131ba13c45"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "84894df2b1425154dd9ccbb6edd0047bb4b0d97f"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-22T11:51:48.617Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-22T11:49:36.545Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "0a7bfa8c1ced63bfb8726b8084c60fba70a275c0a2f86ab79be5d210b82c3565",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer-subagent",
+        "evidenceFiles": [
+          "config/dags/default.yaml",
+          "config/entities.yaml",
+          "config/entity-relations.yaml",
+          "config/nodes/api-fetcher.yaml",
+          "handlers/fetch-api.py",
+          "schemas/entity-types/api-source.yaml",
+          "src/stockimformation/cli.py",
+          "src/stockimformation/node/executor.py",
+          "src/stockimformation/pipeline.py",
+          "src/stockimformation/services/briefing.py",
+          "src/stockimformation/services/collection.py",
+          "src/stockimformation/web/routes.py",
+          "tests/e2e/test_pipeline.py",
+          "tests/integration/test_dag_runner.py",
+          "tests/unit/test_config_collection_notification.py"
+        ],
+        "evidenceFingerprint": "bf2d293c29b2fa069220ffa8b4c442f078fa54019bd86a34d812fe21c6ff03d5",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "config/dags/default.yaml",
+            "hash": "94f8987bc375ee1f7251d581d11e61bd521e533c489f6ec2c8a7ea14e6ebc4fc"
+          },
+          {
+            "path": "config/entities.yaml",
+            "hash": "3cbc6d208db343071a44cb186782119757ed4d5f1921548328a597783746624a"
+          },
+          {
+            "path": "config/entity-relations.yaml",
+            "hash": "2701a12b2417a4178e98a4d8d54f200eca8fa7ff3258c8f224b2fc8cf64d7387"
+          },
+          {
+            "path": "config/nodes/api-fetcher.yaml",
+            "hash": "c792827605825c4d68c536ee5b90550b494144a92f277a34237437c5639da0f6"
+          },
+          {
+            "path": "handlers/fetch-api.py",
+            "hash": "514a85167fc795cb9c9a5034ef429e82a1ebf2b8c42a87eb4f2dd3530a395c91"
+          },
+          {
+            "path": "schemas/entity-types/api-source.yaml",
+            "hash": "fba211eb3c0b78785004bff37d44e8229968086088fc94de1be3fc1309038cf4"
+          },
+          {
+            "path": "src/stockimformation/cli.py",
+            "hash": "314a404fa089f89644f8a918b730fd3801baed336a1bf136cfebd0ecf79e8899"
+          },
+          {
+            "path": "src/stockimformation/node/executor.py",
+            "hash": "5ad693acb869e16af0fd523ad6562ce1183efd3495c8f75612129dfa1b06ad22"
+          },
+          {
+            "path": "src/stockimformation/pipeline.py",
+            "hash": "94a8b79a44448fc07e1af2ae2aa5fbef063d8de5086297a2df7501083c420bde"
+          },
+          {
+            "path": "src/stockimformation/services/briefing.py",
+            "hash": "1ba2299482219401c9e2c7a14dccf03e1b9e142466451baf0374d99efa0b932f"
+          },
+          {
+            "path": "src/stockimformation/services/collection.py",
+            "hash": "91ad103d80f2d4460b8b0736bacf377c77fcc6cbee2d6aceb38693f5417d5c5a"
+          },
+          {
+            "path": "src/stockimformation/web/routes.py",
+            "hash": "9238e7b8ce35e360e56f1ba0760ec65801a4f7fad33e5ee1dba5b22730cbf196"
+          },
+          {
+            "path": "tests/e2e/test_pipeline.py",
+            "hash": "f74590c047bd9fb757d4240345d307345f1d3b77de70a949d346286621ddaf40"
+          },
+          {
+            "path": "tests/integration/test_dag_runner.py",
+            "hash": "ffc1475a9b65b9315e428bee85d98526de0f6a69753890c7a0b223f51899d4ef"
+          },
+          {
+            "path": "tests/unit/test_config_collection_notification.py",
+            "hash": "2d790b133616aa59b70996ee32033614656b1261e5af8672c71eb5131ba13c45"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "84894df2b1425154dd9ccbb6edd0047bb4b0d97f"
+      }
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -216,6 +217,51 @@ async def test_node_executor_records_output_entity_type_and_session_id() -> None
     assert output.ok
     assert output.metadata["session_id"] == "/tmp/session"
     assert recorded == [("cycle", "reader", "analysis", {"summary": "ok"}, "/tmp/session")]
+
+
+@pytest.mark.asyncio
+async def test_system_zero_timeout_disables_wait_for() -> None:
+    config = load_app_config(Path("config"))
+
+    async def handler(_node_input: NodeInput) -> dict[str, object]:
+        await asyncio.sleep(0.01)
+        return {"ok": True}
+
+    node = config.nodes["rss-fetcher"].model_copy(update={"timeout_seconds": None})
+    system = config.system.model_copy(update={"llm_timeout_seconds": 0})
+    executor = NodeExecutor(
+        {"rss-fetcher": node},
+        system,
+        config.runtime,
+        handlers={"fetch-rss": handler},
+    )
+
+    output = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+
+    assert output.ok
+    assert output.payload == {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_three_argument_node_input_handler_receives_full_input() -> None:
+    config = load_app_config(Path("config"))
+
+    async def handler(
+        node_input: NodeInput,
+        parameters: dict[str, object],
+        _context: NodeContext,
+    ) -> dict[str, object]:
+        node_input.metadata["failures"] = {"source": "failed"}
+        return {"payload": node_input.payload, "limit": parameters["limit"]}
+
+    node = config.nodes["rss-fetcher"].model_copy(update={"parameters": {"limit": 2}})
+    executor = NodeExecutor({"rss-fetcher": node}, config.system, config.runtime, handlers={"fetch-rss": handler})
+    node_input = NodeInput(cycle_id="cycle", payload={"source_names": ["hn-rss"]}, metadata={})
+
+    output = await executor.execute("rss-fetcher", node_input)
+
+    assert output.payload == {"payload": {"source_names": ["hn-rss"]}, "limit": 2}
+    assert output.metadata["failures"] == {"source": "failed"}
 
 
 async def _record(

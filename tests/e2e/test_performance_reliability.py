@@ -42,7 +42,7 @@ async def test_default_cycle_completes_with_output() -> None:
 
     handlers = {
         "fetch-rss": fetch,
-        "fetch-web": _empty,
+        "fetch-api": _empty,
         "summarize": analyze_handler,
         "classify-sentiment": analyze_handler,
         "generate-advice": make_advice_handler(entity_store),
@@ -53,7 +53,7 @@ async def test_default_cycle_completes_with_output() -> None:
     result = await DagRunner(NodeExecutor(config.nodes, config.system, config.runtime, handlers)).run(
         graph,
         "cycle",
-        {"source_names": ["sample-rss"]},
+        {"source_names": ["hn-rss"]},
     )
     assert result.payload
     assert config.system.schedule_minutes == 30

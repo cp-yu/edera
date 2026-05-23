@@ -12,32 +12,48 @@ entities:
   attributes:
     code: 600519.SH
     name: Kweichow Moutai
-- id: source-sample-rss
+- id: stock-hk0100
+  type: stock
+  attributes:
+    code: 00100.HK
+    name: Minimax
+- id: source-hn-rss
   type: rss-source
   attributes:
-    name: sample-rss
-    url: https://example.com/feed.xml
-- id: source-sample-web
-  type: web-source
+    name: hn-rss
+    url: https://news.ycombinator.com/rss
+- id: source-cls-telegraph
+  type: api-source
   attributes:
-    name: sample-web
-    url: https://example.com/announcements.html
-    regex: <article>(?P<title>.*?)</article>
-- id: source-minimax-docs
-  type: web-source
+    name: cls-telegraph
+    base_url: https://news.yltfspace.com/api/news
+    params:
+      platform: cls_telegraph
+- id: source-jqka
+  type: api-source
   attributes:
-    name: minimax-docs
-    url: https://platform.minimax.io/docs/api-reference/text-chat-openai
-    regex: <main[^>]*>.*?(?P<title>Text Chat \(Compatible OpenAI API\)).*?(?P<content>Bearer Auth.*?MiniMax-M2\.7.*?)</main>
-- id: source-minimax-docs-index
-  type: web-source
+    name: jqka
+    base_url: https://news.yltfspace.com/api/news
+    params:
+      platform: jqka
+- id: source-solidot
+  type: api-source
   attributes:
-    name: minimax-docs-index
-    url: https://platform.minimax.io/docs/llms.txt
-    regex: (?P<title># MiniMax API Docs).*?(?P<content>Text Chat \(Compatible OpenAI API\).*?MiniMax-M2\.7.*?)$
-- id: source-tonghuashun-minimax
-  type: web-source
+    name: solidot
+    base_url: https://news.yltfspace.com/api/news
+    params:
+      platform: solidot
+- id: source-ithome
+  type: api-source
   attributes:
-    name: tonghuashun-minimax
-    url: https://basic.10jqka.com.cn/176/HK0100/field.html
-    regex: (?P<title>MINIMAX-WP).*?(?P<content>亏损.*?)"
+    name: ithome
+    base_url: https://news.yltfspace.com/api/news
+    params:
+      platform: ithome
+- id: source-github
+  type: api-source
+  attributes:
+    name: github
+    base_url: https://news.yltfspace.com/api/news
+    params:
+      platform: github
