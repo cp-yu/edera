@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { Advice, Briefing, DagState, DagStatus, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
+import type { Advice, Briefing, DagState, DagStatus, NodeHistoryItem, NodeOutputEntity, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
 
 export function useDag(name: string) {
   return useQuery({
@@ -102,5 +102,25 @@ export function useSourceLogs(sourceName?: string) {
   return useQuery({
     queryKey: ['sourceLogs', sourceName],
     queryFn: () => apiFetch<{ logs: SourceLog[] }>(`/api/sources/logs${qs}`),
+  })
+}
+
+export function useNodeOutputs(nodeId: string | null, cycleId?: string | null) {
+  const search = new URLSearchParams()
+  if (nodeId) search.set('node_id', nodeId)
+  if (cycleId) search.set('cycle_id', cycleId)
+  const qs = search.toString()
+  return useQuery({
+    queryKey: ['nodeOutputs', nodeId, cycleId],
+    queryFn: () => apiFetch<{ outputs: NodeOutputEntity[] }>(`/api/node-outputs${qs ? `?${qs}` : ''}`),
+    enabled: !!nodeId,
+  })
+}
+
+export function useNodeHistory(dagName: string, nodeId: string) {
+  return useQuery({
+    queryKey: ['nodeHistory', dagName, nodeId],
+    queryFn: () => apiFetch<{ history: NodeHistoryItem[] }>(`/api/history/dag/${dagName}/nodes/${nodeId}`),
+    enabled: !!dagName && !!nodeId,
   })
 }

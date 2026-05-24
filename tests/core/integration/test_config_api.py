@@ -97,6 +97,25 @@ async def test_save_system_config(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_dag(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            created = await client.post("/api/graph/dag", json={"name": "weekly-report"})
+            duplicate = await client.post("/api/graph/dag", json={"name": "weekly-report"})
+            invalid = await client.post("/api/graph/dag", json={"name": "Weekly Report"})
+        finally:
+            await app.state.controller.shutdown()
+    assert created.status_code == 201
+    assert created.json()["dag"] == {"name": "weekly-report", "nodes": [], "edges": [], "ui": {}}
+    assert (root / "config" / "dags" / "weekly-report.yaml").exists()
+    assert duplicate.status_code == 409
+    assert invalid.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_get_relations(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)

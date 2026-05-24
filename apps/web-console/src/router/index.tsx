@@ -8,6 +8,7 @@ import { SourcesPage } from '@/features/sources/SourcesPage'
 import { ConfigPage } from '@/features/config/ConfigPage'
 import { NodesPage } from '@/features/nodes/NodesPage'
 import { EntitiesPage } from '@/features/entities/EntitiesPage'
+import { NodeHistoryPage } from '@/features/history/NodeHistoryPage'
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'sources', element: <SourcesPage /> },
       { path: 'entities', element: <EntitiesPage /> },
       { path: 'nodes', element: <NodesPage /> },
+      { path: 'history/dag/:dagName/nodes/:nodeId', element: <NodeHistoryPage /> },
       { path: 'config', element: <ConfigPage /> },
     ],
   },

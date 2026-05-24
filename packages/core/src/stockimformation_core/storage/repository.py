@@ -150,8 +150,9 @@ async def create_pipeline_run(
     trigger: str,
     node_names: list[str] | None = None,
     dag_name: str = "default",
+    retry_of: str | None = None,
 ) -> PipelineRun:
-    run = PipelineRun(cycle_id=cycle_id, trigger=trigger, status="running", dag_name=dag_name)
+    run = PipelineRun(cycle_id=cycle_id, trigger=trigger, status="running", dag_name=dag_name, retry_of=retry_of)
     session.add(run)
     for node_name in node_names or []:
         session.add(NodeRun(cycle_id=cycle_id, node_name=node_name, status="pending"))

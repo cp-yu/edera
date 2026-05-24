@@ -242,6 +242,315 @@ async def test_fan_in_stream() -> None:
 
 
 @pytest.mark.asyncio
+async def test_event_driven_dispatch_does_not_wait_for_layer() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "event-driven-test",
+                "nodes": [
+                    {"id": "fast", "type": "rss-fetcher"},
+                    {"id": "slow", "type": "web-scraper"},
+                    {"id": "sink", "type": "advisor"},
+                ],
+                "edges": [{"from": "fast", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    events: list[str] = []
+
+    async def fast(_node_input: NodeInput) -> object:
+        events.append("fast-done")
+        return "fast"
+
+    async def slow(_node_input: NodeInput) -> object:
+        await asyncio.sleep(0.05)
+        events.append("slow-done")
+        return "slow"
+
+    async def sink(_node_input: NodeInput) -> object:
+        events.append("sink-start")
+        return "sink"
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        graph.instances,
+    )
+    await DagRunner(executor).run(graph, "cycle", {})
+
+    assert events.index("sink-start") < events.index("slow-done")
+
+
+@pytest.mark.asyncio
+async def test_fan_in_barrier_waits_for_all_upstreams() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "barrier-test",
+                "nodes": [
+                    {"id": "fast", "type": "rss-fetcher"},
+                    {"id": "slow", "type": "web-scraper"},
+                    {"id": "sink", "type": "advisor", "fan_in_mode": "barrier"},
+                ],
+                "edges": [{"from": "fast", "to": "sink"}, {"from": "slow", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    events: list[str] = []
+
+    async def fast(_node_input: NodeInput) -> object:
+        events.append("fast-done")
+        return "fast"
+
+    async def slow(_node_input: NodeInput) -> object:
+        await asyncio.sleep(0.05)
+        events.append("slow-done")
+        return "slow"
+
+    async def sink(node_input: NodeInput) -> object:
+        events.append("sink-start")
+        return node_input.payload
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(graph, "cycle", {})
+
+    assert events.index("slow-done") < events.index("sink-start")
+    assert result.node_outputs["sink"].payload == ["fast", "slow"]
+
+
+@pytest.mark.asyncio
+async def test_fan_in_accumulate_spawns_per_upstream_task() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "accumulate-test",
+                "nodes": [
+                    {"id": "fast", "type": "rss-fetcher"},
+                    {"id": "slow", "type": "web-scraper"},
+                    {"id": "sink", "type": "advisor", "fan_in_mode": "accumulate"},
+                ],
+                "edges": [{"from": "fast", "to": "sink"}, {"from": "slow", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    events: list[str] = []
+
+    async def fast(_node_input: NodeInput) -> object:
+        events.append("fast-done")
+        return "fast"
+
+    async def slow(_node_input: NodeInput) -> object:
+        await asyncio.sleep(0.05)
+        events.append("slow-done")
+        return "slow"
+
+    async def sink(node_input: NodeInput) -> object:
+        events.append(f"sink-{node_input.payload}")
+        return node_input.payload
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(graph, "cycle", {})
+
+    assert events.index("sink-fast") < events.index("slow-done")
+    assert result.node_outputs["sink"].payload == ["fast", "slow"]
+
+
+@pytest.mark.asyncio
+async def test_fan_out_splits_list_payload_to_concurrent_downstream_runs() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "fan-out-test",
+                "nodes": [{"id": "source", "type": "rss-fetcher"}, {"id": "sink", "type": "advisor"}],
+                "edges": [{"from": "source", "to": "sink", "fan_out": True}],
+            }
+        ),
+        nodes,
+    )
+    seen: list[int] = []
+
+    async def source(_node_input: NodeInput) -> object:
+        return list(range(10))
+
+    async def sink(node_input: NodeInput) -> object:
+        value = int(node_input.payload)
+        seen.append(value)
+        await asyncio.sleep(0.01 if value == 0 else 0)
+        return value * 2
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": source, "generate-advice": sink},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(graph, "cycle", {})
+
+    assert sorted(seen) == list(range(10))
+    assert sorted(result.node_outputs["sink"].payload) == [value * 2 for value in range(10)]
+
+
+@pytest.mark.asyncio
+async def test_soft_stop_finishes_running_node_without_starting_downstream() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "soft-stop-test",
+                "nodes": [{"id": "source", "type": "rss-fetcher"}, {"id": "sink", "type": "advisor"}],
+                "edges": [{"from": "source", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    stop_event = asyncio.Event()
+    source_started = asyncio.Event()
+
+    async def source(_node_input: NodeInput) -> object:
+        source_started.set()
+        await asyncio.sleep(0.05)
+        return "source"
+
+    async def sink(_node_input: NodeInput) -> object:
+        return "sink"
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": source, "generate-advice": sink},
+        graph.instances,
+    )
+    task = asyncio.create_task(DagRunner(executor).run(graph, "cycle", {}, stop_event=stop_event))
+    await source_started.wait()
+    stop_event.set()
+    result = await task
+
+    assert set(result.node_outputs) == {"source"}
+
+
+@pytest.mark.asyncio
+async def test_retry_single_uses_prefilled_upstream_outputs() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "retry-single-test",
+                "nodes": [{"id": "source", "type": "rss-fetcher"}, {"id": "sink", "type": "advisor"}],
+                "edges": [{"from": "source", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    calls: list[str] = []
+
+    async def source(_node_input: NodeInput) -> object:
+        calls.append("source")
+        return "new"
+
+    async def sink(node_input: NodeInput) -> object:
+        calls.append("sink")
+        return {"input": node_input.payload}
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": source, "generate-advice": sink},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(
+        graph,
+        "retry",
+        {},
+        retry_nodes={"sink"},
+        prefilled_outputs={"source": _node_output("source", "old")},
+    )
+
+    assert calls == ["sink"]
+    assert result.node_outputs["sink"].payload == {"input": "old"}
+
+
+@pytest.mark.asyncio
+async def test_retry_cascade_reruns_target_and_downstream_only() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "retry-cascade-test",
+                "nodes": [
+                    {"id": "source", "type": "rss-fetcher"},
+                    {"id": "middle", "type": "advisor"},
+                    {"id": "sink", "type": "briefing-generator"},
+                ],
+                "edges": [{"from": "source", "to": "middle"}, {"from": "middle", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    calls: list[str] = []
+
+    async def source(_node_input: NodeInput) -> object:
+        calls.append("source")
+        return "new-source"
+
+    async def middle(node_input: NodeInput) -> object:
+        calls.append("middle")
+        return {"middle": node_input.payload}
+
+    async def sink(node_input: NodeInput) -> object:
+        calls.append("sink")
+        return {"sink": node_input.payload}
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": source, "generate-advice": middle, "generate-briefing": sink},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(
+        graph,
+        "retry",
+        {},
+        retry_nodes={"middle", "sink"},
+        prefilled_outputs={"source": _node_output("source", "old-source")},
+    )
+
+    assert calls == ["middle", "sink"]
+    assert result.node_outputs["sink"].payload == {"sink": {"middle": "old-source"}}
+
+
+@pytest.mark.asyncio
 async def test_sub_dag_execution() -> None:
     config = load_app_config(Path("config"))
     nodes = _condition_nodes()
@@ -379,6 +688,12 @@ def _handler(value: object) -> FunctionHandler:
 
 async def _failing_handler(_node_input: NodeInput) -> object:
     raise RuntimeError("source failed")
+
+
+def _node_output(node: str, payload: object):
+    from stockimformation_core.node.models import NodeOutput
+
+    return NodeOutput(node_name=node, ok=True, payload=payload)
 
 
 def _instance_id(graph, node_type: str) -> str:

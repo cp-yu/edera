@@ -1,0 +1,86 @@
+## ADDED Requirements
+
+### Requirement: Event-driven dispatcher 调度
+
+系统 SHALL 使用中央 dispatcher + `asyncio.Queue` 调度 DAG 节点执行。节点完成后 MUST 立即向 queue 发送完成事件，dispatcher 消费事件后评估下游节点就绪条件并启动就绪节点。
+
+#### Scenario: 节点完成立即触发下游
+
+- **WHEN** node-A 完成执行且 node-B 仅依赖 node-A
+- **THEN** dispatcher MUST 在消费 node-A 完成事件后立即启动 node-B，不等待同层其他节点
+
+#### Scenario: 无依赖的起始节点并发启动
+
+- **WHEN** DAG 中有多个无上游依赖的节点
+- **THEN** dispatcher MUST 在初始化时并发启动所有起始节点
+
+#### Scenario: Dispatcher 消费完成事件
+
+- **WHEN** 节点 task 完成并向 queue 发送 `(node_id, output)` 事件
+- **THEN** dispatcher MUST 更新该节点状态、评估所有下游节点的就绪条件、对满足条件的下游节点调用 `asyncio.create_task`
+
+### Requirement: Fan-in barrier 模式
+
+系统 SHALL 支持 barrier fan-in 模式：目标节点等待所有上游节点完成后，收集所有上游 output 一次性作为 input 启动执行。barrier MUST 为默认 fan-in 模式。
+
+#### Scenario: Barrier 等待所有上游完成
+
+- **WHEN** node-C 配置 `fan_in_mode: "barrier"` 且有上游 node-A 和 node-B
+- **THEN** dispatcher MUST 在 node-A 和 node-B 都完成后才启动 node-C，node-C 的 input 为两者 output 的 collect
+
+#### Scenario: 未配置 fan_in_mode 时默认 barrier
+
+- **WHEN** 多上游节点的目标节点未显式配置 `fan_in_mode`
+- **THEN** 系统 MUST 按 barrier 模式处理
+
+### Requirement: Fan-in accumulate 模式
+
+系统 SHALL 支持 accumulate fan-in 模式：每个上游完成时立即 spawn 一个 sub-task 并行处理该 output，所有 sub-task 完成后 collect 结果发给下游。
+
+#### Scenario: Accumulate 逐个处理上游结果
+
+- **WHEN** node-C 配置 `fan_in_mode: "accumulate"` 且上游 node-A 先完成
+- **THEN** dispatcher MUST 立即 spawn node-C 的 sub-task 处理 node-A 的 output，不等待 node-B
+
+#### Scenario: Accumulate sub-task 并行执行
+
+- **WHEN** node-A 和 node-B 先后完成，node-C 为 accumulate 模式
+- **THEN** node-C 的两个 sub-task MUST 并行执行
+
+#### Scenario: Accumulate 完成后合并发给下游
+
+- **WHEN** node-C 的所有 sub-task 完成
+- **THEN** dispatcher MUST collect 所有 sub-task 结果，作为 node-C 的最终 output 发给下游 node-D
+
+### Requirement: 错误路径隔离
+
+系统 SHALL 在节点失败时仅阻断该节点的下游路径，MUST NOT 影响独立路径上的节点执行。
+
+#### Scenario: 失败节点阻断下游
+
+- **WHEN** node-C 执行失败且 node-D 仅依赖 node-C
+- **THEN** node-D MUST NOT 被启动
+
+#### Scenario: 独立路径不受影响
+
+- **WHEN** node-C 执行失败，但 node-E 位于独立路径（不依赖 node-C）
+- **THEN** node-E MUST 正常执行
+
+#### Scenario: Optional 节点失败视为完成
+
+- **WHEN** 标记为 `optional: true` 的节点执行失败
+- **THEN** dispatcher MUST 将其视为完成（payload=None），正常触发下游节点
+
+### Requirement: DAG 执行结果
+
+系统 SHALL 在所有可达节点执行完毕（或因上游失败而不可达）后返回 `DagRunResult`，包含所有节点的 output、failures 和 warnings。
+
+#### Scenario: 正常完成返回结果
+
+- **WHEN** DAG 中所有可达节点执行完毕
+- **THEN** dispatcher MUST 返回 `DagRunResult`，`node_outputs` 包含所有已执行节点的 output，`failures` 包含所有失败节点的错误信息
+
+#### Scenario: 部分路径失败的结果
+
+- **WHEN** DAG 中某路径失败但其他路径成功
+- **THEN** `DagRunResult.ok` MUST 为 true（只要有成功的 sink 节点），`failures` 记录失败节点

@@ -1,0 +1,280 @@
+{
+  "timestamp": "2026-05-24T08:17:37.965Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "66216bcb3ae1d68b878a5ea06c960a90e444f367f762e18db924303261663b14",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context-reviewer",
+    "evidenceFiles": [
+      "alembic/versions/0006_pipeline_retry_of.py",
+      "apps/web-console/src/api/mutations.ts",
+      "apps/web-console/src/api/queries.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+      "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+      "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+      "apps/web-console/src/features/workbench/components/Canvas.tsx",
+      "apps/web-console/src/features/workbench/components/Inspector.tsx",
+      "apps/web-console/src/features/workbench/lib/graph.ts",
+      "apps/web-console/src/router/index.tsx",
+      "apps/web-console/src/store/useAppStore.ts",
+      "packages/core/src/stockimformation_core/config/schema.py",
+      "packages/core/src/stockimformation_core/dag/runner.py",
+      "packages/core/src/stockimformation_core/pipeline.py",
+      "packages/core/src/stockimformation_core/storage/database.py",
+      "packages/core/src/stockimformation_core/storage/entities.py",
+      "packages/core/src/stockimformation_core/storage/repository.py",
+      "packages/core/src/stockimformation_core/web/routes.py",
+      "tests/core/integration/test_config_api.py",
+      "tests/core/integration/test_dag_runner.py",
+      "tests/core/integration/test_per_dag.py"
+    ],
+    "evidenceFingerprint": "999d93d3cab42784a637dc3764a9a68bd7b85d498fc23f8dd3ca8a208f9b91e3",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "alembic/versions/0006_pipeline_retry_of.py",
+        "hash": "40f8455d4606c1bf0379f898027c5ae66f5f3cf14bce58a745518cbb1b442a48"
+      },
+      {
+        "path": "apps/web-console/src/api/mutations.ts",
+        "hash": "422552367593ba41354f1721d7a42a416aedaa62a2e01717a4c57000a7855009"
+      },
+      {
+        "path": "apps/web-console/src/api/queries.ts",
+        "hash": "3b4a6925a8801c38b62f99c081e94957c92e16a3cf130fcadedb308f869fd1a0"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "0a48c2f10f26e7a9739b8bc1f8a79f81e9280f020d0f2630db9cd5cfe838d6bd"
+      },
+      {
+        "path": "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+        "hash": "1078bbc9dc8cf195519fbc57101397bf7618ef1979820ff63769d4bcc2f3d88d"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+        "hash": "67eb0ac8385e6a575c293198ac2fb5e84dc32f9398f45f789bf343d05b471da1"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+        "hash": "d53e3dd2395166043baeaa7dbd5d7e980db1aa9b275541f056a0239b4bb848e8"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+        "hash": "08da5aafb3ae2a0a4e6e9bc6ffef8039b5eeb5183b7ba2503fb6aeb6c38e5f17"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+        "hash": "d3c78e314799f0c38b62776639b74a576f043a21a345e7b1741d06c3ba064b66"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+        "hash": "9c3d516f12ec3ee1976503b4fbadb827e442e9b570b21525d4797e854175bafb"
+      },
+      {
+        "path": "apps/web-console/src/router/index.tsx",
+        "hash": "7950819bdd484cc53959d26bc385655a55d1927becd6d1ecf2dfea64c139e014"
+      },
+      {
+        "path": "apps/web-console/src/store/useAppStore.ts",
+        "hash": "99b69f754f0839c5add66b7329a7b8abccb17330e6ce50e6baf3a6c8db1f594d"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/config/schema.py",
+        "hash": "ea2540e21472c2167ab6c900511c4f2a0f393d301f9392151432181d5ff52b51"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/runner.py",
+        "hash": "c1ff87692e5969259cce69735fe5ffb6d62439a57ae756ca0e71bfe8a78215f1"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/pipeline.py",
+        "hash": "3b8d3202498bf7bfdaf275ff6bbdce585adbeb84dd80fd4738d06ad1aa0d0892"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/database.py",
+        "hash": "f3667be7a053556e56cc60752a6044a46ebf3f92ecbf18f139a057bc2d3fae5c"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/entities.py",
+        "hash": "3dc2307e8f0eed2be19ba216e0759d39cd23f2c6b491cf948b45200ffdd12754"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/repository.py",
+        "hash": "f5459c4cf7d322a0fa7f9e807ac9fc47671437dd02115249113accf310126477"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/routes.py",
+        "hash": "6fa89baa4543e8ed90085707c7856d1dcad4528d23128a7eecbc3b9293449ccd"
+      },
+      {
+        "path": "tests/core/integration/test_config_api.py",
+        "hash": "9f0b9a696c363d748a0fa34c93ee545df7ec52450a1e9b0d8fd9f72e2733b783"
+      },
+      {
+        "path": "tests/core/integration/test_dag_runner.py",
+        "hash": "b5afccf74956bde7269964406113ad0a2fd2bff5c20a00892d720760de0ac6cd"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "c1c1e3fd796d8fd03b8f6ec1f29bee3ca841802679fbd20aaa491860a9cf2d78"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "e7998a4b7aed54ec6a3adede64eaeaef4b92ff93"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-24T08:20:55.685Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Remove redundant dispatcher queue/dataclass and process completed node tasks directly in DagRunner.",
+        "files": [
+          "packages/core/src/stockimformation_core/dag/runner.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-24T08:26:56.777Z",
+        "type": "verification",
+        "result": "FAIL_NEEDS_REMEDIATION",
+        "behaviorRetryCounter": 1
+      },
+      {
+        "timestamp": "2026-05-24T08:33:08.353Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found after rejecting the unsafe queue-removal direction; asyncio.Queue is required by the spec."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-24T08:17:37.965Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "66216bcb3ae1d68b878a5ea06c960a90e444f367f762e18db924303261663b14",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context-reviewer",
+        "evidenceFiles": [
+          "alembic/versions/0006_pipeline_retry_of.py",
+          "apps/web-console/src/api/mutations.ts",
+          "apps/web-console/src/api/queries.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+          "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+          "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+          "apps/web-console/src/features/workbench/components/Canvas.tsx",
+          "apps/web-console/src/features/workbench/components/Inspector.tsx",
+          "apps/web-console/src/features/workbench/lib/graph.ts",
+          "apps/web-console/src/router/index.tsx",
+          "apps/web-console/src/store/useAppStore.ts",
+          "packages/core/src/stockimformation_core/config/schema.py",
+          "packages/core/src/stockimformation_core/dag/runner.py",
+          "packages/core/src/stockimformation_core/pipeline.py",
+          "packages/core/src/stockimformation_core/storage/database.py",
+          "packages/core/src/stockimformation_core/storage/entities.py",
+          "packages/core/src/stockimformation_core/storage/repository.py",
+          "packages/core/src/stockimformation_core/web/routes.py",
+          "tests/core/integration/test_config_api.py",
+          "tests/core/integration/test_dag_runner.py",
+          "tests/core/integration/test_per_dag.py"
+        ],
+        "evidenceFingerprint": "999d93d3cab42784a637dc3764a9a68bd7b85d498fc23f8dd3ca8a208f9b91e3",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "alembic/versions/0006_pipeline_retry_of.py",
+            "hash": "40f8455d4606c1bf0379f898027c5ae66f5f3cf14bce58a745518cbb1b442a48"
+          },
+          {
+            "path": "apps/web-console/src/api/mutations.ts",
+            "hash": "422552367593ba41354f1721d7a42a416aedaa62a2e01717a4c57000a7855009"
+          },
+          {
+            "path": "apps/web-console/src/api/queries.ts",
+            "hash": "3b4a6925a8801c38b62f99c081e94957c92e16a3cf130fcadedb308f869fd1a0"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "0a48c2f10f26e7a9739b8bc1f8a79f81e9280f020d0f2630db9cd5cfe838d6bd"
+          },
+          {
+            "path": "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+            "hash": "1078bbc9dc8cf195519fbc57101397bf7618ef1979820ff63769d4bcc2f3d88d"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+            "hash": "67eb0ac8385e6a575c293198ac2fb5e84dc32f9398f45f789bf343d05b471da1"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+            "hash": "d53e3dd2395166043baeaa7dbd5d7e980db1aa9b275541f056a0239b4bb848e8"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+            "hash": "08da5aafb3ae2a0a4e6e9bc6ffef8039b5eeb5183b7ba2503fb6aeb6c38e5f17"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+            "hash": "d3c78e314799f0c38b62776639b74a576f043a21a345e7b1741d06c3ba064b66"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+            "hash": "9c3d516f12ec3ee1976503b4fbadb827e442e9b570b21525d4797e854175bafb"
+          },
+          {
+            "path": "apps/web-console/src/router/index.tsx",
+            "hash": "7950819bdd484cc53959d26bc385655a55d1927becd6d1ecf2dfea64c139e014"
+          },
+          {
+            "path": "apps/web-console/src/store/useAppStore.ts",
+            "hash": "99b69f754f0839c5add66b7329a7b8abccb17330e6ce50e6baf3a6c8db1f594d"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/config/schema.py",
+            "hash": "ea2540e21472c2167ab6c900511c4f2a0f393d301f9392151432181d5ff52b51"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/runner.py",
+            "hash": "c1ff87692e5969259cce69735fe5ffb6d62439a57ae756ca0e71bfe8a78215f1"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/pipeline.py",
+            "hash": "3b8d3202498bf7bfdaf275ff6bbdce585adbeb84dd80fd4738d06ad1aa0d0892"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/database.py",
+            "hash": "f3667be7a053556e56cc60752a6044a46ebf3f92ecbf18f139a057bc2d3fae5c"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/entities.py",
+            "hash": "3dc2307e8f0eed2be19ba216e0759d39cd23f2c6b491cf948b45200ffdd12754"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/repository.py",
+            "hash": "f5459c4cf7d322a0fa7f9e807ac9fc47671437dd02115249113accf310126477"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/routes.py",
+            "hash": "6fa89baa4543e8ed90085707c7856d1dcad4528d23128a7eecbc3b9293449ccd"
+          },
+          {
+            "path": "tests/core/integration/test_config_api.py",
+            "hash": "9f0b9a696c363d748a0fa34c93ee545df7ec52450a1e9b0d8fd9f72e2733b783"
+          },
+          {
+            "path": "tests/core/integration/test_dag_runner.py",
+            "hash": "b5afccf74956bde7269964406113ad0a2fd2bff5c20a00892d720760de0ac6cd"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "c1c1e3fd796d8fd03b8f6ec1f29bee3ca841802679fbd20aaa491860a9cf2d78"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "e7998a4b7aed54ec6a3adede64eaeaef4b92ff93"
+      }
+    }
+  }
+}

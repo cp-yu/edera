@@ -36,3 +36,18 @@ relations:
   - from: cap.core.extension-declarative-storage
     type: contains
     to: dom.core
+  - from: cap.operations.dag-event-driven-executor
+    type: contains
+    to: dom.operations
+  - from: cap.operations.dag-run-control
+    type: contains
+    to: dom.operations
+  - from: cap.web.dag-run-observability
+    type: contains
+    to: dom.web
+  - from: cap.web.dag-creation
+    type: contains
+    to: dom.web
+  - from: cap.web.dag-cycle-detection-ui
+    type: contains
+    to: dom.web

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useDag } from '@/api/queries'
+import { useDag, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
 import { useSaveDag } from '@/api/mutations'
-import type { EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance } from '@/api/types'
+import type { EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance, NodeOutputEntity, NodeStatus } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
 import { SchemaForm } from './SchemaForm'
 
@@ -18,11 +18,15 @@ const ALLOWED_PERMISSION_OVERRIDES: Record<FieldPermission, FieldPermission[]> =
 }
 
 export function Inspector() {
-  const { selectedDagName, selectedEdgeId, selectedNodeId } = useAppStore()
+  const { inspectorTab, selectedDagName, selectedEdgeId, selectedNodeId, setInspectorTab } = useAppStore()
   const { data: dag } = useDag(selectedDagName)
+  const runtime = useRuntimeStatus(true)
   const saveDag = useSaveDag(selectedDagName)
   const node = dag?.nodes.find((item) => item.id === selectedNodeId)
   const edge = dag?.edges.find((item, index) => `e-${item.from}-${item.to}-${index}` === selectedEdgeId)
+  const runtimeNodeId = edge?.from ?? node?.id ?? null
+  const runtimeStatus = runtimeNodeId ? runtime.data?.node_statuses?.[runtimeNodeId] : undefined
+  const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.cycle_id)
   const [alias, setAlias] = useState('')
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
@@ -60,9 +64,16 @@ export function Inspector() {
     return (
       <aside className="w-[300px] space-y-4 overflow-y-auto border-l bg-card p-4">
         <div>
-          <h2 className="text-sm font-medium">连线配置</h2>
+          <h2 className="text-sm font-medium">数据流</h2>
           <p className="text-xs text-muted-foreground">{edge.from} → {edge.to}</p>
         </div>
+        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} />
+        <a
+          href={`/history/dag/${selectedDagName}/nodes/${edge.from}`}
+          className="block rounded-md border px-3 py-2 text-center text-xs hover:bg-accent"
+        >
+          查看历史
+        </a>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -86,7 +97,7 @@ export function Inspector() {
   if (!node || !dag) {
     return (
       <aside className="w-[300px] border-l bg-card p-4">
-        <p className="text-sm text-muted-foreground">选择节点查看配置</p>
+        <p className="text-sm text-muted-foreground">选择节点或连线查看详情</p>
       </aside>
     )
   }
@@ -108,6 +119,26 @@ export function Inspector() {
         <h2 className="text-sm font-medium">{node.alias || node.name}</h2>
         <p className="text-xs text-muted-foreground">{node.type_name} · {node.role}</p>
       </div>
+      <div className="grid grid-cols-2 rounded-md border p-1 text-xs">
+        <button
+          type="button"
+          onClick={() => setInspectorTab('config')}
+          className={`rounded px-2 py-1 ${inspectorTab === 'config' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+        >
+          Config
+        </button>
+        <button
+          type="button"
+          onClick={() => setInspectorTab('runtime')}
+          className={`rounded px-2 py-1 ${inspectorTab === 'runtime' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+        >
+          Runtime
+        </button>
+      </div>
+      {inspectorTab === 'runtime' ? (
+        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} />
+      ) : (
+        <>
       <Field label="Alias" value={alias} onChange={setAlias} />
       <Readonly label="类型" value={node.type_name} />
       <Readonly label="角色" value={node.role} />
@@ -150,7 +181,49 @@ export function Inspector() {
       >
         {saveDag.isPending ? '保存中...' : '保存实例'}
       </button>
+        </>
+      )}
     </aside>
+  )
+}
+
+function RuntimeStatusView({ status, outputs }: { status?: NodeStatus; outputs: NodeOutputEntity[] }) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2 rounded-md border p-3 text-xs">
+        <RuntimeRow label="status" value={status?.status ?? 'unknown'} />
+        <RuntimeRow label="cycle" value={status?.cycle_id ?? '-'} />
+        <RuntimeRow label="started" value={status?.started_at ?? '-'} />
+        <RuntimeRow label="ended" value={status?.ended_at ?? '-'} />
+        {status?.error && <RuntimeRow label="error" value={status.error} />}
+      </div>
+      <div className="space-y-2">
+        <div className="text-xs font-medium">Output entities</div>
+        {outputs.length === 0 ? (
+          <p className="text-xs text-muted-foreground">暂无输出</p>
+        ) : (
+          <div className="space-y-2">
+            {outputs.map((output) => (
+              <div key={output.id} className="rounded-md border p-2 text-xs">
+                <div className="font-medium">{output.type}</div>
+                <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap break-words text-[11px] text-muted-foreground">
+                  {JSON.stringify(output.attributes.payload ?? output.attributes, null, 2)}
+                </pre>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RuntimeRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[64px_1fr] gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="break-all">{value}</span>
+    </div>
   )
 }
 

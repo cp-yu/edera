@@ -1,0 +1,38 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.operations.dag-event-driven-executor
+      type: capability
+      intent: Event-driven DAG 执行引擎，覆盖中央 dispatcher、asyncio.Queue 调度、fan-in barrier/accumulate 模式和错误路径隔离
+    - id: cap.operations.dag-run-control
+      type: capability
+      intent: DAG 运行控制能力，覆盖 soft stop（asyncio.Event）、hard stop（task.cancel）和节点重试（single/cascade mode）
+    - id: cap.web.dag-run-observability
+      type: capability
+      intent: DAG 运行能观性，覆盖 Inspector Runtime tab、edge 数据流查看和节点历史页面
+    - id: cap.web.dag-creation
+      type: capability
+      intent: DAG 创建能力，覆盖前端 dialog 交互和后端 API 创建空 DAG 配置文件
+    - id: cap.web.dag-cycle-detection-ui
+      type: capability
+      intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
+  relations:
+    - from: cap.operations.dag-event-driven-executor
+      type: contains
+      to: dom.operations
+    - from: cap.operations.dag-run-control
+      type: contains
+      to: dom.operations
+    - from: cap.web.dag-run-observability
+      type: contains
+      to: dom.web
+    - from: cap.web.dag-creation
+      type: contains
+      to: dom.web
+    - from: cap.web.dag-cycle-detection-ui
+      type: contains
+      to: dom.web
+MODIFIED:
+  capabilities:
+    - id: cap.operations.pipeline-control
+      intent: 管道控制能力，覆盖运行记录（含 retry_of 关联）、手动/重试触发、soft/hard stop 和状态展示

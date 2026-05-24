@@ -38,9 +38,32 @@ export function useRunDag() {
 export function useStopDag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (dagName: string) =>
-      apiFetch(`/api/pipeline/dag/${dagName}/stop`, { method: 'POST' }),
-    onSuccess: (_data, dagName) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
+    mutationFn: ({ dagName, force = false }: { dagName: string; force?: boolean }) =>
+      apiFetch(`/api/pipeline/dag/${dagName}/stop`, { method: 'POST', body: JSON.stringify({ force }) }),
+    onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
+    onError: alertMutationError,
+  })
+}
+
+export function useRetryDagNode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ dagName, cycleId, nodeId, mode }: { dagName: string; cycleId: string; nodeId: string; mode: 'single' | 'cascade' }) =>
+      apiFetch(`/api/pipeline/dag/${dagName}/retry`, {
+        method: 'POST',
+        body: JSON.stringify({ cycle_id: cycleId, node_id: nodeId, mode }),
+      }),
+    onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
+    onError: alertMutationError,
+  })
+}
+
+export function useCreateDag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<{ dag: { name: string } }>('/api/graph/dag', { method: 'POST', body: JSON.stringify({ name }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dagList'] }) },
     onError: alertMutationError,
   })
 }

@@ -25,6 +25,7 @@ def create_engine(database_url: str) -> AsyncEngine:
 async def init_db(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        await _ensure_pipeline_retry_of(conn)
         result = await conn.execute(text("PRAGMA journal_mode"))
         mode = result.scalar_one()
         if str(mode).lower() != "wal":
@@ -51,3 +52,10 @@ def sqlite_url(path: str | Path) -> str:
     db_path = Path(path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return f"sqlite+aiosqlite:///{db_path}"
+
+
+async def _ensure_pipeline_retry_of(conn) -> None:
+    result = await conn.execute(text("PRAGMA table_info(pipeline_runs)"))
+    if "retry_of" in {row[1] for row in result.fetchall()}:
+        return
+    await conn.execute(text("ALTER TABLE pipeline_runs ADD COLUMN retry_of VARCHAR"))

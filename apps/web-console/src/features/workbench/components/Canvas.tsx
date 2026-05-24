@@ -21,7 +21,7 @@ import '@xyflow/react/dist/style.css'
 import ELK from 'elkjs'
 import { useAppStore } from '@/store/useAppStore'
 import { CustomNode } from './nodes/CustomNode'
-import { useSaveDag } from '@/api/mutations'
+import { useRetryDagNode, useSaveDag } from '@/api/mutations'
 import { useNodePrototypes } from '@/api/queries'
 import { entityColor } from '@/lib/colors'
 import type { DagNodeRecord, DagState, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
@@ -111,9 +111,10 @@ interface Props {
 }
 
 export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
-  const { setSelectedEdge, setSelectedNode, entityFilter, selectedDagName } = useAppStore()
+  const { setInspectorTab, setSelectedEdge, setSelectedNode, entityFilter, selectedDagName } = useAppStore()
   const { data: prototypesData } = useNodePrototypes()
   const saveDag = useSaveDag(selectedDagName)
+  const retryNode = useRetryDagNode()
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
   const viewport = useViewport()
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -130,6 +131,7 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
   const [guideLines, setGuideLines] = useState<GuideLine[]>([])
   const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const pendingDraftRef = useRef<string | null>(null)
 
   const prototypes = prototypesData?.prototypes ?? []
@@ -312,6 +314,10 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
       const sourceNode = nodesRef.current.find((node) => node.id === connection.source)
       const targetNode = nodesRef.current.find((node) => node.id === connection.target)
       if (!isValidConnection(sourceNode?.data, targetNode?.data)) return
+      if (connection.source && connection.target && createsCycle(connection.source, connection.target, edgesRef.current)) {
+        setToastMessage('连线会形成环，已拒绝')
+        return
+      }
       const warning = isWarningConnection(sourceNode?.data, targetNode?.data)
       const color = warning ? '#ca8a04' : getNodeEdgeColor(sourceNode?.data.visualKind ?? 'unknown')
       const nextEdges = normalizeWorkbenchEdges(addEdge(
@@ -332,6 +338,12 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
     },
     [commitGraph, runtimeStatus],
   )
+
+  useEffect(() => {
+    if (!toastMessage) return
+    const timer = window.setTimeout(() => setToastMessage(null), 2400)
+    return () => window.clearTimeout(timer)
+  }, [toastMessage])
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
@@ -622,17 +634,48 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
   const contextActions = useMemo(() => {
     if (!contextMenu) return []
     if (contextMenu.kind === 'edge') {
+      const edge = edgesRef.current.find((item) => item.id === contextMenu.id)
       return [
+        {
+          label: '查看上游节点历史',
+          onSelect: () => {
+            if (edge) window.location.assign(`/history/dag/${selectedDagName}/nodes/${edge.source}`)
+          },
+        },
         { label: '反转方向', onSelect: () => reverseEdgeById(contextMenu.id) },
         { label: '删除连线', tone: 'danger' as const, onSelect: () => deleteEdgeById(contextMenu.id) },
       ]
     }
+    const status = runtimeStatus?.node_statuses?.[contextMenu.id]
 
     return [
+      {
+        label: '查看当前运行状态',
+        onSelect: () => {
+          setSelectedNode(contextMenu.id)
+          setInspectorTab('runtime')
+        },
+      },
+      {
+        label: '查看历史',
+        onSelect: () => window.location.assign(`/history/dag/${selectedDagName}/nodes/${contextMenu.id}`),
+      },
+      {
+        label: '重试节点',
+        onSelect: () => {
+          if (status?.cycle_id) retryNode.mutate({ dagName: selectedDagName, cycleId: status.cycle_id, nodeId: contextMenu.id, mode: 'single' })
+        },
+      },
+      {
+        label: '重试节点及下游',
+        onSelect: () => {
+          if (status?.cycle_id) retryNode.mutate({ dagName: selectedDagName, cycleId: status.cycle_id, nodeId: contextMenu.id, mode: 'cascade' })
+        },
+      },
       { label: '删除节点', tone: 'danger' as const, onSelect: () => void deleteNodeById(contextMenu.id) },
       { label: '断开所有连线', onSelect: () => disconnectNodeById(contextMenu.id) },
     ]
-  }, [contextMenu, deleteEdgeById, reverseEdgeById, deleteNodeById, disconnectNodeById])
+  }, [contextMenu, deleteEdgeById, reverseEdgeById, deleteNodeById, disconnectNodeById, retryNode, runtimeStatus, selectedDagName, setInspectorTab, setSelectedNode])
 
   return (
     <div ref={canvasRef} className="h-full w-full">
@@ -793,9 +836,33 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         </Panel>
       </ReactFlow>
       <CanvasContextMenu menu={contextMenu} actions={contextActions} onClose={closeContextMenu} />
+      {toastMessage && (
+        <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 rounded-md border bg-card px-3 py-2 text-xs shadow-lg">
+          {toastMessage}
+        </div>
+      )}
       <div className="pointer-events-none absolute bottom-3 left-3 rounded-full border bg-card/85 px-3 py-1 text-[11px] text-muted-foreground shadow-sm">
         grid {GRID_SIZE}px · x {viewport.x.toFixed(0)} · y {viewport.y.toFixed(0)} · z {viewport.zoom.toFixed(2)}
       </div>
     </div>
   )
+}
+
+function createsCycle(source: string, target: string, edges: WorkbenchEdge[]): boolean {
+  const adjacency = new Map<string, string[]>()
+  for (const edge of edges) {
+    const list = adjacency.get(edge.source) ?? []
+    list.push(edge.target)
+    adjacency.set(edge.source, list)
+  }
+  const stack = [target]
+  const visited = new Set<string>()
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!node || visited.has(node)) continue
+    if (node === source) return true
+    visited.add(node)
+    stack.push(...(adjacency.get(node) ?? []))
+  }
+  return false
 }

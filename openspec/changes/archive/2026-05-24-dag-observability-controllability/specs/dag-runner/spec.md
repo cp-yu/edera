@@ -1,26 +1,4 @@
-# dag-runner Specification
-
-## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
-## Requirements
-### Requirement: DAG 定义加载与校验
-
-系统 SHALL 从 Entity Store 加载 DAG Entity（替代直接 YAML 文件加载），解析节点引用列表、连线关系（含条件表达式和 fan_in_mode）和 fan-out/fan-in 配置。加载时 MUST 校验图结构无环、所有引用的 Node Entity 存在、I/O 类型匹配、子 DAG 引用无循环嵌套。
-
-#### Scenario: 从 Entity Store 加载 DAG
-
-- **WHEN** DAG Runner 通过 Entity Store 加载一个 DAG Entity
-- **THEN** 系统解析 `attributes.nodes`（Node Entity 引用列表）和 `attributes.edges`（含 condition、fan_in_mode 字段），返回可执行的 DAG 图结构
-
-#### Scenario: 加载包含环的 DAG 定义
-
-- **WHEN** DAG Runner 加载一个包含循环依赖的 DAG Entity
-- **THEN** 系统拒绝加载并返回明确的错误信息，指出构成环的节点
-
-#### Scenario: 校验子 DAG 循环嵌套
-
-- **WHEN** DAG Entity A 的 nodes 引用了 DAG Entity B，B 又引用了 A
-- **THEN** 系统在加载时检测到循环嵌套并拒绝加载
+## MODIFIED Requirements
 
 ### Requirement: 拓扑排序与并发调度
 
@@ -92,18 +70,3 @@
 
 - **WHEN** 一个标记为 `optional: true` 的节点执行失败
 - **THEN** dispatcher MUST 将其视为完成（payload=None），正常触发下游节点的就绪条件评估
-
-### Requirement: LLM 节点 fallback 策略
-
-系统 SHALL 支持 LLM 节点的 fallback 策略：切换模型或跳过。MUST NOT 复用缓存结果。
-
-#### Scenario: 切换模型 fallback
-
-- **WHEN** LLM 节点使用主模型执行超时，且配置 `fallback: switch_model`，`fallback_model: "gpt-4o-mini"`
-- **THEN** 系统使用 fallback 模型重新执行该节点
-
-#### Scenario: 跳过 fallback
-
-- **WHEN** LLM 节点执行失败，且配置 `fallback: skip`
-- **THEN** 系统跳过该节点，将其标记为 skipped，下游按 optional 节点逻辑处理
-

@@ -46,12 +46,13 @@ from stockimformation_core.storage.repository import (
     list_advices,
     list_briefings,
     node_runs_for_cycle,
+    query_node_output_entities,
     raw_items_for_analyses,
     recent_pipeline_runs,
     source_execution_logs,
     source_health_summary,
 )
-from stockimformation_core.pipeline import RunAlreadyActiveError
+from stockimformation_core.pipeline import PipelineRunNotFoundError, RunAlreadyActiveError
 from stockimformation_core.web.deps import config_dir, controller, error_response
 
 router = APIRouter()
@@ -227,8 +228,36 @@ async def api_dag_stop(request: Request, dag_name: str) -> JSONResponse | dict[s
     dags = load_dag_configs(config_dir(request) / "dags")
     if dag_name not in dags:
         return error_response(404, "not_found", f"dag '{dag_name}' not found")
-    cycle_id = await controller(request).stop_current(dag_name)
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        body = {}
+    force = bool(body.get("force")) if isinstance(body, dict) else False
+    cycle_id = await controller(request).stop_current(dag_name, force=force)
     return {"stopped": cycle_id is not None, "cycle_id": cycle_id}
+
+
+@router.post("/api/pipeline/dag/{dag_name}/retry", response_model=None)
+async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    dags = load_dag_configs(config_dir(request) / "dags")
+    if dag_name not in dags:
+        return error_response(404, "not_found", f"dag '{dag_name}' not found")
+    cycle_id = body.get("cycle_id")
+    node_id = body.get("node_id")
+    mode = str(body.get("mode") or "single")
+    if not isinstance(cycle_id, str) or not cycle_id:
+        return error_response(400, "config_error", "cycle_id is required")
+    if not isinstance(node_id, str) or not node_id:
+        return error_response(400, "config_error", "node_id is required")
+    try:
+        retry_cycle_id = await controller(request).retry_node(dag_name, cycle_id, node_id, mode)
+    except RunAlreadyActiveError as exc:
+        return error_response(409, "run_already_active", exc.cycle_id)
+    except PipelineRunNotFoundError as exc:
+        return error_response(404, "not_found", str(exc))
+    except ValueError as exc:
+        return error_response(400, "config_error", str(exc))
+    return {"cycle_id": retry_cycle_id, "retry_of": cycle_id, "node_id": node_id, "mode": mode}
 
 
 @router.get("/api/pipeline/dag/{dag_name}/status", response_model=None)
@@ -691,6 +720,19 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
     }
 
 
+@router.post("/api/graph/dag", response_model=None)
+async def api_graph_dag_create(request: Request, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    name = str(body.get("name") or "").strip()
+    if not _valid_dag_name(name):
+        return error_response(400, "config_error", "dag name must be kebab-case")
+    path = config_dir(request) / "dags" / f"{name}.yaml"
+    if path.exists():
+        return error_response(409, "conflict", f"dag '{name}' already exists")
+    payload = {"name": name, "nodes": [], "edges": [], "ui": {}}
+    _atomic_write(path, yaml.safe_dump(payload, allow_unicode=True, sort_keys=False))
+    return JSONResponse(status_code=201, content={"dag": payload})
+
+
 @router.put("/api/graph/dag/{name}", response_model=None)
 async def api_graph_dag_save(
     request: Request,
@@ -909,10 +951,45 @@ async def api_graph_runtime_status(request: Request) -> dict[str, object]:
                 for nr in node_runs:
                     node_statuses[nr.node_name] = {
                         "status": nr.status,
+                        "started_at": nr.started_at.isoformat() if nr.started_at else None,
+                        "ended_at": nr.ended_at.isoformat() if nr.ended_at else None,
                         "error": nr.error,
                         "cycle_id": nr.cycle_id,
                     }
     return {"node_statuses": node_statuses}
+
+
+@router.get("/api/node-outputs")
+async def api_node_outputs(
+    request: Request,
+    node_id: str | None = None,
+    cycle_id: str | None = None,
+    limit: int = 100,
+) -> dict[str, object]:
+    async with controller(request)._factory()() as session:
+        outputs = await query_node_output_entities(session, cycle_id=cycle_id, node_id=node_id, limit=_limit(limit))
+    return {"outputs": [output.model_dump(mode="json") for output in outputs]}
+
+
+@router.get("/api/history/dag/{dag_name}/nodes/{node_id}", response_model=None)
+async def api_node_history(request: Request, dag_name: str, node_id: str, limit: int = 50) -> JSONResponse | dict[str, object]:
+    if dag_name not in load_dag_configs(config_dir(request) / "dags"):
+        return error_response(404, "not_found", f"dag '{dag_name}' not found")
+    async with controller(request)._factory()() as session:
+        recent = await recent_pipeline_runs(session, _limit(limit), dag_name)
+        history = []
+        for run in recent:
+            runs = [item for item in await node_runs_for_cycle(session, run.cycle_id) if item.node_name == node_id]
+            outputs = await query_node_output_entities(session, cycle_id=run.cycle_id, node_id=node_id, limit=100)
+            for node_run in runs:
+                history.append(
+                    {
+                        "run": run.model_dump(mode="json"),
+                        "node_run": node_run.model_dump(mode="json"),
+                        "outputs": [output.model_dump(mode="json") for output in outputs],
+                    }
+                )
+    return {"history": history}
 
 
 
@@ -1131,6 +1208,10 @@ def _atomic_write(path: Path, content: str) -> None:
             os.unlink(tmp_name)
 
 
+def _valid_dag_name(name: str) -> bool:
+    return bool(name) and all(part and part.islower() and part.replace("-", "").isalnum() for part in name.split("-"))
+
+
 def _dag_edge_payload(edge: object) -> dict[str, object]:
     if not isinstance(edge, dict):
         raise ConfigEditError("dag edge must be a mapping")
@@ -1143,6 +1224,9 @@ def _dag_edge_payload(edge: object) -> dict[str, object]:
         payload["fan_out"] = True
     if bool(edge.get("fan_in")):
         payload["fan_in"] = True
+    mode = edge.get("fan_in_mode")
+    if mode in {"barrier", "accumulate", "collect", "stream"}:
+        payload["fan_in_mode"] = mode
     return payload
 
 

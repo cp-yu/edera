@@ -28,7 +28,7 @@ export function WorkbenchPage() {
         </ReactFlowProvider>
         <Inspector />
       </div>
-      <BottomToolbar dagStatus={dagStatus.data ?? null} isRunning={isRunning} />
+      <BottomToolbar dag={dag.data ?? null} dagStatus={dagStatus.data ?? null} isRunning={isRunning} />
     </div>
   )
 }

@@ -26,7 +26,9 @@ from stockimformation_core.storage.repository import (
     create_pipeline_run,
     current_pipeline_run,
     finish_pipeline_run,
+    get_pipeline_run,
     mark_node_run,
+    query_node_output_entities,
     recent_pipeline_runs,
     store_node_output_entities,
 )
@@ -40,11 +42,18 @@ class RunAlreadyActiveError(Exception):
         super().__init__(f"pipeline run already active: {cycle_id}")
 
 
+class PipelineRunNotFoundError(Exception):
+    def __init__(self, cycle_id: str) -> None:
+        self.cycle_id = cycle_id
+        super().__init__(f"pipeline run not found: {cycle_id}")
+
+
 @dataclass
 class DagRunContext:
     dag_name: str
     cycle_id: str
     task: asyncio.Task[object]
+    stop_event: asyncio.Event = field(default_factory=asyncio.Event)
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -119,16 +128,54 @@ class PipelineController:
     def resume_scheduler(self) -> None:
         self.scheduler.resume()
 
-    async def stop_current(self, dag_name: str = "default") -> str | None:
+    async def stop_current(self, dag_name: str = "default", force: bool = False) -> str | None:
         ctx = self.active_runs.get(dag_name)
         if ctx is None or ctx.task.done():
             return None
-        ctx.task.cancel()
+        if force:
+            ctx.task.cancel()
+        else:
+            ctx.stop_event.set()
         try:
             await ctx.task
         except asyncio.CancelledError:
             pass
         return ctx.cycle_id
+
+    async def retry_node(self, dag_name: str, cycle_id: str, node_id: str, mode: str = "single") -> str:
+        if mode not in {"single", "cascade"}:
+            raise ValueError("mode must be single or cascade")
+        async with self._locks[dag_name]:
+            ctx = self.active_runs.get(dag_name)
+            if ctx is not None and not ctx.task.done():
+                raise RunAlreadyActiveError(ctx.cycle_id)
+            config = load_app_config(self.config_dir)
+            graph = load_graph(config.dags[dag_name], config.nodes)
+            if node_id not in graph.instances:
+                raise ValueError(f"node '{node_id}' not found")
+            retry_nodes = {node_id} if mode == "single" else _downstream_nodes(graph, node_id)
+            prefilled = await self._prefilled_outputs(cycle_id, graph, retry_nodes)
+            retry_cycle_id = uuid4().hex
+            stop_event = asyncio.Event()
+            task = asyncio.create_task(
+                self._run(
+                    retry_cycle_id,
+                    "retry",
+                    dag_name,
+                    stop_event=stop_event,
+                    retry_of=cycle_id,
+                    retry_nodes=retry_nodes,
+                    prefilled_outputs=prefilled,
+                )
+            )
+            self.active_runs[dag_name] = DagRunContext(
+                dag_name=dag_name,
+                cycle_id=retry_cycle_id,
+                task=task,
+                stop_event=stop_event,
+            )
+        task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
+        return retry_cycle_id
 
     async def status(self, dag_name: str | None = None) -> dict[str, object]:
         factory = self._factory()
@@ -165,8 +212,9 @@ class PipelineController:
         if ctx is not None and not ctx.task.done():
             raise RunAlreadyActiveError(ctx.cycle_id)
         cycle_id = uuid4().hex
-        task = asyncio.create_task(self._run(cycle_id, trigger, dag_name))
-        self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task)
+        stop_event = asyncio.Event()
+        task = asyncio.create_task(self._run(cycle_id, trigger, dag_name, stop_event=stop_event))
+        self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task, stop_event=stop_event)
         return cycle_id, task
 
     def _clear_finished_task(self, task: asyncio.Task[object], dag_name: str) -> None:
@@ -179,14 +227,23 @@ class PipelineController:
         if ctx is not None and ctx.task is task and task.done():
             del self.active_runs[dag_name]
 
-    async def _run(self, cycle_id: str, trigger: str, dag_name: str = "default") -> object:
+    async def _run(
+        self,
+        cycle_id: str,
+        trigger: str,
+        dag_name: str = "default",
+        stop_event: asyncio.Event | None = None,
+        retry_of: str | None = None,
+        retry_nodes: set[str] | None = None,
+        prefilled_outputs: dict[str, NodeOutput] | None = None,
+    ) -> object:
         config = load_app_config(self.config_dir)
         bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
         config.entity_types.update(bootstrap.entity_type_registry.as_dict())
         graph = load_graph(config.dags[dag_name], config.nodes)
         factory = self._factory()
         async with factory() as session:
-            await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes), dag_name)
+            await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes), dag_name, retry_of)
             await session.commit()
         try:
             result = await DagRunner(
@@ -201,15 +258,31 @@ class PipelineController:
                     ),
                 ),
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
-            ).run(graph, cycle_id, {"entities": _source_entity_refs(config)})
+            ).run(
+                graph,
+                cycle_id,
+                {"entities": _source_entity_refs(config)},
+                stop_event=stop_event,
+                retry_nodes=retry_nodes,
+                prefilled_outputs=prefilled_outputs,
+            )
             await _record_source_runs(factory, cycle_id, result.node_outputs)
             await _persist_outputs(
                 factory,
                 config.system.retention_count,
                 config.system.retention_hours,
             )
-            status = "succeeded" if result.ok else "failed"
-            error = "; ".join(f"{node}: {message}" for node, message in result.failures.items()) or None
+            active_outputs = {
+                node: output
+                for node, output in result.node_outputs.items()
+                if retry_nodes is None or node in retry_nodes
+            }
+            status = "cancelled" if stop_event is not None and stop_event.is_set() else _result_status(active_outputs)
+            error = "; ".join(
+                f"{node}: {message}"
+                for node, message in result.failures.items()
+                if retry_nodes is None or node in retry_nodes
+            ) or None
             async with factory() as session:
                 await finish_pipeline_run(session, cycle_id, status, error)
                 await session.commit()
@@ -225,6 +298,29 @@ class PipelineController:
                 await session.commit()
             commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             raise
+
+    async def _prefilled_outputs(
+        self,
+        original_cycle_id: str,
+        graph,
+        retry_nodes: set[str],
+    ) -> dict[str, NodeOutput]:
+        factory = self._factory()
+        async with factory() as session:
+            original = await get_pipeline_run(session, original_cycle_id)
+            if original is None:
+                raise PipelineRunNotFoundError(original_cycle_id)
+            outputs = await query_node_output_entities(session, cycle_id=original_cycle_id, limit=10000)
+        prefilled: dict[str, NodeOutput] = {}
+        payloads: dict[str, list[object]] = defaultdict(list)
+        for entity in outputs:
+            node_id = str(entity.attributes.get("node_id") or "")
+            if node_id in graph.instances and node_id not in retry_nodes:
+                payloads[node_id].append(entity.attributes.get("payload"))
+        for node_id, values in payloads.items():
+            payload = values[0] if len(values) == 1 else list(reversed(values))
+            prefilled[node_id] = NodeOutput(node_name=node_id, ok=True, payload=payload)
+        return prefilled
 
     async def _record_node(
         self,
@@ -356,3 +452,21 @@ def _source_recovery(outputs: Mapping[str, NodeOutput]) -> dict[str, object]:
 
 def _run_dict(run: PipelineRun) -> dict[str, object]:
     return run.model_dump(mode="json")
+
+
+def _result_status(outputs: Mapping[str, NodeOutput]) -> str:
+    if outputs and not all(not output.ok for output in outputs.values()):
+        return "succeeded"
+    return "failed"
+
+
+def _downstream_nodes(graph, node_id: str) -> set[str]:
+    found: set[str] = set()
+    stack = [node_id]
+    while stack:
+        node = stack.pop()
+        if node in found:
+            continue
+        found.add(node)
+        stack.extend(graph.edges[node])
+    return found

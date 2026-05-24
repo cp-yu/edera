@@ -237,7 +237,7 @@ class DagEdge(BaseModel):
     fan_out: bool = False
     fan_in: bool = False
     condition: str | None = None
-    fan_in_mode: Literal["collect", "stream"] = "collect"
+    fan_in_mode: Literal["barrier", "accumulate", "collect", "stream"] = "barrier"
 
 
 class DagLoopConfig(BaseModel):
@@ -254,6 +254,7 @@ class DagNodeInstance(BaseModel):
     alias: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
     optional: bool = False
+    fan_in_mode: Literal["barrier", "accumulate"] = "barrier"
     loop: DagLoopConfig | None = None
     fallback: Literal["switch_model", "skip"] | None = None
     fallback_model: str | None = None

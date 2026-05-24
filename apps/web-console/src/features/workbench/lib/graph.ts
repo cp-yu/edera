@@ -303,6 +303,7 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
       to: edge.target,
       fan_out: Boolean((edge as { fan_out?: boolean }).fan_out),
       fan_in: Boolean((edge as { fan_in?: boolean }).fan_in),
+      fan_in_mode: (edge as { fan_in_mode?: DagEdge['fan_in_mode'] }).fan_in_mode,
       sourceHandle: edge.sourceHandle ?? undefined,
       targetHandle: edge.targetHandle ?? undefined,
     }

@@ -4,11 +4,13 @@ interface AppState {
   selectedDagName: string
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  inspectorTab: 'config' | 'runtime'
   entityFilter: string[]
   theme: 'light' | 'dark'
   setSelectedDag: (name: string) => void
   setSelectedNode: (id: string | null) => void
   setSelectedEdge: (id: string | null) => void
+  setInspectorTab: (tab: 'config' | 'runtime') => void
   setEntityFilter: (entities: string[]) => void
   toggleTheme: () => void
 }
@@ -23,11 +25,13 @@ export const useAppStore = create<AppState>((set) => ({
   selectedDagName: 'default',
   selectedNodeId: null,
   selectedEdgeId: null,
+  inspectorTab: 'config',
   entityFilter: [],
   theme: getInitialTheme(),
-  setSelectedDag: (name) => set({ selectedDagName: name, selectedNodeId: null, selectedEdgeId: null }),
-  setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
-  setSelectedEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null }),
+  setSelectedDag: (name) => set({ selectedDagName: name, selectedNodeId: null, selectedEdgeId: null, inspectorTab: 'config' }),
+  setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null, inspectorTab: 'config' }),
+  setSelectedEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null, inspectorTab: 'config' }),
+  setInspectorTab: (tab) => set({ inspectorTab: tab }),
   setEntityFilter: (entities) => set({ entityFilter: entities }),
   toggleTheme: () =>
     set((state) => {

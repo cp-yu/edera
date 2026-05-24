@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
+import asyncio
 
 from stockimformation_core.dag.conditions import evaluate_condition
 from stockimformation_core.dag.loader import load_graph, topological_layers
@@ -12,6 +13,12 @@ from stockimformation_core.node.models import NodeContext, NodeInput, NodeOutput
 from stockimformation_core.config.schema import DagConfig, DagNodeInstance, NodeConfig
 
 NodeRunRecorder = Callable[[str, str, str | None], Awaitable[None]]
+
+
+@dataclass(frozen=True)
+class _NodeDone:
+    node: str
+    output: NodeOutput
 
 
 class DagRunner:
@@ -31,51 +38,113 @@ class DagRunner:
         self.depth = depth
         self.path = path
 
-    async def run(self, graph: DagGraph, cycle_id: str, initial_payload: object) -> DagRunResult:
+    async def run(
+        self,
+        graph: DagGraph,
+        cycle_id: str,
+        initial_payload: object,
+        stop_event: asyncio.Event | None = None,
+        retry_nodes: set[str] | None = None,
+        prefilled_outputs: dict[str, NodeOutput] | None = None,
+    ) -> DagRunResult:
         if not self.executor.instances:
             self.executor.instances = graph.instances
+        topological_layers(graph)
+        stop_event = stop_event or asyncio.Event()
         outputs: dict[str, NodeOutput] = {}
         failures: dict[str, str] = {}
         payloads: dict[str, object] = {}
         routed_edges: set[tuple[str, str]] = set()
         warnings: list[str] = []
-        stream_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]] = {}
-        layers = topological_layers(graph)
-        for layer in layers:
-            pending = [
-                asyncio.create_task(
-                    self._run_node(graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
-                )
-                for node in layer
-                if self._should_run(graph, node, routed_edges) and node not in stream_tasks
-            ]
-            while pending:
-                done, pending_set = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                pending = list(pending_set)
+        for node, output in (prefilled_outputs or {}).items():
+            if node not in graph.instances:
+                continue
+            outputs[node] = output
+            if output.ok and output.payload is not None:
+                payloads[node] = output.payload
+                routed_edges.update(self._routed_edges(graph, node, output.payload, warnings))
+        queue: asyncio.Queue[_NodeDone] = asyncio.Queue()
+        running: dict[str, asyncio.Task[tuple[str, NodeOutput]]] = {}
+        accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]] = {}
+        accumulated_edges: set[tuple[str, str]] = set()
+        started: set[str] = set(outputs)
+        allowed = retry_nodes or set(graph.nodes)
+        for node in graph.nodes:
+            if node in outputs:
+                continue
+            if node in allowed and not graph.reverse_edges[node]:
+                self._start_node(running, graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
+                started.add(node)
+        try:
+            while running or self._has_startable(graph, started, allowed, outputs, routed_edges):
+                if stop_event.is_set() and not running:
+                    break
+                if not running:
+                    self._start_ready_nodes(
+                        running,
+                        graph,
+                        cycle_id,
+                        initial_payload,
+                        outputs,
+                        payloads,
+                        routed_edges,
+                        warnings,
+                        started,
+                        allowed,
+                        stop_event,
+                    )
+                    if not running:
+                        break
+                done, _pending = await asyncio.wait(running.values(), return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     node, output = task.result()
-                    self._store_result(graph, node, output, outputs, payloads, failures, routed_edges, warnings)
-                    self._start_stream_tasks(
+                    running.pop(node, None)
+                    await queue.put(_NodeDone(node, output))
+                while not queue.empty():
+                    event = await queue.get()
+                    self._store_result(graph, event.node, event.output, outputs, payloads, failures, routed_edges, warnings)
+                    if event.output.ok:
+                        await self._run_accumulate_downstreams(
+                            graph,
+                            event.node,
+                            cycle_id,
+                            event.output,
+                            outputs,
+                            payloads,
+                            failures,
+                            routed_edges,
+                            warnings,
+                            accumulate_tasks,
+                            accumulated_edges,
+                            started,
+                            allowed,
+                            stop_event,
+                        )
+                    self._start_ready_nodes(
+                        running,
                         graph,
-                        node,
                         cycle_id,
-                        output,
+                        initial_payload,
                         outputs,
+                        payloads,
+                        routed_edges,
                         warnings,
-                        stream_tasks,
+                        started,
+                        allowed,
+                        stop_event,
                     )
-            for node in layer:
-                if node not in stream_tasks:
-                    continue
-                results = await asyncio.gather(*stream_tasks.pop(node))
-                output = _merge_stream_results(node, [item for _name, item in results])
-                self._store_result(graph, node, output, outputs, payloads, failures, routed_edges, warnings)
-            if (
-                layer == layers[0]
-                and all(node in outputs and not outputs[node].ok for node in layer)
-                and not any(graph.instances[node].type in self.dags for node in layer)
-            ):
-                raise DagError("all source nodes failed")
+        except asyncio.CancelledError:
+            for task in running.values():
+                task.cancel()
+            await asyncio.gather(*running.values(), return_exceptions=True)
+            raise
+        source_nodes = [node for node in graph.nodes if not graph.reverse_edges[node]]
+        if (
+            source_nodes
+            and all(node in outputs and not outputs[node].ok for node in source_nodes)
+            and not any(graph.instances[node].type in self.dags for node in source_nodes)
+        ):
+            raise DagError("all source nodes failed")
         return DagRunResult(
             cycle_id=cycle_id,
             node_outputs=outputs,
@@ -104,26 +173,97 @@ class DagRunner:
         if graph.instances[node].optional:
             routed_edges.update((node, downstream) for downstream in graph.edges[node])
 
-    def _start_stream_tasks(
+    def _start_node(
         self,
+        running: dict[str, asyncio.Task[tuple[str, NodeOutput]]],
         graph: DagGraph,
         node: str,
         cycle_id: str,
+        initial_payload: object,
+        outputs: dict[str, NodeOutput],
+        payloads: dict[str, object],
+        routed_edges: set[tuple[str, str]],
+        warnings: list[str],
+    ) -> None:
+        fan_out_payloads = self._fan_out_payloads(graph, node, outputs, routed_edges)
+        if fan_out_payloads is not None:
+            running[node] = asyncio.create_task(
+                self._run_fan_out_node(graph, node, cycle_id, fan_out_payloads, outputs, warnings)
+            )
+            return
+        running[node] = asyncio.create_task(
+            self._run_node(graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
+        )
+
+    def _start_ready_nodes(
+        self,
+        running: dict[str, asyncio.Task[tuple[str, NodeOutput]]],
+        graph: DagGraph,
+        cycle_id: str,
+        initial_payload: object,
+        outputs: dict[str, NodeOutput],
+        payloads: dict[str, object],
+        routed_edges: set[tuple[str, str]],
+        warnings: list[str],
+        started: set[str],
+        allowed: set[str],
+        stop_event: asyncio.Event,
+    ) -> None:
+        if stop_event.is_set():
+            return
+        for node in graph.nodes:
+            if node in started or node not in allowed or node in running:
+                continue
+            if self._node_fan_in_mode(graph, node) == "accumulate":
+                continue
+            if self._ready(graph, node, outputs, routed_edges):
+                self._start_node(running, graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
+                started.add(node)
+
+    async def _run_accumulate_downstreams(
+        self,
+        graph: DagGraph,
+        upstream: str,
+        cycle_id: str,
         output: NodeOutput,
         outputs: dict[str, NodeOutput],
+        payloads: dict[str, object],
+        failures: dict[str, str],
+        routed_edges: set[tuple[str, str]],
         warnings: list[str],
-        stream_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]],
+        accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]],
+        accumulated_edges: set[tuple[str, str]],
+        started: set[str],
+        allowed: set[str],
+        stop_event: asyncio.Event,
     ) -> None:
-        if not output.ok:
+        if stop_event.is_set():
             return
-        for downstream in graph.edges[node]:
-            if graph.fan_in_modes.get((node, downstream)) != "stream":
+        for downstream in graph.edges[upstream]:
+            if downstream in outputs or downstream not in allowed:
                 continue
-            stream_tasks.setdefault(downstream, []).append(
-                asyncio.create_task(
-                    self._run_stream_node(graph, downstream, cycle_id, output.payload, outputs, warnings)
+            if self._node_fan_in_mode(graph, downstream) != "accumulate":
+                continue
+            if (upstream, downstream) not in routed_edges:
+                continue
+            if not self._should_run(graph, downstream, routed_edges):
+                continue
+            if (upstream, downstream) not in accumulated_edges:
+                accumulated_edges.add((upstream, downstream))
+                accumulate_tasks.setdefault(downstream, []).append(
+                    asyncio.create_task(
+                        self._run_stream_node(graph, downstream, cycle_id, output.payload, outputs, warnings)
+                    )
                 )
-            )
+            if not all(name in outputs for name in graph.reverse_edges[downstream]):
+                continue
+            tasks = accumulate_tasks.pop(downstream, [])
+            if not tasks:
+                continue
+            results = await asyncio.gather(*tasks)
+            merged = _merge_stream_results(downstream, [item for _name, item in results])
+            self._store_result(graph, downstream, merged, outputs, payloads, failures, routed_edges, warnings)
+            started.add(downstream)
 
     async def _run_stream_node(
         self,
@@ -137,6 +277,40 @@ class DagRunner:
         node_input = NodeInput(cycle_id=cycle_id, payload=payload, metadata=self._metadata(graph, node, outputs, warnings))
         context = NodeContext(cycle_id, f"{node}:stream", graph.instances[node].type, graph.name)
         return node, await self._execute_node(graph.instances[node], node, node_input, context)
+
+    async def _run_fan_out_node(
+        self,
+        graph: DagGraph,
+        node: str,
+        cycle_id: str,
+        payloads: list[object],
+        outputs: dict[str, NodeOutput],
+        warnings: list[str],
+    ) -> tuple[str, NodeOutput]:
+        await self._record(node, "running")
+        results = await asyncio.gather(
+            *[
+                self._run_fan_out_item(graph, node, cycle_id, payload, index, outputs, warnings)
+                for index, payload in enumerate(payloads)
+            ]
+        )
+        output = _merge_fan_out_results(node, results)
+        await self._record(node, "succeeded" if output.ok else "failed", output.error)
+        return node, output
+
+    async def _run_fan_out_item(
+        self,
+        graph: DagGraph,
+        node: str,
+        cycle_id: str,
+        payload: object,
+        index: int,
+        outputs: dict[str, NodeOutput],
+        warnings: list[str],
+    ) -> NodeOutput:
+        node_input = NodeInput(cycle_id=cycle_id, payload=payload, metadata=self._metadata(graph, node, outputs, warnings))
+        context = NodeContext(cycle_id, f"{node}:fanout:{index}", graph.instances[node].type, graph.name)
+        return await self._execute_node(graph.instances[node], node, node_input, context)
 
     async def _run_node(
         self,
@@ -331,6 +505,28 @@ class DagRunner:
             return values[0]
         return collect(values)
 
+    def _fan_out_payloads(
+        self,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> list[object] | None:
+        values: list[object] = []
+        has_fan_out = False
+        for upstream in graph.reverse_edges[node]:
+            if (upstream, node) not in graph.fan_out_edges or (upstream, node) not in routed_edges:
+                continue
+            output = outputs.get(upstream)
+            if output is None or not output.ok:
+                continue
+            has_fan_out = True
+            if isinstance(output.payload, list):
+                values.extend(output.payload)
+            elif output.payload is not None:
+                values.append(output.payload)
+        return values if has_fan_out else None
+
     def _metadata(
         self,
         graph: DagGraph,
@@ -363,6 +559,44 @@ class DagRunner:
     ) -> bool:
         upstreams = graph.reverse_edges[node]
         return not upstreams or any((upstream, node) in routed_edges for upstream in upstreams)
+
+    def _ready(
+        self,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> bool:
+        upstreams = graph.reverse_edges[node]
+        if not upstreams:
+            return True
+        if not all(upstream in outputs for upstream in upstreams):
+            return False
+        return any((upstream, node) in routed_edges for upstream in upstreams)
+
+    def _has_startable(
+        self,
+        graph: DagGraph,
+        started: set[str],
+        allowed: set[str],
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> bool:
+        return any(
+            node not in started
+            and node in allowed
+            and self._node_fan_in_mode(graph, node) != "accumulate"
+            and self._ready(graph, node, outputs, routed_edges)
+            for node in graph.nodes
+        )
+
+    def _node_fan_in_mode(self, graph: DagGraph, node: str) -> str:
+        mode = graph.instances[node].fan_in_mode
+        if mode != "barrier":
+            return mode
+        if any(graph.fan_in_modes.get((upstream, node)) in {"stream", "accumulate"} for upstream in graph.reverse_edges[node]):
+            return "accumulate"
+        return "barrier"
 
     def _routed_edges(
         self,
@@ -413,4 +647,16 @@ def _merge_stream_results(node: str, results: list[NodeOutput]) -> NodeOutput:
         payload=payload,
         metadata={"stream_failures": failures},
         error=None if payload else "; ".join(failures.values()) or "stream produced no output",
+    )
+
+
+def _merge_fan_out_results(node: str, results: list[NodeOutput]) -> NodeOutput:
+    payload = [result.payload for result in results if result.ok]
+    failures = {f"{node}:fanout:{index}": result.error or "node failed" for index, result in enumerate(results) if not result.ok}
+    return NodeOutput(
+        node_name=node,
+        ok=bool(payload),
+        payload=payload,
+        metadata={"fan_out_failures": failures},
+        error=None if payload else "; ".join(failures.values()) or "fan_out produced no output",
     )

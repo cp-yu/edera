@@ -47,6 +47,7 @@ class PipelineRun(SQLModel, table=True):
     started_at: datetime = Field(default_factory=utc_now, index=True)
     ended_at: datetime | None = None
     error: str | None = None
+    retry_of: str | None = Field(default=None, index=True)
 
     @field_validator("cycle_id", "trigger", "status")
     @classmethod
@@ -58,8 +59,8 @@ class PipelineRun(SQLModel, table=True):
     @field_validator("trigger")
     @classmethod
     def _valid_trigger(cls, value: str) -> str:
-        if value not in {"startup", "schedule", "manual"}:
-            raise ValueError("trigger must be startup, schedule, or manual")
+        if value not in {"startup", "schedule", "manual", "retry"}:
+            raise ValueError("trigger must be startup, schedule, manual, or retry")
         return value
 
     @field_validator("status")

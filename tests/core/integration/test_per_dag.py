@@ -7,8 +7,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from stockimformation_core.storage import create_engine, init_db, session_factory, sqlite_url
-from stockimformation_core.storage.repository import create_pipeline_run, recent_pipeline_runs
-from stockimformation_core.pipeline import DagRunContext, PipelineController, RunAlreadyActiveError
+from stockimformation_core.storage.repository import create_pipeline_run, get_pipeline_run, recent_pipeline_runs
+from stockimformation_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RunAlreadyActiveError
 from stockimformation_core.web.app import create_app
 
 
@@ -35,6 +35,15 @@ class FakeController(PipelineController):
             await create_pipeline_run(session, cycle_id, trigger, dag_name=dag_name)
             await session.commit()
         await asyncio.sleep(60)
+
+    async def retry_node(self, dag_name: str, cycle_id: str, node_id: str, mode: str = "single") -> str:
+        if cycle_id == "missing-cycle":
+            raise PipelineRunNotFoundError(cycle_id)
+        retry_cycle_id = f"retry-{cycle_id}"
+        async with self._factory()() as session:
+            await create_pipeline_run(session, retry_cycle_id, "retry", dag_name=dag_name, retry_of=cycle_id)
+            await session.commit()
+        return retry_cycle_id
 
 
 # --- PLACEHOLDER_TESTS ---
@@ -82,13 +91,70 @@ async def test_per_dag_stop(tmp_path: Path) -> None:
     try:
         await ctrl.start_run("manual", "default")
         await ctrl.start_run("manual", "realtime")
-        stopped = await ctrl.stop_current("default")
+        stopped = await ctrl.stop_current("default", force=True)
         assert stopped == "cycle-default-manual"
         assert "default" not in ctrl.active_runs
         assert "realtime" in ctrl.active_runs
         assert not ctrl.active_runs["realtime"].task.done()
     finally:
         await ctrl.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_dag_stop_api_accepts_force(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            await client.post("/api/pipeline/dag/default/run")
+            response = await client.post("/api/pipeline/dag/default/stop", json={"force": True})
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert response.json() == {"stopped": True, "cycle_id": "cycle-default-manual"}
+
+
+@pytest.mark.asyncio
+async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            async with app.state.controller._factory()() as session:
+                await create_pipeline_run(session, "cycle-original", "manual", dag_name="default")
+                await session.commit()
+            response = await client.post(
+                "/api/pipeline/dag/default/retry",
+                json={"cycle_id": "cycle-original", "node_id": "node-a", "mode": "cascade"},
+            )
+            async with app.state.controller._factory()() as session:
+                run = await get_pipeline_run(session, "retry-cycle-original")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert response.json()["retry_of"] == "cycle-original"
+    assert run is not None
+    assert run.trigger == "retry"
+    assert run.retry_of == "cycle-original"
+
+
+@pytest.mark.asyncio
+async def test_retry_api_missing_cycle_returns_404(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post(
+                "/api/pipeline/dag/default/retry",
+                json={"cycle_id": "missing-cycle", "node_id": "node-a", "mode": "single"},
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 404
+    assert response.json()["error"]["type"] == "not_found"
 
 
 @pytest.mark.asyncio

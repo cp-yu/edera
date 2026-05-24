@@ -65,7 +65,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.pipeline-control
-    intent: 管道控制能力，handler 注册从 bootstrap registry 获取，移除硬编码 handler 字典
+    intent: 管道控制能力，覆盖运行记录（含 retry_of 关联）、手动/重试触发、soft/hard stop 和状态展示
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
@@ -135,4 +135,19 @@ capabilities:
     type: capability
   - id: cap.core.extension-declarative-storage
     intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
+    type: capability
+  - id: cap.operations.dag-event-driven-executor
+    intent: Event-driven DAG 执行引擎，覆盖中央 dispatcher、asyncio.Queue 调度、fan-in barrier/accumulate 模式和错误路径隔离
+    type: capability
+  - id: cap.operations.dag-run-control
+    intent: DAG 运行控制能力，覆盖 soft stop（asyncio.Event）、hard stop（task.cancel）和节点重试（single/cascade mode）
+    type: capability
+  - id: cap.web.dag-run-observability
+    intent: DAG 运行能观性，覆盖 Inspector Runtime tab、edge 数据流查看和节点历史页面
+    type: capability
+  - id: cap.web.dag-creation
+    intent: DAG 创建能力，覆盖前端 dialog 交互和后端 API 创建空 DAG 配置文件
+    type: capability
+  - id: cap.web.dag-cycle-detection-ui
+    intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability

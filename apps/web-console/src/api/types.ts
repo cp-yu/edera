@@ -3,6 +3,7 @@ export interface DagEdge {
   to: string
   fan_out?: boolean
   fan_in?: boolean
+  fan_in_mode?: 'barrier' | 'accumulate' | 'collect' | 'stream'
   sourceHandle?: string
   targetHandle?: string
 }
@@ -111,6 +112,7 @@ export interface PipelineRun {
   started_at: string
   ended_at: string | null
   error: string | null
+  retry_of?: string | null
 }
 
 export interface DagStatus {
@@ -125,10 +127,32 @@ export interface NodeStatus {
   status: string
   error: string | null
   cycle_id: string
+  started_at?: string | null
+  ended_at?: string | null
 }
 
 export interface RuntimeStatus {
   node_statuses: Record<string, NodeStatus>
+}
+
+export interface NodeOutputEntity {
+  id: string
+  type: string
+  attributes: Record<string, unknown>
+}
+
+export interface NodeHistoryItem {
+  run: PipelineRun
+  node_run: {
+    id: number
+    cycle_id: string
+    node_name: string
+    status: string
+    started_at: string | null
+    ended_at: string | null
+    error: string | null
+  }
+  outputs: NodeOutputEntity[]
 }
 
 export interface Briefing {
