@@ -15,8 +15,8 @@ case "${1:-start}" in
     start)
         kill_port $BACKEND_PORT
         kill_port $FRONTEND_PORT
-        .venv/bin/python -c "from stockimformation.main import main; main()" &
-        (cd frontend && npm run dev) &
+        .venv/bin/python -c "from stockimformation_core.main import main; main()" &
+        (cd apps/web-console && npm run dev) &
         wait
         ;;
     restart)
@@ -24,8 +24,8 @@ case "${1:-start}" in
         kill_port $BACKEND_PORT
         kill_port $FRONTEND_PORT
         sleep 1
-        .venv/bin/python -c "from stockimformation.main import main; main()" &
-        (cd frontend && npm run dev) &
+        .venv/bin/python -c "from stockimformation_core.main import main; main()" &
+        (cd apps/web-console && npm run dev) &
         wait
         ;;
     stop)

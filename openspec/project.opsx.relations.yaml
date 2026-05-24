@@ -24,3 +24,15 @@ relations:
   - from: cap.entity-type-protection
     type: contains
     to: dom.core
+  - from: cap.core.extension-manifest-system
+    type: contains
+    to: dom.core
+  - from: cap.core.core-bootstrap
+    type: contains
+    to: dom.core
+  - from: cap.core.handler-context-protocol
+    type: contains
+    to: dom.core
+  - from: cap.core.extension-declarative-storage
+    type: contains
+    to: dom.core

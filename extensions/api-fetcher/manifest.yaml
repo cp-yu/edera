@@ -1,0 +1,22 @@
+name: api-fetcher
+version: 0.1.0
+depends: [_lib/http_fetch]
+handlers:
+  - name: fetch-api
+    entry: handler.py
+    role: source
+    input_type: Any
+    output_type: list[RawItem]
+entity_types:
+  - name: api-source
+    display_name: API 信息源
+    business_id_field: name
+    display_template: "{name}"
+    storage_tier: filesystem
+    schema:
+      type: object
+      required: [name, base_url]
+      properties:
+        name: {type: string}
+        base_url: {type: string}
+        params: {type: object}

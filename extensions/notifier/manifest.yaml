@@ -1,0 +1,8 @@
+name: notifier
+version: 0.1.0
+handlers:
+  - name: notify-ntfy
+    entry: handler.py
+    role: sink
+    input_type: Briefing
+    output_type: list[NotificationResult]

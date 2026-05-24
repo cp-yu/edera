@@ -1,0 +1,14 @@
+name: reader
+version: 0.1.0
+depends: [_lib/llm]
+handlers:
+  - name: summarize
+    entry: handler.py
+    role: processor
+    input_type: list[RawItem]
+    output_type: list[AnalysisResult]
+  - name: classify-sentiment
+    entry: handler.py
+    role: processor
+    input_type: list[RawItem]
+    output_type: list[AnalysisResult]

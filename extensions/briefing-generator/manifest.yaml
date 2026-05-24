@@ -1,0 +1,8 @@
+name: briefing-generator
+version: 0.1.0
+handlers:
+  - name: generate-briefing
+    entry: handler.py
+    role: processor
+    input_type: list[Advice]
+    output_type: Briefing

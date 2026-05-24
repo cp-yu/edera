@@ -65,11 +65,11 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.pipeline-control
-    intent: 管道控制能力，覆盖手动运行、暂停/恢复调度、停止当前运行、运行状态与运行记录
+    intent: 管道控制能力，handler 注册从 bootstrap registry 获取，移除硬编码 handler 字典
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
-    intent: 节点执行器，覆盖实例调度、handler 加载、实体上下文注入和权限检查
+    intent: 节点执行器，统一为 function node 执行路径，通过 importlib 从 registry 加载 handler，调用 HandlerContext 单参数协议
     type: capability
     domain: dom.operations
   - id: cap.advisory.trade-advisory
@@ -101,7 +101,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.unified-entity-model
-    intent: 统一 Entity 原语，Node/DAG/Trigger/Relation/Output 全部建模为 Entity，EntityType schema 字段即能力声明
+    intent: 统一 Entity 原语，EntityType 注册来源扩展为 manifest 声明 + 用户配置覆盖的双层优先级
     type: capability
   - id: cap.entity-storage-tiers
     intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理
@@ -123,4 +123,16 @@ capabilities:
     type: capability
   - id: cap.entity-type-protection
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
+    type: capability
+  - id: cap.core.extension-manifest-system
+    intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor 提取和依赖校验
+    type: capability
+  - id: cap.core.core-bootstrap
+    intent: 核心启动时扫描扩展目录、解析 manifest、构建 handler registry 和 entity type registry、设置 module path
+    type: capability
+  - id: cap.core.handler-context-protocol
+    intent: 统一 HandlerContext 单参数调用协议、HandlerProtocol 和 EntityStoreProtocol 接口定义，承载于独立 core-types 包
+    type: capability
+  - id: cap.core.extension-declarative-storage
+    intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
     type: capability

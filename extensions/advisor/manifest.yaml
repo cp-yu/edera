@@ -1,0 +1,8 @@
+name: advisor
+version: 0.1.0
+handlers:
+  - name: generate-advice
+    entry: handler.py
+    role: processor
+    input_type: list[AnalysisResult]
+    output_type: list[Advice]
