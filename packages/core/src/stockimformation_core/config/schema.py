@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+PI_TOOLS = {"bash", "read", "edit", "write", "grep", "find"}
+
+
 class RuntimeSettings(BaseSettings):
     ntfy_topic: str | None = None
     ntfy_url: str = "https://ntfy.sh"
@@ -30,6 +33,7 @@ class SystemConfig(BaseModel):
     workspace_root: Path = Path("/tmp/stockimformation/runs")
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=24, ge=0)
+    sandbox_max_bytes: int = Field(default=0, ge=0)
     max_dag_depth: int = Field(default=3, ge=1)
     config_git_commit: bool = True
     source_recovery_enabled: bool = True
@@ -128,7 +132,7 @@ class NodeConfig(BaseModel):
     handler: str | None = None
     system_prompt_file: str | None = None
     system_prompt: str | None = None
-    model: str | None = None
+    tools: list[str] = Field(default_factory=list)
     input_type: str
     output_type: str
     timeout_seconds: float | None = Field(default=None, gt=0)
@@ -142,6 +146,11 @@ class NodeConfig(BaseModel):
         if isinstance(value, list):
             return [item.get("name") if isinstance(item, dict) else item for item in value]
         return value
+
+    @field_validator("tools")
+    @classmethod
+    def _pi_tools(cls, value: list[str]) -> list[str]:
+        return _validate_tools(value)
 
     @model_validator(mode="after")
     def _type_specific_fields(self) -> NodeConfig:
@@ -264,6 +273,13 @@ class DagNodeInstance(BaseModel):
     def _json_like_config(cls, value: dict[str, Any]) -> dict[str, Any]:
         checked = {key: item for key, item in value.items() if key != "entity_permissions"}
         _validate_parameter_mapping(checked)
+        if "session_dir" in value and not _valid_session_dir(value["session_dir"]):
+            raise ValueError("config.session_dir must be an absolute path or sandbox:<node_id>:<cycle|latest>")
+        if "tools" in value:
+            tools = value["tools"]
+            if not isinstance(tools, list):
+                raise ValueError("config.tools must be a list")
+            value["tools"] = _validate_tools([str(item) for item in tools])
         return value
 
 
@@ -299,3 +315,28 @@ def _business_id(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]
     if not isinstance(value, str) or not value:
         raise ValueError(f"entity {entity.id} missing business id field: {entity_type.business_id_field}")
     return value
+
+
+def _validate_tools(value: list[str]) -> list[str]:
+    invalid = [item for item in value if item not in PI_TOOLS]
+    if invalid:
+        raise ValueError(f"unknown pi tool: {invalid[0]}")
+    return value
+
+
+def _valid_session_dir(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith("/"):
+        return "\x00" not in value
+    if not value.startswith("sandbox:"):
+        return False
+    parts = value.split(":")
+    if len(parts) != 3:
+        return False
+    node_id, cycle = parts[1], parts[2]
+    return _safe_token(node_id) and (cycle == "latest" or _safe_token(cycle))
+
+
+def _safe_token(value: str) -> bool:
+    return bool(value) and all(item.isalnum() or item in {"-", "_", "."} for item in value)

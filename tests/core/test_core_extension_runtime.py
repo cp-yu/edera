@@ -114,7 +114,7 @@ async def test_engine_provides_start_run_shutdown(monkeypatch: pytest.MonkeyPatc
     async def start(self, run_startup: bool = True) -> None:
         calls.append(("start", run_startup, None))
 
-    async def run_now(self, trigger: str = "manual", dag_name: str = "default") -> str:
+    async def run_now(self, trigger: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
         calls.append(("run", trigger, dag_name))
         return "cycle"
 

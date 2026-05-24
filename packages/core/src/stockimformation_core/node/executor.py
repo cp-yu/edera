@@ -6,6 +6,7 @@ import re
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from types import ModuleType
+from typing import Any, cast
 from uuid import uuid4
 
 from stockimformation_types import HandlerContext, NodeInput, NodeOutput
@@ -33,9 +34,15 @@ class NodeExecutor:
         **legacy_kwargs: object,
     ) -> None:
         if handler_registry is None:
-            handler_registry = legacy_kwargs.get("handlers", {})
-        if instances is None and isinstance(legacy_kwargs.get("instances"), dict):
-            instances = legacy_kwargs["instances"]
+            legacy_handlers = legacy_kwargs.get("handlers", {})
+            handler_registry = legacy_handlers if isinstance(legacy_handlers, dict) else {}
+        legacy_instances = legacy_kwargs.get("instances")
+        if instances is None and isinstance(legacy_instances, dict):
+            instances = {
+                str(key): value
+                for key, value in legacy_instances.items()
+                if isinstance(value, DagNodeInstance)
+            }
         self.nodes = nodes
         self.system = system
         self.runtime = runtime
@@ -71,12 +78,12 @@ class NodeExecutor:
             entity_store=self.entity_store,
             entity_permissions=_entity_permissions(instance),
         )
-        effective = _apply_instance_config(config, instance)
-        effective_input = _apply_instance_input(effective, node_input, instance, self.entity_store)
         try:
+            effective = _apply_instance_config(config, instance)
+            effective_input = _apply_instance_input(effective, node_input, instance, self.entity_store)
             payload = await self._execute_payload(handler_name, effective, effective_input, context)
         except Exception as exc:
-            return _failed(node_name, effective_input, str(exc))
+            return _failed(node_name, node_input, str(exc))
         metadata = _output_metadata(effective_input)
         if self.output_recorder is not None:
             await self.output_recorder(
@@ -84,7 +91,7 @@ class NodeExecutor:
                 node_name,
                 _entity_type_from_output(effective.output_type),
                 payload,
-                metadata.get("session_id") if isinstance(metadata.get("session_id"), str) else None,
+                str(metadata["session_id"]) if isinstance(metadata.get("session_id"), str) else None,
             )
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
 
@@ -98,7 +105,7 @@ class NodeExecutor:
         handler = self._load_handler(handler_name)
         timeout = config.timeout_seconds if config.timeout_seconds is not None else self.system.llm_timeout_seconds
         if handler_name in self._memory_handlers:
-            result = handler(node_input)
+            result = cast(Callable[[NodeInput], object], handler)(node_input)
             if not asyncio.iscoroutine(result):
                 raise NodeExecutionError(f"handler must be async: {handler_name}")
             return await asyncio.wait_for(result, timeout=timeout or None)
@@ -111,7 +118,7 @@ class NodeExecutor:
             entity_store=self.entity_store or _EmptyEntityStore(),
             storage=self._handler_storage(handler_name),
         )
-        result = handler(ctx)
+        result = cast(Callable[[HandlerContext], object], handler)(ctx)
         if not asyncio.iscoroutine(result):
             raise NodeExecutionError(f"handler must be async: {handler_name}")
         return await asyncio.wait_for(result, timeout=timeout or None)
@@ -127,7 +134,7 @@ class NodeExecutor:
         except KeyError as exc:
             raise NodeExecutionError(f"missing node config: {node_name}") from exc
 
-    def _load_handler(self, name: str):
+    def _load_handler(self, name: str) -> object:
         if name in self._memory_handlers:
             return self._memory_handlers[name]
         entry = self.handler_registry[name]
@@ -185,13 +192,33 @@ def _apply_instance_config(config: NodeConfig, instance: DagNodeInstance | None)
     if instance is None:
         return config
     updates: dict[str, object] = {}
+    model = instance.config.get("model")
+    if model is not None:
+        if not isinstance(model, str) or not model:
+            raise NodeExecutionError("model must be a non-empty string")
+        _update_parameters(updates, config.parameters, {"model": model})
+    elif _uses_pi(config):
+        raise NodeExecutionError("model not configured for instance")
+    tools = instance.config.get("tools")
+    if isinstance(tools, list):
+        updates["tools"] = [str(item) for item in tools]
     source_names = instance.config.get("source_names")
     if isinstance(source_names, list):
         updates["source_names"] = [str(item) for item in source_names]
-    parameters = instance.config.get("parameters")
-    if isinstance(parameters, dict):
-        updates["parameters"] = parameters
+    raw_parameters = instance.config.get("parameters")
+    if isinstance(raw_parameters, dict):
+        _update_parameters(updates, config.parameters, raw_parameters)
+    session_dir = instance.config.get("session_dir")
+    if isinstance(session_dir, str):
+        _update_parameters(updates, config.parameters, {"session_dir": session_dir})
     return config.model_copy(update=updates)
+
+
+def _update_parameters(updates: dict[str, object], defaults: dict[str, Any], values: dict[str, Any]) -> None:
+    current = updates.get("parameters")
+    merged = dict(current) if isinstance(current, dict) else dict(defaults)
+    merged.update(values)
+    updates["parameters"] = merged
 
 
 def _apply_instance_input(
@@ -204,6 +231,8 @@ def _apply_instance_input(
     if not config.source_names and not entities:
         return node_input
     payload = dict(node_input.payload) if isinstance(node_input.payload, dict) else {}
+    if isinstance(node_input.payload, dict) and "resume_session" in node_input.payload:
+        payload["resume_session"] = node_input.payload["resume_session"]
     if entities:
         payload["entities"] = entities
         payload["source_names"] = _source_names(entities)
@@ -267,7 +296,7 @@ def _node_from_entity(entity: EntityConfig) -> NodeConfig:
         handler=None,
         system_prompt_file=None,
         system_prompt=None,
-        model=attrs.get("model") if isinstance(attrs.get("model"), str) else None,
+        tools=[str(item) for item in attrs.get("tools", [])] if isinstance(attrs.get("tools"), list) else [],
         input_type=str(attrs.get("input_type") or ""),
         output_type=str(attrs.get("output_type") or ""),
         timeout_seconds=attrs.get("timeout_seconds") if isinstance(attrs.get("timeout_seconds"), int | float) else None,
@@ -277,6 +306,10 @@ def _node_from_entity(entity: EntityConfig) -> NodeConfig:
         parameters=attrs.get("parameters") if isinstance(attrs.get("parameters"), dict) else {},
         parameters_schema=attrs.get("parameters_schema") if isinstance(attrs.get("parameters_schema"), dict) else {},
     )
+
+
+def _uses_pi(config: NodeConfig) -> bool:
+    return config.handler in {"run-pi", "pi", "llm"}
 
 
 def _entity_type_from_output(output_type: str) -> str:

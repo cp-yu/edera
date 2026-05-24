@@ -203,7 +203,6 @@ def test_graph_node_payload_round_trip() -> None:
         "reader",
         {
             "skills": ["summarize"],
-            "model": "gpt-4",
             "source_names": ["source-a", "source-b"],
             "timeout_seconds": 30.0,
             "parameters": {"confidence_threshold": 0.55},
@@ -211,7 +210,7 @@ def test_graph_node_payload_round_trip() -> None:
     )
     assert payload["name"] == "reader"
     assert payload["skills"] == ["summarize"]
-    assert payload["model"] == "gpt-4"
+    assert "model" not in payload
     assert payload["source_names"] == ["source-a", "source-b"]
     assert payload["timeout_seconds"] == 30.0
     assert payload["parameters"]["confidence_threshold"] == 0.55

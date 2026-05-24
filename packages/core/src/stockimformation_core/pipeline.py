@@ -28,8 +28,10 @@ from stockimformation_core.storage.repository import (
     finish_pipeline_run,
     get_pipeline_run,
     mark_node_run,
+    delete_node_outputs_for_nodes,
     query_node_output_entities,
     recent_pipeline_runs,
+    restart_pipeline_run,
     store_node_output_entities,
 )
 from stockimformation_core.node.executor import NodeExecutor
@@ -107,15 +109,17 @@ class PipelineController:
         if self.engine is not None:
             await self.engine.dispose()
 
-    async def start_run(self, trigger: str = "manual", dag_name: str = "default") -> str:
+    async def start_run(self, trigger: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+        await self._wait_for_idle(dag_name, payload)
         async with self._locks[dag_name]:
-            cycle_id, task = self._start_run_locked(trigger, dag_name)
+            cycle_id, task = self._start_run_locked(trigger, dag_name, payload)
         task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
         return cycle_id
 
-    async def run_now(self, trigger: str = "manual", dag_name: str = "default") -> str:
+    async def run_now(self, trigger: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+        await self._wait_for_idle(dag_name, payload)
         async with self._locks[dag_name]:
-            cycle_id, task = self._start_run_locked(trigger, dag_name)
+            cycle_id, task = self._start_run_locked(trigger, dag_name, payload)
         try:
             await task
         finally:
@@ -142,7 +146,14 @@ class PipelineController:
             pass
         return ctx.cycle_id
 
-    async def retry_node(self, dag_name: str, cycle_id: str, node_id: str, mode: str = "single") -> str:
+    async def retry_node(
+        self,
+        dag_name: str,
+        cycle_id: str,
+        node_id: str,
+        mode: str = "single",
+        payload: object | None = None,
+    ) -> str:
         if mode not in {"single", "cascade"}:
             raise ValueError("mode must be single or cascade")
         async with self._locks[dag_name]:
@@ -166,6 +177,7 @@ class PipelineController:
                     retry_of=cycle_id,
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled,
+                    payload=payload,
                 )
             )
             self.active_runs[dag_name] = DagRunContext(
@@ -176,6 +188,44 @@ class PipelineController:
             )
         task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
         return retry_cycle_id
+
+    async def resume_node(self, dag_name: str, cycle_id: str, node_id: str, payload: object) -> str:
+        async with self._locks[dag_name]:
+            ctx = self.active_runs.get(dag_name)
+            if ctx is not None and not ctx.task.done():
+                raise RunAlreadyActiveError(ctx.cycle_id)
+            config = load_app_config(self.config_dir)
+            graph = load_graph(config.dags[dag_name], config.nodes)
+            if node_id not in graph.instances:
+                raise ValueError(f"node '{node_id}' not found")
+            original = await self._pipeline_run(cycle_id)
+            if original is None:
+                raise PipelineRunNotFoundError(cycle_id)
+            retry_nodes = _downstream_nodes(graph, node_id)
+            prefilled = await self._prefilled_outputs(cycle_id, graph, retry_nodes)
+            await self._delete_node_outputs(cycle_id, retry_nodes)
+            stop_event = asyncio.Event()
+            task = asyncio.create_task(
+                self._run(
+                    cycle_id,
+                    "retry",
+                    dag_name,
+                    stop_event=stop_event,
+                    retry_of=original.retry_of,
+                    retry_nodes=retry_nodes,
+                    prefilled_outputs=prefilled,
+                    payload=payload,
+                    replace_existing_run=True,
+                )
+            )
+            self.active_runs[dag_name] = DagRunContext(
+                dag_name=dag_name,
+                cycle_id=cycle_id,
+                task=task,
+                stop_event=stop_event,
+            )
+        task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
+        return cycle_id
 
     async def status(self, dag_name: str | None = None) -> dict[str, object]:
         factory = self._factory()
@@ -201,19 +251,41 @@ class PipelineController:
             "recent_runs": [_run_dict(run) for run in recent],
         }
 
+    async def node_status(self, node_id: str) -> str:
+        for ctx in self.active_runs.values():
+            if not ctx.task.done() and _dag_has_node(self.config_dir, ctx.dag_name, node_id):
+                return "running"
+        config = load_app_config(self.config_dir)
+        factory = self._factory()
+        async with factory() as session:
+            for dag in config.dags.values():
+                if not any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes):
+                    continue
+                recent = await recent_pipeline_runs(session, 1, dag.name)
+                if recent and recent[0].status == "failed":
+                    return "failed"
+        return "idle"
+
     async def _start_schedule_run(self, dag_name: str = "default") -> None:
         try:
             await self.start_run("schedule", dag_name)
         except RunAlreadyActiveError:
             return
 
-    def _start_run_locked(self, trigger: str, dag_name: str) -> tuple[str, asyncio.Task[object]]:
+    async def _wait_for_idle(self, dag_name: str, payload: object | None) -> None:
+        target = _wait_for_idle_target(self.config_dir, dag_name, payload)
+        if target is None:
+            return
+        while any(not ctx.task.done() and _dag_has_node(self.config_dir, ctx.dag_name, target) for ctx in self.active_runs.values()):
+            await asyncio.sleep(0.1)
+
+    def _start_run_locked(self, trigger: str, dag_name: str, payload: object | None = None) -> tuple[str, asyncio.Task[object]]:
         ctx = self.active_runs.get(dag_name)
         if ctx is not None and not ctx.task.done():
             raise RunAlreadyActiveError(ctx.cycle_id)
         cycle_id = uuid4().hex
         stop_event = asyncio.Event()
-        task = asyncio.create_task(self._run(cycle_id, trigger, dag_name, stop_event=stop_event))
+        task = asyncio.create_task(self._run(cycle_id, trigger, dag_name, stop_event=stop_event, payload=payload))
         self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task, stop_event=stop_event)
         return cycle_id, task
 
@@ -236,15 +308,22 @@ class PipelineController:
         retry_of: str | None = None,
         retry_nodes: set[str] | None = None,
         prefilled_outputs: dict[str, NodeOutput] | None = None,
+        payload: object | None = None,
+        replace_existing_run: bool = False,
     ) -> object:
         config = load_app_config(self.config_dir)
         bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
         config.entity_types.update(bootstrap.entity_type_registry.as_dict())
         graph = load_graph(config.dags[dag_name], config.nodes)
         factory = self._factory()
-        async with factory() as session:
-            await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes), dag_name, retry_of)
-            await session.commit()
+        if replace_existing_run:
+            async with factory() as session:
+                await restart_pipeline_run(session, cycle_id)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes), dag_name, retry_of)
+                await session.commit()
         try:
             result = await DagRunner(
                 _build_executor(
@@ -261,7 +340,7 @@ class PipelineController:
             ).run(
                 graph,
                 cycle_id,
-                {"entities": _source_entity_refs(config)},
+                payload if payload is not None else {"entities": _source_entity_refs(config)},
                 stop_event=stop_event,
                 retry_nodes=retry_nodes,
                 prefilled_outputs=prefilled_outputs,
@@ -272,6 +351,7 @@ class PipelineController:
                 config.system.retention_count,
                 config.system.retention_hours,
             )
+            _cleanup_sandboxes(config)
             active_outputs = {
                 node: output
                 for node, output in result.node_outputs.items()
@@ -321,6 +401,17 @@ class PipelineController:
             payload = values[0] if len(values) == 1 else list(reversed(values))
             prefilled[node_id] = NodeOutput(node_name=node_id, ok=True, payload=payload)
         return prefilled
+
+    async def _pipeline_run(self, cycle_id: str) -> PipelineRun | None:
+        factory = self._factory()
+        async with factory() as session:
+            return await get_pipeline_run(session, cycle_id)
+
+    async def _delete_node_outputs(self, cycle_id: str, node_ids: set[str]) -> None:
+        factory = self._factory()
+        async with factory() as session:
+            await delete_node_outputs_for_nodes(session, cycle_id, node_ids)
+            await session.commit()
 
     async def _record_node(
         self,
@@ -470,3 +561,43 @@ def _downstream_nodes(graph, node_id: str) -> set[str]:
         found.add(node)
         stack.extend(graph.edges[node])
     return found
+
+
+def _dag_has_node(config_dir: Path, dag_name: str, node_id: str) -> bool:
+    config = load_app_config(config_dir)
+    dag = config.dags.get(dag_name)
+    if dag is None:
+        return False
+    return any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes)
+
+
+def _wait_for_idle_target(config_dir: Path, dag_name: str, payload: object | None) -> str | None:
+    config = load_app_config(config_dir)
+    dag = config.dags.get(dag_name)
+    if dag is None:
+        return None
+    wait_for = dag.ui.get("wait_for")
+    if not isinstance(wait_for, dict) or wait_for.get("status") != "idle":
+        return None
+    target = wait_for.get("node")
+    if target == "$payload.target" and isinstance(payload, dict):
+        target = payload.get("target")
+    return target if isinstance(target, str) and target else None
+
+
+def _cleanup_sandboxes(config: AppConfig) -> None:
+    try:
+        from extensions._lib.llm import cleanup_sandboxes
+    except ImportError:
+        return
+    cleanup_sandboxes(config.system, _referenced_sandboxes(config))
+
+
+def _referenced_sandboxes(config: AppConfig) -> set[str]:
+    refs: set[str] = set()
+    for dag in config.dags.values():
+        for instance in dag.nodes:
+            value = instance.config.get("session_dir")
+            if isinstance(value, str) and value.startswith("sandbox:") and not value.endswith(":latest"):
+                refs.add(value)
+    return refs

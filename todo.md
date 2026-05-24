@@ -40,3 +40,13 @@ Entity permissions
 ----
  缺少完整的用户使用文档
 
+---
+  retry from node：
+  从一个已结束 run 的某个节点重新执行。现在已有：
+  POST /api/pipeline/dag/{dag_name}/retry
+ 这里其实可以允许选择一批范围的node，从这里开始重新执行。
+
+
+---
+bubblewrap 实现沙箱。
+

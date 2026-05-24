@@ -24,6 +24,7 @@ stockimformation-types = { workspace = true }
 
 [project.scripts]
 stockimformation = "stockimformation_core.main:main"
+rig = "stockimformation_core.rig_cli:main"
 
 [dependency-groups]
 dev = [

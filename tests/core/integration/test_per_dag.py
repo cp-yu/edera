@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from stockimformation_core.storage import create_engine, init_db, session_factory, sqlite_url
-from stockimformation_core.storage.repository import create_pipeline_run, get_pipeline_run, recent_pipeline_runs
+from stockimformation_core.storage.repository import create_pipeline_run, get_pipeline_run, recent_pipeline_runs, store_node_output_entities
 from stockimformation_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RunAlreadyActiveError
 from stockimformation_core.web.app import create_app
 
@@ -45,6 +46,9 @@ class FakeController(PipelineController):
             await session.commit()
         return retry_cycle_id
 
+    async def resume_node(self, dag_name: str, cycle_id: str, node_id: str, payload: object) -> str:
+        return await super().resume_node(dag_name, cycle_id, node_id, payload)
+
 
 # --- PLACEHOLDER_TESTS ---
 
@@ -61,6 +65,35 @@ def _write_dag_config(path: Path) -> None:
     dags_dir.mkdir(exist_ok=True)
     dags_dir.joinpath("default.yaml").write_text("name: default\nnodes: []\nedges: []\n")
     dags_dir.joinpath("realtime.yaml").write_text("name: realtime\nnodes: []\nedges: []\n")
+    dags_dir.joinpath("reflection.yaml").write_text(
+        "name: reflection\n"
+        "nodes: []\n"
+        "edges: []\n"
+        "ui:\n"
+        "  wait_for:\n"
+        "    node: $payload.target\n"
+        "    status: idle\n"
+    )
+    nodes_dir = path / "nodes"
+    nodes_dir.mkdir(exist_ok=True)
+    nodes_dir.joinpath("node-a.yaml").write_text(
+        "name: node-a\n"
+        "type: function\n"
+        "handler: node-a\n"
+        "input_type: Any\n"
+        "output_type: Any\n"
+    )
+    _write_entity_schemas(path)
+
+
+def _write_entity_schemas(path: Path) -> None:
+    schemas = path.parent / "schemas" / "entity-types"
+    schemas.mkdir(parents=True, exist_ok=True)
+    schemas.joinpath("stock.yaml").write_text(
+        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nschema: {}\nfield_permissions: {}\n"
+    )
+    path.joinpath("entities.yaml").write_text("entities: []\n")
+    path.joinpath("entity-relations.yaml").write_text("relations: []\n")
 
 
 @pytest.mark.asyncio
@@ -197,6 +230,180 @@ async def test_per_dag_run_api(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_resume_api_reuses_original_cycle(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    dag_file = tmp_path / "dags" / "default.yaml"
+    dag_file.write_text(
+        "name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n",
+        encoding="utf-8",
+    )
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            async with app.state.controller._factory()() as session:
+                await create_pipeline_run(session, "cycle-original", "manual", ["node-a"], dag_name="default")
+                await store_node_output_entities(session, "cycle-original", "node-a", "analysis", {"summary": "old"}, "session-1")
+                await session.commit()
+            response = await client.post("/api/node/node-a/resume", json={"cycle_id": "cycle-original", "prompt": "adjust"})
+            async with app.state.controller._factory()() as session:
+                run = await get_pipeline_run(session, "cycle-original")
+                recent = await recent_pipeline_runs(session, 5, "default")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert response.json()["cycle_id"] == "cycle-original"
+    assert run is not None
+    assert run.cycle_id == "cycle-original"
+    assert all(item.cycle_id != "retry-cycle-original" for item in recent)
+
+
+@pytest.mark.asyncio
+async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    ctrl = PipelineController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        blocker = asyncio.create_task(asyncio.sleep(0.2))
+        default_dag = tmp_path / "dags" / "default.yaml"
+        default_dag.write_text("name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n", encoding="utf-8")
+        ctrl.active_runs["default"] = DagRunContext("default", "cycle-default", blocker)
+        pending = asyncio.create_task(ctrl.start_run("manual", "reflection", {"target": "node-a"}))
+        await asyncio.sleep(0.05)
+        assert not pending.done()
+        await blocker
+        ctrl._clear_finished_task(blocker, "default")
+        cycle_id = await pending
+        assert cycle_id
+    finally:
+        await ctrl.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_pipeline_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = tmp_path / "extensions"
+    _write_run_pi_extension(extensions_dir)
+    fake_pi = _write_fake_pi(tmp_path)
+    capture = tmp_path / "pi-calls.json"
+    monkeypatch.setenv("STOCKIMFORMATION_PI_BIN", str(fake_pi))
+    monkeypatch.setenv("CAPTURE", str(capture))
+    session_dir = tmp_path / "persistent-session"
+    session_dir.mkdir()
+    (session_dir / "existing.jsonl").write_text("{}", encoding="utf-8")
+    node_file = tmp_path / "nodes" / "llm-node.yaml"
+    node_file.write_text(
+        "name: llm-node\n"
+        "type: function\n"
+        "handler: run-pi\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    dag_file = tmp_path / "dags" / "default.yaml"
+    dag_file.write_text(
+        "name: default\n"
+        "nodes:\n"
+        "- id: llm-absolute\n"
+        "  type: llm-node\n"
+        "  config:\n"
+        "    model: hf-share/deepseek-v4-flash\n"
+        f"    session_dir: {session_dir}\n"
+        "edges: []\n",
+        encoding="utf-8",
+    )
+    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir, Path("extensions")])
+    await ctrl.start(run_startup=False)
+    try:
+        await ctrl.run_now("manual", "default")
+        configured = tmp_path / "workspace" / "sandbox" / "source" / "configured"
+        override = tmp_path / "workspace" / "sandbox" / "source" / "override"
+        (configured / "sessions").mkdir(parents=True)
+        (override / "sessions").mkdir(parents=True)
+        (override / "sessions" / "existing.jsonl").write_text("{}", encoding="utf-8")
+        dag_file.write_text(
+            "name: default\n"
+            "nodes:\n"
+            "- id: llm-override\n"
+            "  type: llm-node\n"
+            "  config:\n"
+            "    model: hf-share/deepseek-v4-flash\n"
+            "    session_dir: sandbox:source:configured\n"
+            "edges: []\n",
+            encoding="utf-8",
+        )
+        await ctrl.run_now("manual", "default", {"resume_session": "sandbox:source:override"})
+    finally:
+        await ctrl.shutdown()
+    calls = json.loads(capture.read_text(encoding="utf-8"))
+    first_args = calls[0]["args"]
+    second_args = calls[1]["args"]
+    assert first_args[first_args.index("--session-dir") + 1] == str(session_dir)
+    assert "--continue" in first_args
+    assert second_args[second_args.index("--session-dir") + 1] == str(override / "sessions")
+    assert "--continue" in second_args
+
+
+@pytest.mark.asyncio
+async def test_scheduler_reflection_waits_and_edits_skill(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = tmp_path / "extensions"
+    _write_reflection_extension(extensions_dir)
+    skill_path = tmp_path / "skills" / "target-skill" / "skill.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("initial\n", encoding="utf-8")
+    (tmp_path / "nodes" / "reflection-editor.yaml").write_text(
+        "name: reflection-editor\n"
+        "type: function\n"
+        "handler: reflection-editor\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "reflection.yaml").write_text(
+        "name: reflection\n"
+        "nodes:\n"
+        "- id: reflect\n"
+        "  type: reflection-editor\n"
+        "  config:\n"
+        "    parameters:\n"
+        f"      skill_path: {skill_path}\n"
+        "      target: node-a\n"
+        "edges: []\n"
+        "ui:\n"
+        "  wait_for:\n"
+        "    node: node-a\n"
+        "    status: idle\n",
+        encoding="utf-8",
+    )
+    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        blocker = asyncio.create_task(asyncio.sleep(0.2))
+        ctrl.active_runs["default"] = DagRunContext("default", "cycle-default", blocker)
+        job = ctrl.scheduler.get_job("reflection-dag")
+        assert job is not None
+        pending = asyncio.create_task(job.func(*job.args, **job.kwargs))
+        await asyncio.sleep(0.05)
+        assert not pending.done()
+        assert skill_path.read_text(encoding="utf-8") == "initial\n"
+        await blocker
+        ctrl._clear_finished_task(blocker, "default")
+        await pending
+        reflection = ctrl.active_runs.get("reflection")
+        assert reflection is not None
+        await reflection.task
+        ctrl._clear_finished_task(reflection.task, "reflection")
+    finally:
+        await ctrl.shutdown()
+    assert "reflected:node-a:" in skill_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
 async def test_ssr_routes_removed(tmp_path: Path) -> None:
     """C5: SSR routes no longer exist."""
     _write_dag_config(tmp_path)
@@ -266,6 +473,7 @@ async def test_scheduler_per_dag_registration(tmp_path: Path) -> None:
     """C8: Scheduler registers one job per DAG config file."""
     _write_dag_config(tmp_path)
     _write_full_config(tmp_path)
+    (tmp_path / "dags" / "reflection.yaml").unlink()
     ctrl = PipelineController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
@@ -280,12 +488,66 @@ async def test_scheduler_per_dag_registration(tmp_path: Path) -> None:
 
 def _write_full_config(path: Path) -> None:
     """Write minimal entity and nodes config for PipelineController.start()."""
-    schemas = path.parent / "schemas" / "entity-types"
-    schemas.mkdir(parents=True, exist_ok=True)
-    schemas.joinpath("stock.yaml").write_text(
-        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nschema: {}\nfield_permissions: {}\n"
-    )
-    path.joinpath("entities.yaml").write_text("entities: []\n")
-    path.joinpath("entity-relations.yaml").write_text("relations: []\n")
+    _write_entity_schemas(path)
     nodes_dir = path / "nodes"
     nodes_dir.mkdir(exist_ok=True)
+
+
+def _write_run_pi_extension(path: Path) -> None:
+    extension = path / "run-pi"
+    extension.mkdir(parents=True)
+    extension.joinpath("handler.py").write_text(
+        "from _lib.llm import run_pi\n"
+        "from stockimformation_core.config.schema import NodeConfig\n"
+        "async def run(ctx):\n"
+        "    config = NodeConfig(\n"
+        "        name=ctx.node_type,\n"
+        "        type='function',\n"
+        "        handler='run-pi',\n"
+        "        input_type='Any',\n"
+        "        output_type='Any',\n"
+        "        parameters=dict(ctx.params),\n"
+        "    )\n"
+        "    payload, _session_id = await run_pi(\n"
+        "        config,\n"
+        "        [],\n"
+        "        ctx.input,\n"
+        "        ctx.cycle_id,\n"
+        "        ctx.node_name,\n"
+        "        ctx.entity_store.system,\n"
+        "        ctx.entity_store.runtime,\n"
+        "    )\n"
+        "    return payload\n",
+        encoding="utf-8",
+    )
+
+
+def _write_reflection_extension(path: Path) -> None:
+    extension = path / "reflection-editor"
+    extension.mkdir(parents=True)
+    extension.joinpath("handler.py").write_text(
+        "from pathlib import Path\n"
+        "async def run(ctx):\n"
+        "    path = Path(ctx.params['skill_path'])\n"
+        "    target = ctx.params['target']\n"
+        "    text = path.read_text(encoding='utf-8')\n"
+        "    path.write_text(text + f'reflected:{target}:{ctx.cycle_id}\\n', encoding='utf-8')\n"
+        "    return {'target': target, 'edited': str(path)}\n",
+        encoding="utf-8",
+    )
+
+
+def _write_fake_pi(path: Path) -> Path:
+    fake_pi = path / "fake-pi"
+    fake_pi.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, os, pathlib, sys\n"
+        "capture = pathlib.Path(os.environ['CAPTURE'])\n"
+        "calls = json.loads(capture.read_text(encoding='utf-8')) if capture.exists() else []\n"
+        "calls.append({'args': sys.argv[1:], 'cwd': os.getcwd()})\n"
+        "capture.write_text(json.dumps(calls), encoding='utf-8')\n"
+        "print('{\"ok\": true}')\n",
+        encoding="utf-8",
+    )
+    fake_pi.chmod(0o755)
+    return fake_pi

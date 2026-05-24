@@ -102,6 +102,20 @@ async def delete_node_output_entity(session: AsyncSession, entity_id: str) -> bo
     return True
 
 
+async def delete_node_outputs_for_nodes(session: AsyncSession, cycle_id: str, node_ids: set[str]) -> None:
+    if not node_ids:
+        return
+    result = await session.exec(
+        select(NodeOutputEntity).where(
+            NodeOutputEntity.cycle_id == cycle_id,
+            col(NodeOutputEntity.node_id).in_(node_ids),
+        )
+    )
+    for output in result.all():
+        await session.delete(output)
+    await session.flush()
+
+
 def node_output_to_entity(output: NodeOutputEntity) -> EntityConfig:
     attributes = dict(output.payload)
     attributes.setdefault("id", output.entity_id)
@@ -173,6 +187,18 @@ async def finish_pipeline_run(
     run.status = status
     run.error = error
     run.ended_at = ended_at or utc_now()
+    session.add(run)
+    await session.flush()
+    return run
+
+
+async def restart_pipeline_run(session: AsyncSession, cycle_id: str) -> PipelineRun | None:
+    run = await get_pipeline_run(session, cycle_id)
+    if run is None:
+        return None
+    run.status = "running"
+    run.error = None
+    run.ended_at = None
     session.add(run)
     await session.flush()
     return run

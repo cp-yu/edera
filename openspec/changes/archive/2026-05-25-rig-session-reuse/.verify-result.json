@@ -1,0 +1,155 @@
+{
+  "timestamp": "2026-05-24T16:27:08.979Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "175357f45190e0e6317b8fa67ec1eaa0816b7d2d851d3a68c49be0b5d2a81182",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "local-review",
+    "evidenceFiles": [
+      "extensions/_lib/llm.py",
+      "packages/core/src/stockimformation_core/config/schema.py",
+      "packages/core/src/stockimformation_core/node/executor.py",
+      "packages/core/src/stockimformation_core/pipeline.py",
+      "packages/core/src/stockimformation_core/rig_cli.py",
+      "packages/core/src/stockimformation_core/storage/repository.py",
+      "packages/core/src/stockimformation_core/web/routes.py",
+      "scripts/migrate_model_to_instance.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/unit/test_rig_cli.py",
+      "tests/extensions/test_llm_runner.py"
+    ],
+    "evidenceFingerprint": "96360cb48c99d208d74a52e960eb2e23f6c54383394a9806413ba3ddd93827ac",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "extensions/_lib/llm.py",
+        "hash": "9f4f05e33a224fcd36602ca61e7c8c5f8105dd11f977fae38984d80c39414b03"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/config/schema.py",
+        "hash": "1d797e294378260df9acf687a34b846eb9710c49436747305e41a457cefa13ca"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/node/executor.py",
+        "hash": "9b5a94ba787885bed13856ffc5848b87263ecfc368ceb64cc3287376867cd36f"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/pipeline.py",
+        "hash": "481613615a96aa02b1bdfd86518c2d99b105753938d24900f9cd9d1943918383"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/rig_cli.py",
+        "hash": "2a7dc5b9032a45133ee0268a43b099c40cdf996a30c0e54ca308538b088dd0c6"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/repository.py",
+        "hash": "2e6229d21a33f2e33d344aba3e1e3bd6fd9766c3e990c57a94e1a5276c4d8ece"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/routes.py",
+        "hash": "59a159393b8be59e35fd89ceec3ef5edd7b73587a551fd89fe06c87cc9d43f23"
+      },
+      {
+        "path": "scripts/migrate_model_to_instance.py",
+        "hash": "d16f592de592af6fa7c658fe1cd15d9014c27c65d60a27c9d1d11d9aad534ec7"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "e5318fe28110d239882ecdefc11ca2b9828bea7584f2308f26eb45ff11ffa77f"
+      },
+      {
+        "path": "tests/core/unit/test_rig_cli.py",
+        "hash": "e63a8cfee10a11b381d02564064fa2d72c188c034207109dc4f099fe314d4757"
+      },
+      {
+        "path": "tests/extensions/test_llm_runner.py",
+        "hash": "5e5b375e1c331a974039382e3118d52643f5bb3d20d786575adea04ca6faedaa"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "ca7f930b7b7cd65c7010e72243b55dc05b466cf6"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-24T16:27:27.905Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Only targeted test coverage was added for previously warned scenarios; no production behavior changed and no safe behavior-preserving optimization is needed."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-24T16:27:08.979Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "175357f45190e0e6317b8fa67ec1eaa0816b7d2d851d3a68c49be0b5d2a81182",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "local-review",
+        "evidenceFiles": [
+          "extensions/_lib/llm.py",
+          "packages/core/src/stockimformation_core/config/schema.py",
+          "packages/core/src/stockimformation_core/node/executor.py",
+          "packages/core/src/stockimformation_core/pipeline.py",
+          "packages/core/src/stockimformation_core/rig_cli.py",
+          "packages/core/src/stockimformation_core/storage/repository.py",
+          "packages/core/src/stockimformation_core/web/routes.py",
+          "scripts/migrate_model_to_instance.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/unit/test_rig_cli.py",
+          "tests/extensions/test_llm_runner.py"
+        ],
+        "evidenceFingerprint": "96360cb48c99d208d74a52e960eb2e23f6c54383394a9806413ba3ddd93827ac",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "extensions/_lib/llm.py",
+            "hash": "9f4f05e33a224fcd36602ca61e7c8c5f8105dd11f977fae38984d80c39414b03"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/config/schema.py",
+            "hash": "1d797e294378260df9acf687a34b846eb9710c49436747305e41a457cefa13ca"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/node/executor.py",
+            "hash": "9b5a94ba787885bed13856ffc5848b87263ecfc368ceb64cc3287376867cd36f"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/pipeline.py",
+            "hash": "481613615a96aa02b1bdfd86518c2d99b105753938d24900f9cd9d1943918383"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/rig_cli.py",
+            "hash": "2a7dc5b9032a45133ee0268a43b099c40cdf996a30c0e54ca308538b088dd0c6"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/repository.py",
+            "hash": "2e6229d21a33f2e33d344aba3e1e3bd6fd9766c3e990c57a94e1a5276c4d8ece"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/routes.py",
+            "hash": "59a159393b8be59e35fd89ceec3ef5edd7b73587a551fd89fe06c87cc9d43f23"
+          },
+          {
+            "path": "scripts/migrate_model_to_instance.py",
+            "hash": "d16f592de592af6fa7c658fe1cd15d9014c27c65d60a27c9d1d11d9aad534ec7"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "e5318fe28110d239882ecdefc11ca2b9828bea7584f2308f26eb45ff11ffa77f"
+          },
+          {
+            "path": "tests/core/unit/test_rig_cli.py",
+            "hash": "e63a8cfee10a11b381d02564064fa2d72c188c034207109dc4f099fe314d4757"
+          },
+          {
+            "path": "tests/extensions/test_llm_runner.py",
+            "hash": "5e5b375e1c331a974039382e3118d52643f5bb3d20d786575adea04ca6faedaa"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "ca7f930b7b7cd65c7010e72243b55dc05b466cf6"
+      }
+    }
+  }
+}

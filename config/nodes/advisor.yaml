@@ -5,7 +5,6 @@ skills: []
 handler: generate-advice
 system_prompt_file: null
 system_prompt: null
-model: null
 input_type: list[AnalysisResult]
 output_type: list[Advice]
 timeout_seconds: null

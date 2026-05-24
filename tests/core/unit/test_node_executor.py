@@ -9,8 +9,9 @@ from stockimformation_core.config.schema import (
     EntitiesConfig,
     EntityRelationsConfig,
     EntityTypeConfig,
+    NodeConfig,
 )
-from stockimformation_core.node.executor import NodeExecutor
+from stockimformation_core.node.executor import NodeExecutor, _apply_instance_config
 from stockimformation_core.node.models import NodeContext, NodeInput
 
 
@@ -226,3 +227,59 @@ async def test_context_handler_receives_full_input_and_params(tmp_path: Path) ->
 
     assert output.payload == {"payload": {"source_names": ["hn-rss"]}, "limit": 2}
     assert output.metadata["failures"] == {"source": "failed"}
+
+
+@pytest.mark.asyncio
+async def test_pi_node_requires_instance_model() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig(
+        name="llm-node",
+        type="function",
+        handler="run-pi",
+        input_type="Any",
+        output_type="Any",
+    )
+    instance = DagNodeInstance(id="llm-1", type="llm-node", config={})
+    executor = NodeExecutor(
+        {"llm-node": node},
+        config.system,
+        config.runtime,
+        handlers={"run-pi": _unused_handler},
+        instances={instance.id: instance},
+    )
+
+    output = await executor.execute(instance.id, NodeInput(cycle_id="cycle", payload={}))
+
+    assert not output.ok
+    assert output.error == "model not configured for instance"
+
+
+@pytest.mark.asyncio
+async def test_instance_config_sets_model_tools_and_session_dir() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig(
+        name="llm-node",
+        type="function",
+        handler="run-pi",
+        tools=["bash"],
+        input_type="Any",
+        output_type="Any",
+    )
+    instance = DagNodeInstance(
+        id="llm-1",
+        type="llm-node",
+        config={
+            "model": "hf-share/deepseek-v4-flash",
+            "tools": ["bash", "read"],
+            "session_dir": "sandbox:llm-0:latest",
+        },
+    )
+    effective = _apply_instance_config(node, instance)
+
+    assert effective.parameters["model"] == "hf-share/deepseek-v4-flash"
+    assert effective.parameters["session_dir"] == "sandbox:llm-0:latest"
+    assert effective.tools == ["bash", "read"]
+
+
+async def _unused_handler(_node_input: NodeInput) -> dict[str, object]:
+    return {}

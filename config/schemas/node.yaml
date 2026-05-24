@@ -23,8 +23,8 @@ schema:
       type: array
     system_prompt_file:
       type: string
-    model:
-      type: string
+    tools:
+      type: array
     input_type:
       type: string
     output_type:

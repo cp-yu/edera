@@ -1,0 +1,41 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.rig-cli
+      type: capability
+      intent: Rig CLI binary，提供 entity/node/dag 子命令，支持双身份模式（agent/human），权限继承 entity_permissions
+      domain: dom.core
+    - id: cap.operations.llm-session-reuse
+      type: capability
+      intent: LLM 节点 session 复用机制，覆盖 sandbox 路径管理、session_dir 引用解析、resume 判定和 TTL 清理
+      domain: dom.operations
+    - id: cap.operations.llm-node-intervention
+      type: capability
+      intent: LLM 节点侵入式干预，覆盖 stop + resume with prompt 的完整流程
+      domain: dom.operations
+    - id: cap.operations.reflection-dag-pattern
+      type: capability
+      intent: 反思 DAG 模式，覆盖 cron + idle 触发、session resume、skill 自优化闭环
+      domain: dom.operations
+  relations:
+    - from: cap.operations.llm-session-reuse
+      type: depends_on
+      to: cap.core.rig-cli
+    - from: cap.operations.llm-node-intervention
+      type: depends_on
+      to: cap.core.rig-cli
+    - from: cap.operations.reflection-dag-pattern
+      type: depends_on
+      to: cap.operations.llm-session-reuse
+    - from: cap.operations.reflection-dag-pattern
+      type: depends_on
+      to: cap.operations.llm-node-intervention
+
+MODIFIED:
+  capabilities:
+    - id: cap.operations.node-executor
+      intent: 节点执行器，统一为 function node 执行路径，支持 tools 白名单传递、RIG_IDENTITY 环境变量注入、session_dir 解析与自动 --continue 判定
+    - id: cap.web.node-instance-model
+      intent: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置（含 session_dir、tools、model）和多实例支持
+
+REMOVED: {}

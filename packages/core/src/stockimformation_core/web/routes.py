@@ -57,7 +57,7 @@ from stockimformation_core.web.deps import config_dir, controller, error_respons
 
 router = APIRouter()
 
-INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "entities", "entity_permissions", "timeout_seconds"}
+INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "entities", "entity_permissions", "timeout_seconds", "session_dir", "tools"}
 
 
 
@@ -217,7 +217,15 @@ async def api_dag_run(request: Request, dag_name: str) -> JSONResponse | dict[st
     if dag_name not in dags:
         return error_response(404, "not_found", f"dag '{dag_name}' not found")
     try:
-        cycle_id = await controller(request).start_run("manual", dag_name)
+        body = await request.json()
+    except json.JSONDecodeError:
+        body = {}
+    payload = body.get("payload") if isinstance(body, dict) else None
+    try:
+        if payload is None:
+            cycle_id = await controller(request).start_run("manual", dag_name)
+        else:
+            cycle_id = await controller(request).start_run("manual", dag_name, payload)
     except RunAlreadyActiveError as exc:
         return error_response(409, "run_already_active", exc.cycle_id)
     return {"cycle_id": cycle_id}
@@ -250,7 +258,11 @@ async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]
     if not isinstance(node_id, str) or not node_id:
         return error_response(400, "config_error", "node_id is required")
     try:
-        retry_cycle_id = await controller(request).retry_node(dag_name, cycle_id, node_id, mode)
+        payload = body.get("payload")
+        if payload is None:
+            retry_cycle_id = await controller(request).retry_node(dag_name, cycle_id, node_id, mode)
+        else:
+            retry_cycle_id = await controller(request).retry_node(dag_name, cycle_id, node_id, mode, payload)
     except RunAlreadyActiveError as exc:
         return error_response(409, "run_already_active", exc.cycle_id)
     except PipelineRunNotFoundError as exc:
@@ -260,12 +272,53 @@ async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]
     return {"cycle_id": retry_cycle_id, "retry_of": cycle_id, "node_id": node_id, "mode": mode}
 
 
+@router.post("/api/node/{node_id}/stop", response_model=None)
+async def api_node_stop(request: Request, node_id: str) -> JSONResponse | dict[str, object]:
+    dag_name = _dag_for_node(config_dir(request), node_id)
+    if dag_name is None:
+        return error_response(404, "not_found", f"node '{node_id}' not found")
+    cycle_id = await controller(request).stop_current(dag_name)
+    return {"stopped": cycle_id is not None, "cycle_id": cycle_id, "node_id": node_id}
+
+
+@router.post("/api/node/{node_id}/resume", response_model=None)
+async def api_node_resume(request: Request, node_id: str, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    dag_name = _dag_for_node(config_dir(request), node_id)
+    if dag_name is None:
+        return error_response(404, "not_found", f"node '{node_id}' not found")
+    cycle_id = body.get("cycle_id")
+    if not isinstance(cycle_id, str) or not cycle_id:
+        cycle_id = _latest_sandbox_cycle(load_system_config(config_dir(request) / "system.toml").workspace_root, node_id)
+    if not cycle_id:
+        return error_response(404, "not_found", f"session sandbox not found for node '{node_id}'")
+    prompt = body.get("prompt")
+    payload: dict[str, object] = {"resume_session": f"sandbox:{node_id}:{cycle_id}"}
+    if isinstance(prompt, str) and prompt:
+        payload["prompt"] = prompt
+    try:
+        retry_cycle_id = await controller(request).resume_node(dag_name, cycle_id, node_id, payload)
+    except RunAlreadyActiveError as exc:
+        return error_response(409, "run_already_active", exc.cycle_id)
+    except PipelineRunNotFoundError as exc:
+        return error_response(404, "not_found", str(exc))
+    except ValueError as exc:
+        return error_response(400, "config_error", str(exc))
+    return {"cycle_id": retry_cycle_id, "retry_of": cycle_id, "node_id": node_id, "mode": "cascade"}
+
+
 @router.get("/api/pipeline/dag/{dag_name}/status", response_model=None)
 async def api_dag_status(request: Request, dag_name: str) -> JSONResponse | dict[str, object]:
     dags = load_dag_configs(config_dir(request) / "dags")
     if dag_name not in dags:
         return error_response(404, "not_found", f"dag '{dag_name}' not found")
     return await controller(request).status(dag_name)
+
+
+@router.get("/api/node/{node_id}/status", response_model=None)
+async def api_node_status(request: Request, node_id: str) -> JSONResponse | dict[str, object]:
+    if _dag_for_node(config_dir(request), node_id) is None:
+        return error_response(404, "not_found", f"node '{node_id}' not found")
+    return {"node_id": node_id, "status": await controller(request).node_status(node_id)}
 
 
 @router.post("/api/pipeline/run", response_model=None)
@@ -1087,7 +1140,7 @@ def _summary_item(
     advice: Any,
     degraded: bool,
 ) -> dict[str, object]:
-    data = _entity_payload(advice)
+    data = _model_payload(advice)
     direction = str(data.get("direction") or "hold")
     if data.get("low_confidence"):
         state = "low-confidence"
@@ -1108,14 +1161,14 @@ def _summary_item(
 
 
 def _advice_payload(advice: Any) -> dict[str, object]:
-    data = _entity_payload(advice)
+    data = _model_payload(advice)
     data["comparison"] = _empty_comparison()
     return data
 
 
 def _event_payload(event: Any) -> dict[str, object]:
     if isinstance(event, EntityConfig):
-        data = _entity_payload(event)
+        data = _model_payload(event)
         return {
             "id": data.get("id"),
             "stock_code": data.get("stock_code", ""),
@@ -1150,7 +1203,7 @@ def _event_payload(event: Any) -> dict[str, object]:
     }
 
 
-def _entity_payload(value: Any) -> dict[str, object]:
+def _model_payload(value: Any) -> dict[str, object]:
     if isinstance(value, EntityConfig):
         return dict(value.attributes)
     return cast(dict[str, object], value.model_dump(mode="json"))
@@ -1283,7 +1336,7 @@ def _graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]
             "system_prompt_file",
             None,
         ),
-        "model": body.get("model"),
+        "tools": body.get("tools", []),
         "input_type": body.get("input_type", "Any"),
         "output_type": body.get("output_type", "Any"),
         "timeout_seconds": body.get("timeout_seconds"),
@@ -1316,6 +1369,23 @@ def _dag_node_payload(node: object) -> dict[str, object]:
     else:
         payload["config"] = {}
     return payload
+
+
+def _dag_for_node(root: Path, node_id: str) -> str | None:
+    for dag in load_dag_configs(root / "dags").values():
+        if any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes):
+            return dag.name
+    return None
+
+
+def _latest_sandbox_cycle(workspace_root: Path, node_id: str) -> str | None:
+    node_dir = workspace_root / "sandbox" / node_id
+    if not node_dir.exists():
+        return None
+    candidates = [item for item in node_dir.iterdir() if item.is_dir()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_mtime).name
 
 
 def _node_payload(
@@ -1371,6 +1441,13 @@ def _build_inspector_schema(
     properties["timeout_seconds"] = {
         "type": "number",
         "default": node.timeout_seconds,
+    }
+    properties["model"] = {"type": "string", "default": None, "enum": model_names}
+    properties["session_dir"] = {"type": "string", "default": None}
+    properties["tools"] = {
+        "type": "array",
+        "items": {"type": "string", "enum": ["bash", "read", "edit", "write", "grep", "find"]},
+        "default": node.tools,
     }
     for key, value in node.parameters_schema.get("properties", {}).items():
         if isinstance(value, dict):
@@ -1453,7 +1530,7 @@ def _source_ref_for_name(
 
 
 def _available_model_names(nodes: dict[str, NodeConfig]) -> list[str]:
-    models = {node.model for node in nodes.values() if node.model}
+    models: set[str] = set()
     model_file = Path.home() / ".pi" / "agent" / "models.json"
     if model_file.exists():
         try:

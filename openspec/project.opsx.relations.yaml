@@ -51,3 +51,15 @@ relations:
   - from: cap.web.dag-cycle-detection-ui
     type: contains
     to: dom.web
+  - from: cap.operations.llm-session-reuse
+    type: depends_on
+    to: cap.core.rig-cli
+  - from: cap.operations.llm-node-intervention
+    type: depends_on
+    to: cap.core.rig-cli
+  - from: cap.operations.reflection-dag-pattern
+    type: depends_on
+    to: cap.operations.llm-session-reuse
+  - from: cap.operations.reflection-dag-pattern
+    type: depends_on
+    to: cap.operations.llm-node-intervention

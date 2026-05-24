@@ -3,7 +3,6 @@ type: function
 role: processor
 handler: summarize
 system_prompt_file: prompts/reader.md
-model: hf-share/deepseek-v4-flash
 skills:
   - summarize
   - classify-sentiment
