@@ -3,7 +3,7 @@ import { useBriefingDetail } from '@/api/queries'
 
 export function BriefingDetail() {
   const { id } = useParams<{ id: string }>()
-  const { data, isLoading } = useBriefingDetail(Number(id) || 0)
+  const { data, isLoading } = useBriefingDetail(id)
 
   if (isLoading) return <div className="p-6 text-muted-foreground">加载中...</div>
   if (!data?.briefing) return <div className="p-6 text-muted-foreground">简报不存在</div>

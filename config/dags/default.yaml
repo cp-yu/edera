@@ -9,6 +9,7 @@ nodes:
     parameters:
       max_items_per_source: 8
   optional: false
+  fan_in_mode: barrier
   loop: null
   fallback: null
   fallback_model: null
@@ -25,6 +26,7 @@ nodes:
     parameters:
       max_items_per_source: 8
   optional: false
+  fan_in_mode: barrier
   loop: null
   fallback: null
   fallback_model: null
@@ -37,6 +39,7 @@ nodes:
     - classify-sentiment
     model: hf-share/deepseek-v4-flash
   optional: false
+  fan_in_mode: barrier
   loop: null
   fallback: null
   fallback_model: null
@@ -45,6 +48,7 @@ nodes:
   alias: advisor
   config: {}
   optional: false
+  fan_in_mode: barrier
   loop: null
   fallback: null
   fallback_model: null
@@ -53,6 +57,7 @@ nodes:
   alias: briefing-generator
   config: {}
   optional: false
+  fan_in_mode: barrier
   loop: null
   fallback: null
   fallback_model: null
@@ -61,6 +66,7 @@ nodes:
   alias: notifier
   config: {}
   optional: false
+  fan_in_mode: barrier
   loop: null
   fallback: null
   fallback_model: null
@@ -70,31 +76,31 @@ edges:
   fan_out: false
   fan_in: false
   condition: null
-  fan_in_mode: collect
+  fan_in_mode: barrier
 - from: 0194f7a6-7b17-7c01-b601-000000000002
   to: 0194f7a6-7b17-7c01-b601-000000000003
   fan_out: false
   fan_in: false
   condition: null
-  fan_in_mode: collect
+  fan_in_mode: barrier
 - from: 0194f7a6-7b17-7c01-b601-000000000003
   to: 0194f7a6-7b17-7c01-b601-000000000004
   fan_out: false
   fan_in: false
   condition: null
-  fan_in_mode: collect
+  fan_in_mode: barrier
 - from: 0194f7a6-7b17-7c01-b601-000000000004
   to: 0194f7a6-7b17-7c01-b601-000000000005
   fan_out: false
   fan_in: false
   condition: null
-  fan_in_mode: collect
+  fan_in_mode: barrier
 - from: 0194f7a6-7b17-7c01-b601-000000000005
   to: 0194f7a6-7b17-7c01-b601-000000000006
   fan_out: false
   fan_in: false
   condition: null
-  fan_in_mode: collect
+  fan_in_mode: barrier
 ui:
   nodes:
     0194f7a6-7b17-7c01-b601-000000000001:
@@ -113,8 +119,8 @@ ui:
       x: 1002
       y: 666
     0194f7a6-7b17-7c01-b601-000000000006:
-      x: 1252
-      y: 884
+      x: 1380
+      y: 848
   edges:
     e-0194f7a6-7b17-7c01-b601-000000000001-0194f7a6-7b17-7c01-b601-000000000003-0:
       sourceHandle: output-0

@@ -67,11 +67,11 @@ export function useResults(params?: { stock_code?: string; direction?: string })
   })
 }
 
-export function useAdviceDetail(id: number) {
+export function useAdviceDetail(id?: string) {
   return useQuery({
     queryKey: ['advice', id],
     queryFn: () => apiFetch<{ advice: Advice; analyses: unknown[]; raw_items: unknown[] }>(`/api/advices/${id}`),
-    enabled: id > 0,
+    enabled: !!id,
   })
 }
 
@@ -82,11 +82,11 @@ export function useBriefings() {
   })
 }
 
-export function useBriefingDetail(id: number) {
+export function useBriefingDetail(id?: string) {
   return useQuery({
     queryKey: ['briefing', id],
     queryFn: () => apiFetch<{ briefing: Briefing }>(`/api/briefings/${id}`),
-    enabled: id > 0,
+    enabled: !!id,
   })
 }
 

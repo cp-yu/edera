@@ -325,8 +325,8 @@ async def list_briefings(
     return [item for item in await _node_outputs(session, "briefing", limit) if _within_window(_created_at(item), created_from, created_to)]
 
 
-async def get_briefing(session: AsyncSession, briefing_id: int) -> EntityConfig | None:
-    return await _node_output_by_row_id(session, "briefing", briefing_id)
+async def get_briefing(session: AsyncSession, entity_id: str) -> EntityConfig | None:
+    return await _node_output_by_entity_id(session, "briefing", entity_id)
 
 
 async def list_advices(
@@ -347,8 +347,8 @@ async def list_advices(
     ]
 
 
-async def get_advice(session: AsyncSession, advice_id: int) -> EntityConfig | None:
-    return await _node_output_by_row_id(session, "advice", advice_id)
+async def get_advice(session: AsyncSession, entity_id: str) -> EntityConfig | None:
+    return await _node_output_by_entity_id(session, "advice", entity_id)
 
 
 async def analyses_for_advice(session: AsyncSession, advice: EntityConfig) -> list[EntityConfig]:
@@ -370,11 +370,11 @@ async def list_event_records(session: AsyncSession, limit: int = 50, stock_code:
     return []
 
 
-async def event_records_for_advices(session: AsyncSession, advices: list[EntityConfig]) -> dict[int, list[EntityConfig]]:
+async def event_records_for_advices(session: AsyncSession, advices: list[EntityConfig]) -> dict[str, list[EntityConfig]]:
     return {}
 
 
-async def event_evidence_details(session: AsyncSession, events: list[EntityConfig]) -> dict[int, object]:
+async def event_evidence_details(session: AsyncSession, events: list[EntityConfig]) -> dict[str, object]:
     return {}
 
 
@@ -406,8 +406,10 @@ async def _node_outputs(session: AsyncSession, entity_type: str, limit: int = 10
     return [node_output_to_entity(item) for item in result.all()]
 
 
-async def _node_output_by_row_id(session: AsyncSession, entity_type: str, row_id: int) -> EntityConfig | None:
-    result = await session.exec(select(NodeOutputEntity).where(NodeOutputEntity.type == entity_type, NodeOutputEntity.id == row_id))
+async def _node_output_by_entity_id(session: AsyncSession, entity_type: str, entity_id: str) -> EntityConfig | None:
+    result = await session.exec(
+        select(NodeOutputEntity).where(NodeOutputEntity.type == entity_type, NodeOutputEntity.entity_id == entity_id)
+    )
     output = result.first()
     return node_output_to_entity(output) if output is not None else None
 

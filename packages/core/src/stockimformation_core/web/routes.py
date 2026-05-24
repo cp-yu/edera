@@ -49,6 +49,7 @@ from stockimformation_core.storage.repository import (
     query_node_output_entities,
     raw_items_for_analyses,
     recent_pipeline_runs,
+    save_node_output_entity,
     source_execution_logs,
     source_health_summary,
 )
@@ -66,7 +67,7 @@ INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "entities", "entity
 async def api_latest_briefing(request: Request) -> dict[str, object]:
     async with controller(request)._factory()() as session:
         briefing = await latest_briefing(session)
-    return {"briefing": briefing.model_dump(mode="json") if briefing else None}
+    return {"briefing": _briefing_payload(briefing) if briefing else None}
 
 
 @router.get("/api/briefings")
@@ -78,19 +79,19 @@ async def api_briefings(
 ) -> dict[str, object]:
     async with controller(request)._factory()() as session:
         briefings = await list_briefings(session, created_from, created_to, _limit(limit))
-    return {"briefings": [briefing.model_dump(mode="json") for briefing in briefings]}
+    return {"briefings": [_briefing_payload(briefing) for briefing in briefings]}
 
 
 @router.get("/api/briefings/{briefing_id}", response_model=None)
 async def api_briefing_detail(
     request: Request,
-    briefing_id: int,
+    briefing_id: str,
 ) -> JSONResponse | dict[str, object]:
     async with controller(request)._factory()() as session:
         briefing = await get_briefing(session, briefing_id)
     if briefing is None:
         return error_response(404, "not_found", "briefing not found")
-    return {"briefing": briefing.model_dump(mode="json")}
+    return {"briefing": _briefing_payload(briefing)}
 
 
 @router.get("/api/advices")
@@ -115,14 +116,14 @@ async def api_advices(
 
 
 @router.get("/api/advices/{advice_id}", response_model=None)
-async def api_advice_detail(request: Request, advice_id: int) -> JSONResponse | dict[str, object]:
+async def api_advice_detail(request: Request, advice_id: str) -> JSONResponse | dict[str, object]:
     data = await _advice_detail(request, advice_id)
     if data["advice"] is None:
         return error_response(404, "not_found", "advice not found")
     return data
 
 
-async def _advice_detail(request: Request, advice_id: int) -> dict[str, object]:
+async def _advice_detail(request: Request, advice_id: str) -> dict[str, object]:
     async with controller(request)._factory()() as session:
         advice = await get_advice(session, advice_id)
         if advice is None:
@@ -131,14 +132,14 @@ async def _advice_detail(request: Request, advice_id: int) -> dict[str, object]:
         raw_items = await raw_items_for_analyses(session, analyses)
         related_events = await event_records_for_advices(session, [advice])
         event_details = await event_evidence_details(
-            session, related_events.get(advice.id or 0, [])
+            session, related_events.get(advice.id, [])
         )
     return {
         "advice": _advice_payload(advice),
         "analyses": [item.model_dump(mode="json") for item in analyses],
         "raw_items": [item.model_dump(mode="json") for item in raw_items],
         "related_events": [
-            _event_payload(event) for event in related_events.get(advice.id or 0, [])
+            _event_payload(event) for event in related_events.get(advice.id, [])
         ],
         "event_details": event_details,
     }
@@ -192,7 +193,7 @@ async def api_source_repair_task(
             return error_response(400, "source_not_escalated", "source is not escalated")
         task = _repair_task_payload(request, source.model_dump(mode="json"), health[0], logs[0] if logs else {})
         _write_repair_task(task)
-        metadata = dict(briefing.metadata_)
+        metadata = dict(_briefing_metadata(briefing))
         repair_tasks = dict(metadata.get("repair_tasks", {}))
         repair_tasks[source_name] = {
             "task_id": task["task_id"],
@@ -200,8 +201,10 @@ async def api_source_repair_task(
             "created_at": task["created_at"],
         }
         metadata["repair_tasks"] = repair_tasks
-        briefing.metadata_ = metadata
-        session.add(briefing)
+        payload = briefing.attributes.get("payload")
+        attributes = dict(payload) if isinstance(payload, dict) else dict(briefing.attributes)
+        attributes["metadata"] = metadata
+        await save_node_output_entity(session, EntityConfig(id=briefing.id, type=briefing.type, attributes=attributes))
         await session.commit()
     return {
         "task_id": task["task_id"],
@@ -1062,11 +1065,13 @@ async def _result_summary(
         event_details = await event_evidence_details(session, events)
     failed_sources = {}
     if briefing is not None:
-        failed_sources = briefing.metadata_.get("failed_sources", {})
+        failed_sources = _briefing_metadata(briefing).get("failed_sources", {})
+        if not isinstance(failed_sources, dict):
+            failed_sources = {}
     return {
-        "briefing": briefing.model_dump(mode="json") if briefing else None,
+        "briefing": _briefing_payload(briefing) if briefing else None,
         "metadata_bar": _metadata_bar(briefing, failed_sources),
-        "briefings": [item.model_dump(mode="json") for item in briefings],
+        "briefings": [_briefing_payload(item) for item in briefings],
         "advices": [_advice_payload(advice) for advice in advices],
         "events": [_event_payload(event) for event in events],
         "event_details": event_details,
@@ -1122,13 +1127,15 @@ def _metadata_bar(briefing: Any | None, failed_sources: dict[str, object]) -> di
             "degraded": False,
             "disclaimer": "本系统产出仅供学习参考，不构成投资建议。",
         }
-    data_window = briefing.metadata_.get("data_window", {})
+    data_window = _briefing_metadata(briefing).get("data_window", {})
+    if not isinstance(data_window, dict):
+        data_window = {}
     start = data_window.get("start", "")
     end = data_window.get("end", "")
     window = f"{start} 至 {end}" if start or end else "无数据窗口"
     return {
-        "cycle_id": briefing.cycle_id,
-        "created_at": briefing.created_at.isoformat(),
+        "cycle_id": _model_payload(briefing).get("cycle_id", ""),
+        "created_at": str(_model_payload(briefing).get("created_at") or ""),
         "window": window,
         "failed_count": len(failed_sources),
         "degraded": bool(failed_sources),
@@ -1162,8 +1169,25 @@ def _summary_item(
 
 def _advice_payload(advice: Any) -> dict[str, object]:
     data = _model_payload(advice)
+    data["id"] = str(data.get("id") or getattr(advice, "id", ""))
     data["comparison"] = _empty_comparison()
     return data
+
+
+def _briefing_payload(briefing: EntityConfig) -> dict[str, object]:
+    data = _model_payload(briefing)
+    return {
+        "id": str(data.get("id") or briefing.id),
+        "cycle_id": str(data.get("cycle_id") or ""),
+        "content": str(data.get("content") or ""),
+        "metadata": _briefing_metadata(briefing),
+        "created_at": str(data.get("created_at") or ""),
+    }
+
+
+def _briefing_metadata(briefing: EntityConfig) -> dict[str, object]:
+    metadata = _model_payload(briefing).get("metadata", {})
+    return metadata if isinstance(metadata, dict) else {}
 
 
 def _event_payload(event: Any) -> dict[str, object]:

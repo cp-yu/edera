@@ -218,7 +218,7 @@ async function verifyQuickAddAndMultiInstance(cdp) {
       setInput(input, 'market-reader')
       await tick()
       const buttons = [...document.querySelectorAll('button')].map((button) => button.textContent.trim())
-      return buttons.includes('reader')
+      return buttons.some((text) => text.startsWith('reader'))
     })()
   `)
   assert(aliasSearch, 'quick add search matches instance alias')
@@ -324,6 +324,16 @@ function buildInspectorSchema(type, role, extra) {
     timeout_seconds: { type: 'number', default: extra.timeout_seconds ?? null },
   }
   if (type === 'function') {
+    properties.model = {
+      type: 'string',
+      enum: ['hf-share/deepseek-v4-flash'],
+      default: extra.model ?? '',
+    }
+    properties.skills = {
+      type: 'array',
+      items: { type: 'string', enum: ['summarize'] },
+      default: extra.skills ?? [],
+    }
     properties['param.profile'] = {
       type: 'object',
       default: { mode: 'balanced' },
@@ -341,7 +351,7 @@ function buildInspectorSchema(type, role, extra) {
 
 async function verifyNodesPage(cdp, baseUrl) {
   await navigate(cdp, `${baseUrl}/nodes`)
-  await waitFor(cdp, `document.body.textContent.includes('Processor')`)
+  await waitFor(cdp, `document.body.textContent.includes('processor')`)
   await waitFor(cdp, `document.body.textContent.includes('reader')`)
   const checks = await evaluate(cdp, `
     (async () => {

@@ -156,15 +156,15 @@ export interface NodeHistoryItem {
 }
 
 export interface Briefing {
-  id: number
+  id: string
   cycle_id: string
   content: string
-  metadata_: Record<string, unknown>
+  metadata: Record<string, unknown>
   created_at: string
 }
 
 export interface Advice {
-  id: number
+  id: string
   stock_code: string
   stock_name: string
   direction: string
@@ -188,7 +188,7 @@ export interface PriceComparison {
 }
 
 export interface EventRecord {
-  id: number
+  id: string | number
   stock_code: string
   title: string
   status: string

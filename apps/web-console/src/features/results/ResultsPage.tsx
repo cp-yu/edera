@@ -2,9 +2,10 @@ import { Link } from 'react-router-dom'
 import { useResults } from '@/api/queries'
 
 export function ResultsPage() {
-  const { data, isLoading } = useResults()
+  const { data, error, isError, isLoading } = useResults()
 
   if (isLoading) return <div className="p-6 text-muted-foreground">加载中...</div>
+  if (isError) return <div className="p-6 text-destructive">加载结果失败: {error?.message ?? '未知错误'}</div>
   if (!data) return <div className="p-6 text-muted-foreground">暂无数据</div>
 
   return (

@@ -1,0 +1,13 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+
+MODIFIED:
+  capabilities:
+    - id: cap.web.result-explorer
+      type: capability
+      intent: 结果浏览能力，覆盖统一输出 Entity 下的简报、建议、分析、原文、失败信息、字符串深链标识和错误/空态展示
+
+REMOVED:
+  capabilities: []

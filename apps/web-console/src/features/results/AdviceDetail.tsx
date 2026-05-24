@@ -3,7 +3,7 @@ import { useAdviceDetail } from '@/api/queries'
 
 export function AdviceDetail() {
   const { id } = useParams<{ id: string }>()
-  const { data, isLoading } = useAdviceDetail(Number(id) || 0)
+  const { data, isLoading } = useAdviceDetail(id)
 
   if (isLoading) return <div className="p-6 text-muted-foreground">加载中...</div>
   if (!data?.advice) return <div className="p-6 text-muted-foreground">建议不存在</div>
