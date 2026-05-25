@@ -254,25 +254,27 @@ async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]
     if dag_name not in dags:
         return error_response(404, "not_found", f"dag '{dag_name}' not found")
     cycle_id = body.get("cycle_id")
-    node_id = body.get("node_id")
+    node_ids = body.get("node_ids")
     mode = str(body.get("mode") or "single")
-    if not isinstance(cycle_id, str) or not cycle_id:
-        return error_response(400, "config_error", "cycle_id is required")
-    if not isinstance(node_id, str) or not node_id:
-        return error_response(400, "config_error", "node_id is required")
+    if cycle_id is not None and (not isinstance(cycle_id, str) or not cycle_id):
+        return error_response(400, "config_error", "cycle_id must be a non-empty string")
+    if not isinstance(node_ids, list) or not all(isinstance(node_id, str) and node_id for node_id in node_ids):
+        return error_response(400, "config_error", "node_ids is required")
     try:
-        payload = body.get("payload")
-        if payload is None:
-            retry_cycle_id = await controller(request).retry_node(dag_name, cycle_id, node_id, mode)
-        else:
-            retry_cycle_id = await controller(request).retry_node(dag_name, cycle_id, node_id, mode, payload)
+        result = await controller(request).retry_node(dag_name, cycle_id, node_ids, mode, body.get("payload"))
     except RunAlreadyActiveError as exc:
         return error_response(409, "run_already_active", exc.cycle_id)
     except PipelineRunNotFoundError as exc:
         return error_response(404, "not_found", str(exc))
     except ValueError as exc:
         return error_response(400, "config_error", str(exc))
-    return {"cycle_id": retry_cycle_id, "retry_of": cycle_id, "node_id": node_id, "mode": mode}
+    return {
+        "cycle_id": result.cycle_id,
+        "retry_of": result.retry_of,
+        "node_ids": result.node_ids,
+        "mode": result.mode,
+        "retry_nodes": result.retry_nodes,
+    }
 
 
 @router.post("/api/node/{node_id}/stop", response_model=None)

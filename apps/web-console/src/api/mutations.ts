@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { DagNodeRecord, NodeInstance, NodeType, SkillDefinition } from './types'
+import type { DagNodeRecord, NodeInstance, NodeType, RetryDagResponse, SkillDefinition } from './types'
 
 function alertMutationError(error: Error) {
   window.alert(error.message)
@@ -48,10 +48,10 @@ export function useStopDag() {
 export function useRetryDagNode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ dagName, cycleId, nodeId, mode }: { dagName: string; cycleId: string; nodeId: string; mode: 'single' | 'cascade' }) =>
-      apiFetch(`/api/pipeline/dag/${dagName}/retry`, {
+    mutationFn: ({ dagName, cycleId, nodeIds, mode }: { dagName: string; cycleId?: string; nodeIds: string[]; mode: 'single' | 'cascade' }) =>
+      apiFetch<RetryDagResponse>(`/api/pipeline/dag/${dagName}/retry`, {
         method: 'POST',
-        body: JSON.stringify({ cycle_id: cycleId, node_id: nodeId, mode }),
+        body: JSON.stringify({ cycle_id: cycleId, node_ids: nodeIds, mode }),
       }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,

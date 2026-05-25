@@ -7,10 +7,9 @@ uzi项目可以借鉴提示词，搜索。
 
 fincept可以大部分都借鉴。
 
-
 ----
+重试优化，然后可以进阶的选择使用哪一个cycle_id对应的prefilled。
 
-workbench 下方的 选择，需要可以分组选择，现在大长条不利于后面多item
 
 
 ---
@@ -36,11 +35,6 @@ workbench 下方的 选择，需要可以分组选择，现在大长条不利于
 ----
  缺少完整的用户使用文档
 
----
-  retry from node：
-  从一个已结束 run 的某个节点重新执行。现在已有：
-  POST /api/pipeline/dag/{dag_name}/retry
- 这里其实可以允许选择一批范围的node，从这里开始重新执行。
 
 
 ---

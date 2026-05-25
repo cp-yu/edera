@@ -123,6 +123,14 @@ export interface DagStatus {
   recent_runs: PipelineRun[]
 }
 
+export interface RetryDagResponse {
+  cycle_id: string
+  retry_of: string
+  node_ids: string[]
+  mode: 'single' | 'cascade'
+  retry_nodes: string[]
+}
+
 export interface NodeStatus {
   status: string
   error: string | null

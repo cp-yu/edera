@@ -257,6 +257,16 @@ async def recent_pipeline_runs(
     return list(result.all())
 
 
+async def latest_finished_pipeline_run(session: AsyncSession, dag_name: str) -> PipelineRun | None:
+    result = await session.exec(
+        select(PipelineRun)
+        .where(PipelineRun.dag_name == dag_name, PipelineRun.status != "running")
+        .order_by(col(PipelineRun.started_at).desc())
+        .limit(1)
+    )
+    return result.first()
+
+
 async def node_runs_for_cycle(session: AsyncSession, cycle_id: str) -> list[NodeRun]:
     result = await session.exec(select(NodeRun).where(NodeRun.cycle_id == cycle_id).order_by(col(NodeRun.id)))
     return list(result.all())

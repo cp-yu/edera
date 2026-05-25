@@ -1,0 +1,261 @@
+{
+  "timestamp": "2026-05-25T07:37:15.722Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Frontend multi-select retry behavior is implemented, including the selected-node visual refresh, but reviewed verification evidence remains manual-only with no automated UI/E2E coverage.",
+      "requirement": "前端多选重试交互",
+      "task": "C7 验证前端多选右键菜单行为",
+      "recommendation": "Add focused UI/E2E coverage for batch retry labels, outside-selection reset, no-cycle disabled tooltip, selection clearing, and retry_nodes-driven highlighting; otherwise keep explicit manual browser verification evidence with build artifacts."
+    }
+  ],
+  "tasksFileHash": "29d7bf49b989f93105ce47e1ceed5112de00c1ae0ba14239ff503dc29571b859",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context-reviewer",
+    "evidenceFiles": [
+      "apps/web-console/src/api/mutations.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+      "apps/web-console/src/features/workbench/components/Canvas.tsx",
+      "apps/web-console/src/features/workbench/components/CanvasContextMenu.tsx",
+      "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+      "apps/web-console/src/features/workbench/lib/graph.ts",
+      "openspec/changes/multi-node-retry/design.md",
+      "openspec/changes/multi-node-retry/opsx-delta.yaml",
+      "openspec/changes/multi-node-retry/proposal.md",
+      "openspec/changes/multi-node-retry/specs/dag-run-control/spec.md",
+      "openspec/changes/multi-node-retry/specs/multi-node-retry/spec.md",
+      "openspec/changes/multi-node-retry/tasks.md",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/stockimformation_core/dag/runner.py",
+      "packages/core/src/stockimformation_core/pipeline.py",
+      "packages/core/src/stockimformation_core/storage/repository.py",
+      "packages/core/src/stockimformation_core/web/routes.py",
+      "tests/core/integration/test_dag_runner.py",
+      "tests/core/integration/test_per_dag.py"
+    ],
+    "evidenceFingerprint": "8231b6b6ffbe23ec6b89cd78352c00af92e60ac8f2f40faa929038a77cf78e7b",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/api/mutations.ts",
+        "hash": "a9f249833ccc06be6acfa39f46a482463324ad16b52676acb447907077b4cfff"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "85b48e587d7ee3a1b213fd878a28e2b419ed891ad3752f72f8a8e6551b9f5ddc"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+        "hash": "87b041fcfd0f7f2a8e4341e2ab09434e4d33f9ec099f91b5dbd4a1bdd8a9da31"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/CanvasContextMenu.tsx",
+        "hash": "80ffcee889db392db08d2fab250fbf14390aaa975c5d9378dd0ea11c83e97d32"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+        "hash": "55bddf51c35f2684fc6f22e67663aa3b87f7fc5fec67f8417f37f1e058ee8615"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+        "hash": "390acac7435cebb6668260d5d758705799cb7fef23693340b353e2038ef145b8"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+        "hash": "9f888f97aa492abe10e2691255c27c8ea91ef2d9f9a26107e37c31759ea0b09f"
+      },
+      {
+        "path": "openspec/changes/multi-node-retry/design.md",
+        "hash": "5d6fd673d3d3e5335f64459c31178b2004b675913cf99911ec4f0e80b32eb687"
+      },
+      {
+        "path": "openspec/changes/multi-node-retry/opsx-delta.yaml",
+        "hash": "ca77fd83bf46cadabd273adcc9ec2ac9ad3fccae345ad9cfbd4d99c33c846a59"
+      },
+      {
+        "path": "openspec/changes/multi-node-retry/proposal.md",
+        "hash": "6c03806191aae6abcd46a593a3a1f9a3199ed459c619014954bb612d3af7de1e"
+      },
+      {
+        "path": "openspec/changes/multi-node-retry/specs/dag-run-control/spec.md",
+        "hash": "dd4bd2c143500f66c0acd54c9d635cd17a20c566613eab459f1c77e7b4da28f5"
+      },
+      {
+        "path": "openspec/changes/multi-node-retry/specs/multi-node-retry/spec.md",
+        "hash": "90193fa41c0b7920cef3d26f3c2579bdfa4f4ed319133b4c8e959abe9c0a3e63"
+      },
+      {
+        "path": "openspec/changes/multi-node-retry/tasks.md",
+        "hash": "29d7bf49b989f93105ce47e1ceed5112de00c1ae0ba14239ff503dc29571b859"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "2acf05e8a6f1754ca9a393765ebae63a734d66864a74aced3ad8b1de41ce92cd"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/runner.py",
+        "hash": "c1ff87692e5969259cce69735fe5ffb6d62439a57ae756ca0e71bfe8a78215f1"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/pipeline.py",
+        "hash": "27310dc792b41e7f1a465454ebfc3c8ee877f8d7d7932b78266509fceb8f86b6"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/repository.py",
+        "hash": "b3850378afdedbf561d288608edd618f0f24315d908a06c76edd49057d584d2c"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/routes.py",
+        "hash": "048570e6388419e0fde1d44e28bae803cb96b0c65febdd3c7b838ba53e134428"
+      },
+      {
+        "path": "tests/core/integration/test_dag_runner.py",
+        "hash": "a7126fc71094e6a6f72fddda96e3c5629aedc317630466dc2c0bf1a84c79d4fe"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "e0227384912b9c373cb689c26e616a5c7a692be3f820c4254fcf58b284f79b0f"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "192715c9379e072883bf287520494964b0210439"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-25T07:39:32.659Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Reviewed backend, frontend, and integration test files after selected-node visual update. Implementation is localized and further cleanup would be cosmetic or risk changing observable UI behavior."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-25T07:37:15.722Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Frontend multi-select retry behavior is implemented, including the selected-node visual refresh, but reviewed verification evidence remains manual-only with no automated UI/E2E coverage.",
+          "requirement": "前端多选重试交互",
+          "task": "C7 验证前端多选右键菜单行为",
+          "recommendation": "Add focused UI/E2E coverage for batch retry labels, outside-selection reset, no-cycle disabled tooltip, selection clearing, and retry_nodes-driven highlighting; otherwise keep explicit manual browser verification evidence with build artifacts."
+        }
+      ],
+      "tasksFileHash": "29d7bf49b989f93105ce47e1ceed5112de00c1ae0ba14239ff503dc29571b859",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context-reviewer",
+        "evidenceFiles": [
+          "apps/web-console/src/api/mutations.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+          "apps/web-console/src/features/workbench/components/Canvas.tsx",
+          "apps/web-console/src/features/workbench/components/CanvasContextMenu.tsx",
+          "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+          "apps/web-console/src/features/workbench/lib/graph.ts",
+          "openspec/changes/multi-node-retry/design.md",
+          "openspec/changes/multi-node-retry/opsx-delta.yaml",
+          "openspec/changes/multi-node-retry/proposal.md",
+          "openspec/changes/multi-node-retry/specs/dag-run-control/spec.md",
+          "openspec/changes/multi-node-retry/specs/multi-node-retry/spec.md",
+          "openspec/changes/multi-node-retry/tasks.md",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/stockimformation_core/dag/runner.py",
+          "packages/core/src/stockimformation_core/pipeline.py",
+          "packages/core/src/stockimformation_core/storage/repository.py",
+          "packages/core/src/stockimformation_core/web/routes.py",
+          "tests/core/integration/test_dag_runner.py",
+          "tests/core/integration/test_per_dag.py"
+        ],
+        "evidenceFingerprint": "add1412970d3305a1bb0ec415813c1a9c7a7d32d92cb49b631c5d6293b07f6df",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/api/mutations.ts",
+            "hash": "a9f249833ccc06be6acfa39f46a482463324ad16b52676acb447907077b4cfff"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "85b48e587d7ee3a1b213fd878a28e2b419ed891ad3752f72f8a8e6551b9f5ddc"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+            "hash": "87b041fcfd0f7f2a8e4341e2ab09434e4d33f9ec099f91b5dbd4a1bdd8a9da31"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/CanvasContextMenu.tsx",
+            "hash": "80ffcee889db392db08d2fab250fbf14390aaa975c5d9378dd0ea11c83e97d32"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+            "hash": "55bddf51c35f2684fc6f22e67663aa3b87f7fc5fec67f8417f37f1e058ee8615"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+            "hash": "390acac7435cebb6668260d5d758705799cb7fef23693340b353e2038ef145b8"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+            "hash": "9f888f97aa492abe10e2691255c27c8ea91ef2d9f9a26107e37c31759ea0b09f"
+          },
+          {
+            "path": "openspec/changes/multi-node-retry/design.md",
+            "hash": "5d6fd673d3d3e5335f64459c31178b2004b675913cf99911ec4f0e80b32eb687"
+          },
+          {
+            "path": "openspec/changes/multi-node-retry/opsx-delta.yaml",
+            "hash": "ca77fd83bf46cadabd273adcc9ec2ac9ad3fccae345ad9cfbd4d99c33c846a59"
+          },
+          {
+            "path": "openspec/changes/multi-node-retry/proposal.md",
+            "hash": "6c03806191aae6abcd46a593a3a1f9a3199ed459c619014954bb612d3af7de1e"
+          },
+          {
+            "path": "openspec/changes/multi-node-retry/specs/dag-run-control/spec.md",
+            "hash": "dd4bd2c143500f66c0acd54c9d635cd17a20c566613eab459f1c77e7b4da28f5"
+          },
+          {
+            "path": "openspec/changes/multi-node-retry/specs/multi-node-retry/spec.md",
+            "hash": "90193fa41c0b7920cef3d26f3c2579bdfa4f4ed319133b4c8e959abe9c0a3e63"
+          },
+          {
+            "path": "openspec/changes/multi-node-retry/tasks.md",
+            "hash": "29d7bf49b989f93105ce47e1ceed5112de00c1ae0ba14239ff503dc29571b859"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "4ddf11ee96199c767b476ea6ae7444473a7ebfbbe889322c4fd0e4aaf96217c6"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/runner.py",
+            "hash": "c1ff87692e5969259cce69735fe5ffb6d62439a57ae756ca0e71bfe8a78215f1"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/pipeline.py",
+            "hash": "27310dc792b41e7f1a465454ebfc3c8ee877f8d7d7932b78266509fceb8f86b6"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/repository.py",
+            "hash": "b3850378afdedbf561d288608edd618f0f24315d908a06c76edd49057d584d2c"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/routes.py",
+            "hash": "048570e6388419e0fde1d44e28bae803cb96b0c65febdd3c7b838ba53e134428"
+          },
+          {
+            "path": "tests/core/integration/test_dag_runner.py",
+            "hash": "a7126fc71094e6a6f72fddda96e3c5629aedc317630466dc2c0bf1a84c79d4fe"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "e0227384912b9c373cb689c26e616a5c7a692be3f820c4254fcf58b284f79b0f"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "192715c9379e072883bf287520494964b0210439"
+      }
+    }
+  }
+}

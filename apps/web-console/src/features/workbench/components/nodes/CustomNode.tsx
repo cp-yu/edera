@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
-import { Database, Cpu, GitMerge } from 'lucide-react'
+import { CheckCircle2, Database, Cpu, GitMerge } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { blendEntityColors } from '@/lib/colors'
 import { getNodeEdgeColor, getRuntimeState, type HandleSpec, type WorkbenchNodeData } from '../../lib/graph'
@@ -57,6 +57,20 @@ function StatusBadge({ status }: { status?: string }) {
           : 'bg-slate-400 shadow-[0_0_0_4px_rgba(148,163,184,0.16)]'
 
   return <span className={cn('absolute left-3 top-3 h-3 w-3 rounded-full', tone)} />
+}
+
+function RetryBadge({ active }: { active?: boolean }) {
+  if (!active) return null
+  return <span className="absolute right-3 top-3 h-3 w-3 animate-pulse rounded-full bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.2)]" />
+}
+
+function SelectionBadge({ active }: { active?: boolean }) {
+  if (!active) return null
+  return (
+    <span className="absolute -right-3 -top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-950 bg-cyan-300 text-slate-950 shadow-[0_0_0_4px_rgba(103,232,249,0.35)]">
+      <CheckCircle2 size={16} strokeWidth={2.8} />
+    </span>
+  )
 }
 
 function HandleRail({
@@ -122,11 +136,14 @@ export function CustomNode({ id, data, selected }: NodeProps) {
       className={cn(
         'group relative overflow-visible rounded-2xl border shadow-xl transition-shadow',
         kindStyle.shell,
-        selected && 'shadow-2xl ring-2 ring-white/25',
+        selected && 'outline outline-[3px] outline-offset-[5px] outline-cyan-300',
+        node.retrying && 'ring-2 ring-amber-300/70',
       )}
       style={entityBorderColor ? { boxShadow: `inset 3px 0 0 ${entityBorderColor}` } : undefined}
     >
       <StatusBadge status={node.status} />
+      <RetryBadge active={node.retrying} />
+      <SelectionBadge active={selected} />
       <HandleRail
         handles={node.inputHandles}
         position={Position.Left}

@@ -24,7 +24,7 @@ import { CustomNode } from './nodes/CustomNode'
 import { useRetryDagNode, useSaveDag } from '@/api/mutations'
 import { useNodePrototypes } from '@/api/queries'
 import { entityColor } from '@/lib/colors'
-import type { DagNodeRecord, DagState, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
+import type { DagNodeRecord, DagState, DagStatus, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
 import { CanvasContextMenu } from './CanvasContextMenu'
 import { QuickAddPanel } from './QuickAddPanel'
 import {
@@ -106,11 +106,12 @@ function hydrateInstance(
 
 interface Props {
   dag: DagState | null
+  dagStatus: DagStatus | null
   runtimeStatus: RuntimeStatus | null
   isRunning: boolean
 }
 
-export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
+export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }: Props) {
   const { setInspectorTab, setSelectedEdge, setSelectedNode, entityFilter, selectedDagName } = useAppStore()
   const { data: prototypesData } = useNodePrototypes()
   const saveDag = useSaveDag(selectedDagName)
@@ -132,10 +133,14 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
   const [guideLines, setGuideLines] = useState<GuideLine[]>([])
   const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [retryingNodeIds, setRetryingNodeIds] = useState<Set<string>>(() => new Set())
+  const [retryingCycleId, setRetryingCycleId] = useState<string | null>(null)
+  const [contextNodeIds, setContextNodeIds] = useState<string[]>([])
   const pendingDraftRef = useRef<string | null>(null)
 
   const prototypes = prototypesData?.prototypes ?? []
   const prototypeMap = useMemo(() => new Map(prototypes.map((node) => [node.name, node])), [prototypes])
+  const retryCycleId = dagStatus?.recent_runs.find((run) => run.status !== 'running')?.cycle_id
 
   useEffect(() => {
     nodesRef.current = nodes
@@ -263,7 +268,12 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
     setNodes((currentNodes) =>
       currentNodes.map((node) => {
         const nextData = enrichNodeData(node.data, edgesRef.current, runtimeStatus)
-        if (nextData.status === node.data.status && nextData.error === node.data.error) return node
+        nextData.retrying = retryingNodeIds.has(node.id)
+        if (
+          nextData.status === node.data.status &&
+          nextData.error === node.data.error &&
+          nextData.retrying === node.data.retrying
+        ) return node
         return { ...node, data: nextData }
       }),
     )
@@ -286,7 +296,7 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         }
       })
     })
-  }, [runtimeStatus])
+  }, [runtimeStatus, retryingNodeIds])
 
   useEffect(() => {
     if (runtimeStatus) return
@@ -308,6 +318,25 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
       })
     })
   }, [runtimeStatus])
+
+  useEffect(() => {
+    setNodes((currentNodes) => currentNodes.map((node) => {
+      const retrying = retryingNodeIds.has(node.id)
+      if (node.data.retrying === retrying) return node
+      return { ...node, data: { ...node.data, retrying } }
+    }))
+  }, [retryingNodeIds])
+
+  useEffect(() => {
+    if (!runtimeStatus || !retryingCycleId) return
+    const activeStatuses = runtimeStatus.node_statuses ?? {}
+    setRetryingNodeIds((current) => {
+      const next = new Set([...current].filter((nodeId) => activeStatuses[nodeId]?.cycle_id !== retryingCycleId))
+      if (next.size === current.size) return current
+      if (next.size === 0) setRetryingCycleId(null)
+      return next
+    })
+  }, [runtimeStatus, retryingCycleId])
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -530,7 +559,29 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
     fitCanvasToGraph(180)
   }, [commitGraph, fitCanvasToGraph])
 
-  const closeContextMenu = useCallback(() => setContextMenu(null), [])
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null)
+    setContextNodeIds([])
+  }, [])
+
+  const clearNodeSelection = useCallback(() => {
+    setNodes((currentNodes) => currentNodes.map((node) => node.selected ? { ...node, selected: false } : node))
+    setSelectedNode(null)
+  }, [setSelectedNode])
+
+  const retryNodes = useCallback((nodeIds: string[], mode: 'single' | 'cascade') => {
+    if (!retryCycleId) return
+    clearNodeSelection()
+    retryNode.mutate(
+      { dagName: selectedDagName, cycleId: retryCycleId, nodeIds, mode },
+      {
+        onSuccess: (data) => {
+          setRetryingNodeIds(new Set(data.retry_nodes))
+          setRetryingCycleId(data.cycle_id)
+        },
+      },
+    )
+  }, [clearNodeSelection, retryCycleId, retryNode, selectedDagName])
 
   const deleteEdgeById = useCallback((edgeId: string) => {
     const nextEdges = edgesRef.current.filter((edge) => edge.id !== edgeId)
@@ -646,7 +697,10 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         { label: '删除连线', tone: 'danger' as const, onSelect: () => deleteEdgeById(contextMenu.id) },
       ]
     }
-    const status = runtimeStatus?.node_statuses?.[contextMenu.id]
+    const nodeIds = contextNodeIds.length > 0 ? contextNodeIds : [contextMenu.id]
+    const isBatch = nodeIds.length > 1
+    const retryDisabled = !retryCycleId
+    const retryTooltip = retryDisabled ? '找不到可用的 prefill 的 node' : undefined
 
     return [
       {
@@ -661,21 +715,21 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         onSelect: () => window.location.assign(`/history/dag/${selectedDagName}/nodes/${contextMenu.id}`),
       },
       {
-        label: '重试节点',
-        onSelect: () => {
-          if (status?.cycle_id) retryNode.mutate({ dagName: selectedDagName, cycleId: status.cycle_id, nodeId: contextMenu.id, mode: 'single' })
-        },
+        label: isBatch ? `重试 ${nodeIds.length} 个节点` : '重试节点',
+        disabled: retryDisabled,
+        tooltip: retryTooltip,
+        onSelect: () => retryNodes(nodeIds, 'single'),
       },
       {
-        label: '重试节点及下游',
-        onSelect: () => {
-          if (status?.cycle_id) retryNode.mutate({ dagName: selectedDagName, cycleId: status.cycle_id, nodeId: contextMenu.id, mode: 'cascade' })
-        },
+        label: isBatch ? `重试 ${nodeIds.length} 个节点及下游` : '重试节点及下游',
+        disabled: retryDisabled,
+        tooltip: retryTooltip,
+        onSelect: () => retryNodes(nodeIds, 'cascade'),
       },
       { label: '删除节点', tone: 'danger' as const, onSelect: () => void deleteNodeById(contextMenu.id) },
       { label: '断开所有连线', onSelect: () => disconnectNodeById(contextMenu.id) },
     ]
-  }, [contextMenu, deleteEdgeById, reverseEdgeById, deleteNodeById, disconnectNodeById, retryNode, runtimeStatus, selectedDagName, setInspectorTab, setSelectedNode])
+  }, [contextMenu, contextNodeIds, deleteEdgeById, reverseEdgeById, deleteNodeById, disconnectNodeById, retryCycleId, retryNodes, selectedDagName, setInspectorTab, setSelectedNode])
 
   return (
     <div ref={canvasRef} className="h-full w-full">
@@ -715,10 +769,21 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         onNodeDragStop={onNodeDragStop}
         onNodeContextMenu={(event, node) => {
           event.preventDefault()
+          const selectedIds = nodesRef.current.filter((item) => item.selected).map((item) => item.id)
+          if (selectedIds.length > 1 && selectedIds.includes(node.id)) {
+            setContextNodeIds(selectedIds)
+          } else {
+            setContextNodeIds([node.id])
+            setNodes((currentNodes) => currentNodes.map((item) => ({
+              ...item,
+              selected: item.id === node.id,
+            })))
+          }
           setContextMenu({ kind: 'node', id: node.id, x: event.clientX, y: event.clientY })
         }}
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault()
+          setContextNodeIds([])
           setContextMenu({ kind: 'edge', id: edge.id, x: event.clientX, y: event.clientY })
         }}
         onNodesDelete={(deletedNodes) => {
@@ -743,6 +808,7 @@ export function Canvas({ dag, runtimeStatus, isRunning: _isRunning }: Props) {
         onPaneClick={onPaneClick}
         onPaneContextMenu={(event) => {
           event.preventDefault()
+          setContextNodeIds([])
           closeContextMenu()
         }}
         onDragOver={onDragOver}

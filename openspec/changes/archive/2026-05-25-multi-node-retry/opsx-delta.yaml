@@ -1,0 +1,15 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.operations.multi-node-retry
+      type: capability
+      intent: 多节点批量重试能力，覆盖 API 参数泛化、多起点拓扑调度、prefilled 数据加载和前端批量选择交互
+  relations:
+    - from: cap.operations.multi-node-retry
+      type: contains
+      to: dom.operations
+
+MODIFIED:
+  capabilities:
+    - id: cap.operations.dag-run-control
+      intent: DAG 运行控制能力，覆盖 soft stop（asyncio.Event）、hard stop（task.cancel）和节点重试（single/cascade mode，支持多节点批量）

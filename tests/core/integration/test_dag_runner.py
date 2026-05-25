@@ -500,6 +500,117 @@ async def test_retry_single_uses_prefilled_upstream_outputs() -> None:
 
 
 @pytest.mark.asyncio
+async def test_retry_single_multiple_nodes_propagates_new_outputs() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "retry-single-multi-test",
+                "nodes": [
+                    {"id": "source", "type": "rss-fetcher"},
+                    {"id": "middle", "type": "advisor"},
+                    {"id": "sink", "type": "briefing-generator"},
+                ],
+                "edges": [{"from": "source", "to": "middle"}, {"from": "middle", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    calls: list[str] = []
+
+    async def source(_node_input: NodeInput) -> object:
+        calls.append("source")
+        return "new-source"
+
+    async def middle(node_input: NodeInput) -> object:
+        calls.append("middle")
+        return {"middle": node_input.payload}
+
+    async def sink(node_input: NodeInput) -> object:
+        calls.append("sink")
+        return {"sink": node_input.payload}
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": source, "generate-advice": middle, "generate-briefing": sink},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(
+        graph,
+        "retry",
+        {},
+        retry_nodes={"middle", "sink"},
+        prefilled_outputs={"source": _node_output("source", "old-source")},
+    )
+
+    assert calls == ["middle", "sink"]
+    assert result.node_outputs["sink"].payload == {"sink": {"middle": "old-source"}}
+
+
+@pytest.mark.asyncio
+async def test_retry_single_disconnected_nodes_run_independently() -> None:
+    config = load_app_config(Path("config"))
+    nodes = _condition_nodes()
+    graph = load_graph(
+        config.dags["default"].model_validate(
+            {
+                "name": "retry-single-disconnected-test",
+                "nodes": [
+                    {"id": "source-a", "type": "rss-fetcher"},
+                    {"id": "source-b", "type": "web-scraper"},
+                    {"id": "sink-a", "type": "advisor"},
+                    {"id": "sink-b", "type": "briefing-generator"},
+                ],
+                "edges": [{"from": "source-a", "to": "sink-a"}, {"from": "source-b", "to": "sink-b"}],
+            }
+        ),
+        nodes,
+    )
+    calls: list[str] = []
+
+    async def fetch_rss(_node_input: NodeInput) -> object:
+        calls.append("source-a")
+        return "new-a"
+
+    async def fetch_web(_node_input: NodeInput) -> object:
+        calls.append("source-b")
+        return "new-b"
+
+    async def sink_a(node_input: NodeInput) -> object:
+        calls.append("sink-a")
+        return {"a": node_input.payload}
+
+    async def sink_b(node_input: NodeInput) -> object:
+        calls.append("sink-b")
+        return {"b": node_input.payload}
+
+    executor = NodeExecutor(
+        nodes,
+        config.system,
+        config.runtime,
+        {"fetch-rss": fetch_rss, "fetch-web": fetch_web, "generate-advice": sink_a, "generate-briefing": sink_b},
+        graph.instances,
+    )
+    result = await DagRunner(executor).run(
+        graph,
+        "retry",
+        {},
+        retry_nodes={"sink-a", "sink-b"},
+        prefilled_outputs={
+            "source-a": _node_output("source-a", "old-a"),
+            "source-b": _node_output("source-b", "old-b"),
+        },
+    )
+
+    assert set(calls) == {"sink-a", "sink-b"}
+    assert result.node_outputs["sink-a"].payload == {"a": "old-a"}
+    assert result.node_outputs["sink-b"].payload == {"b": "old-b"}
+
+
+@pytest.mark.asyncio
 async def test_retry_cascade_reruns_target_and_downstream_only() -> None:
     config = load_app_config(Path("config"))
     nodes = _condition_nodes()

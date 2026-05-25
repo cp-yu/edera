@@ -8,8 +8,14 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from stockimformation_core.storage import create_engine, init_db, session_factory, sqlite_url
-from stockimformation_core.storage.repository import create_pipeline_run, get_pipeline_run, recent_pipeline_runs, store_node_output_entities
-from stockimformation_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RunAlreadyActiveError
+from stockimformation_core.storage.repository import (
+    create_pipeline_run,
+    finish_pipeline_run,
+    get_pipeline_run,
+    recent_pipeline_runs,
+    store_node_output_entities,
+)
+from stockimformation_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RetryRunResult, RunAlreadyActiveError
 from stockimformation_core.web.app import create_app
 
 
@@ -37,14 +43,29 @@ class FakeController(PipelineController):
             await session.commit()
         await asyncio.sleep(60)
 
-    async def retry_node(self, dag_name: str, cycle_id: str, node_id: str, mode: str = "single") -> str:
+    async def retry_node(
+        self,
+        dag_name: str,
+        cycle_id: str | None,
+        node_ids: list[str],
+        mode: str = "single",
+        payload: object | None = None,
+    ) -> RetryRunResult:
+        if not node_ids:
+            raise ValueError("node_ids is required")
+        if cycle_id is None:
+            async with self._factory()() as session:
+                recent = await recent_pipeline_runs(session, 10, dag_name)
+            cycle_id = next((run.cycle_id for run in recent if run.status != "running"), None)
+        if cycle_id is None:
+            raise PipelineRunNotFoundError("latest finished run")
         if cycle_id == "missing-cycle":
             raise PipelineRunNotFoundError(cycle_id)
         retry_cycle_id = f"retry-{cycle_id}"
         async with self._factory()() as session:
             await create_pipeline_run(session, retry_cycle_id, "retry", dag_name=dag_name, retry_of=cycle_id)
             await session.commit()
-        return retry_cycle_id
+        return RetryRunResult(retry_cycle_id, cycle_id, node_ids, mode, node_ids)
 
     async def resume_node(self, dag_name: str, cycle_id: str, node_id: str, payload: object) -> str:
         return await super().resume_node(dag_name, cycle_id, node_id, payload)
@@ -160,17 +181,46 @@ async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
                 await session.commit()
             response = await client.post(
                 "/api/pipeline/dag/default/retry",
-                json={"cycle_id": "cycle-original", "node_id": "node-a", "mode": "cascade"},
+                json={"cycle_id": "cycle-original", "node_ids": ["node-a"], "mode": "cascade"},
             )
             async with app.state.controller._factory()() as session:
                 run = await get_pipeline_run(session, "retry-cycle-original")
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 200
-    assert response.json()["retry_of"] == "cycle-original"
+    assert response.json() == {
+        "cycle_id": "retry-cycle-original",
+        "retry_of": "cycle-original",
+        "node_ids": ["node-a"],
+        "mode": "cascade",
+        "retry_nodes": ["node-a"],
+    }
     assert run is not None
     assert run.trigger == "retry"
     assert run.retry_of == "cycle-original"
+
+
+@pytest.mark.asyncio
+async def test_retry_api_defaults_to_latest_finished_run(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            async with app.state.controller._factory()() as session:
+                await create_pipeline_run(session, "cycle-old", "manual", dag_name="default")
+                await finish_pipeline_run(session, "cycle-old", "failed")
+                await create_pipeline_run(session, "cycle-new", "manual", dag_name="default")
+                await finish_pipeline_run(session, "cycle-new", "succeeded")
+                await session.commit()
+            response = await client.post(
+                "/api/pipeline/dag/default/retry",
+                json={"node_ids": ["node-a"], "mode": "single"},
+            )
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert response.json()["retry_of"] == "cycle-new"
 
 
 @pytest.mark.asyncio
@@ -182,12 +232,48 @@ async def test_retry_api_missing_cycle_returns_404(tmp_path: Path) -> None:
         try:
             response = await client.post(
                 "/api/pipeline/dag/default/retry",
-                json={"cycle_id": "missing-cycle", "node_id": "node-a", "mode": "single"},
+                json={"cycle_id": "missing-cycle", "node_ids": ["node-a"], "mode": "single"},
             )
         finally:
             await app.state.controller.shutdown()
     assert response.status_code == 404
     assert response.json()["error"]["type"] == "not_found"
+
+
+@pytest.mark.asyncio
+async def test_retry_node_missing_prefilled_upstream_returns_error(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    (tmp_path / "nodes" / "node-b.yaml").write_text(
+        "name: node-b\n"
+        "type: function\n"
+        "handler: node-b\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\n"
+        "nodes:\n"
+        "- id: node-a\n"
+        "  type: node-a\n"
+        "- id: node-b\n"
+        "  type: node-b\n"
+        "edges:\n"
+        "- from: node-a\n"
+        "  to: node-b\n",
+        encoding="utf-8",
+    )
+    ctrl = PipelineController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-original", "manual", ["node-a", "node-b"], dag_name="default")
+            await finish_pipeline_run(session, "cycle-original", "failed")
+            await session.commit()
+        with pytest.raises(ValueError, match="missing prefilled outputs: node-a"):
+            await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
+    finally:
+        await ctrl.shutdown()
 
 
 @pytest.mark.asyncio

@@ -63,3 +63,6 @@ relations:
   - from: cap.operations.reflection-dag-pattern
     type: depends_on
     to: cap.operations.llm-node-intervention
+  - from: cap.operations.multi-node-retry
+    type: contains
+    to: dom.operations

@@ -21,6 +21,7 @@ export function WorkbenchPage() {
           <div className="flex-1 relative">
             <Canvas
               dag={dag.data ?? null}
+              dagStatus={dagStatus.data ?? null}
               runtimeStatus={runtime.data ?? null}
               isRunning={isRunning}
             />

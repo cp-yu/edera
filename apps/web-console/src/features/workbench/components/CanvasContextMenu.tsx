@@ -4,6 +4,8 @@ import type { ContextMenuState } from '../lib/graph'
 interface MenuAction {
   label: string
   tone?: 'default' | 'danger'
+  disabled?: boolean
+  tooltip?: string
   onSelect: () => void
 }
 
@@ -26,13 +28,17 @@ export function CanvasContextMenu({ menu, actions, onClose }: Props) {
         {actions.map((action) => (
           <button
             key={action.label}
+            disabled={action.disabled}
+            title={action.tooltip}
             onClick={() => {
+              if (action.disabled) return
               action.onSelect()
               onClose()
             }}
             className={cn(
               'flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent/50',
               action.tone === 'danger' && 'text-red-600 hover:bg-red-500/10',
+              action.disabled && 'cursor-not-allowed opacity-45 hover:bg-transparent',
             )}
           >
             {action.label}

@@ -27,6 +27,7 @@ from stockimformation_core.storage.repository import (
     current_pipeline_run,
     finish_pipeline_run,
     get_pipeline_run,
+    latest_finished_pipeline_run,
     mark_node_run,
     delete_node_outputs_for_nodes,
     query_node_output_entities,
@@ -48,6 +49,15 @@ class PipelineRunNotFoundError(Exception):
     def __init__(self, cycle_id: str) -> None:
         self.cycle_id = cycle_id
         super().__init__(f"pipeline run not found: {cycle_id}")
+
+
+@dataclass(frozen=True)
+class RetryRunResult:
+    cycle_id: str
+    retry_of: str
+    node_ids: list[str]
+    mode: str
+    retry_nodes: list[str]
 
 
 @dataclass
@@ -149,23 +159,32 @@ class PipelineController:
     async def retry_node(
         self,
         dag_name: str,
-        cycle_id: str,
-        node_id: str,
+        cycle_id: str | None,
+        node_ids: list[str],
         mode: str = "single",
         payload: object | None = None,
-    ) -> str:
+    ) -> RetryRunResult:
         if mode not in {"single", "cascade"}:
             raise ValueError("mode must be single or cascade")
+        if not node_ids:
+            raise ValueError("node_ids is required")
         async with self._locks[dag_name]:
             ctx = self.active_runs.get(dag_name)
             if ctx is not None and not ctx.task.done():
                 raise RunAlreadyActiveError(ctx.cycle_id)
             config = load_app_config(self.config_dir)
             graph = load_graph(config.dags[dag_name], config.nodes)
-            if node_id not in graph.instances:
-                raise ValueError(f"node '{node_id}' not found")
-            retry_nodes = {node_id} if mode == "single" else _downstream_nodes(graph, node_id)
-            prefilled = await self._prefilled_outputs(cycle_id, graph, retry_nodes)
+            missing = [node_id for node_id in node_ids if node_id not in graph.instances]
+            if missing:
+                raise ValueError(f"node_ids contain unknown nodes: {', '.join(missing)}")
+            retry_nodes = set(node_ids) if mode == "single" else _downstream_union(graph, node_ids)
+            original_cycle_id = cycle_id or await self._latest_finished_cycle_id(dag_name)
+            if original_cycle_id is None:
+                raise PipelineRunNotFoundError("latest finished run")
+            prefilled = await self._prefilled_outputs(original_cycle_id, graph, retry_nodes)
+            missing_inputs = _missing_prefilled_inputs(graph, retry_nodes, set(prefilled))
+            if missing_inputs:
+                raise ValueError(f"missing prefilled outputs: {', '.join(missing_inputs)}")
             retry_cycle_id = uuid4().hex
             stop_event = asyncio.Event()
             task = asyncio.create_task(
@@ -174,7 +193,7 @@ class PipelineController:
                     "retry",
                     dag_name,
                     stop_event=stop_event,
-                    retry_of=cycle_id,
+                    retry_of=original_cycle_id,
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled,
                     payload=payload,
@@ -187,7 +206,13 @@ class PipelineController:
                 stop_event=stop_event,
             )
         task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
-        return retry_cycle_id
+        return RetryRunResult(
+            cycle_id=retry_cycle_id,
+            retry_of=original_cycle_id,
+            node_ids=node_ids,
+            mode=mode,
+            retry_nodes=_graph_ordered_nodes(graph, retry_nodes),
+        )
 
     async def resume_node(self, dag_name: str, cycle_id: str, node_id: str, payload: object) -> str:
         async with self._locks[dag_name]:
@@ -407,6 +432,12 @@ class PipelineController:
         async with factory() as session:
             return await get_pipeline_run(session, cycle_id)
 
+    async def _latest_finished_cycle_id(self, dag_name: str) -> str | None:
+        factory = self._factory()
+        async with factory() as session:
+            run = await latest_finished_pipeline_run(session, dag_name)
+        return run.cycle_id if run is not None else None
+
     async def _delete_node_outputs(self, cycle_id: str, node_ids: set[str]) -> None:
         factory = self._factory()
         async with factory() as session:
@@ -561,6 +592,26 @@ def _downstream_nodes(graph, node_id: str) -> set[str]:
         found.add(node)
         stack.extend(graph.edges[node])
     return found
+
+
+def _downstream_union(graph, node_ids: list[str]) -> set[str]:
+    retry_nodes: set[str] = set()
+    for node_id in node_ids:
+        retry_nodes.update(_downstream_nodes(graph, node_id))
+    return retry_nodes
+
+
+def _missing_prefilled_inputs(graph, retry_nodes: set[str], prefilled_nodes: set[str]) -> list[str]:
+    missing: set[str] = set()
+    for node_id in retry_nodes:
+        for upstream in graph.reverse_edges[node_id]:
+            if upstream not in retry_nodes and upstream not in prefilled_nodes:
+                missing.add(upstream)
+    return sorted(missing)
+
+
+def _graph_ordered_nodes(graph, node_ids: set[str]) -> list[str]:
+    return [node_id for node_id in graph.nodes if node_id in node_ids]
 
 
 def _dag_has_node(config_dir: Path, dag_name: str, node_id: str) -> bool:

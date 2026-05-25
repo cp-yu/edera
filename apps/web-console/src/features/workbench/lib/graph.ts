@@ -14,6 +14,7 @@ export interface WorkbenchNodeData extends NodeInstance {
   [key: string]: unknown
   status?: string
   error?: string | null
+  retrying?: boolean
   visualKind: NodeKind
   inputHandles: HandleSpec[]
   outputHandles: HandleSpec[]
