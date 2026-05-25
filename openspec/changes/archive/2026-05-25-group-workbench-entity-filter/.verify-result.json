@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-05-24T17:50:47.157Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "32816e535ae5b9f1c1b8e4b42a0254a4c43ca66ec3d1f5fa3b2044296d200e4e",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-orchestrated",
+    "evidenceFiles": [
+      "apps/web-console/src/features/workbench/components/EntityFilter.tsx",
+      "apps/web-console/tests/workbench-entity-filter.spec.ts",
+      "openspec/changes/group-workbench-entity-filter/design.md",
+      "openspec/changes/group-workbench-entity-filter/opsx-delta.yaml",
+      "openspec/changes/group-workbench-entity-filter/proposal.md",
+      "openspec/changes/group-workbench-entity-filter/specs/dag-workbench-ui/spec.md",
+      "openspec/changes/group-workbench-entity-filter/tasks.md",
+      "openspec/project.opsx.yaml",
+      "openspec/specs/dag-workbench-ui/spec.md"
+    ],
+    "evidenceFingerprint": "d097119b72bca8346bb371267876f1c8ee40e366fe13c03782e4e241550666df",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/features/workbench/components/EntityFilter.tsx",
+        "hash": "2eb555595dc5bbbe1bc34372b865a610173bd7096621d711291e7390b71724bb"
+      },
+      {
+        "path": "apps/web-console/tests/workbench-entity-filter.spec.ts",
+        "hash": "7da4f5941d039950aa2638840dddc341596d567dfc35b2f12f52a8d3b610fd9b"
+      },
+      {
+        "path": "openspec/changes/group-workbench-entity-filter/design.md",
+        "hash": "14dd80885c5383de42e778e4b51353a1ac09be6b82f21e46c90069da667b4a34"
+      },
+      {
+        "path": "openspec/changes/group-workbench-entity-filter/opsx-delta.yaml",
+        "hash": "df63413ab9e36ac0dfa210eec711875ba402ba3d2faf15ed7fe67b4e49b1d5e7"
+      },
+      {
+        "path": "openspec/changes/group-workbench-entity-filter/proposal.md",
+        "hash": "f31730d3b4a8c8552bdbc52f3fdc66ea64e989238bb631cd34ce032f75a50fc9"
+      },
+      {
+        "path": "openspec/changes/group-workbench-entity-filter/specs/dag-workbench-ui/spec.md",
+        "hash": "71440c21810e332fb4a12dfec959698d4e7ec54ed1f05765ccfe6a3fab1a9aa4"
+      },
+      {
+        "path": "openspec/changes/group-workbench-entity-filter/tasks.md",
+        "hash": "32816e535ae5b9f1c1b8e4b42a0254a4c43ca66ec3d1f5fa3b2044296d200e4e"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "0293680ba29e1bd3a00ca4c92d5f3385a06022e5d33392d69cab41828184f538"
+      },
+      {
+        "path": "openspec/specs/dag-workbench-ui/spec.md",
+        "hash": "fdc6a602ba0f489b1cfb4baf11028f1ba20036de13473921bd9257473adce1b8"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0542544ad0c95d254bab417c3bee2aeb2186ab20"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-24T17:50:56.854Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Optimizer reviewed EntityFilter.tsx and the Playwright coverage; code is small and direct, with no behavior-preserving optimization worth applying."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-24T17:50:47.157Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "32816e535ae5b9f1c1b8e4b42a0254a4c43ca66ec3d1f5fa3b2044296d200e4e",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-orchestrated",
+        "evidenceFiles": [
+          "apps/web-console/src/features/workbench/components/EntityFilter.tsx",
+          "apps/web-console/tests/workbench-entity-filter.spec.ts",
+          "openspec/changes/group-workbench-entity-filter/design.md",
+          "openspec/changes/group-workbench-entity-filter/opsx-delta.yaml",
+          "openspec/changes/group-workbench-entity-filter/proposal.md",
+          "openspec/changes/group-workbench-entity-filter/specs/dag-workbench-ui/spec.md",
+          "openspec/changes/group-workbench-entity-filter/tasks.md",
+          "openspec/project.opsx.yaml",
+          "openspec/specs/dag-workbench-ui/spec.md"
+        ],
+        "evidenceFingerprint": "d097119b72bca8346bb371267876f1c8ee40e366fe13c03782e4e241550666df",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/features/workbench/components/EntityFilter.tsx",
+            "hash": "2eb555595dc5bbbe1bc34372b865a610173bd7096621d711291e7390b71724bb"
+          },
+          {
+            "path": "apps/web-console/tests/workbench-entity-filter.spec.ts",
+            "hash": "7da4f5941d039950aa2638840dddc341596d567dfc35b2f12f52a8d3b610fd9b"
+          },
+          {
+            "path": "openspec/changes/group-workbench-entity-filter/design.md",
+            "hash": "14dd80885c5383de42e778e4b51353a1ac09be6b82f21e46c90069da667b4a34"
+          },
+          {
+            "path": "openspec/changes/group-workbench-entity-filter/opsx-delta.yaml",
+            "hash": "df63413ab9e36ac0dfa210eec711875ba402ba3d2faf15ed7fe67b4e49b1d5e7"
+          },
+          {
+            "path": "openspec/changes/group-workbench-entity-filter/proposal.md",
+            "hash": "f31730d3b4a8c8552bdbc52f3fdc66ea64e989238bb631cd34ce032f75a50fc9"
+          },
+          {
+            "path": "openspec/changes/group-workbench-entity-filter/specs/dag-workbench-ui/spec.md",
+            "hash": "71440c21810e332fb4a12dfec959698d4e7ec54ed1f05765ccfe6a3fab1a9aa4"
+          },
+          {
+            "path": "openspec/changes/group-workbench-entity-filter/tasks.md",
+            "hash": "32816e535ae5b9f1c1b8e4b42a0254a4c43ca66ec3d1f5fa3b2044296d200e4e"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "0293680ba29e1bd3a00ca4c92d5f3385a06022e5d33392d69cab41828184f538"
+          },
+          {
+            "path": "openspec/specs/dag-workbench-ui/spec.md",
+            "hash": "fdc6a602ba0f489b1cfb4baf11028f1ba20036de13473921bd9257473adce1b8"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0542544ad0c95d254bab417c3bee2aeb2186ab20"
+      }
+    }
+  }
+}

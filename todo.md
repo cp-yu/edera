@@ -12,10 +12,6 @@ fincept可以大部分都借鉴。
 
 workbench 下方的 选择，需要可以分组选择，现在大长条不利于后面多item
 
----
-Entity permissions
-按实体类型配置字段权限覆盖
-这里选择是否可以覆盖的内容，需要是在Entities 中被选择了。
 
 ---
 • 这个 warning 的意思是：现在 DELETE /api/config/entity-types/{name}?cascade=true 的正常路径能工作，会删除类型、该类型实例、相关关系；但实现是按顺序写多个文件，不是严格事务。
