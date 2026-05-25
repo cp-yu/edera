@@ -7,6 +7,7 @@ import asyncio
 from stockimformation_core.dag.conditions import evaluate_condition
 from stockimformation_core.dag.loader import load_graph, topological_layers
 from stockimformation_core.dag.models import DagGraph, DagRunResult
+from stockimformation_core.dag.resources import ResourceSemaphore, get_semaphore
 from stockimformation_core.errors import DagError
 from stockimformation_core.node.executor import NodeExecutor
 from stockimformation_core.node.models import NodeContext, NodeInput, NodeOutput
@@ -67,16 +68,28 @@ class DagRunner:
         running: dict[str, asyncio.Task[tuple[str, NodeOutput]]] = {}
         accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]] = {}
         accumulated_edges: set[tuple[str, str]] = set()
+        acquired: dict[str, ResourceSemaphore] = {}
         started: set[str] = set(outputs)
         allowed = retry_nodes or set(graph.nodes)
         for node in graph.nodes:
             if node in outputs:
                 continue
             if node in allowed and not graph.reverse_edges[node]:
+                if not self._acquire_resource(graph.instances[node], acquired):
+                    continue
                 self._start_node(running, graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
                 started.add(node)
         try:
-            while running or self._has_startable(graph, started, allowed, outputs, routed_edges):
+            while self._can_continue(
+                running,
+                accumulate_tasks,
+                graph,
+                started,
+                allowed,
+                outputs,
+                routed_edges,
+                accumulated_edges,
+            ):
                 if stop_event.is_set() and not running:
                     break
                 if not running:
@@ -92,17 +105,79 @@ class DagRunner:
                         started,
                         allowed,
                         stop_event,
+                        acquired,
                     )
-                    if not running:
-                        break
-                done, _pending = await asyncio.wait(running.values(), return_when=asyncio.FIRST_COMPLETED)
+                    if not running and not self._pending_accumulate_tasks(accumulate_tasks):
+                        await self._wait_for_resource_release(
+                            graph,
+                            started,
+                            allowed,
+                            outputs,
+                            routed_edges,
+                            accumulated_edges,
+                            stop_event,
+                        )
+                        continue
+                wait_tasks = [*running.values(), *self._pending_accumulate_tasks(accumulate_tasks)]
+                running_tasks = set(running.values())
+                release_task: asyncio.Task[None] | None = None
+                if self._has_blocked_startable(graph, started, allowed, outputs, routed_edges) or self._has_blocked_accumulate(
+                    graph,
+                    started,
+                    allowed,
+                    outputs,
+                    routed_edges,
+                    accumulated_edges,
+                ):
+                    release_task = asyncio.create_task(
+                        self._wait_for_resource_release(
+                            graph,
+                            started,
+                            allowed,
+                            outputs,
+                            routed_edges,
+                            accumulated_edges,
+                            stop_event,
+                        )
+                    )
+                    wait_tasks.append(release_task)
+                done, _pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
+                if release_task is not None and release_task not in done:
+                    release_task.cancel()
+                    await asyncio.gather(release_task, return_exceptions=True)
                 for task in done:
-                    node, output = task.result()
+                    if task not in running_tasks:
+                        continue
+                    result = task.result()
+                    if result is None:
+                        continue
+                    node, output = result
                     running.pop(node, None)
                     await queue.put(_NodeDone(node, output))
+                completed_accumulate = await self._complete_accumulate_tasks(
+                    graph,
+                    outputs,
+                    payloads,
+                    failures,
+                    routed_edges,
+                    warnings,
+                    accumulate_tasks,
+                    started,
+                    acquired,
+                )
                 while not queue.empty():
                     event = await queue.get()
-                    self._store_result(graph, event.node, event.output, outputs, payloads, failures, routed_edges, warnings)
+                    self._store_result(
+                        graph,
+                        event.node,
+                        event.output,
+                        outputs,
+                        payloads,
+                        failures,
+                        routed_edges,
+                        warnings,
+                        acquired,
+                    )
                     if event.output.ok:
                         await self._run_accumulate_downstreams(
                             graph,
@@ -119,7 +194,9 @@ class DagRunner:
                             started,
                             allowed,
                             stop_event,
+                            acquired,
                         )
+                        completed_accumulate = True
                     self._start_ready_nodes(
                         running,
                         graph,
@@ -132,11 +209,34 @@ class DagRunner:
                         started,
                         allowed,
                         stop_event,
+                        acquired,
+                    )
+                if completed_accumulate:
+                    self._start_ready_nodes(
+                        running,
+                        graph,
+                        cycle_id,
+                        initial_payload,
+                        outputs,
+                        payloads,
+                        routed_edges,
+                        warnings,
+                        started,
+                        allowed,
+                        stop_event,
+                        acquired,
                     )
         except asyncio.CancelledError:
             for task in running.values():
                 task.cancel()
             await asyncio.gather(*running.values(), return_exceptions=True)
+            self._release_all(acquired)
+            raise
+        except Exception:
+            for task in running.values():
+                task.cancel()
+            await asyncio.gather(*running.values(), return_exceptions=True)
+            self._release_all(acquired)
             raise
         source_nodes = [node for node in graph.nodes if not graph.reverse_edges[node]]
         if (
@@ -163,7 +263,9 @@ class DagRunner:
         failures: dict[str, str],
         routed_edges: set[tuple[str, str]],
         warnings: list[str],
+        acquired: dict[str, ResourceSemaphore],
     ) -> None:
+        self._release_resource(node, acquired)
         outputs[node] = output
         if output.ok:
             payloads[node] = output.payload
@@ -208,6 +310,7 @@ class DagRunner:
         started: set[str],
         allowed: set[str],
         stop_event: asyncio.Event,
+        acquired: dict[str, ResourceSemaphore],
     ) -> None:
         if stop_event.is_set():
             return
@@ -217,6 +320,8 @@ class DagRunner:
             if self._node_fan_in_mode(graph, node) == "accumulate":
                 continue
             if self._ready(graph, node, outputs, routed_edges):
+                if not self._acquire_resource(graph.instances[node], acquired):
+                    continue
                 self._start_node(running, graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
                 started.add(node)
 
@@ -236,34 +341,48 @@ class DagRunner:
         started: set[str],
         allowed: set[str],
         stop_event: asyncio.Event,
+        acquired: dict[str, ResourceSemaphore],
     ) -> None:
         if stop_event.is_set():
             return
-        for downstream in graph.edges[upstream]:
+        for downstream in graph.nodes:
             if downstream in outputs or downstream not in allowed:
                 continue
             if self._node_fan_in_mode(graph, downstream) != "accumulate":
                 continue
-            if (upstream, downstream) not in routed_edges:
-                continue
-            if not self._should_run(graph, downstream, routed_edges):
-                continue
-            if (upstream, downstream) not in accumulated_edges:
-                accumulated_edges.add((upstream, downstream))
+            for upstream_node in graph.reverse_edges[downstream]:
+                edge = (upstream_node, downstream)
+                if upstream_node not in outputs or edge not in routed_edges or edge in accumulated_edges:
+                    continue
+                resource_key = f"{downstream}:stream:{upstream_node}"
+                if not self._acquire_resource(graph.instances[downstream], acquired, resource_key):
+                    continue
+                accumulated_edges.add(edge)
                 accumulate_tasks.setdefault(downstream, []).append(
                     asyncio.create_task(
-                        self._run_stream_node(graph, downstream, cycle_id, output.payload, outputs, warnings)
+                        self._run_stream_node_releasing(
+                            graph,
+                            downstream,
+                            cycle_id,
+                            outputs[upstream_node].payload,
+                            outputs,
+                            warnings,
+                            resource_key,
+                            acquired,
+                        )
                     )
                 )
-            if not all(name in outputs for name in graph.reverse_edges[downstream]):
-                continue
-            tasks = accumulate_tasks.pop(downstream, [])
-            if not tasks:
-                continue
-            results = await asyncio.gather(*tasks)
-            merged = _merge_stream_results(downstream, [item for _name, item in results])
-            self._store_result(graph, downstream, merged, outputs, payloads, failures, routed_edges, warnings)
-            started.add(downstream)
+        await self._complete_accumulate_tasks(
+            graph,
+            outputs,
+            payloads,
+            failures,
+            routed_edges,
+            warnings,
+            accumulate_tasks,
+            started,
+            acquired,
+        )
 
     async def _run_stream_node(
         self,
@@ -277,6 +396,22 @@ class DagRunner:
         node_input = NodeInput(cycle_id=cycle_id, payload=payload, metadata=self._metadata(graph, node, outputs, warnings))
         context = NodeContext(cycle_id, f"{node}:stream", graph.instances[node].type, graph.name)
         return node, await self._execute_node(graph.instances[node], node, node_input, context)
+
+    async def _run_stream_node_releasing(
+        self,
+        graph: DagGraph,
+        node: str,
+        cycle_id: str,
+        payload: object,
+        outputs: dict[str, NodeOutput],
+        warnings: list[str],
+        resource_key: str,
+        acquired: dict[str, ResourceSemaphore],
+    ) -> tuple[str, NodeOutput]:
+        try:
+            return await self._run_stream_node(graph, node, cycle_id, payload, outputs, warnings)
+        finally:
+            self._release_resource(resource_key, acquired)
 
     async def _run_fan_out_node(
         self,
@@ -587,8 +722,198 @@ class DagRunner:
             and node in allowed
             and self._node_fan_in_mode(graph, node) != "accumulate"
             and self._ready(graph, node, outputs, routed_edges)
+            and self._resource_available(graph.instances[node])
             for node in graph.nodes
         )
+
+    def _has_blocked_startable(
+        self,
+        graph: DagGraph,
+        started: set[str],
+        allowed: set[str],
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> bool:
+        return any(
+            node not in started
+            and node in allowed
+            and self._node_fan_in_mode(graph, node) != "accumulate"
+            and self._ready(graph, node, outputs, routed_edges)
+            and not self._resource_available(graph.instances[node])
+            for node in graph.nodes
+        )
+
+    def _has_blocked_accumulate(
+        self,
+        graph: DagGraph,
+        started: set[str],
+        allowed: set[str],
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+        accumulated_edges: set[tuple[str, str]],
+    ) -> bool:
+        return any(
+            node not in started
+            and node in allowed
+            and self._node_fan_in_mode(graph, node) == "accumulate"
+            and graph.instances[node].resource is not None
+            and upstream in outputs
+            and (upstream, node) in routed_edges
+            and (upstream, node) not in accumulated_edges
+            and not self._resource_available(graph.instances[node])
+            for node in graph.nodes
+            for upstream in graph.reverse_edges[node]
+        )
+
+    def _can_continue(
+        self,
+        running: dict[str, asyncio.Task[tuple[str, NodeOutput]]],
+        accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]],
+        graph: DagGraph,
+        started: set[str],
+        allowed: set[str],
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+        accumulated_edges: set[tuple[str, str]],
+    ) -> bool:
+        return bool(running) or bool(self._pending_accumulate_tasks(accumulate_tasks)) or self._has_startable(
+            graph,
+            started,
+            allowed,
+            outputs,
+            routed_edges,
+        ) or self._has_blocked_startable(
+            graph,
+            started,
+            allowed,
+            outputs,
+            routed_edges,
+        ) or self._has_blocked_accumulate(
+            graph,
+            started,
+            allowed,
+            outputs,
+            routed_edges,
+            accumulated_edges,
+        )
+
+    def _pending_accumulate_tasks(
+        self,
+        accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]],
+    ) -> list[asyncio.Task[tuple[str, NodeOutput]]]:
+        return [task for tasks in accumulate_tasks.values() for task in tasks if not task.done()]
+
+    async def _complete_accumulate_tasks(
+        self,
+        graph: DagGraph,
+        outputs: dict[str, NodeOutput],
+        payloads: dict[str, object],
+        failures: dict[str, str],
+        routed_edges: set[tuple[str, str]],
+        warnings: list[str],
+        accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]],
+        started: set[str],
+        acquired: dict[str, ResourceSemaphore],
+    ) -> bool:
+        completed = False
+        for node in list(accumulate_tasks):
+            if node in outputs:
+                accumulate_tasks.pop(node, None)
+                continue
+            if not all(name in outputs for name in graph.reverse_edges[node]):
+                continue
+            tasks = accumulate_tasks.get(node, [])
+            if not tasks or any(not task.done() for task in tasks):
+                continue
+            accumulate_tasks.pop(node, None)
+            results = await asyncio.gather(*tasks)
+            merged = _merge_stream_results(node, [item for _name, item in results])
+            self._store_result(
+                graph,
+                node,
+                merged,
+                outputs,
+                payloads,
+                failures,
+                routed_edges,
+                warnings,
+                acquired,
+            )
+            started.add(node)
+            completed = True
+        return completed
+
+    async def _wait_for_resource_release(
+        self,
+        graph: DagGraph,
+        started: set[str],
+        allowed: set[str],
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+        accumulated_edges: set[tuple[str, str]],
+        stop_event: asyncio.Event,
+    ) -> None:
+        blocked = [
+            get_semaphore(graph.instances[node].resource, self.executor.entity_store)
+            for node in graph.nodes
+            if node not in started
+            and node in allowed
+            and graph.instances[node].resource is not None
+            and self._node_fan_in_mode(graph, node) != "accumulate"
+            and self._ready(graph, node, outputs, routed_edges)
+        ]
+        blocked.extend(
+            get_semaphore(graph.instances[node].resource, self.executor.entity_store)
+            for node in graph.nodes
+            for upstream in graph.reverse_edges[node]
+            if node not in started
+            and node in allowed
+            and graph.instances[node].resource is not None
+            and self._node_fan_in_mode(graph, node) == "accumulate"
+            and upstream in outputs
+            and (upstream, node) in routed_edges
+            and (upstream, node) not in accumulated_edges
+        )
+        if not blocked:
+            return
+        wait_tasks = [asyncio.create_task(item.released.wait()) for item in blocked]
+        wait_tasks.append(asyncio.create_task(stop_event.wait()))
+        done, pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        for item in blocked:
+            item.released.clear()
+        await asyncio.gather(*pending, return_exceptions=True)
+        for task in done:
+            task.result()
+
+    def _acquire_resource(
+        self,
+        instance: DagNodeInstance,
+        acquired: dict[str, ResourceSemaphore],
+        key: str | None = None,
+    ) -> bool:
+        if instance.resource is None:
+            return True
+        resource = get_semaphore(instance.resource, self.executor.entity_store)
+        if not resource.acquire_nowait():
+            return False
+        acquired[key or instance.id] = resource
+        return True
+
+    def _resource_available(self, instance: DagNodeInstance) -> bool:
+        if instance.resource is None:
+            return True
+        return get_semaphore(instance.resource, self.executor.entity_store).available()
+
+    def _release_resource(self, node: str, acquired: dict[str, ResourceSemaphore]) -> None:
+        resource = acquired.pop(node, None)
+        if resource is not None:
+            resource.release()
+
+    def _release_all(self, acquired: dict[str, ResourceSemaphore]) -> None:
+        for node in list(acquired):
+            self._release_resource(node, acquired)
 
     def _node_fan_in_mode(self, graph: DagGraph, node: str) -> str:
         mode = graph.instances[node].fan_in_mode

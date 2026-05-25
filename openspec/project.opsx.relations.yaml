@@ -66,3 +66,6 @@ relations:
   - from: cap.operations.multi-node-retry
     type: contains
     to: dom.operations
+  - from: cap.core.dag-resource-semaphore
+    type: contains
+    to: dom.core

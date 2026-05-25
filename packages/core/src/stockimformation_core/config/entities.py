@@ -347,7 +347,9 @@ class EntityStore:
         if self.config_path is None:
             raise ConfigError("config path is required")
         directory = _filesystem_dir(self.config_path.parent, entity.type)
-        business_id = _safe_name(entity.attributes.get(self.entity_types[entity.type].business_id_field))
+        entity_type = self.entity_types[entity.type]
+        raw_business_id = entity.id if entity_type.business_id_field == "id" else entity.attributes.get(entity_type.business_id_field)
+        business_id = _safe_name(raw_business_id)
         name = business_id or _safe_name(entity.id)
         return directory / f"{name}.yaml"
 

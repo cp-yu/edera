@@ -65,7 +65,17 @@
       "Bash(find:*)",
       "Bash(command -v pi)",
       "Bash(pi --help)",
-      "Bash(pi:*)"
+      "Bash(pi:*)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\([a for a in d['artifacts'] if a['status']=='ready'], indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['template']\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['template']\\); print\\('---INSTRUCTION---'\\); print\\(d['instruction']\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\([\\(a['id'],a['status']\\) for a in d['artifacts']]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['template']\\); print\\('---INSTRUCTION---'\\); print\\(d['instruction'][:2000]\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('complete:', d['isComplete']\\); print\\(json.dumps\\([\\(a['id'],a['status']\\) for a in d['artifacts']]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d['applyRequires']\\)\\); print\\(json.dumps\\([\\(a['id'],a['status']\\) for a in d['artifacts']]\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('complete:', d['isComplete']\\)\")"
     ]
   }
 }

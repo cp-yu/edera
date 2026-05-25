@@ -1,0 +1,223 @@
+{
+  "timestamp": "2026-05-25T17:54:32.880Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "9819af37e41d27ff7fa49c8e452d607294582bc20314bb1bf61255d17f85c0e1",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-review",
+    "evidenceFiles": [
+      "openspec/changes/dag-resource-semaphore/design.md",
+      "openspec/changes/dag-resource-semaphore/opsx-delta.yaml",
+      "openspec/changes/dag-resource-semaphore/proposal.md",
+      "openspec/changes/dag-resource-semaphore/specs/dag-event-driven-executor/spec.md",
+      "openspec/changes/dag-resource-semaphore/specs/dag-resource-semaphore/spec.md",
+      "openspec/changes/dag-resource-semaphore/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/stockimformation_core/config/entities.py",
+      "packages/core/src/stockimformation_core/config/loader.py",
+      "packages/core/src/stockimformation_core/config/schema.py",
+      "packages/core/src/stockimformation_core/dag/resources.py",
+      "packages/core/src/stockimformation_core/dag/runner.py",
+      "schemas/entity-types/resource.yaml",
+      "tests/core/integration/test_dag_runner.py",
+      "tests/core/integration/test_resource_semaphore.py"
+    ],
+    "evidenceFingerprint": "46f3e37673d6abaf2049a5786fc60bfd7b66ea6da585e8037cf471f72403efde",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/dag-resource-semaphore/design.md",
+        "hash": "44a14ff84bb749a468fe3ee13dd0ce261def8b5d51484beb25d7055c1ac05753"
+      },
+      {
+        "path": "openspec/changes/dag-resource-semaphore/opsx-delta.yaml",
+        "hash": "dc56f3185ee901357f1f79b5d9daa4c11dcce0e55e54784c71e830044b98b376"
+      },
+      {
+        "path": "openspec/changes/dag-resource-semaphore/proposal.md",
+        "hash": "beb737e7c2656a87bdbefd9829a24bcbb6a9e59af4edc4c975de255a80b144e1"
+      },
+      {
+        "path": "openspec/changes/dag-resource-semaphore/specs/dag-event-driven-executor/spec.md",
+        "hash": "5d3a47a0447823388255aea10a8c827883f0e835b9c653c95f4f11f7fcd3535e"
+      },
+      {
+        "path": "openspec/changes/dag-resource-semaphore/specs/dag-resource-semaphore/spec.md",
+        "hash": "4c1647c207fc90b71a3c2f606511796a63b3af01a87c616ba9aa11fee41594bb"
+      },
+      {
+        "path": "openspec/changes/dag-resource-semaphore/tasks.md",
+        "hash": "9819af37e41d27ff7fa49c8e452d607294582bc20314bb1bf61255d17f85c0e1"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "65faad35c3e61bfe4e8d70c99bcfeaee883e62e009a5fa5d2f768b9982dfe4d1"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "4fb7cc663263bc47168544a8908fbfc24b71d2a886737f5675a75b2e2fd09c8d"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/config/entities.py",
+        "hash": "d5a752cb88f5b9b3b1cd37eca0c2059a21457671b4c360683538e19bcf5f0eb7"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/config/loader.py",
+        "hash": "b838b9ffe65610fb9cd26104b716c0f2a5b55bee5c162c1b861223943a9fd786"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/config/schema.py",
+        "hash": "e5121ed8f9f0b36e185411a27191e0f3882f29760bda75e2f4ce865d1ce0c77e"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/resources.py",
+        "hash": "bd5993846e8c97f4055f95c26c4a67a2fe2366afda9681e8e5d767894bb9e883"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/runner.py",
+        "hash": "3620fdb32a7585c61d64282e5f30b54a56e2b171df90d4829988785d13edb609"
+      },
+      {
+        "path": "schemas/entity-types/resource.yaml",
+        "hash": "0dd3dea02408405f844b6ad1c6ccfceaa72d02b937c08f3cc50ca1087fbe2e1e"
+      },
+      {
+        "path": "tests/core/integration/test_dag_runner.py",
+        "hash": "a7126fc71094e6a6f72fddda96e3c5629aedc317630466dc2c0bf1a84c79d4fe"
+      },
+      {
+        "path": "tests/core/integration/test_resource_semaphore.py",
+        "hash": "635f90896d0a28038f6cec75a1edf0d63de3e84f9fc46638793c063ac9cae7d5"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "e321e243244d3fb242324867ca9e96a083d02ee3"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-25T17:56:54.863Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Move non-blocking acquire, availability check, and release notification behavior into ResourceSemaphore to reduce raw semaphore _value manipulation in DagRunner.",
+        "files": [
+          "packages/core/src/stockimformation_core/dag/resources.py",
+          "packages/core/src/stockimformation_core/dag/runner.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-25T17:59:47.886Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/stockimformation_core/dag/resources.py": "5f3c011e8ea3133a64c96166b433bb5107e2569f73029f710f5093d37e7f74fb",
+      "packages/core/src/stockimformation_core/dag/runner.py": "0039c494bb058a5bf547a4872c35bd31281fb104b95636c28080d36ce072936c"
+    },
+    "baseline": {
+      "timestamp": "2026-05-25T17:54:32.880Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "9819af37e41d27ff7fa49c8e452d607294582bc20314bb1bf61255d17f85c0e1",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-review",
+        "evidenceFiles": [
+          "openspec/changes/dag-resource-semaphore/design.md",
+          "openspec/changes/dag-resource-semaphore/opsx-delta.yaml",
+          "openspec/changes/dag-resource-semaphore/proposal.md",
+          "openspec/changes/dag-resource-semaphore/specs/dag-event-driven-executor/spec.md",
+          "openspec/changes/dag-resource-semaphore/specs/dag-resource-semaphore/spec.md",
+          "openspec/changes/dag-resource-semaphore/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/stockimformation_core/config/entities.py",
+          "packages/core/src/stockimformation_core/config/loader.py",
+          "packages/core/src/stockimformation_core/config/schema.py",
+          "packages/core/src/stockimformation_core/dag/resources.py",
+          "packages/core/src/stockimformation_core/dag/runner.py",
+          "schemas/entity-types/resource.yaml",
+          "tests/core/integration/test_dag_runner.py",
+          "tests/core/integration/test_resource_semaphore.py"
+        ],
+        "evidenceFingerprint": "20bc07ce402d2bfc83d726b8d29cbdcc8b728bc1630bd0f23083fdcffd6c8070",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/dag-resource-semaphore/design.md",
+            "hash": "44a14ff84bb749a468fe3ee13dd0ce261def8b5d51484beb25d7055c1ac05753"
+          },
+          {
+            "path": "openspec/changes/dag-resource-semaphore/opsx-delta.yaml",
+            "hash": "dc56f3185ee901357f1f79b5d9daa4c11dcce0e55e54784c71e830044b98b376"
+          },
+          {
+            "path": "openspec/changes/dag-resource-semaphore/proposal.md",
+            "hash": "beb737e7c2656a87bdbefd9829a24bcbb6a9e59af4edc4c975de255a80b144e1"
+          },
+          {
+            "path": "openspec/changes/dag-resource-semaphore/specs/dag-event-driven-executor/spec.md",
+            "hash": "5d3a47a0447823388255aea10a8c827883f0e835b9c653c95f4f11f7fcd3535e"
+          },
+          {
+            "path": "openspec/changes/dag-resource-semaphore/specs/dag-resource-semaphore/spec.md",
+            "hash": "4c1647c207fc90b71a3c2f606511796a63b3af01a87c616ba9aa11fee41594bb"
+          },
+          {
+            "path": "openspec/changes/dag-resource-semaphore/tasks.md",
+            "hash": "9819af37e41d27ff7fa49c8e452d607294582bc20314bb1bf61255d17f85c0e1"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "b64e6428f3881405c0fbf7da47a5340dbca150803ed24a444657700d8117a7db"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "284af3a7d41966369e16a7baacc8beb9e2860b8a732371a7e8473f8ad93533a4"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/config/entities.py",
+            "hash": "d5a752cb88f5b9b3b1cd37eca0c2059a21457671b4c360683538e19bcf5f0eb7"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/config/loader.py",
+            "hash": "b838b9ffe65610fb9cd26104b716c0f2a5b55bee5c162c1b861223943a9fd786"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/config/schema.py",
+            "hash": "e5121ed8f9f0b36e185411a27191e0f3882f29760bda75e2f4ce865d1ce0c77e"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/resources.py",
+            "hash": "5f3c011e8ea3133a64c96166b433bb5107e2569f73029f710f5093d37e7f74fb"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/runner.py",
+            "hash": "0039c494bb058a5bf547a4872c35bd31281fb104b95636c28080d36ce072936c"
+          },
+          {
+            "path": "schemas/entity-types/resource.yaml",
+            "hash": "0dd3dea02408405f844b6ad1c6ccfceaa72d02b937c08f3cc50ca1087fbe2e1e"
+          },
+          {
+            "path": "tests/core/integration/test_dag_runner.py",
+            "hash": "a7126fc71094e6a6f72fddda96e3c5629aedc317630466dc2c0bf1a84c79d4fe"
+          },
+          {
+            "path": "tests/core/integration/test_resource_semaphore.py",
+            "hash": "635f90896d0a28038f6cec75a1edf0d63de3e84f9fc46638793c063ac9cae7d5"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "e321e243244d3fb242324867ca9e96a083d02ee3"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

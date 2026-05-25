@@ -113,7 +113,6 @@ def load_skill_configs(path: Path) -> dict[str, SkillConfig]:
     configs: dict[str, SkillConfig] = {}
     if not path.exists():
         return configs
-    root = path.parent.parent
     for file in sorted(path.glob("*.yaml")):
         skill = SkillConfig.model_validate(_read_yaml(file))
         configs[skill.name] = skill
@@ -197,7 +196,7 @@ def _validate_entities(
         entity_type = entity_types.get(entity.type)
         if entity_type is None:
             raise ConfigError(f"unknown entity type: {entity.type}")
-        business_id = entity.attributes.get(entity_type.business_id_field)
+        business_id = entity.id if entity_type.business_id_field == "id" else entity.attributes.get(entity_type.business_id_field)
         if not isinstance(business_id, str) or not business_id:
             raise ConfigError(f"entity {entity.id} missing business id field: {entity_type.business_id_field}")
         ref = f"{entity.type}:{business_id}"
@@ -227,8 +226,11 @@ def _validate_entity_attributes(entity: EntityConfig, entity_type: EntityTypeCon
             raise ConfigError(f"entity {entity.id}.{key} must be string")
         if expected == "number" and not isinstance(value, int | float):
             raise ConfigError(f"entity {entity.id}.{key} must be number")
-        if expected == "integer" and not isinstance(value, int):
+        if expected == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
             raise ConfigError(f"entity {entity.id}.{key} must be integer")
+        minimum = field_schema.get("minimum")
+        if isinstance(minimum, int | float) and isinstance(value, int | float) and value < minimum:
+            raise ConfigError(f"entity {entity.id}.{key} must be >= {minimum:g}")
         if expected == "boolean" and not isinstance(value, bool):
             raise ConfigError(f"entity {entity.id}.{key} must be boolean")
         if expected == "object" and not isinstance(value, dict):
@@ -285,5 +287,6 @@ def _entity_refs(
     refs = {entity.id for entity in entities.entities}
     for entity in entities.entities:
         entity_type = entity_types[entity.type]
-        refs.add(f"{entity.type}:{entity.attributes[entity_type.business_id_field]}")
+        business_id = entity.id if entity_type.business_id_field == "id" else entity.attributes[entity_type.business_id_field]
+        refs.add(f"{entity.type}:{business_id}")
     return refs

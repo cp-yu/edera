@@ -1,0 +1,12 @@
+display_name: Resource
+business_id_field: id
+display_template: "{id}"
+schema:
+  type: object
+  required:
+    - permits
+  properties:
+    permits:
+      type: integer
+      minimum: 1
+validate: true

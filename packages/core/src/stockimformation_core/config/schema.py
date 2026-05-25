@@ -236,6 +236,9 @@ def _validate_json_schema_fragment(value: dict[str, Any], path: str) -> None:
     if required is not None:
         if not isinstance(required, list) or any(not isinstance(item, str) for item in required):
             raise ValueError(f"{path}.required must be a list of strings")
+    minimum = value.get("minimum")
+    if minimum is not None and not isinstance(minimum, int | float):
+        raise ValueError(f"{path}.minimum must be a number")
     if "default" in value:
         _validate_parameter_value(value["default"])
 
@@ -267,6 +270,7 @@ class DagNodeInstance(BaseModel):
     loop: DagLoopConfig | None = None
     fallback: Literal["switch_model", "skip"] | None = None
     fallback_model: str | None = None
+    resource: str | None = None
 
     @field_validator("config")
     @classmethod
@@ -311,6 +315,8 @@ def entity_ref(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]) 
 
 def _business_id(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]) -> str:
     entity_type = entity_types[entity.type]
+    if entity_type.business_id_field == "id":
+        return entity.id
     value = entity.attributes.get(entity_type.business_id_field)
     if not isinstance(value, str) or not value:
         raise ValueError(f"entity {entity.id} missing business id field: {entity_type.business_id_field}")

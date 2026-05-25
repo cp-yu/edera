@@ -137,7 +137,7 @@ capabilities:
     intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
     type: capability
   - id: cap.operations.dag-event-driven-executor
-    intent: Event-driven DAG 执行引擎，覆盖中央 dispatcher、asyncio.Queue 调度、fan-in barrier/accumulate 模式和错误路径隔离
+    intent: 事件驱动 DAG 调度器，覆盖 dispatcher 调度、fan-in barrier/accumulate 模式、错误路径隔离、resource semaphore gate 和执行结果收集
     type: capability
   - id: cap.operations.dag-run-control
     intent: DAG 运行控制能力，覆盖 soft stop（asyncio.Event）、hard stop（task.cancel）和节点重试（single/cascade mode，支持多节点批量）
@@ -169,4 +169,7 @@ capabilities:
     domain: dom.operations
   - id: cap.operations.multi-node-retry
     intent: 多节点批量重试能力，覆盖 API 参数泛化、多起点拓扑调度、prefilled 数据加载和前端批量选择交互
+    type: capability
+  - id: cap.core.dag-resource-semaphore
+    intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
     type: capability
