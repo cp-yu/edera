@@ -37,7 +37,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.result-explorer
-    intent: 结果浏览能力，覆盖简报、建议、分析、原文和失败信息的查询与展示
+    intent: 结果浏览能力，覆盖统一输出 Entity 下的简报、建议、分析、原文、失败信息、字符串深链标识和错误/空态展示
     type: capability
     domain: dom.web
   - id: cap.web.dag-workbench-ui
