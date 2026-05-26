@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from pathlib import Path
+from stockimformation_core.bootstrap import scan_extensions
 from stockimformation_core.config.loader import load_app_config
 from stockimformation_core.handler_validator import validate_handler
 from stockimformation_core.pipeline import PipelineController
@@ -13,8 +14,13 @@ async def serve(config_dir: Path = Path("config")) -> None:
     app_config = load_app_config(config_dir)
     if app_config.system.web_host != "127.0.0.1":
         raise ValueError("web_host must be 127.0.0.1")
+    bootstrap = scan_extensions([config_dir.parent / "extensions"], config_dir)
     controller = PipelineController(config_dir)
-    app = create_app(config_dir=config_dir, controller=controller)
+    app = create_app(
+        config_dir=config_dir,
+        controller=controller,
+        handler_registry=bootstrap.handler_registry,
+    )
     config = uvicorn.Config(
         app,
         host=app_config.system.web_host,

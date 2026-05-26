@@ -54,7 +54,7 @@ from stockimformation_core.storage.repository import (
     source_health_summary,
 )
 from stockimformation_core.pipeline import PipelineRunNotFoundError, RunAlreadyActiveError
-from stockimformation_core.web.deps import config_dir, controller, error_response
+from stockimformation_core.web.deps import config_dir, controller, error_response, handler_registry
 
 router = APIRouter()
 
@@ -984,7 +984,7 @@ async def api_graph_skill_delete(request: Request, name: str) -> JSONResponse | 
 
 @router.get("/api/graph/handlers/{name}", response_model=None)
 async def api_graph_handler_read(request: Request, name: str) -> JSONResponse | dict[str, object]:
-    path = config_dir(request).parent / "extensions" / name / "handler.py"
+    path = _handler_path(request, name)
     if not path.exists():
         return error_response(404, "not_found", f"handler {name} not found")
     return {"name": name, "code": path.read_text(encoding="utf-8")}
@@ -995,10 +995,17 @@ async def api_graph_handler_save(request: Request, name: str, body: dict[str, ob
     code = body.get("code", "")
     if not isinstance(code, str):
         return error_response(400, "config_error", "handler code must be a string")
-    path = config_dir(request).parent / "extensions" / name / "handler.py"
+    path = _handler_path(request, name)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(code, encoding="utf-8")
     return {"name": name, "code": code}
+
+
+def _handler_path(request: Request, name: str) -> Path:
+    registry = handler_registry(request)
+    if registry is not None and name in registry:
+        return registry[name].path
+    return config_dir(request).parent / "extensions" / name / "handler.py"
 
 
 @router.get("/api/graph/runtime-status")

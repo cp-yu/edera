@@ -1,10 +1,21 @@
-INFO:     127.0.0.1:51210 - "GET /api/graph/handlers/generate-advice HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:51226 - "GET /api/graph/handlers/fetch-api HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:51240 - "GET /api/graph/handlers/generate-briefing HTTP/1.1" 404 Not Found
+0194f7a6-7b17-7c01-b601-000000000001
+default
+
+succeededba587fe3b47b49afa9c9195c0490396e
+started
+2026-05-26T06:36:16.992397
+ended
+2026-05-26T06:36:20.615336
+暂无输出
+查看fetch节点历史，没有任何输出，这不合理。每个节点都应该可以看到输出才对。
+
+---
+agent节点需要可以插入的，现在web console还没看到这个功能
 
 ---
 确保完全可以通过cli，或者llm友好的形式（比如文本）,完成编辑。
 确认现在有cli 
+Web Console实现上一次关闭的时候，上一次阅读是什么DAG，那么打开的时候就是对应哪个DAG。
 需要可以动态的增加dag，完成。  比如先增加 采集节点，然后在采集节点的基础上（此时有数据）增加处理节点（不用重跑一次dag)。 这个目前考虑可以通过前面增加的重试完成曲线救国。
 rig cli需要增加
 
@@ -81,7 +92,7 @@ fincept可以大部分都借鉴。
 ----
  缺少完整的用户使用文档
 尤其是一个给ai的文档
-
+现在最大的问题是，AI没有具体项目，所以说它无法根据上面的语言形成一个合理的DAG及其部署内容。
 
 
 ---

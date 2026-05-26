@@ -7,6 +7,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from stockimformation_core.pipeline import PipelineController
+from stockimformation_core.registry import HandlerRegistry
 
 
 def error_response(status_code: int, error_type: str, message: str) -> JSONResponse:
@@ -22,3 +23,7 @@ def controller(request: Request) -> PipelineController:
 
 def config_dir(request: Request) -> Path:
     return cast(Path, request.app.state.config_dir)
+
+
+def handler_registry(request: Request) -> HandlerRegistry | None:
+    return cast(HandlerRegistry | None, request.app.state.handler_registry)

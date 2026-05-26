@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-05-26T06:27:29.305Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "6b67f579a4c1b3f1c53a73b0fb55dbe579087aba757beecda3b51eebe3a2dafe",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context-reviewer",
+    "evidenceFiles": [
+      "openspec/changes/fix-handler-route-and-add-api-tests/design.md",
+      "openspec/changes/fix-handler-route-and-add-api-tests/proposal.md",
+      "openspec/changes/fix-handler-route-and-add-api-tests/tasks.md",
+      "packages/core/src/stockimformation_core/main.py",
+      "packages/core/src/stockimformation_core/web/app.py",
+      "packages/core/src/stockimformation_core/web/deps.py",
+      "packages/core/src/stockimformation_core/web/routes.py",
+      "tests/core/integration/test_graph_api.py"
+    ],
+    "evidenceFingerprint": "707cff0186cf009b33141adebd89c88aab815b486f2359164aedee91650eab77",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/fix-handler-route-and-add-api-tests/design.md",
+        "hash": "be8c9a9a03de2fde11e8bd95afa8e56c2365751e59e22208626743adf4f0e1d1"
+      },
+      {
+        "path": "openspec/changes/fix-handler-route-and-add-api-tests/proposal.md",
+        "hash": "7b0f8ff50c69fa793c874e334b2ed1fc00cc0b6d672fda7618aca456028b5275"
+      },
+      {
+        "path": "openspec/changes/fix-handler-route-and-add-api-tests/tasks.md",
+        "hash": "6b67f579a4c1b3f1c53a73b0fb55dbe579087aba757beecda3b51eebe3a2dafe"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/main.py",
+        "hash": "e1392763c4b8b7dc1f9e1c5d7029ffccbe39fca620dd5b3cfa8a31015d0e93d1"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/app.py",
+        "hash": "83bbedf30c1e94d7977ccd4b4dff2bc79e2d0f8cd2cdf0793f2c9e024dd9c1ac"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/deps.py",
+        "hash": "258a7cb5bd50f1fb833c920233b02be88a449c42e838b2c9a262cf77422e89a0"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/routes.py",
+        "hash": "f7b709871b4c812d7912fc546f5f7b71145f34bf8a8dff14b7149536aeb9a52b"
+      },
+      {
+        "path": "tests/core/integration/test_graph_api.py",
+        "hash": "17c423641e229da39f65124c85f7461e95e204949a701b3fcd32de3c6afa23d6"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "3a8e609bd5be3341d5c0c56196af5264855065b1"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-26T06:29:19.653Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-26T06:27:29.305Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "6b67f579a4c1b3f1c53a73b0fb55dbe579087aba757beecda3b51eebe3a2dafe",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context-reviewer",
+        "evidenceFiles": [
+          "openspec/changes/fix-handler-route-and-add-api-tests/design.md",
+          "openspec/changes/fix-handler-route-and-add-api-tests/proposal.md",
+          "openspec/changes/fix-handler-route-and-add-api-tests/tasks.md",
+          "packages/core/src/stockimformation_core/main.py",
+          "packages/core/src/stockimformation_core/web/app.py",
+          "packages/core/src/stockimformation_core/web/deps.py",
+          "packages/core/src/stockimformation_core/web/routes.py",
+          "tests/core/integration/test_graph_api.py"
+        ],
+        "evidenceFingerprint": "707cff0186cf009b33141adebd89c88aab815b486f2359164aedee91650eab77",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/fix-handler-route-and-add-api-tests/design.md",
+            "hash": "be8c9a9a03de2fde11e8bd95afa8e56c2365751e59e22208626743adf4f0e1d1"
+          },
+          {
+            "path": "openspec/changes/fix-handler-route-and-add-api-tests/proposal.md",
+            "hash": "7b0f8ff50c69fa793c874e334b2ed1fc00cc0b6d672fda7618aca456028b5275"
+          },
+          {
+            "path": "openspec/changes/fix-handler-route-and-add-api-tests/tasks.md",
+            "hash": "6b67f579a4c1b3f1c53a73b0fb55dbe579087aba757beecda3b51eebe3a2dafe"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/main.py",
+            "hash": "e1392763c4b8b7dc1f9e1c5d7029ffccbe39fca620dd5b3cfa8a31015d0e93d1"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/app.py",
+            "hash": "83bbedf30c1e94d7977ccd4b4dff2bc79e2d0f8cd2cdf0793f2c9e024dd9c1ac"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/deps.py",
+            "hash": "258a7cb5bd50f1fb833c920233b02be88a449c42e838b2c9a262cf77422e89a0"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/routes.py",
+            "hash": "f7b709871b4c812d7912fc546f5f7b71145f34bf8a8dff14b7149536aeb9a52b"
+          },
+          {
+            "path": "tests/core/integration/test_graph_api.py",
+            "hash": "17c423641e229da39f65124c85f7461e95e204949a701b3fcd32de3c6afa23d6"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "3a8e609bd5be3341d5c0c56196af5264855065b1"
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from stockimformation_core.pipeline import PipelineController
+from stockimformation_core.registry import HandlerRegistry
 from stockimformation_core.web.deps import error_response
 from stockimformation_core.web.routes import router
 
@@ -18,6 +19,7 @@ def create_app(
     config_dir: Path = Path("config"),
     controller: PipelineController | None = None,
     run_startup: bool = True,
+    handler_registry: HandlerRegistry | None = None,
 ) -> FastAPI:
     controller = controller or PipelineController(config_dir)
 
@@ -32,6 +34,7 @@ def create_app(
     app = FastAPI(title="stockImformation", lifespan=lifespan)
     app.state.config_dir = config_dir
     app.state.controller = controller
+    app.state.handler_registry = handler_registry
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173"],
