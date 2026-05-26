@@ -42,6 +42,8 @@ Implement tasks from an OpenSpec change.
 
    **Handle states:**
    - If `state: "blocked"` (missing artifacts): show message, suggest using `/opsx:continue`
+   - If `state: "needs_verify"`: skip back to Phase 1 and run canonical verification
+   - If `state: "needs_seal"`: skip implementation and continue with Phase 2/3
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
