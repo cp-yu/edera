@@ -134,6 +134,20 @@ async def test_list_dags_includes_configured_dags(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_source_health_accepts_resource_entity_with_id_business_key(tmp_path) -> None:
+    root = _copy_project_config(tmp_path)
+    app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.get("/api/sources/health")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert response.json()["sources"]
+
+
+@pytest.mark.asyncio
 async def test_get_relations(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)

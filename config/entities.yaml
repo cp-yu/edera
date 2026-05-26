@@ -17,6 +17,11 @@ entities:
   attributes:
     code: 00100.HK
     name: Minimax
+- id: v8_isolate
+  type: resource
+  attributes:
+    id: v8_isolate
+    permits: 1
 - id: source-hn-rss
   type: rss-source
   attributes:
