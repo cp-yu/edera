@@ -163,6 +163,16 @@ async function verifyGraphLogic(cdp) {
       const sourceHandles = graph.getHandleSpecs(source.id, source, [])
       const readerHandles = graph.getHandleSpecs(reader.id, reader, [])
       const sinkHandles = graph.getHandleSpecs(sink.id, sink, [])
+      const uziFetchKind = graph.getNodeKind({
+        ...reader,
+        name: 'uzi-fetch-basic',
+        type_name: 'uzi-fetch-basic',
+      })
+      const uziAssembleKind = graph.getNodeKind({
+        ...reader,
+        name: 'uzi-assemble-report',
+        type_name: 'uzi-assemble-report',
+      })
       const search = graph.filterSearchItems(
         graph.buildSearchItems(${JSON.stringify(fixtures.nodeTypes)}, [{ ...reader, alias: 'alias-hit' }]),
         'alias-hit',
@@ -172,6 +182,8 @@ async function verifyGraphLogic(cdp) {
         sourceRoleHandles: sourceHandles.inputHandles.length === 0 && sourceHandles.outputHandles.length === 1,
         processorHandles: readerHandles.inputHandles.length === 1 && readerHandles.outputHandles.length === 1,
         sinkRoleHandles: sinkHandles.inputHandles.length === 1 && sinkHandles.outputHandles.length === 0,
+        uziFetchKind: uziFetchKind === 'fetcher',
+        uziAssembleKind: uziAssembleKind === 'aggregator',
         rejectsInputToSource: graph.isValidConnection(reader, source) === false,
         rejectsFunctionMismatch: graph.isValidConnection(source, functionTarget) === false,
         rejectsProcessorMismatch: graph.isValidConnection(source, processorTarget) === false,

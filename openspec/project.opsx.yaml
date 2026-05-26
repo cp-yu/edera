@@ -173,3 +173,9 @@ capabilities:
   - id: cap.core.dag-resource-semaphore
     intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
     type: capability
+  - id: cap.core.uzi-skill-dag-instance
+    intent: UZI-Skill 分析管道的 DAG 实例配置，覆盖节点声明、边拓扑、resource 引用和 fan-in 模式
+    type: capability
+  - id: cap.core.legacy-script-adapter
+    intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
+    type: capability

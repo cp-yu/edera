@@ -35,3 +35,21 @@ relations:
   - api-source:github
   type: uses-source
   metadata: {}
+- id: 4b0a2d4629d44c939e2c79f5fa7c0020
+  entities:
+  - stock:00020.HK
+  - rss-source:hn-rss
+  type: uses-source
+  metadata: {}
+- id: 0ec64d14e7234c809c2e62e902c0020
+  entities:
+  - stock:00020.HK
+  - api-source:cls-telegraph
+  type: uses-source
+  metadata: {}
+- id: 04d94bd9c2844e37a5d4a240f8c0020
+  entities:
+  - stock:00020.HK
+  - api-source:jqka
+  type: uses-source
+  metadata: {}

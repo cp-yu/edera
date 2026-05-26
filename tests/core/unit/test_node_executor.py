@@ -13,6 +13,7 @@ from stockimformation_core.config.schema import (
 )
 from stockimformation_core.node.executor import NodeExecutor, _apply_instance_config
 from stockimformation_core.node.models import NodeContext, NodeInput
+from stockimformation_types import NodeOutput
 
 
 @pytest.mark.asyncio
@@ -41,6 +42,45 @@ async def test_node_executor_function_handler_returns_json_payload() -> None:
     )
     assert output.ok
     assert output.payload == {"cycle": "cycle", "value": {"source_names": []}}
+
+
+@pytest.mark.asyncio
+async def test_node_executor_records_handler_node_output() -> None:
+    config = load_app_config(Path("config"))
+    recorded: list[tuple[str, str, str, object, str | None]] = []
+
+    async def handler(_node_input: NodeInput) -> NodeOutput:
+        return NodeOutput(node_name="report", ok=True, payload={"report_path": "/tmp/report.html"})
+
+    async def recorder(
+        cycle_id: str,
+        node_id: str,
+        entity_type: str,
+        payload: object,
+        session_id: str | None,
+    ) -> None:
+        recorded.append((cycle_id, node_id, entity_type, payload, session_id))
+
+    node = NodeConfig(
+        name="report-node",
+        type="function",
+        handler="report",
+        input_type="Any",
+        output_type="Any",
+    )
+    executor = NodeExecutor(
+        {"report-node": node},
+        config.system,
+        config.runtime,
+        handlers={"report": handler},
+        output_recorder=recorder,
+    )
+
+    output = await executor.execute("report-node", NodeInput(cycle_id="cycle", payload={}))
+
+    assert output.ok
+    assert output.payload == {"report_path": "/tmp/report.html"}
+    assert recorded == [("cycle", "report-node", "any", {"report_path": "/tmp/report.html"}, None)]
 
 
 @pytest.mark.asyncio

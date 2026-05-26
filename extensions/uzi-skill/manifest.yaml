@@ -1,0 +1,8 @@
+name: uzi-skill
+version: 0.1.0
+handlers:
+  - name: legacy-script-adapter
+    entry: adapter.py
+    role: processor
+    input_type: Any
+    output_type: Any

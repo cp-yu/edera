@@ -83,7 +83,9 @@ export function getDraftStorageKey(dagName: string): string {
   return `workbench:draft:${dagName}`
 }
 
-export function getNodeKind(node: Pick<NodeType, 'type' | 'role'>): NodeKind {
+export function getNodeKind(node: Pick<NodeType, 'name' | 'type' | 'role'>): NodeKind {
+  if (node.name === 'uzi-preflight' || node.name.startsWith('uzi-fetch-')) return 'fetcher'
+  if (node.name === 'uzi-assemble-report') return 'aggregator'
   if (node.role === 'source') return 'fetcher'
   if (node.role === 'processor') return 'processor'
   if (node.type === 'function') return 'aggregator'

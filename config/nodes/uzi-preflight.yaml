@@ -1,0 +1,11 @@
+name: uzi-preflight
+type: function
+role: processor
+handler: legacy-script-adapter
+input_type: Any
+output_type: Any
+parameters:
+  module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/lib/pipeline/preflight_helpers.py
+  function: prepare_target
+  args_map:
+  - source: params.ticker

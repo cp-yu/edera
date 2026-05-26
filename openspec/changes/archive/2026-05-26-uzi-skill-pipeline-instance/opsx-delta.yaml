@@ -1,0 +1,16 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.uzi-skill-dag-instance
+      type: capability
+      intent: UZI-Skill 分析管道的 DAG 实例配置，覆盖节点声明、边拓扑、resource 引用和 fan-in 模式
+    - id: cap.core.legacy-script-adapter
+      type: capability
+      intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
+  relations:
+    - from: cap.core.uzi-skill-dag-instance
+      type: contains
+      to: dom.operations
+    - from: cap.core.legacy-script-adapter
+      type: contains
+      to: dom.core

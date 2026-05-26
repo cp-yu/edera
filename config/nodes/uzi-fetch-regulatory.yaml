@@ -1,0 +1,11 @@
+name: uzi-fetch-regulatory
+type: function
+role: processor
+handler: legacy-script-adapter
+input_type: Any
+output_type: Any
+parameters:
+  module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/fetch_policy.py
+  function: main
+  args_map:
+  - source: input.ticker

@@ -69,3 +69,9 @@ relations:
   - from: cap.core.dag-resource-semaphore
     type: contains
     to: dom.core
+  - from: cap.core.uzi-skill-dag-instance
+    type: contains
+    to: dom.operations
+  - from: cap.core.legacy-script-adapter
+    type: contains
+    to: dom.core

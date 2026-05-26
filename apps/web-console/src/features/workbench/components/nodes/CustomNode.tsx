@@ -155,7 +155,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
       <div className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em]', kindStyle.header)}>
         <div className="flex items-center gap-2">
           <Icon size={14} strokeWidth={2.2} />
-          <span>{node.visualKind}</span>
+          <span className="min-w-0 flex-1 truncate">{node.type_name}</span>
         </div>
       </div>
       <div className="space-y-3 px-4 py-3">

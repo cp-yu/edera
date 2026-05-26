@@ -1,0 +1,795 @@
+{
+  "timestamp": "2026-05-26T05:50:37.494Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "e93dd0b53fb6d8cffab86e3e9b048188fea05d51854004a7a303f83d4369ad28",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "canonical_phase_1_verification",
+    "evidenceFiles": [
+      "apps/web-console/scripts/verify-node-instance-model.mjs",
+      "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+      "apps/web-console/src/features/workbench/lib/graph.ts",
+      "config/dags/uzi-skill-analysis.yaml",
+      "config/entities.yaml",
+      "config/nodes/uzi-assemble-report.yaml",
+      "config/nodes/uzi-autofill-mx.yaml",
+      "config/nodes/uzi-autofill-playwright.yaml",
+      "config/nodes/uzi-fetch-basic.yaml",
+      "config/nodes/uzi-fetch-capital-flow.yaml",
+      "config/nodes/uzi-fetch-competitors.yaml",
+      "config/nodes/uzi-fetch-dividend.yaml",
+      "config/nodes/uzi-fetch-estimates.yaml",
+      "config/nodes/uzi-fetch-events.yaml",
+      "config/nodes/uzi-fetch-financials.yaml",
+      "config/nodes/uzi-fetch-futures.yaml",
+      "config/nodes/uzi-fetch-industry.yaml",
+      "config/nodes/uzi-fetch-insider.yaml",
+      "config/nodes/uzi-fetch-liquidity.yaml",
+      "config/nodes/uzi-fetch-macro.yaml",
+      "config/nodes/uzi-fetch-market.yaml",
+      "config/nodes/uzi-fetch-moneyflow.yaml",
+      "config/nodes/uzi-fetch-news.yaml",
+      "config/nodes/uzi-fetch-ownership.yaml",
+      "config/nodes/uzi-fetch-policy.yaml",
+      "config/nodes/uzi-fetch-regulatory.yaml",
+      "config/nodes/uzi-fetch-risk.yaml",
+      "config/nodes/uzi-fetch-sentiment.yaml",
+      "config/nodes/uzi-fetch-shareholder.yaml",
+      "config/nodes/uzi-fetch-technical.yaml",
+      "config/nodes/uzi-fetch-valuation.yaml",
+      "config/nodes/uzi-generate-panel.yaml",
+      "config/nodes/uzi-generate-synthesis.yaml",
+      "config/nodes/uzi-preflight.yaml",
+      "config/nodes/uzi-render-capital-flow.yaml",
+      "config/nodes/uzi-render-competitors.yaml",
+      "config/nodes/uzi-render-dividend.yaml",
+      "config/nodes/uzi-render-estimates.yaml",
+      "config/nodes/uzi-render-events.yaml",
+      "config/nodes/uzi-render-financials.yaml",
+      "config/nodes/uzi-render-futures.yaml",
+      "config/nodes/uzi-render-industry.yaml",
+      "config/nodes/uzi-render-insider.yaml",
+      "config/nodes/uzi-render-liquidity.yaml",
+      "config/nodes/uzi-render-macro.yaml",
+      "config/nodes/uzi-render-market.yaml",
+      "config/nodes/uzi-render-moneyflow.yaml",
+      "config/nodes/uzi-render-news.yaml",
+      "config/nodes/uzi-render-policy.yaml",
+      "config/nodes/uzi-render-risk.yaml",
+      "config/nodes/uzi-render-sentiment.yaml",
+      "config/nodes/uzi-render-shareholder.yaml",
+      "config/nodes/uzi-render-summary.yaml",
+      "config/nodes/uzi-render-technical.yaml",
+      "config/nodes/uzi-render-valuation.yaml",
+      "config/nodes/uzi-score-dimensions.yaml",
+      "extensions/uzi-skill/adapter.py",
+      "extensions/uzi-skill/manifest.yaml",
+      "openspec/changes/uzi-skill-pipeline-instance/design.md",
+      "openspec/changes/uzi-skill-pipeline-instance/opsx-delta.yaml",
+      "openspec/changes/uzi-skill-pipeline-instance/proposal.md",
+      "openspec/changes/uzi-skill-pipeline-instance/specs/legacy-script-adapter/spec.md",
+      "openspec/changes/uzi-skill-pipeline-instance/specs/uzi-skill-dag-instance/spec.md",
+      "openspec/changes/uzi-skill-pipeline-instance/tasks.md",
+      "packages/core/src/stockimformation_core/dag/runner.py",
+      "packages/core/src/stockimformation_core/node/executor.py",
+      "packages/core/src/stockimformation_core/pipeline.py",
+      "packages/core/src/stockimformation_core/storage/database.py",
+      "packages/core/src/stockimformation_core/storage/repository.py",
+      "packages/core/src/stockimformation_core/web/routes.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/unit/test_node_executor.py",
+      "tests/extensions/fixtures/uzi_skill_mock.py",
+      "tests/extensions/test_legacy_script_adapter.py",
+      "tests/extensions/test_uzi_skill_dag.py"
+    ],
+    "evidenceFingerprint": "1883b8b9de57b653fb72dc0dfb96b6f3fb94b873c31bba9cdbddca79bd0d3b33",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+        "hash": "eab198c5e28a2ede15e5fa307d3412467c79cc0c8210b97d89781471e536b3cc"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+        "hash": "bbb0f1fdcf922db3b3f20cd9c3b6b7212d221e62a15901fb61136e33f8628e64"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+        "hash": "831ff8f9a70e5a327b79c9c6bee5a4f96e080c2aae87bb0131e8868a035f443a"
+      },
+      {
+        "path": "config/dags/uzi-skill-analysis.yaml",
+        "hash": "6bc13e3a7727864afde7faec210405fa5071987271e8e1b0b137cfaf91f31618"
+      },
+      {
+        "path": "config/entities.yaml",
+        "hash": "b1f60ab82931afc0d52fa65b93509ca6018d008b71c5ff38ba9b76e1df7d1c74"
+      },
+      {
+        "path": "config/nodes/uzi-assemble-report.yaml",
+        "hash": "b03097f80ee5a8f414614751aeaab960b57938113a70750596e802bb5d1a8973"
+      },
+      {
+        "path": "config/nodes/uzi-autofill-mx.yaml",
+        "hash": "ccbb937e0a6e2da23704705791ea889839880cd87ffce3027de1fff78b2e970d"
+      },
+      {
+        "path": "config/nodes/uzi-autofill-playwright.yaml",
+        "hash": "fad3a91a2b0fa2456496a3a95ca37a2dd06af445790b98b29f62dacd7dec1d5d"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-basic.yaml",
+        "hash": "68708b3a69f5c01f2ebb76d51b6add834464d16fdb5c36d9967419fbdd1580b3"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-capital-flow.yaml",
+        "hash": "c78bdce75bf816b8d90c705b3144c8423e2482a4a83d0b78bf50c9b99631cb1d"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-competitors.yaml",
+        "hash": "1a3486b0b4bec08b77ccd3a0dfb0e98973ad533a5b1b1124bf0b0bbdcad34e96"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-dividend.yaml",
+        "hash": "94c4f2bc949803a0f9cd23a682da65ce4bd2926100ecfb3c2e3db49b7935b4e8"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-estimates.yaml",
+        "hash": "d20b8487d293aa599750ac604f967f29fad0684005039343a35d13fd1bbb959a"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-events.yaml",
+        "hash": "f410ff03606cb86d4ea2ff7096de22cf9b30d1411f84f5d828c9df7cdf16be53"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-financials.yaml",
+        "hash": "266a33a1077e5f357708415566d9785fb21a3dd497c77d2976085c4ff78d8235"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-futures.yaml",
+        "hash": "a7d1277dcd04e9c4bc2dd53731898a2744cdaeaffe27e9b471e45577a859111e"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-industry.yaml",
+        "hash": "d3f6fd076e45522f13ba3cce37d0d462074719532e02053c829c307bddfa339e"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-insider.yaml",
+        "hash": "cd93067af52a9e0bdee900fd580db1d32d79dd11a948a9620d462822af41b5ba"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-liquidity.yaml",
+        "hash": "cfa425f6cebd2b183c71c190e89e6c861e23c5588532b8e73b5fc6814d88abb9"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-macro.yaml",
+        "hash": "1210da3b473d060b7102b0df44315b72b673cd16f16155115aef9c31e50f85f7"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-market.yaml",
+        "hash": "bfbdf930bf626a3ad0b92f0b7190ed7a7804b61563eb05741ac885fbe1b5eca3"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-moneyflow.yaml",
+        "hash": "213027ed568fcd31ad48a6603b568c4a022e7657ff5f61ae2442b2ed463cfd54"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-news.yaml",
+        "hash": "41c1169b13ce5b9348e315936f539de553ed9f365f15e096c2b6c2a903ebe6a2"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-ownership.yaml",
+        "hash": "ff0eee642ffbbc1af25bdfee39b2e5ca95544e2904b874d997f558ad697a7929"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-policy.yaml",
+        "hash": "76fa1d32ce2ba3207c3b72c9d7000d34f6f33da6c144f9ed7a2dcf1528b0af90"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-regulatory.yaml",
+        "hash": "2cfbfba25dc520d2a1f11d1e9b98c1aece765f764ca1c5441a30252754271729"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-risk.yaml",
+        "hash": "ba67d3e3f1030872df74eecff2264143747f4a2acf40d06eca28d53628473fe8"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-sentiment.yaml",
+        "hash": "a4f05b1abf19dca201f796725ce0ea2d62a6002759effefc0a79a156ef6c7a0d"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-shareholder.yaml",
+        "hash": "a0500fd4cb022cbf29c9b2754e7aa8bda5efde21d83e78cc27660d76cfd8186c"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-technical.yaml",
+        "hash": "244da454d8f276bfdd06084002e645ec1f670f0cd20ac86013b78e6ecb93ca2a"
+      },
+      {
+        "path": "config/nodes/uzi-fetch-valuation.yaml",
+        "hash": "da56959b3da0083f5e465e550ef14dbd63f3b7bb81f369eb111990e555c14a96"
+      },
+      {
+        "path": "config/nodes/uzi-generate-panel.yaml",
+        "hash": "8379b568bcbd3cd43e018eab64dedd835dda3dd9d47d6810939716e5b9e51917"
+      },
+      {
+        "path": "config/nodes/uzi-generate-synthesis.yaml",
+        "hash": "3a1b1380ee1cd8a460665d086ada632019e046f9dd1c11fa9f05fc7908a2787e"
+      },
+      {
+        "path": "config/nodes/uzi-preflight.yaml",
+        "hash": "375db94f8d2d7795e753b29e5ab8de495847486389e056eed0a869cc4d98ef20"
+      },
+      {
+        "path": "config/nodes/uzi-render-capital-flow.yaml",
+        "hash": "ac56de8ac146a78d5cad24216517998b40b4d60ad182920c31d3b70f8177bda3"
+      },
+      {
+        "path": "config/nodes/uzi-render-competitors.yaml",
+        "hash": "235e2a914e071cca4ce41a85fffa3ffe2a80eb3c28294d6f36eb4efddc65f61e"
+      },
+      {
+        "path": "config/nodes/uzi-render-dividend.yaml",
+        "hash": "4840ae5574d311395ac24d365dc6221df4016961bc5b2d8add05e7aa83822e1b"
+      },
+      {
+        "path": "config/nodes/uzi-render-estimates.yaml",
+        "hash": "8b147a1c67857dabc39f540e6efb454462b981dedfa2e2a88e3942573e633bd3"
+      },
+      {
+        "path": "config/nodes/uzi-render-events.yaml",
+        "hash": "cfee8e58d231251e7d2c2d58fed5e2aa4ce25e768e5b28c6cb2bab2e5d3fbdc1"
+      },
+      {
+        "path": "config/nodes/uzi-render-financials.yaml",
+        "hash": "4d8051f4c5f7ebb62f906bbd08e177aa3d83134a123ab228679a582f4e26814d"
+      },
+      {
+        "path": "config/nodes/uzi-render-futures.yaml",
+        "hash": "2bc04fd951371896197717518951b9f492afe5035164bc33216a4d70008ac0de"
+      },
+      {
+        "path": "config/nodes/uzi-render-industry.yaml",
+        "hash": "db267d1d7f93e3501b4ff29f9f486723e4e011509769f5ec09719e9eb179df38"
+      },
+      {
+        "path": "config/nodes/uzi-render-insider.yaml",
+        "hash": "e8640261501e2b59ef75c48f53a9ec47ca9580e0ec379a92148319e063e53b24"
+      },
+      {
+        "path": "config/nodes/uzi-render-liquidity.yaml",
+        "hash": "8d83356d8f49a1f00aa97d3148e496564443275a88d39fd0ca00f1958153f88c"
+      },
+      {
+        "path": "config/nodes/uzi-render-macro.yaml",
+        "hash": "ba53f71e24f16197098f8b18e5f10f3f021b6fbe11b960a134d5df33fbdde1c7"
+      },
+      {
+        "path": "config/nodes/uzi-render-market.yaml",
+        "hash": "4d77f9c0353e8183755233b2dc104d24ec0c6226bc41207c0c9a8b04d77d9c69"
+      },
+      {
+        "path": "config/nodes/uzi-render-moneyflow.yaml",
+        "hash": "f8476ff3958640b8397fdbb69510079713ab472cd3848e6d8c4efd2a61637e12"
+      },
+      {
+        "path": "config/nodes/uzi-render-news.yaml",
+        "hash": "8716acdc1dbce204ae220a47ef0495413665687962c7f3cfcb8d656010eb4fff"
+      },
+      {
+        "path": "config/nodes/uzi-render-policy.yaml",
+        "hash": "36967a3d32fdd0ccc107905272bc6c5c7d49b52b5e2112b1464fd708fed4ec0d"
+      },
+      {
+        "path": "config/nodes/uzi-render-risk.yaml",
+        "hash": "294fafedc230ae819bb2718a57b1f96daf894490b46e2b4fb3839b651d56f889"
+      },
+      {
+        "path": "config/nodes/uzi-render-sentiment.yaml",
+        "hash": "53d51f5dd977d4ca372f31c1adf2aae6c878b430bbf6411c7392dfbf052cf7ec"
+      },
+      {
+        "path": "config/nodes/uzi-render-shareholder.yaml",
+        "hash": "85173a54ef97a0e0d0a329f637900905424786ca403e13f0d7d72e5b9bb5742c"
+      },
+      {
+        "path": "config/nodes/uzi-render-summary.yaml",
+        "hash": "4b06b03e710886cedf92fd99aa6bb8a076945f2a2af1d34951fd0d89a467a7c1"
+      },
+      {
+        "path": "config/nodes/uzi-render-technical.yaml",
+        "hash": "17efdf8319938129d7c65b2a448522d7afbd7e6ddc7b4b064a5f0721f344d71c"
+      },
+      {
+        "path": "config/nodes/uzi-render-valuation.yaml",
+        "hash": "1fc860bdeced7091ab38f62e076d24de16c3b3fb1256d7e144d832bcc4d3b7ba"
+      },
+      {
+        "path": "config/nodes/uzi-score-dimensions.yaml",
+        "hash": "eb242c849bb4e47c024791a0f8dbe0ab64c9665775dea57a7159bcabac084f03"
+      },
+      {
+        "path": "extensions/uzi-skill/adapter.py",
+        "hash": "79c05efb5df4f80a84ccf53681b84c16c95faaaf807619cc271221dbb405abc6"
+      },
+      {
+        "path": "extensions/uzi-skill/manifest.yaml",
+        "hash": "f4876f4449bb0d59ef7220f3e113dfd0a12c3f9ed2e4dbde2f6d839a0e976d21"
+      },
+      {
+        "path": "openspec/changes/uzi-skill-pipeline-instance/design.md",
+        "hash": "9e5220b4f1641a55989e0db97b92449177fcb3b579638df2350a6c5cdd81e553"
+      },
+      {
+        "path": "openspec/changes/uzi-skill-pipeline-instance/opsx-delta.yaml",
+        "hash": "1f7a0556de4d9399d81a601dcafe16582a4975c398228cc2885953f772bdd20e"
+      },
+      {
+        "path": "openspec/changes/uzi-skill-pipeline-instance/proposal.md",
+        "hash": "4d1fa0e8ff653e779f66b6d3af427b9f25ada0fcf14777aa71f30cb842a2d84a"
+      },
+      {
+        "path": "openspec/changes/uzi-skill-pipeline-instance/specs/legacy-script-adapter/spec.md",
+        "hash": "7b9d0863dc9416d825630f92cbd4857d08312c94e9836810db64d1b3e9fdb832"
+      },
+      {
+        "path": "openspec/changes/uzi-skill-pipeline-instance/specs/uzi-skill-dag-instance/spec.md",
+        "hash": "689c2b3f52d0e5b62df27e3f0aee80a228a7a92ae3d1bdcd555c5bc0f49bb10c"
+      },
+      {
+        "path": "openspec/changes/uzi-skill-pipeline-instance/tasks.md",
+        "hash": "e93dd0b53fb6d8cffab86e3e9b048188fea05d51854004a7a303f83d4369ad28"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/runner.py",
+        "hash": "a9a0e7e07bcce0af64067b9162a685662ce8ceaa6dd6b7c60c5b7c897ee0df4b"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/node/executor.py",
+        "hash": "20c6bec96e06e1521fc7d2c6730565b240381b6d6425b77f0368c98becb67278"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/pipeline.py",
+        "hash": "5aae49c07152c2aa292ceccbbb3420d5dc055f53f01f67d45a11ec5fb7e61105"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/database.py",
+        "hash": "4648d86d37fcc30a7b224d67a7fec3784bee1a96dec681c7c1996e9da331de78"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/storage/repository.py",
+        "hash": "b3850378afdedbf561d288608edd618f0f24315d908a06c76edd49057d584d2c"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/routes.py",
+        "hash": "825cf47d02275cfac1e1568fc88ce658dce580a9358f563b2bc1e96d74ce9a6a"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "16072717823e9ed9cc0704ce0eccce8f892f083d70a1ef64df624295daf2f6e8"
+      },
+      {
+        "path": "tests/core/unit/test_node_executor.py",
+        "hash": "81409bf9edc5dde6541e2a45f1bae1dbc11460f43ca4a80b96b6ce8af4eb3d53"
+      },
+      {
+        "path": "tests/extensions/fixtures/uzi_skill_mock.py",
+        "hash": "3785cf0479db138224a93224f0e333d29f27ee6388632e20f3bfaecdd6c16ef3"
+      },
+      {
+        "path": "tests/extensions/test_legacy_script_adapter.py",
+        "hash": "267a77191683056433bfb60dddad9fa15c7212876414c28905c401b498289781"
+      },
+      {
+        "path": "tests/extensions/test_uzi_skill_dag.py",
+        "hash": "a10d2e84ae4d3a48a53c204fd3d2ff6147c2c5515f0b89dfdd013fa7e262ccca"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "4aaaa0b3600c0d7fc8935342c43da64e502b977e"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-26T05:52:03.978Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Archive-time verification found no safe behavior-preserving optimization needed after targeted UZI DAG resource and optionality fixes."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-26T05:50:37.494Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "e93dd0b53fb6d8cffab86e3e9b048188fea05d51854004a7a303f83d4369ad28",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "canonical_phase_1_verification",
+        "evidenceFiles": [
+          "apps/web-console/scripts/verify-node-instance-model.mjs",
+          "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+          "apps/web-console/src/features/workbench/lib/graph.ts",
+          "config/dags/uzi-skill-analysis.yaml",
+          "config/entities.yaml",
+          "config/nodes/uzi-assemble-report.yaml",
+          "config/nodes/uzi-autofill-mx.yaml",
+          "config/nodes/uzi-autofill-playwright.yaml",
+          "config/nodes/uzi-fetch-basic.yaml",
+          "config/nodes/uzi-fetch-capital-flow.yaml",
+          "config/nodes/uzi-fetch-competitors.yaml",
+          "config/nodes/uzi-fetch-dividend.yaml",
+          "config/nodes/uzi-fetch-estimates.yaml",
+          "config/nodes/uzi-fetch-events.yaml",
+          "config/nodes/uzi-fetch-financials.yaml",
+          "config/nodes/uzi-fetch-futures.yaml",
+          "config/nodes/uzi-fetch-industry.yaml",
+          "config/nodes/uzi-fetch-insider.yaml",
+          "config/nodes/uzi-fetch-liquidity.yaml",
+          "config/nodes/uzi-fetch-macro.yaml",
+          "config/nodes/uzi-fetch-market.yaml",
+          "config/nodes/uzi-fetch-moneyflow.yaml",
+          "config/nodes/uzi-fetch-news.yaml",
+          "config/nodes/uzi-fetch-ownership.yaml",
+          "config/nodes/uzi-fetch-policy.yaml",
+          "config/nodes/uzi-fetch-regulatory.yaml",
+          "config/nodes/uzi-fetch-risk.yaml",
+          "config/nodes/uzi-fetch-sentiment.yaml",
+          "config/nodes/uzi-fetch-shareholder.yaml",
+          "config/nodes/uzi-fetch-technical.yaml",
+          "config/nodes/uzi-fetch-valuation.yaml",
+          "config/nodes/uzi-generate-panel.yaml",
+          "config/nodes/uzi-generate-synthesis.yaml",
+          "config/nodes/uzi-preflight.yaml",
+          "config/nodes/uzi-render-capital-flow.yaml",
+          "config/nodes/uzi-render-competitors.yaml",
+          "config/nodes/uzi-render-dividend.yaml",
+          "config/nodes/uzi-render-estimates.yaml",
+          "config/nodes/uzi-render-events.yaml",
+          "config/nodes/uzi-render-financials.yaml",
+          "config/nodes/uzi-render-futures.yaml",
+          "config/nodes/uzi-render-industry.yaml",
+          "config/nodes/uzi-render-insider.yaml",
+          "config/nodes/uzi-render-liquidity.yaml",
+          "config/nodes/uzi-render-macro.yaml",
+          "config/nodes/uzi-render-market.yaml",
+          "config/nodes/uzi-render-moneyflow.yaml",
+          "config/nodes/uzi-render-news.yaml",
+          "config/nodes/uzi-render-policy.yaml",
+          "config/nodes/uzi-render-risk.yaml",
+          "config/nodes/uzi-render-sentiment.yaml",
+          "config/nodes/uzi-render-shareholder.yaml",
+          "config/nodes/uzi-render-summary.yaml",
+          "config/nodes/uzi-render-technical.yaml",
+          "config/nodes/uzi-render-valuation.yaml",
+          "config/nodes/uzi-score-dimensions.yaml",
+          "extensions/uzi-skill/adapter.py",
+          "extensions/uzi-skill/manifest.yaml",
+          "openspec/changes/uzi-skill-pipeline-instance/design.md",
+          "openspec/changes/uzi-skill-pipeline-instance/opsx-delta.yaml",
+          "openspec/changes/uzi-skill-pipeline-instance/proposal.md",
+          "openspec/changes/uzi-skill-pipeline-instance/specs/legacy-script-adapter/spec.md",
+          "openspec/changes/uzi-skill-pipeline-instance/specs/uzi-skill-dag-instance/spec.md",
+          "openspec/changes/uzi-skill-pipeline-instance/tasks.md",
+          "packages/core/src/stockimformation_core/dag/runner.py",
+          "packages/core/src/stockimformation_core/node/executor.py",
+          "packages/core/src/stockimformation_core/pipeline.py",
+          "packages/core/src/stockimformation_core/storage/database.py",
+          "packages/core/src/stockimformation_core/storage/repository.py",
+          "packages/core/src/stockimformation_core/web/routes.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/unit/test_node_executor.py",
+          "tests/extensions/fixtures/uzi_skill_mock.py",
+          "tests/extensions/test_legacy_script_adapter.py",
+          "tests/extensions/test_uzi_skill_dag.py"
+        ],
+        "evidenceFingerprint": "1883b8b9de57b653fb72dc0dfb96b6f3fb94b873c31bba9cdbddca79bd0d3b33",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+            "hash": "eab198c5e28a2ede15e5fa307d3412467c79cc0c8210b97d89781471e536b3cc"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+            "hash": "bbb0f1fdcf922db3b3f20cd9c3b6b7212d221e62a15901fb61136e33f8628e64"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+            "hash": "831ff8f9a70e5a327b79c9c6bee5a4f96e080c2aae87bb0131e8868a035f443a"
+          },
+          {
+            "path": "config/dags/uzi-skill-analysis.yaml",
+            "hash": "6bc13e3a7727864afde7faec210405fa5071987271e8e1b0b137cfaf91f31618"
+          },
+          {
+            "path": "config/entities.yaml",
+            "hash": "b1f60ab82931afc0d52fa65b93509ca6018d008b71c5ff38ba9b76e1df7d1c74"
+          },
+          {
+            "path": "config/nodes/uzi-assemble-report.yaml",
+            "hash": "b03097f80ee5a8f414614751aeaab960b57938113a70750596e802bb5d1a8973"
+          },
+          {
+            "path": "config/nodes/uzi-autofill-mx.yaml",
+            "hash": "ccbb937e0a6e2da23704705791ea889839880cd87ffce3027de1fff78b2e970d"
+          },
+          {
+            "path": "config/nodes/uzi-autofill-playwright.yaml",
+            "hash": "fad3a91a2b0fa2456496a3a95ca37a2dd06af445790b98b29f62dacd7dec1d5d"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-basic.yaml",
+            "hash": "68708b3a69f5c01f2ebb76d51b6add834464d16fdb5c36d9967419fbdd1580b3"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-capital-flow.yaml",
+            "hash": "c78bdce75bf816b8d90c705b3144c8423e2482a4a83d0b78bf50c9b99631cb1d"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-competitors.yaml",
+            "hash": "1a3486b0b4bec08b77ccd3a0dfb0e98973ad533a5b1b1124bf0b0bbdcad34e96"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-dividend.yaml",
+            "hash": "94c4f2bc949803a0f9cd23a682da65ce4bd2926100ecfb3c2e3db49b7935b4e8"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-estimates.yaml",
+            "hash": "d20b8487d293aa599750ac604f967f29fad0684005039343a35d13fd1bbb959a"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-events.yaml",
+            "hash": "f410ff03606cb86d4ea2ff7096de22cf9b30d1411f84f5d828c9df7cdf16be53"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-financials.yaml",
+            "hash": "266a33a1077e5f357708415566d9785fb21a3dd497c77d2976085c4ff78d8235"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-futures.yaml",
+            "hash": "a7d1277dcd04e9c4bc2dd53731898a2744cdaeaffe27e9b471e45577a859111e"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-industry.yaml",
+            "hash": "d3f6fd076e45522f13ba3cce37d0d462074719532e02053c829c307bddfa339e"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-insider.yaml",
+            "hash": "cd93067af52a9e0bdee900fd580db1d32d79dd11a948a9620d462822af41b5ba"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-liquidity.yaml",
+            "hash": "cfa425f6cebd2b183c71c190e89e6c861e23c5588532b8e73b5fc6814d88abb9"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-macro.yaml",
+            "hash": "1210da3b473d060b7102b0df44315b72b673cd16f16155115aef9c31e50f85f7"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-market.yaml",
+            "hash": "bfbdf930bf626a3ad0b92f0b7190ed7a7804b61563eb05741ac885fbe1b5eca3"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-moneyflow.yaml",
+            "hash": "213027ed568fcd31ad48a6603b568c4a022e7657ff5f61ae2442b2ed463cfd54"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-news.yaml",
+            "hash": "41c1169b13ce5b9348e315936f539de553ed9f365f15e096c2b6c2a903ebe6a2"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-ownership.yaml",
+            "hash": "ff0eee642ffbbc1af25bdfee39b2e5ca95544e2904b874d997f558ad697a7929"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-policy.yaml",
+            "hash": "76fa1d32ce2ba3207c3b72c9d7000d34f6f33da6c144f9ed7a2dcf1528b0af90"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-regulatory.yaml",
+            "hash": "2cfbfba25dc520d2a1f11d1e9b98c1aece765f764ca1c5441a30252754271729"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-risk.yaml",
+            "hash": "ba67d3e3f1030872df74eecff2264143747f4a2acf40d06eca28d53628473fe8"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-sentiment.yaml",
+            "hash": "a4f05b1abf19dca201f796725ce0ea2d62a6002759effefc0a79a156ef6c7a0d"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-shareholder.yaml",
+            "hash": "a0500fd4cb022cbf29c9b2754e7aa8bda5efde21d83e78cc27660d76cfd8186c"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-technical.yaml",
+            "hash": "244da454d8f276bfdd06084002e645ec1f670f0cd20ac86013b78e6ecb93ca2a"
+          },
+          {
+            "path": "config/nodes/uzi-fetch-valuation.yaml",
+            "hash": "da56959b3da0083f5e465e550ef14dbd63f3b7bb81f369eb111990e555c14a96"
+          },
+          {
+            "path": "config/nodes/uzi-generate-panel.yaml",
+            "hash": "8379b568bcbd3cd43e018eab64dedd835dda3dd9d47d6810939716e5b9e51917"
+          },
+          {
+            "path": "config/nodes/uzi-generate-synthesis.yaml",
+            "hash": "3a1b1380ee1cd8a460665d086ada632019e046f9dd1c11fa9f05fc7908a2787e"
+          },
+          {
+            "path": "config/nodes/uzi-preflight.yaml",
+            "hash": "375db94f8d2d7795e753b29e5ab8de495847486389e056eed0a869cc4d98ef20"
+          },
+          {
+            "path": "config/nodes/uzi-render-capital-flow.yaml",
+            "hash": "ac56de8ac146a78d5cad24216517998b40b4d60ad182920c31d3b70f8177bda3"
+          },
+          {
+            "path": "config/nodes/uzi-render-competitors.yaml",
+            "hash": "235e2a914e071cca4ce41a85fffa3ffe2a80eb3c28294d6f36eb4efddc65f61e"
+          },
+          {
+            "path": "config/nodes/uzi-render-dividend.yaml",
+            "hash": "4840ae5574d311395ac24d365dc6221df4016961bc5b2d8add05e7aa83822e1b"
+          },
+          {
+            "path": "config/nodes/uzi-render-estimates.yaml",
+            "hash": "8b147a1c67857dabc39f540e6efb454462b981dedfa2e2a88e3942573e633bd3"
+          },
+          {
+            "path": "config/nodes/uzi-render-events.yaml",
+            "hash": "cfee8e58d231251e7d2c2d58fed5e2aa4ce25e768e5b28c6cb2bab2e5d3fbdc1"
+          },
+          {
+            "path": "config/nodes/uzi-render-financials.yaml",
+            "hash": "4d8051f4c5f7ebb62f906bbd08e177aa3d83134a123ab228679a582f4e26814d"
+          },
+          {
+            "path": "config/nodes/uzi-render-futures.yaml",
+            "hash": "2bc04fd951371896197717518951b9f492afe5035164bc33216a4d70008ac0de"
+          },
+          {
+            "path": "config/nodes/uzi-render-industry.yaml",
+            "hash": "db267d1d7f93e3501b4ff29f9f486723e4e011509769f5ec09719e9eb179df38"
+          },
+          {
+            "path": "config/nodes/uzi-render-insider.yaml",
+            "hash": "e8640261501e2b59ef75c48f53a9ec47ca9580e0ec379a92148319e063e53b24"
+          },
+          {
+            "path": "config/nodes/uzi-render-liquidity.yaml",
+            "hash": "8d83356d8f49a1f00aa97d3148e496564443275a88d39fd0ca00f1958153f88c"
+          },
+          {
+            "path": "config/nodes/uzi-render-macro.yaml",
+            "hash": "ba53f71e24f16197098f8b18e5f10f3f021b6fbe11b960a134d5df33fbdde1c7"
+          },
+          {
+            "path": "config/nodes/uzi-render-market.yaml",
+            "hash": "4d77f9c0353e8183755233b2dc104d24ec0c6226bc41207c0c9a8b04d77d9c69"
+          },
+          {
+            "path": "config/nodes/uzi-render-moneyflow.yaml",
+            "hash": "f8476ff3958640b8397fdbb69510079713ab472cd3848e6d8c4efd2a61637e12"
+          },
+          {
+            "path": "config/nodes/uzi-render-news.yaml",
+            "hash": "8716acdc1dbce204ae220a47ef0495413665687962c7f3cfcb8d656010eb4fff"
+          },
+          {
+            "path": "config/nodes/uzi-render-policy.yaml",
+            "hash": "36967a3d32fdd0ccc107905272bc6c5c7d49b52b5e2112b1464fd708fed4ec0d"
+          },
+          {
+            "path": "config/nodes/uzi-render-risk.yaml",
+            "hash": "294fafedc230ae819bb2718a57b1f96daf894490b46e2b4fb3839b651d56f889"
+          },
+          {
+            "path": "config/nodes/uzi-render-sentiment.yaml",
+            "hash": "53d51f5dd977d4ca372f31c1adf2aae6c878b430bbf6411c7392dfbf052cf7ec"
+          },
+          {
+            "path": "config/nodes/uzi-render-shareholder.yaml",
+            "hash": "85173a54ef97a0e0d0a329f637900905424786ca403e13f0d7d72e5b9bb5742c"
+          },
+          {
+            "path": "config/nodes/uzi-render-summary.yaml",
+            "hash": "4b06b03e710886cedf92fd99aa6bb8a076945f2a2af1d34951fd0d89a467a7c1"
+          },
+          {
+            "path": "config/nodes/uzi-render-technical.yaml",
+            "hash": "17efdf8319938129d7c65b2a448522d7afbd7e6ddc7b4b064a5f0721f344d71c"
+          },
+          {
+            "path": "config/nodes/uzi-render-valuation.yaml",
+            "hash": "1fc860bdeced7091ab38f62e076d24de16c3b3fb1256d7e144d832bcc4d3b7ba"
+          },
+          {
+            "path": "config/nodes/uzi-score-dimensions.yaml",
+            "hash": "eb242c849bb4e47c024791a0f8dbe0ab64c9665775dea57a7159bcabac084f03"
+          },
+          {
+            "path": "extensions/uzi-skill/adapter.py",
+            "hash": "79c05efb5df4f80a84ccf53681b84c16c95faaaf807619cc271221dbb405abc6"
+          },
+          {
+            "path": "extensions/uzi-skill/manifest.yaml",
+            "hash": "f4876f4449bb0d59ef7220f3e113dfd0a12c3f9ed2e4dbde2f6d839a0e976d21"
+          },
+          {
+            "path": "openspec/changes/uzi-skill-pipeline-instance/design.md",
+            "hash": "9e5220b4f1641a55989e0db97b92449177fcb3b579638df2350a6c5cdd81e553"
+          },
+          {
+            "path": "openspec/changes/uzi-skill-pipeline-instance/opsx-delta.yaml",
+            "hash": "1f7a0556de4d9399d81a601dcafe16582a4975c398228cc2885953f772bdd20e"
+          },
+          {
+            "path": "openspec/changes/uzi-skill-pipeline-instance/proposal.md",
+            "hash": "4d1fa0e8ff653e779f66b6d3af427b9f25ada0fcf14777aa71f30cb842a2d84a"
+          },
+          {
+            "path": "openspec/changes/uzi-skill-pipeline-instance/specs/legacy-script-adapter/spec.md",
+            "hash": "7b9d0863dc9416d825630f92cbd4857d08312c94e9836810db64d1b3e9fdb832"
+          },
+          {
+            "path": "openspec/changes/uzi-skill-pipeline-instance/specs/uzi-skill-dag-instance/spec.md",
+            "hash": "689c2b3f52d0e5b62df27e3f0aee80a228a7a92ae3d1bdcd555c5bc0f49bb10c"
+          },
+          {
+            "path": "openspec/changes/uzi-skill-pipeline-instance/tasks.md",
+            "hash": "e93dd0b53fb6d8cffab86e3e9b048188fea05d51854004a7a303f83d4369ad28"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/runner.py",
+            "hash": "a9a0e7e07bcce0af64067b9162a685662ce8ceaa6dd6b7c60c5b7c897ee0df4b"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/node/executor.py",
+            "hash": "20c6bec96e06e1521fc7d2c6730565b240381b6d6425b77f0368c98becb67278"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/pipeline.py",
+            "hash": "5aae49c07152c2aa292ceccbbb3420d5dc055f53f01f67d45a11ec5fb7e61105"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/database.py",
+            "hash": "4648d86d37fcc30a7b224d67a7fec3784bee1a96dec681c7c1996e9da331de78"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/storage/repository.py",
+            "hash": "b3850378afdedbf561d288608edd618f0f24315d908a06c76edd49057d584d2c"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/routes.py",
+            "hash": "825cf47d02275cfac1e1568fc88ce658dce580a9358f563b2bc1e96d74ce9a6a"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "16072717823e9ed9cc0704ce0eccce8f892f083d70a1ef64df624295daf2f6e8"
+          },
+          {
+            "path": "tests/core/unit/test_node_executor.py",
+            "hash": "81409bf9edc5dde6541e2a45f1bae1dbc11460f43ca4a80b96b6ce8af4eb3d53"
+          },
+          {
+            "path": "tests/extensions/fixtures/uzi_skill_mock.py",
+            "hash": "3785cf0479db138224a93224f0e333d29f27ee6388632e20f3bfaecdd6c16ef3"
+          },
+          {
+            "path": "tests/extensions/test_legacy_script_adapter.py",
+            "hash": "267a77191683056433bfb60dddad9fa15c7212876414c28905c401b498289781"
+          },
+          {
+            "path": "tests/extensions/test_uzi_skill_dag.py",
+            "hash": "a10d2e84ae4d3a48a53c204fd3d2ff6147c2c5515f0b89dfdd013fa7e262ccca"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "4aaaa0b3600c0d7fc8935342c43da64e502b977e"
+      }
+    }
+  }
+}

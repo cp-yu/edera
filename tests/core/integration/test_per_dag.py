@@ -20,13 +20,16 @@ from stockimformation_core.web.app import create_app
 
 
 class FakeController(PipelineController):
+    last_payload: object | None = None
+
     async def start(self, run_startup: bool = True) -> None:
         self.engine = create_engine(sqlite_url(self.config_dir / "test.db"))
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
         self.scheduler.start()
 
-    async def start_run(self, trigger: str = "manual", dag_name: str = "default") -> str:
+    async def start_run(self, trigger: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+        self.last_payload = payload
         async with self._locks[dag_name]:
             ctx = self.active_runs.get(dag_name)
             if ctx is not None and not ctx.task.done():
@@ -313,6 +316,21 @@ async def test_per_dag_run_api(tmp_path: Path) -> None:
     assert first.json()["cycle_id"] == "cycle-default-manual"
     assert conflict.status_code == 409
     assert not_found.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_dag_run_api_uses_direct_body_as_initial_payload(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post("/api/pipeline/dag/default/run", json={"ticker": "300470.SZ"})
+            payload = app.state.controller.last_payload
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert payload == {"ticker": "300470.SZ"}
 
 
 @pytest.mark.asyncio

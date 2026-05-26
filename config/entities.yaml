@@ -17,6 +17,11 @@ entities:
   attributes:
     code: 00100.HK
     name: Minimax
+- id: stock-hk0020
+  type: stock
+  attributes:
+    code: 00020.HK
+    name: 商汤-W
 - id: v8_isolate
   type: resource
   attributes:

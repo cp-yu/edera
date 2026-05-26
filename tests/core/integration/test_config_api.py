@@ -293,6 +293,8 @@ async def test_entity_type_delete_protected(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_entity_type_delete_requires_cascade_for_instances(tmp_path) -> None:
     root = _copy_project_config(tmp_path)
+    entities = yaml.safe_load((root / "config" / "entities.yaml").read_text())["entities"]
+    expected_count = sum(1 for entity in entities if entity["type"] == "stock")
     app = create_app(root / "config", FakeController(root / "config"), run_startup=False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await app.state.controller.start(run_startup=False)
@@ -303,7 +305,7 @@ async def test_entity_type_delete_requires_cascade_for_instances(tmp_path) -> No
         finally:
             await app.state.controller.shutdown()
     assert blocked.status_code == 409
-    assert blocked.json()["instance_count"] == 3
+    assert blocked.json()["instance_count"] == expected_count
     assert deleted.status_code == 200
     assert stocks.json()["entities"] == []
 

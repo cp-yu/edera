@@ -1,6 +1,47 @@
+INFO:     127.0.0.1:51210 - "GET /api/graph/handlers/generate-advice HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51226 - "GET /api/graph/handlers/fetch-api HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51240 - "GET /api/graph/handlers/generate-briefing HTTP/1.1" 404 Not Found
+
+---
 确保完全可以通过cli，或者llm友好的形式（比如文本）,完成编辑。
 确认现在有cli 
 需要可以动态的增加dag，完成。  比如先增加 采集节点，然后在采集节点的基础上（此时有数据）增加处理节点（不用重跑一次dag)。 这个目前考虑可以通过前面增加的重试完成曲线救国。
+rig cli需要增加
+
+---
+
+允许改变dag输入的内容
+  curl -X POST http://127.0.0.1:8000/api/pipeline/dag/uzi-skill-analysis/run \
+    -H 'Content-Type: application/json' \
+    -d '{"ticker":"00100.HK"}'
+ 
+cd8560aa9100 差不多是这个提交
+
+---
+
+• 已把 51 个 config/nodes/uzi-*.yaml 的 module_path 全部改到真实脚本目录：
+
+  /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/...
+
+  我只替换了路径前缀，没动 function、args_map、DAG 拓扑或实例配置。
+
+  验证结果：
+
+  - 51 个 module_path 对应文件全部存在。
+  - 无遗留 skills/deep-analysis/scripts/... 旧路径。
+  - DAG 加载通过：51 个节点。
+  - 相关测试通过：3 passed in 0.78s。
+
+  后端如果已经启动，需要再重启一次才能加载这些 YAML 改动。
+
+非core应该是动态更新才对。
+
+---
+alias 应该在dag中直接显示。  方便确认，而非固定显示 node类名
+inspector 的保存应该是固定显示在 可视域底部
+node 面板可以按照类别，前缀，分组。
+点击dag上的node可以高亮它，及其连线。
+node 现在配置的type只有function，这不太合理，  虽然 agent广义也属于 function节点，但是真的放入，反而使得rig的特色不凸显，所以type应该是agent和 function两种，后面考虑增加其他。当然还有dag type，可以将dag使用
 
 ---
 https://github.com/wbh604/UZI-Skill/tree/refactor/v3.0.0-pipeline-architecture
@@ -39,6 +80,7 @@ fincept可以大部分都借鉴。
 
 ----
  缺少完整的用户使用文档
+尤其是一个给ai的文档
 
 
 

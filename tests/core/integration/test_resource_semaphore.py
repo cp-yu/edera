@@ -288,7 +288,13 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
 def _resource_store(permits: int, resource_ids: list[str] | None = None) -> EntityStore:
     config = load_app_config(Path("config"))
     entities = config.entities.model_copy(deep=True)
-    for resource_id in resource_ids or ["v8_isolate"]:
+    resource_ids = resource_ids or ["v8_isolate"]
+    entities.entities = [
+        entity
+        for entity in entities.entities
+        if not (entity.type == "resource" and entity.id in resource_ids)
+    ]
+    for resource_id in resource_ids:
         entities.entities.append(EntityConfig(id=resource_id, type="resource", attributes={"permits": permits}))
     return EntityStore(
         entities,

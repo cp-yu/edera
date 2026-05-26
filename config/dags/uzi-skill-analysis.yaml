@@ -1,0 +1,1578 @@
+name: uzi-skill-analysis
+nodes:
+- id: preflight
+  type: uzi-preflight
+  alias: 预检
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 0_basic
+  type: uzi-fetch-basic
+  alias: 基础信息
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 1_financials
+  type: uzi-fetch-financials
+  alias: 财务数据
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 2_news
+  type: uzi-fetch-news
+  alias: 新闻研报
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 4_market
+  type: uzi-fetch-market
+  alias: 市场行情
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 5_shareholder
+  type: uzi-fetch-shareholder
+  alias: 股东结构
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 6_technical
+  type: uzi-fetch-technical
+  alias: 技术面
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 8_sentiment
+  type: uzi-fetch-sentiment
+  alias: 市场情绪
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 10_valuation
+  type: uzi-fetch-valuation
+  alias: 估值
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: v8_isolate
+- id: 11_moneyflow
+  type: uzi-fetch-moneyflow
+  alias: 资金异动
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 12_capital_flow
+  type: uzi-fetch-capital-flow
+  alias: 资金流
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: v8_isolate
+- id: 14_events
+  type: uzi-fetch-events
+  alias: 事件
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 15_competitors
+  type: uzi-fetch-competitors
+  alias: 竞争对手
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 16_risk
+  type: uzi-fetch-risk
+  alias: 风险信号
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 17_estimates
+  type: uzi-fetch-estimates
+  alias: 盈利预测
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 18_insider
+  type: uzi-fetch-insider
+  alias: 治理内幕
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 19_dividend
+  type: uzi-fetch-dividend
+  alias: 分红
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 20_liquidity
+  type: uzi-fetch-liquidity
+  alias: 流动性
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 21_regulatory
+  type: uzi-fetch-regulatory
+  alias: 监管政策
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 22_ownership
+  type: uzi-fetch-ownership
+  alias: 机构持仓
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 3_macro
+  type: uzi-fetch-macro
+  alias: 宏观
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 7_industry
+  type: uzi-fetch-industry
+  alias: 行业
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: v8_isolate
+- id: 9_futures
+  type: uzi-fetch-futures
+  alias: 期货
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: 13_policy
+  type: uzi-fetch-policy
+  alias: 政策
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: autofill_mx
+  type: uzi-autofill-mx
+  alias: MX 定性补全
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: autofill_playwright
+  type: uzi-autofill-playwright
+  alias: Playwright 定性补全
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: score_dimensions
+  type: uzi-score-dimensions
+  alias: 维度评分
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: generate_panel
+  type: uzi-generate-panel
+  alias: 生成面板
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: generate_synthesis
+  type: uzi-generate-synthesis
+  alias: 综合结论
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_01_summary
+  type: uzi-render-summary
+  alias: 渲染-摘要
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_02_financials
+  type: uzi-render-financials
+  alias: 渲染-财务
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_03_macro
+  type: uzi-render-macro
+  alias: 渲染-宏观
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_04_market
+  type: uzi-render-market
+  alias: 渲染-行情
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_05_news
+  type: uzi-render-news
+  alias: 渲染-新闻
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_06_shareholder
+  type: uzi-render-shareholder
+  alias: 渲染-股东
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_07_technical
+  type: uzi-render-technical
+  alias: 渲染-技术
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_08_industry
+  type: uzi-render-industry
+  alias: 渲染-行业
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_09_sentiment
+  type: uzi-render-sentiment
+  alias: 渲染-情绪
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_10_futures
+  type: uzi-render-futures
+  alias: 渲染-期货
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_11_valuation
+  type: uzi-render-valuation
+  alias: 渲染-估值
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_12_moneyflow
+  type: uzi-render-moneyflow
+  alias: 渲染-资金异动
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_13_capital_flow
+  type: uzi-render-capital-flow
+  alias: 渲染-资金流
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_14_policy
+  type: uzi-render-policy
+  alias: 渲染-政策
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_15_events
+  type: uzi-render-events
+  alias: 渲染-事件
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_16_competitors
+  type: uzi-render-competitors
+  alias: 渲染-竞争对手
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_17_risk
+  type: uzi-render-risk
+  alias: 渲染-风险
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_18_estimates
+  type: uzi-render-estimates
+  alias: 渲染-预测
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_19_insider
+  type: uzi-render-insider
+  alias: 渲染-治理内幕
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_20_dividend
+  type: uzi-render-dividend
+  alias: 渲染-分红
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: render_21_liquidity
+  type: uzi-render-liquidity
+  alias: 渲染-流动性
+  config: {}
+  optional: true
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+- id: assemble_report
+  type: uzi-assemble-report
+  alias: 组装报告
+  config: {}
+  optional: false
+  fan_in_mode: barrier
+  loop: null
+  fallback: null
+  fallback_model: null
+  resource: null
+edges:
+- from: preflight
+  to: 0_basic
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 1_financials
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 2_news
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 4_market
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 5_shareholder
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 6_technical
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 8_sentiment
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 10_valuation
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 11_moneyflow
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 12_capital_flow
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 14_events
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 15_competitors
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 16_risk
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 17_estimates
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 18_insider
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 19_dividend
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 20_liquidity
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 21_regulatory
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 22_ownership
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 3_macro
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 7_industry
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 9_futures
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: 13_policy
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 3_macro
+  to: autofill_mx
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 7_industry
+  to: autofill_mx
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 9_futures
+  to: autofill_mx
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 13_policy
+  to: autofill_mx
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 3_macro
+  to: autofill_playwright
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 7_industry
+  to: autofill_playwright
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 9_futures
+  to: autofill_playwright
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 13_policy
+  to: autofill_playwright
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 0_basic
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 1_financials
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 2_news
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 3_macro
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 4_market
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 5_shareholder
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 6_technical
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 7_industry
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 8_sentiment
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 9_futures
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 10_valuation
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 11_moneyflow
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 12_capital_flow
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 13_policy
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 14_events
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 15_competitors
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 16_risk
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 17_estimates
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 18_insider
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 19_dividend
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 20_liquidity
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 21_regulatory
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: 22_ownership
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: autofill_mx
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: autofill_playwright
+  to: score_dimensions
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: score_dimensions
+  to: generate_panel
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_panel
+  to: generate_synthesis
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_01_summary
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_02_financials
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_03_macro
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_04_market
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_05_news
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_06_shareholder
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_07_technical
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_08_industry
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_09_sentiment
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_10_futures
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_11_valuation
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_12_moneyflow
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_13_capital_flow
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_14_policy
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_15_events
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_16_competitors
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_17_risk
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_18_estimates
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_19_insider
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_20_dividend
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: generate_synthesis
+  to: render_21_liquidity
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_01_summary
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_02_financials
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_03_macro
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_04_market
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_05_news
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_06_shareholder
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_07_technical
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_08_industry
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_09_sentiment
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_10_futures
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_11_valuation
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_12_moneyflow
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_13_capital_flow
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_14_policy
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_15_events
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_16_competitors
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_17_risk
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_18_estimates
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_19_insider
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_20_dividend
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: render_21_liquidity
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+- from: preflight
+  to: assemble_report
+  fan_out: false
+  fan_in: false
+  condition: null
+  fan_in_mode: barrier
+ui:
+  nodes:
+    preflight:
+      x: 12
+      y: 12
+    0_basic:
+      x: 272
+      y: 234
+    1_financials:
+      x: 4440
+      y: 678
+    2_news:
+      x: 3900
+      y: 678
+    4_market:
+      x: 2515
+      y: 678
+    5_shareholder:
+      x: 5814
+      y: 678
+    6_technical:
+      x: 5533
+      y: 678
+    8_sentiment:
+      x: 3067
+      y: 678
+    10_valuation:
+      x: 3630
+      y: 678
+    11_moneyflow:
+      x: 4170
+      y: 678
+    12_capital_flow:
+      x: 2244
+      y: 678
+    14_events:
+      x: 4711
+      y: 678
+    15_competitors:
+      x: 3077
+      y: 456
+    16_risk:
+      x: 2795
+      y: 456
+    17_estimates:
+      x: 4991
+      y: 456
+    18_insider:
+      x: 3359
+      y: 456
+    19_dividend:
+      x: 4721
+      y: 456
+    20_liquidity:
+      x: 2525
+      y: 456
+    21_regulatory:
+      x: 5543
+      y: 456
+    22_ownership:
+      x: 5261
+      y: 456
+    3_macro:
+      x: 1953
+      y: 456
+    7_industry:
+      x: 1403
+      y: 456
+    9_futures:
+      x: 1113
+      y: 456
+    13_policy:
+      x: 532
+      y: 456
+    autofill_mx:
+      x: 833
+      y: 678
+    autofill_playwright:
+      x: 1683
+      y: 678
+    score_dimensions:
+      x: 6074
+      y: 900
+    generate_panel:
+      x: 6334
+      y: 1122
+    generate_synthesis:
+      x: 6594
+      y: 1344
+    render_01_summary:
+      x: 11984
+      y: 1566
+    render_02_financials:
+      x: 9824
+      y: 1566
+    render_03_macro:
+      x: 11174
+      y: 1566
+    render_04_market:
+      x: 10094
+      y: 1566
+    render_05_news:
+      x: 7664
+      y: 1566
+    render_06_shareholder:
+      x: 9014
+      y: 1566
+    render_07_technical:
+      x: 8474
+      y: 1566
+    render_08_industry:
+      x: 10904
+      y: 1566
+    render_09_sentiment:
+      x: 9284
+      y: 1566
+    render_10_futures:
+      x: 11444
+      y: 1566
+    render_11_valuation:
+      x: 7934
+      y: 1566
+    render_12_moneyflow:
+      x: 10364
+      y: 1566
+    render_13_capital_flow:
+      x: 8204
+      y: 1566
+    render_14_policy:
+      x: 7394
+      y: 1566
+    render_15_events:
+      x: 8744
+      y: 1566
+    render_16_competitors:
+      x: 7124
+      y: 1566
+    render_17_risk:
+      x: 11714
+      y: 1566
+    render_18_estimates:
+      x: 12254
+      y: 1566
+    render_19_insider:
+      x: 9554
+      y: 1566
+    render_20_dividend:
+      x: 6854
+      y: 1566
+    render_21_liquidity:
+      x: 10634
+      y: 1566
+    assemble_report:
+      x: 12514
+      y: 1788
+  edges:
+    e-preflight-0_basic-0:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-0_basic-1_financials-1:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-0_basic-2_news-2:
+      sourceHandle: output-1
+      targetHandle: input-0
+    e-0_basic-4_market-3:
+      sourceHandle: output-2
+      targetHandle: input-0
+    e-0_basic-5_shareholder-4:
+      sourceHandle: output-3
+      targetHandle: input-0
+    e-0_basic-6_technical-5:
+      sourceHandle: output-4
+      targetHandle: input-0
+    e-0_basic-8_sentiment-6:
+      sourceHandle: output-5
+      targetHandle: input-0
+    e-0_basic-10_valuation-7:
+      sourceHandle: output-6
+      targetHandle: input-0
+    e-0_basic-11_moneyflow-8:
+      sourceHandle: output-7
+      targetHandle: input-0
+    e-0_basic-12_capital_flow-9:
+      sourceHandle: output-8
+      targetHandle: input-0
+    e-0_basic-14_events-10:
+      sourceHandle: output-9
+      targetHandle: input-0
+    e-0_basic-15_competitors-11:
+      sourceHandle: output-10
+      targetHandle: input-0
+    e-0_basic-16_risk-12:
+      sourceHandle: output-11
+      targetHandle: input-0
+    e-0_basic-17_estimates-13:
+      sourceHandle: output-12
+      targetHandle: input-0
+    e-0_basic-18_insider-14:
+      sourceHandle: output-13
+      targetHandle: input-0
+    e-0_basic-19_dividend-15:
+      sourceHandle: output-14
+      targetHandle: input-0
+    e-0_basic-20_liquidity-16:
+      sourceHandle: output-15
+      targetHandle: input-0
+    e-0_basic-21_regulatory-17:
+      sourceHandle: output-16
+      targetHandle: input-0
+    e-0_basic-22_ownership-18:
+      sourceHandle: output-17
+      targetHandle: input-0
+    e-0_basic-3_macro-19:
+      sourceHandle: output-18
+      targetHandle: input-0
+    e-0_basic-7_industry-20:
+      sourceHandle: output-19
+      targetHandle: input-0
+    e-0_basic-9_futures-21:
+      sourceHandle: output-20
+      targetHandle: input-0
+    e-0_basic-13_policy-22:
+      sourceHandle: output-21
+      targetHandle: input-0
+    e-3_macro-autofill_mx-23:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-7_industry-autofill_mx-24:
+      sourceHandle: output-0
+      targetHandle: input-1
+    e-9_futures-autofill_mx-25:
+      sourceHandle: output-0
+      targetHandle: input-2
+    e-13_policy-autofill_mx-26:
+      sourceHandle: output-0
+      targetHandle: input-3
+    e-3_macro-autofill_playwright-27:
+      sourceHandle: output-1
+      targetHandle: input-0
+    e-7_industry-autofill_playwright-28:
+      sourceHandle: output-1
+      targetHandle: input-1
+    e-9_futures-autofill_playwright-29:
+      sourceHandle: output-1
+      targetHandle: input-2
+    e-13_policy-autofill_playwright-30:
+      sourceHandle: output-1
+      targetHandle: input-3
+    e-0_basic-score_dimensions-31:
+      sourceHandle: output-22
+      targetHandle: input-0
+    e-1_financials-score_dimensions-32:
+      sourceHandle: output-0
+      targetHandle: input-1
+    e-2_news-score_dimensions-33:
+      sourceHandle: output-0
+      targetHandle: input-2
+    e-3_macro-score_dimensions-34:
+      sourceHandle: output-2
+      targetHandle: input-3
+    e-4_market-score_dimensions-35:
+      sourceHandle: output-0
+      targetHandle: input-4
+    e-5_shareholder-score_dimensions-36:
+      sourceHandle: output-0
+      targetHandle: input-5
+    e-6_technical-score_dimensions-37:
+      sourceHandle: output-0
+      targetHandle: input-6
+    e-7_industry-score_dimensions-38:
+      sourceHandle: output-2
+      targetHandle: input-7
+    e-8_sentiment-score_dimensions-39:
+      sourceHandle: output-0
+      targetHandle: input-8
+    e-9_futures-score_dimensions-40:
+      sourceHandle: output-2
+      targetHandle: input-9
+    e-10_valuation-score_dimensions-41:
+      sourceHandle: output-0
+      targetHandle: input-10
+    e-11_moneyflow-score_dimensions-42:
+      sourceHandle: output-0
+      targetHandle: input-11
+    e-12_capital_flow-score_dimensions-43:
+      sourceHandle: output-0
+      targetHandle: input-12
+    e-13_policy-score_dimensions-44:
+      sourceHandle: output-2
+      targetHandle: input-13
+    e-14_events-score_dimensions-45:
+      sourceHandle: output-0
+      targetHandle: input-14
+    e-15_competitors-score_dimensions-46:
+      sourceHandle: output-0
+      targetHandle: input-15
+    e-16_risk-score_dimensions-47:
+      sourceHandle: output-0
+      targetHandle: input-16
+    e-17_estimates-score_dimensions-48:
+      sourceHandle: output-0
+      targetHandle: input-17
+    e-18_insider-score_dimensions-49:
+      sourceHandle: output-0
+      targetHandle: input-18
+    e-19_dividend-score_dimensions-50:
+      sourceHandle: output-0
+      targetHandle: input-19
+    e-20_liquidity-score_dimensions-51:
+      sourceHandle: output-0
+      targetHandle: input-20
+    e-21_regulatory-score_dimensions-52:
+      sourceHandle: output-0
+      targetHandle: input-21
+    e-22_ownership-score_dimensions-53:
+      sourceHandle: output-0
+      targetHandle: input-22
+    e-autofill_mx-score_dimensions-54:
+      sourceHandle: output-0
+      targetHandle: input-23
+    e-autofill_playwright-score_dimensions-55:
+      sourceHandle: output-0
+      targetHandle: input-24
+    e-score_dimensions-generate_panel-56:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-generate_panel-generate_synthesis-57:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-generate_synthesis-render_01_summary-58:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-generate_synthesis-render_02_financials-59:
+      sourceHandle: output-1
+      targetHandle: input-0
+    e-generate_synthesis-render_03_macro-60:
+      sourceHandle: output-2
+      targetHandle: input-0
+    e-generate_synthesis-render_04_market-61:
+      sourceHandle: output-3
+      targetHandle: input-0
+    e-generate_synthesis-render_05_news-62:
+      sourceHandle: output-4
+      targetHandle: input-0
+    e-generate_synthesis-render_06_shareholder-63:
+      sourceHandle: output-5
+      targetHandle: input-0
+    e-generate_synthesis-render_07_technical-64:
+      sourceHandle: output-6
+      targetHandle: input-0
+    e-generate_synthesis-render_08_industry-65:
+      sourceHandle: output-7
+      targetHandle: input-0
+    e-generate_synthesis-render_09_sentiment-66:
+      sourceHandle: output-8
+      targetHandle: input-0
+    e-generate_synthesis-render_10_futures-67:
+      sourceHandle: output-9
+      targetHandle: input-0
+    e-generate_synthesis-render_11_valuation-68:
+      sourceHandle: output-10
+      targetHandle: input-0
+    e-generate_synthesis-render_12_moneyflow-69:
+      sourceHandle: output-11
+      targetHandle: input-0
+    e-generate_synthesis-render_13_capital_flow-70:
+      sourceHandle: output-12
+      targetHandle: input-0
+    e-generate_synthesis-render_14_policy-71:
+      sourceHandle: output-13
+      targetHandle: input-0
+    e-generate_synthesis-render_15_events-72:
+      sourceHandle: output-14
+      targetHandle: input-0
+    e-generate_synthesis-render_16_competitors-73:
+      sourceHandle: output-15
+      targetHandle: input-0
+    e-generate_synthesis-render_17_risk-74:
+      sourceHandle: output-16
+      targetHandle: input-0
+    e-generate_synthesis-render_18_estimates-75:
+      sourceHandle: output-17
+      targetHandle: input-0
+    e-generate_synthesis-render_19_insider-76:
+      sourceHandle: output-18
+      targetHandle: input-0
+    e-generate_synthesis-render_20_dividend-77:
+      sourceHandle: output-19
+      targetHandle: input-0
+    e-generate_synthesis-render_21_liquidity-78:
+      sourceHandle: output-20
+      targetHandle: input-0
+    e-render_01_summary-assemble_report-79:
+      sourceHandle: output-0
+      targetHandle: input-0
+    e-render_02_financials-assemble_report-80:
+      sourceHandle: output-0
+      targetHandle: input-1
+    e-render_03_macro-assemble_report-81:
+      sourceHandle: output-0
+      targetHandle: input-2
+    e-render_04_market-assemble_report-82:
+      sourceHandle: output-0
+      targetHandle: input-3
+    e-render_05_news-assemble_report-83:
+      sourceHandle: output-0
+      targetHandle: input-4
+    e-render_06_shareholder-assemble_report-84:
+      sourceHandle: output-0
+      targetHandle: input-5
+    e-render_07_technical-assemble_report-85:
+      sourceHandle: output-0
+      targetHandle: input-6
+    e-render_08_industry-assemble_report-86:
+      sourceHandle: output-0
+      targetHandle: input-7
+    e-render_09_sentiment-assemble_report-87:
+      sourceHandle: output-0
+      targetHandle: input-8
+    e-render_10_futures-assemble_report-88:
+      sourceHandle: output-0
+      targetHandle: input-9
+    e-render_11_valuation-assemble_report-89:
+      sourceHandle: output-0
+      targetHandle: input-10
+    e-render_12_moneyflow-assemble_report-90:
+      sourceHandle: output-0
+      targetHandle: input-11
+    e-render_13_capital_flow-assemble_report-91:
+      sourceHandle: output-0
+      targetHandle: input-12
+    e-render_14_policy-assemble_report-92:
+      sourceHandle: output-0
+      targetHandle: input-13
+    e-render_15_events-assemble_report-93:
+      sourceHandle: output-0
+      targetHandle: input-14
+    e-render_16_competitors-assemble_report-94:
+      sourceHandle: output-0
+      targetHandle: input-15
+    e-render_17_risk-assemble_report-95:
+      sourceHandle: output-0
+      targetHandle: input-16
+    e-render_18_estimates-assemble_report-96:
+      sourceHandle: output-0
+      targetHandle: input-17
+    e-render_19_insider-assemble_report-97:
+      sourceHandle: output-0
+      targetHandle: input-18
+    e-render_20_dividend-assemble_report-98:
+      sourceHandle: output-0
+      targetHandle: input-19
+    e-render_21_liquidity-assemble_report-99:
+      sourceHandle: output-0
+      targetHandle: input-20
+    e-preflight-assemble_report-100:
+      sourceHandle: output-0
+      targetHandle: input-21
