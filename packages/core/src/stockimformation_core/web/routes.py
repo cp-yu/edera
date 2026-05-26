@@ -778,6 +778,12 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
     }
 
 
+@router.get("/api/graph/dags")
+async def api_graph_dags(request: Request) -> dict[str, object]:
+    dags = load_dag_configs(config_dir(request) / "dags")
+    return {"dags": sorted(dags)}
+
+
 @router.post("/api/graph/dag", response_model=None)
 async def api_graph_dag_create(request: Request, body: dict[str, object]) -> JSONResponse | dict[str, object]:
     name = str(body.get("name") or "").strip()

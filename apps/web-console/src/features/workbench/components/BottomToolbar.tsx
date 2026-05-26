@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/useAppStore'
+import { useDagList } from '@/api/queries'
 import { useCreateDag, useRunDag, useStopDag } from '@/api/mutations'
 import { EntityFilter } from './EntityFilter'
 import type { DagState, DagStatus } from '@/api/types'
@@ -15,9 +16,10 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
   const runDag = useRunDag()
   const stopDag = useStopDag()
   const createDag = useCreateDag()
+  const dagList = useDagList()
   const [creating, setCreating] = useState(false)
   const [newDagName, setNewDagName] = useState('')
-  const dagOptions = Array.from(new Set(['default', selectedDagName, dag?.name].filter(Boolean) as string[]))
+  const dagOptions = Array.from(new Set([...(dagList.data?.dags ?? ['default']), selectedDagName, dag?.name].filter(Boolean) as string[]))
   const submitCreate = () => {
     const name = newDagName.trim()
     if (!name) return

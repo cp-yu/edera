@@ -10,6 +10,13 @@ export function useDag(name: string) {
   })
 }
 
+export function useDagList() {
+  return useQuery({
+    queryKey: ['dags'],
+    queryFn: () => apiFetch<{ dags: string[] }>('/api/graph/dags'),
+  })
+}
+
 export function useNodePrototypes() {
   return useQuery({
     queryKey: ['nodePrototypes'],
