@@ -1,0 +1,281 @@
+{
+  "timestamp": "2026-05-26T11:58:49.104Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "c8982458c4edf2d4f7ea1e6141930ed8fbc1c3e627ae3837a9320c339887c269",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-openspec-reviewer",
+    "evidenceFiles": [
+      "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+      "apps/web-console/src/features/workbench/components/Inspector.tsx",
+      "config/dags/default.yaml",
+      "packages/core/pyproject.toml",
+      "packages/core/src/stockimformation_core/cert.py",
+      "packages/core/src/stockimformation_core/config/schema.py",
+      "packages/core/src/stockimformation_core/daemon.py",
+      "packages/core/src/stockimformation_core/dag/models.py",
+      "packages/core/src/stockimformation_core/dag/runner.py",
+      "packages/core/src/stockimformation_core/events.py",
+      "packages/core/src/stockimformation_core/grpc_client.py",
+      "packages/core/src/stockimformation_core/hot_reload.py",
+      "packages/core/src/stockimformation_core/node/executor.py",
+      "packages/core/src/stockimformation_core/pipeline.py",
+      "packages/core/src/stockimformation_core/rig_cli.py",
+      "packages/core/src/stockimformation_core/web/app.py",
+      "packages/core/src/stockimformation_core/web/routes.py",
+      "proto/rig.proto",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/unit/test_core_architecture_overhaul.py",
+      "tests/core/unit/test_node_executor.py",
+      "tests/core/unit/test_rig_cli.py"
+    ],
+    "evidenceFingerprint": "6d589135fedd0f314b226a6008d06628e1e83bdc3b0bc434c6d0790d1bd88032",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+        "hash": "b27fc3a0f2dd6bab5ed725733ae0b154c58ec83aa80b68b546f7f179c83f5496"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+        "hash": "41eecbb95e401a040ace468f0d007df6fc850c1c1cf2237cd6270ead2b5d44c1"
+      },
+      {
+        "path": "config/dags/default.yaml",
+        "hash": "3d2bda7e90d457931443481b31af14d26feff94b4b60cffcc2f81fdbebd95722"
+      },
+      {
+        "path": "packages/core/pyproject.toml",
+        "hash": "cf4b339a0893013f7dde846468812abf63ea9f89e199a0995a44245e7b2612cf"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/cert.py",
+        "hash": "dfe0c39bdff7dd8f48ea802cdd51127dde2e944456cc425dc93c550836872e02"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/config/schema.py",
+        "hash": "a15937defc6e3577c04533bc5c90c9a80fcaf5843a7c91a04d555cc0acf2cc4a"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/daemon.py",
+        "hash": "6e52bf8ecaf8bc0f27d574b33ca3b4d73f24c8298e27592bd4c869973d79d786"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/models.py",
+        "hash": "150e2d061c914e4aa3a5eba6240ca7eeeed18857c60709bd02258f2520959413"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/dag/runner.py",
+        "hash": "a4fda9b529f396f6ab7cd16d1265f3b60f1ee74e32e222bdc296108b067c5f83"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/events.py",
+        "hash": "b1dda35c28f035733e0bdb84255524a9e83448f76cf67ef81204f565dfd58eda"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/grpc_client.py",
+        "hash": "ad7aa1178d7e30db1391fb6b8f0b412d27e780f47e7f4fd2e3f0a65785bcc56b"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/hot_reload.py",
+        "hash": "57caabb38475bbfdbdb269fcbc4d4f3d85101670192e35d40f7817950db751ed"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/node/executor.py",
+        "hash": "f81de1db650215099de469f4f99f7ed7ad7e98e36d2455c56b7a3634ee0f6721"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/pipeline.py",
+        "hash": "3d8ad9d53338b7a9821b683613aec7367bb33dad7539e91fc4323ca54f41d5a5"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/rig_cli.py",
+        "hash": "f1287742fbea2180929878e03b007e8c4fe7f06bab7d76cd7b961626c18d0f0a"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/app.py",
+        "hash": "48654ce8d903567adfd8f39f8591b838d384175c316aef1287d1dd2dbd8692eb"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/routes.py",
+        "hash": "41fec15dad43b248a97f02915b46249d02bef939d4fa391cf07e74cc5f27d9b0"
+      },
+      {
+        "path": "proto/rig.proto",
+        "hash": "8177cf71d78e34deb4a2b2ffffd3f0fe1b49e19a2cda36b11ebfcbe3c1ff7ed3"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "4b10abe50bbbd64a3baf34f655059fbac793c1b00c316e482dacbfb35d755896"
+      },
+      {
+        "path": "tests/core/unit/test_core_architecture_overhaul.py",
+        "hash": "cd37cbb57e8a2d7325ddece01d0fe1eb433f857e2bccadbb5c7da4584d9357f9"
+      },
+      {
+        "path": "tests/core/unit/test_node_executor.py",
+        "hash": "81409bf9edc5dde6541e2a45f1bae1dbc11460f43ca4a80b96b6ce8af4eb3d53"
+      },
+      {
+        "path": "tests/core/unit/test_rig_cli.py",
+        "hash": "9dceaa1944efb28b6559a2ee9e97bc84c4ba2387ac53bda0bfc4be32c70f9b6b"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "6a7e7945915bbfe0cae0bfdafa7482680d057cd9"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-26T12:01:30.554Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Deduplicate handler coroutine validation and timeout handling in NodeExecutor._execute_payload via a local helper.",
+        "files": [
+          "packages/core/src/stockimformation_core/node/executor.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-26T12:05:32.880Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/stockimformation_core/node/executor.py": "bcf13bda1abfe2c5c23b2f6109a536f9039dff7d27f5e99bf8a283226bdcaeb7"
+    },
+    "baseline": {
+      "timestamp": "2026-05-26T11:58:49.104Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "c8982458c4edf2d4f7ea1e6141930ed8fbc1c3e627ae3837a9320c339887c269",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-openspec-reviewer",
+        "evidenceFiles": [
+          "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+          "apps/web-console/src/features/workbench/components/Inspector.tsx",
+          "config/dags/default.yaml",
+          "packages/core/pyproject.toml",
+          "packages/core/src/stockimformation_core/cert.py",
+          "packages/core/src/stockimformation_core/config/schema.py",
+          "packages/core/src/stockimformation_core/daemon.py",
+          "packages/core/src/stockimformation_core/dag/models.py",
+          "packages/core/src/stockimformation_core/dag/runner.py",
+          "packages/core/src/stockimformation_core/events.py",
+          "packages/core/src/stockimformation_core/grpc_client.py",
+          "packages/core/src/stockimformation_core/hot_reload.py",
+          "packages/core/src/stockimformation_core/node/executor.py",
+          "packages/core/src/stockimformation_core/pipeline.py",
+          "packages/core/src/stockimformation_core/rig_cli.py",
+          "packages/core/src/stockimformation_core/web/app.py",
+          "packages/core/src/stockimformation_core/web/routes.py",
+          "proto/rig.proto",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/unit/test_core_architecture_overhaul.py",
+          "tests/core/unit/test_node_executor.py",
+          "tests/core/unit/test_rig_cli.py"
+        ],
+        "evidenceFingerprint": "bf62d68aae692f47fdba0885bdb5e2bc7af5884421d4d79b92590a36e2319e5e",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+            "hash": "b27fc3a0f2dd6bab5ed725733ae0b154c58ec83aa80b68b546f7f179c83f5496"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+            "hash": "41eecbb95e401a040ace468f0d007df6fc850c1c1cf2237cd6270ead2b5d44c1"
+          },
+          {
+            "path": "config/dags/default.yaml",
+            "hash": "3d2bda7e90d457931443481b31af14d26feff94b4b60cffcc2f81fdbebd95722"
+          },
+          {
+            "path": "packages/core/pyproject.toml",
+            "hash": "cf4b339a0893013f7dde846468812abf63ea9f89e199a0995a44245e7b2612cf"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/cert.py",
+            "hash": "dfe0c39bdff7dd8f48ea802cdd51127dde2e944456cc425dc93c550836872e02"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/config/schema.py",
+            "hash": "a15937defc6e3577c04533bc5c90c9a80fcaf5843a7c91a04d555cc0acf2cc4a"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/daemon.py",
+            "hash": "6e52bf8ecaf8bc0f27d574b33ca3b4d73f24c8298e27592bd4c869973d79d786"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/models.py",
+            "hash": "150e2d061c914e4aa3a5eba6240ca7eeeed18857c60709bd02258f2520959413"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/dag/runner.py",
+            "hash": "a4fda9b529f396f6ab7cd16d1265f3b60f1ee74e32e222bdc296108b067c5f83"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/events.py",
+            "hash": "b1dda35c28f035733e0bdb84255524a9e83448f76cf67ef81204f565dfd58eda"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/grpc_client.py",
+            "hash": "ad7aa1178d7e30db1391fb6b8f0b412d27e780f47e7f4fd2e3f0a65785bcc56b"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/hot_reload.py",
+            "hash": "57caabb38475bbfdbdb269fcbc4d4f3d85101670192e35d40f7817950db751ed"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/node/executor.py",
+            "hash": "bcf13bda1abfe2c5c23b2f6109a536f9039dff7d27f5e99bf8a283226bdcaeb7"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/pipeline.py",
+            "hash": "3d8ad9d53338b7a9821b683613aec7367bb33dad7539e91fc4323ca54f41d5a5"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/rig_cli.py",
+            "hash": "f1287742fbea2180929878e03b007e8c4fe7f06bab7d76cd7b961626c18d0f0a"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/app.py",
+            "hash": "48654ce8d903567adfd8f39f8591b838d384175c316aef1287d1dd2dbd8692eb"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/routes.py",
+            "hash": "41fec15dad43b248a97f02915b46249d02bef939d4fa391cf07e74cc5f27d9b0"
+          },
+          {
+            "path": "proto/rig.proto",
+            "hash": "8177cf71d78e34deb4a2b2ffffd3f0fe1b49e19a2cda36b11ebfcbe3c1ff7ed3"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "4b10abe50bbbd64a3baf34f655059fbac793c1b00c316e482dacbfb35d755896"
+          },
+          {
+            "path": "tests/core/unit/test_core_architecture_overhaul.py",
+            "hash": "cd37cbb57e8a2d7325ddece01d0fe1eb433f857e2bccadbb5c7da4584d9357f9"
+          },
+          {
+            "path": "tests/core/unit/test_node_executor.py",
+            "hash": "81409bf9edc5dde6541e2a45f1bae1dbc11460f43ca4a80b96b6ce8af4eb3d53"
+          },
+          {
+            "path": "tests/core/unit/test_rig_cli.py",
+            "hash": "9dceaa1944efb28b6559a2ee9e97bc84c4ba2387ac53bda0bfc4be32c70f9b6b"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "6a7e7945915bbfe0cae0bfdafa7482680d057cd9"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

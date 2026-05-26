@@ -334,6 +334,173 @@ async def test_dag_run_api_uses_direct_body_as_initial_payload(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
+async def test_dag_run_api_unwraps_inputs_body(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
+            payload = app.state.controller.last_payload
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert payload == {"ticker": "300470.SZ"}
+
+
+@pytest.mark.asyncio
+async def test_web_token_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    monkeypatch.setenv("RIG_WEB_TOKEN", "secret")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            denied = await client.get("/api/pipeline/dag/default/status")
+            allowed = await client.get("/api/pipeline/dag/default/status", headers={"Authorization": "Bearer secret"})
+        finally:
+            await app.state.controller.shutdown()
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
+    class FakeGrpcClient:
+        payload: object | None = None
+
+        async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
+            assert name == "default"
+            self.payload = payload
+            return {"cycle_id": "grpc-cycle"}
+
+    _write_dag_config(tmp_path)
+    grpc = FakeGrpcClient()
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False, grpc_client=grpc)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert response.json() == {"cycle_id": "grpc-cycle"}
+    assert grpc.payload == {"ticker": "300470.SZ"}
+
+
+@pytest.mark.asyncio
+async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from stockimformation_core.web import app as web_app
+
+    calls: list[tuple[str | None, Path | None, bool]] = []
+
+    class FakeGrpcClient:
+        def __init__(self, address: str | None = None, data_dir: Path | None = None, allow_insecure: bool = False) -> None:
+            calls.append((address, data_dir, allow_insecure))
+
+        async def init_client(self, common_name: str) -> dict[str, str]:
+            assert common_name == "bff:web-console"
+            return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("RIG_DAEMON_ADDR", "127.0.0.1:9090")
+    monkeypatch.setenv("RIG_BFF_DIR", str(tmp_path / "bff"))
+    monkeypatch.setattr(web_app, "RigGrpcClient", FakeGrpcClient)
+
+    grpc = await web_app._bff_grpc_client()
+
+    assert isinstance(grpc, FakeGrpcClient)
+    assert calls[0] == ("127.0.0.1:9091", tmp_path / "bff", True)
+    assert calls[-1] == (None, tmp_path / "bff", False)
+    assert (tmp_path / "bff" / "client.crt").read_text(encoding="utf-8") == "cert"
+
+
+@pytest.mark.asyncio
+async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from stockimformation_core.web import app as web_app
+
+    _write_dag_config(tmp_path)
+    closed = False
+
+    class FakeGrpcClient:
+        def __init__(self, address: str | None = None, data_dir: Path | None = None, allow_insecure: bool = False) -> None:
+            self.address = address
+            self.data_dir = data_dir
+            self.allow_insecure = allow_insecure
+
+        async def init_client(self, common_name: str) -> dict[str, str]:
+            assert common_name == "bff:web-console"
+            return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
+
+        async def dag_status(self, name: str) -> dict[str, object]:
+            return {"dag_name": name, "grpc": True}
+
+        async def close(self) -> None:
+            nonlocal closed
+            closed = True
+
+    monkeypatch.setenv("RIG_DAEMON_ADDR", "127.0.0.1:9090")
+    monkeypatch.setenv("RIG_BFF_DIR", str(tmp_path / "bff"))
+    monkeypatch.setattr(web_app, "RigGrpcClient", FakeGrpcClient)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+
+    async with app.router.lifespan_context(app):
+        assert isinstance(app.state.grpc_client, FakeGrpcClient)
+        assert app.state.grpc_client.address is None
+        assert app.state.grpc_client.data_dir == tmp_path / "bff"
+        assert app.state.grpc_client.allow_insecure is False
+
+    assert closed
+
+
+@pytest.mark.asyncio
+async def test_bff_node_events_streams_from_grpc_client(tmp_path: Path) -> None:
+    class FakeGrpcClient:
+        async def subscribe_events(self, node_id: str = "", dag_name: str = ""):
+            assert node_id == "reader"
+            assert dag_name == ""
+            yield {"type": "node.stdout", "payload": {"node_id": "reader", "line": "hello"}}
+
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False, grpc_client=FakeGrpcClient())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            async with client.stream("GET", "/api/events/node/reader") as response:
+                text = await response.aread()
+        finally:
+            await app.state.controller.shutdown()
+    assert b"event: node.stdout" in text
+    assert b'"line": "hello"' in text
+
+
+@pytest.mark.asyncio
+async def test_bff_dag_events_streams_from_grpc_client(tmp_path: Path) -> None:
+    class FakeGrpcClient:
+        async def subscribe_events(self, node_id: str = "", dag_name: str = ""):
+            assert node_id == ""
+            assert dag_name == "default"
+            yield {"type": "dag.status", "payload": {"dag_name": "default", "status": "started"}}
+
+    _write_dag_config(tmp_path)
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False, grpc_client=FakeGrpcClient())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            async with client.stream("GET", "/api/events/dag/default") as response:
+                text = await response.aread()
+        finally:
+            await app.state.controller.shutdown()
+    assert b"event: dag.status" in text
+    assert b'"status": "started"' in text
+
+
+@pytest.mark.asyncio
 async def test_resume_api_reuses_original_cycle(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     dag_file = tmp_path / "dags" / "default.yaml"
@@ -521,10 +688,28 @@ async def test_ssr_routes_removed(tmp_path: Path) -> None:
             config = await client.get("/config")
         finally:
             await app.state.controller.shutdown()
-    assert index.status_code == 404
+    assert index.status_code == 200
     assert results.status_code == 404
     assert pipeline.status_code == 404
     assert config.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_bff_serves_web_console_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_dag_config(tmp_path)
+    web_dir = tmp_path / "web"
+    web_dir.mkdir()
+    (web_dir / "index.html").write_text("<html>console</html>", encoding="utf-8")
+    monkeypatch.setenv("RIG_WEB_CONSOLE_DIR", str(web_dir))
+    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await app.state.controller.start(run_startup=False)
+        try:
+            response = await client.get("/")
+        finally:
+            await app.state.controller.shutdown()
+    assert response.status_code == 200
+    assert "console" in response.text
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +19,7 @@ from stockimformation_core.config.schema import AppConfig, DagNodeInstance
 from stockimformation_core.bootstrap import create_extension_tables, scan_extensions
 from stockimformation_core.dag.loader import load_graph
 from stockimformation_core.dag.runner import DagRunner
+from stockimformation_core.events import event_bus
 from stockimformation_core.storage import create_engine, init_db, session_factory
 from stockimformation_core.storage.entities import PipelineRun
 from stockimformation_core.storage.repository import (
@@ -67,6 +68,7 @@ class DagRunContext:
     task: asyncio.Task[object]
     stop_event: asyncio.Event = field(default_factory=asyncio.Event)
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    executor: NodeExecutor | None = None
 
 
 class PipelineController:
@@ -75,6 +77,7 @@ class PipelineController:
         config_dir: Path = Path("config"),
         scheduler: AsyncIOScheduler | None = None,
         extensions_dirs: list[Path] | None = None,
+        agent_certificate_issuer: Callable[[str, int], object] | None = None,
     ) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or [Path("extensions")]
@@ -84,6 +87,7 @@ class PipelineController:
         self.active_runs: dict[str, DagRunContext] = {}
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._db_write_lock = asyncio.Lock()
+        self.agent_certificate_issuer = agent_certificate_issuer
 
     async def start(self, run_startup: bool = True) -> None:
         config = load_app_config(self.config_dir)
@@ -143,10 +147,12 @@ class PipelineController:
     def resume_scheduler(self) -> None:
         self.scheduler.resume()
 
-    async def stop_current(self, dag_name: str = "default", force: bool = False) -> str | None:
+    async def stop_current(self, dag_name: str = "default", force: bool = False, node_id: str | None = None) -> str | None:
         ctx = self.active_runs.get(dag_name)
         if ctx is None or ctx.task.done():
             return None
+        if node_id is not None and ctx.executor is not None:
+            ctx.executor.stop_agent(ctx.cycle_id, node_id)
         if force:
             ctx.task.cancel()
         else:
@@ -350,18 +356,30 @@ class PipelineController:
             async with factory() as session:
                 await create_pipeline_run(session, cycle_id, trigger, list(graph.nodes), dag_name, retry_of)
                 await session.commit()
+        await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status="started")
         try:
-            result = await DagRunner(
-                _build_executor(
-                    config,
-                    bootstrap.handler_registry,
-                    graph.instances,
-                    self.config_dir,
-                    extension_tables=bootstrap.table_names,
-                    output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: self._record_node_output(
-                        output_cycle_id, node_id, entity_type, payload, session_id
-                    ),
+            executor = _build_executor(
+                config,
+                bootstrap.handler_registry,
+                graph.instances,
+                self.config_dir,
+                extension_tables=bootstrap.table_names,
+                output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: self._record_node_output(
+                    output_cycle_id, node_id, entity_type, payload, session_id
                 ),
+                stdout_recorder=lambda output_cycle_id, node_id, line: event_bus.publish(
+                    "node.stdout",
+                    cycle_id=output_cycle_id,
+                    node_id=node_id,
+                    line=line,
+                ),
+                agent_certificate_issuer=self.agent_certificate_issuer,
+            )
+            ctx = self.active_runs.get(dag_name)
+            if ctx is not None and ctx.cycle_id == cycle_id:
+                ctx.executor = executor
+            result = await DagRunner(
+                executor,
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
             ).run(
                 graph,
@@ -392,16 +410,18 @@ class PipelineController:
             async with factory() as session:
                 await finish_pipeline_run(session, cycle_id, status, error)
                 await session.commit()
+            await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status=status, error=error)
             commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             return result.payload
         except asyncio.CancelledError:
-            await self._finish_cancelled(cycle_id)
+            await self._finish_cancelled(cycle_id, dag_name)
             commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             raise
         except Exception as exc:
             async with factory() as session:
                 await finish_pipeline_run(session, cycle_id, "failed", str(exc))
                 await session.commit()
+            await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status="failed", error=str(exc))
             commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
             raise
 
@@ -468,10 +488,11 @@ class PipelineController:
         async with self._db_write_lock:
             await _record_node_output(self._factory(), cycle_id, node_id, entity_type, payload, session_id)
 
-    async def _finish_cancelled(self, cycle_id: str) -> None:
+    async def _finish_cancelled(self, cycle_id: str, dag_name: str) -> None:
         async with self._factory()() as session:
             await finish_pipeline_run(session, cycle_id, "cancelled")
             await session.commit()
+        await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status="cancelled")
 
     def _factory(self) -> async_sessionmaker[AsyncSession]:
         if self.factory is None:
@@ -546,6 +567,8 @@ def _build_executor(
     config_dir: Path | None = None,
     extension_tables: dict[str, dict[str, str]] | None = None,
     output_recorder=None,
+    stdout_recorder=None,
+    agent_certificate_issuer=None,
 ) -> NodeExecutor:
     entity_store = EntityStore(
         app_config.entities,
@@ -563,6 +586,8 @@ def _build_executor(
         dict(instances or {}),
         entity_store,
         output_recorder=output_recorder,
+        stdout_recorder=stdout_recorder,
+        agent_certificate_issuer=agent_certificate_issuer,
         extension_tables=extension_tables,
     )
 

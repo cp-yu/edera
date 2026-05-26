@@ -75,3 +75,33 @@ relations:
   - from: cap.core.legacy-script-adapter
     type: contains
     to: dom.core
+  - from: cap.core.node-type-discriminated-union
+    type: contains
+    to: dom.core
+  - from: cap.core.agent-executor
+    type: contains
+    to: dom.core
+  - from: cap.core.sub-dag-execution
+    type: contains
+    to: dom.core
+  - from: cap.core.dag-input-parameters
+    type: contains
+    to: dom.core
+  - from: cap.core.edge-optional
+    type: contains
+    to: dom.core
+  - from: cap.core.config-hot-reload
+    type: contains
+    to: dom.core
+  - from: cap.core.rig-daemon-grpc
+    type: contains
+    to: dom.core
+  - from: cap.core.rig-cli-full-crud
+    type: contains
+    to: dom.core
+  - from: cap.core.bff-web-gateway
+    type: contains
+    to: dom.core
+  - from: cap.core.agent-realtime-observability
+    type: contains
+    to: dom.core

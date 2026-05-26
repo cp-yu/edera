@@ -75,12 +75,14 @@ edges:
   to: 0194f7a6-7b17-7c01-b601-000000000003
   fan_out: false
   fan_in: false
+  optional: true
   condition: null
   fan_in_mode: barrier
 - from: 0194f7a6-7b17-7c01-b601-000000000002
   to: 0194f7a6-7b17-7c01-b601-000000000003
   fan_out: false
   fan_in: false
+  optional: true
   condition: null
   fan_in_mode: barrier
 - from: 0194f7a6-7b17-7c01-b601-000000000003

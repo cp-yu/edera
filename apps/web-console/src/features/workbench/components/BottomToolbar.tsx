@@ -19,7 +19,14 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
   const dagList = useDagList()
   const [creating, setCreating] = useState(false)
   const [newDagName, setNewDagName] = useState('')
+  const [inputs, setInputs] = useState<Record<string, string>>({})
   const dagOptions = Array.from(new Set([...(dagList.data?.dags ?? ['default']), selectedDagName, dag?.name].filter(Boolean) as string[]))
+  const dagInputs = dag?.inputs ?? []
+  const runInputs = Object.fromEntries(
+    dagInputs
+      .map((input) => [input.name, inputs[input.name] ?? input.default])
+      .filter(([, value]) => value !== undefined && value !== ''),
+  )
   const submitCreate = () => {
     const name = newDagName.trim()
     if (!name) return
@@ -70,11 +77,27 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
         </button>
       ) : (
         <button
-          onClick={() => runDag.mutate(selectedDagName)}
+          onClick={() => runDag.mutate({ dagName: selectedDagName, inputs: runInputs })}
           className="rounded bg-primary px-3 py-1 text-primary-foreground text-xs"
         >
           运行
         </button>
+      )}
+
+      {dagInputs.length > 0 && !isRunning && (
+        <div className="flex min-w-0 items-center gap-2">
+          {dagInputs.map((input) => (
+            <label key={input.name} className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span>{input.name}</span>
+              <input
+                value={inputs[input.name] ?? ''}
+                onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}
+                className="h-7 w-32 rounded border bg-background px-2 text-xs text-foreground"
+                placeholder={String(input.default ?? input.type)}
+              />
+            </label>
+          ))}
+        </div>
       )}
 
       {dagStatus && (

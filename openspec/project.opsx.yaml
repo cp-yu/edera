@@ -65,11 +65,11 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.pipeline-control
-    intent: 管道控制能力，覆盖运行记录（含 retry_of 关联）、手动/重试触发、soft/hard stop 和状态展示
+    intent: 管道控制能力，DAG 运行 API 增加 inputs 参数传递
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
-    intent: 节点执行器，统一为 function node 执行路径，支持 tools 白名单传递、RIG_IDENTITY 环境变量注入、session_dir 解析与自动 --continue 判定
+    intent: 节点执行器，按 NodeConfig type 分发执行（function 走 handler registry，agent 走 subprocess，dag 走递归），支持 agent 节点 workdir/session 分离
     type: capability
     domain: dom.operations
   - id: cap.advisory.trade-advisory
@@ -89,7 +89,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.entity-type-crud-api
-    intent: Entity Type CRUD API 扩展，支持 storage_tier、能力字段声明和 system_protected 保护检查
+    intent: Entity Type CRUD API，cascade delete 降低事务性承诺为顺序持久化
     type: capability
     domain: dom.core
   - id: cap.entity-instance-crud-api
@@ -128,7 +128,7 @@ capabilities:
     intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor 提取和依赖校验
     type: capability
   - id: cap.core.core-bootstrap
-    intent: 核心启动时扫描扩展目录、解析 manifest、构建 handler registry 和 entity type registry、设置 module path
+    intent: 核心 bootstrap，逻辑可重入，支持运行时重新扫描和 registry 原子替换
     type: capability
   - id: cap.core.handler-context-protocol
     intent: 统一 HandlerContext 单参数调用协议、HandlerProtocol 和 EntityStoreProtocol 接口定义，承载于独立 core-types 包
@@ -137,7 +137,7 @@ capabilities:
     intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
     type: capability
   - id: cap.operations.dag-event-driven-executor
-    intent: 事件驱动 DAG 调度器，覆盖 dispatcher 调度、fan-in barrier/accumulate 模式、错误路径隔离、resource semaphore gate 和执行结果收集
+    intent: DAG 事件驱动执行器，fan-in barrier 增加 edge optional 判定逻辑
     type: capability
   - id: cap.operations.dag-run-control
     intent: DAG 运行控制能力，覆盖 soft stop（asyncio.Event）、hard stop（task.cancel）和节点重试（single/cascade mode，支持多节点批量）
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.rig-cli
-    intent: Rig CLI binary，提供 entity/node/dag 子命令，支持双身份模式（agent/human），权限继承 entity_permissions
+    intent: Rig CLI，从 HTTP client 改为 gRPC client，增加 daemon 连接管理和证书配置
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -178,4 +178,34 @@ capabilities:
     type: capability
   - id: cap.core.legacy-script-adapter
     intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
+    type: capability
+  - id: cap.core.node-type-discriminated-union
+    intent: NodeConfig Discriminated Union 模型，覆盖 function/agent/dag 三种变体的字段定义、Pydantic 判别器和 YAML 反序列化
+    type: capability
+  - id: cap.core.agent-executor
+    intent: Agent 节点独立执行分支，覆盖 subprocess 启动、stdout 实时 streaming、stop/resume 生命周期和 workdir/session 分离
+    type: capability
+  - id: cap.core.sub-dag-execution
+    intent: 子 DAG 作为节点嵌套执行，覆盖独立 cycle_id、parent_cycle_id 关联、source/sink 接口映射和递归上限
+    type: capability
+  - id: cap.core.dag-input-parameters
+    intent: DAG 输入参数声明，覆盖 inputs schema 定义、source 节点 input_binding、运行时参数注入和 CLI/API/Web 触发
+    type: capability
+  - id: cap.core.edge-optional
+    intent: 边级和节点级 optional 属性，覆盖 fan-in barrier 容错判定、节点级语法糖展开和错误路径隔离
+    type: capability
+  - id: cap.core.config-hot-reload
+    intent: 全量配置热加载，覆盖 file watch、增量重载、handler 模块缓存清除和 manifest 重新扫描
+    type: capability
+  - id: cap.core.rig-daemon-grpc
+    intent: Rig daemon gRPC 服务，覆盖 service 定义、mTLS 传输、agent 短期证书签发和 dev 模式
+    type: capability
+  - id: cap.core.rig-cli-full-crud
+    intent: Rig CLI 完整 CRUD，覆盖 entity create/delete、dag status/edit、node output 和 client init
+    type: capability
+  - id: cap.core.bff-web-gateway
+    intent: BFF Web 网关，覆盖 gRPC client 转 HTTP/SSE、token 认证和 dev 模式免认证
+    type: capability
+  - id: cap.core.agent-realtime-observability
+    intent: Agent 节点实时可观测，覆盖 stdout event bus、SSE 推送和 Web Console 展示
     type: capability

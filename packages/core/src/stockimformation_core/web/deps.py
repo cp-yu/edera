@@ -6,6 +6,7 @@ from typing import cast
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from stockimformation_core.grpc_client import RigGrpcClient
 from stockimformation_core.pipeline import PipelineController
 from stockimformation_core.registry import HandlerRegistry
 
@@ -27,3 +28,7 @@ def config_dir(request: Request) -> Path:
 
 def handler_registry(request: Request) -> HandlerRegistry | None:
     return cast(HandlerRegistry | None, request.app.state.handler_registry)
+
+
+def grpc_client(request: Request) -> RigGrpcClient | None:
+    return cast(RigGrpcClient | None, getattr(request.app.state, "grpc_client", None))

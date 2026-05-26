@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import os
 import re
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
 from uuid import uuid4
@@ -11,12 +13,24 @@ from uuid import uuid4
 from stockimformation_types import HandlerContext, NodeInput, NodeOutput
 
 from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.schema import DagNodeInstance, EntityConfig, NodeConfig, RuntimeSettings, SystemConfig
+from stockimformation_core.config.schema import (
+    AgentNodeConfig,
+    DagNodeConfig,
+    DagNodeInstance,
+    EntityConfig,
+    NodeConfig,
+    NodeConfigBase,
+    RuntimeSettings,
+    SystemConfig,
+)
 from stockimformation_core.errors import ConfigError, NodeExecutionError
 from stockimformation_core.node.models import NodeContext
 from stockimformation_core.registry import HandlerRegistry
 
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
+StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
+DagExecutor = Callable[[DagNodeConfig, str, NodeInput, NodeContext], Awaitable[NodeOutput]]
+AgentCertificateIssuer = Callable[[str, int], object]
 
 
 class NodeExecutor:
@@ -29,6 +43,9 @@ class NodeExecutor:
         instances: dict[str, DagNodeInstance] | None = None,
         entity_store: EntityStore | None = None,
         output_recorder: OutputRecorder | None = None,
+        stdout_recorder: StdoutRecorder | None = None,
+        dag_executor: DagExecutor | None = None,
+        agent_certificate_issuer: AgentCertificateIssuer | None = None,
         extension_tables: dict[str, dict[str, str]] | None = None,
         **legacy_kwargs: object,
     ) -> None:
@@ -50,8 +67,12 @@ class NodeExecutor:
         self.instances = instances or {}
         self.entity_store = entity_store
         self.output_recorder = output_recorder
+        self.stdout_recorder = stdout_recorder
+        self.dag_executor = dag_executor
+        self.agent_certificate_issuer = agent_certificate_issuer
         self.extension_tables = extension_tables or {}
         self._modules: dict[str, ModuleType] = {}
+        self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
 
     async def execute(
         self,
@@ -66,6 +87,12 @@ class NodeExecutor:
             config = self._node(type_name)
         except NodeExecutionError as exc:
             return _failed(node_name, node_input, str(exc))
+        if isinstance(config, AgentNodeConfig):
+            return await self._execute_agent(node_name, node_input, context, config, instance)
+        if isinstance(config, DagNodeConfig):
+            if self.dag_executor is None:
+                return _failed(node_name, node_input, "dag executor not configured")
+            return await self.dag_executor(config, node_name, node_input, context)
         handler_name = config.handler or config.name
         if handler_name not in self.handler_registry and handler_name not in self._memory_handlers:
             return _failed(node_name, node_input, f"handler not registered: {handler_name}")
@@ -120,9 +147,7 @@ class NodeExecutor:
         timeout = config.timeout_seconds if config.timeout_seconds is not None else self.system.llm_timeout_seconds
         if handler_name in self._memory_handlers:
             result = cast(Callable[[NodeInput], object], handler)(node_input)
-            if not asyncio.iscoroutine(result):
-                raise NodeExecutionError(f"handler must be async: {handler_name}")
-            return await asyncio.wait_for(result, timeout=timeout or None)
+            return await _await_handler_result(handler_name, result, timeout)
         ctx = HandlerContext(
             input=node_input,
             params=config.parameters,
@@ -133,11 +158,75 @@ class NodeExecutor:
             storage=self._handler_storage(handler_name),
         )
         result = cast(Callable[[HandlerContext], object], handler)(ctx)
-        if not asyncio.iscoroutine(result):
-            raise NodeExecutionError(f"handler must be async: {handler_name}")
-        return await asyncio.wait_for(result, timeout=timeout or None)
+        return await _await_handler_result(handler_name, result, timeout)
 
-    def _node(self, node_name: str) -> NodeConfig:
+    async def _execute_agent(
+        self,
+        node_name: str,
+        node_input: NodeInput,
+        context: NodeContext,
+        config: AgentNodeConfig,
+        instance: DagNodeInstance | None,
+    ) -> NodeOutput:
+        effective = _apply_agent_instance_config(config, instance)
+        session_dir = _agent_session_dir(self.system.workspace_root, context.dag_name, context.instance_id, node_input.cycle_id)
+        session_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
+        if any(session_dir.iterdir()):
+            cmd.append("--continue")
+        prompt = _agent_prompt(node_input.payload)
+        if prompt:
+            cmd.extend(["--prompt", prompt])
+        env = os.environ.copy()
+        env.update(_agent_env(context.instance_id))
+        workdir = effective.workdir or session_dir.parent
+        timeout = effective.timeout_seconds if effective.timeout_seconds is not None else self.system.llm_timeout_seconds
+        cert = self.agent_certificate_issuer(context.instance_id, int(timeout or 3600)) if self.agent_certificate_issuer else None
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=str(workdir),
+                env={**env, **_agent_cert_env(cert)} if cert is not None else env,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            self._agent_processes[(node_input.cycle_id, node_name)] = process
+            lines = await asyncio.wait_for(self._stream_stdout(process, node_input.cycle_id, node_name), timeout=timeout or None)
+            code = await process.wait()
+        except Exception as exc:
+            return _failed(node_name, node_input, str(exc))
+        finally:
+            self._agent_processes.pop((node_input.cycle_id, node_name), None)
+        metadata = _output_metadata(node_input)
+        metadata["session_id"] = str(session_dir)
+        if code != 0:
+            return NodeOutput(node_name=node_name, ok=False, metadata=metadata, error=f"pi exited with code {code}")
+        payload = {"stdout": "\n".join(lines), "session_id": str(session_dir)}
+        await self._record_output(node_input, node_name, config, payload, metadata)
+        return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+
+    def stop_agent(self, cycle_id: str, node_name: str) -> bool:
+        process = self._agent_processes.get((cycle_id, node_name))
+        if process is None or process.returncode is not None:
+            return False
+        process.terminate()
+        return True
+
+    async def _stream_stdout(self, process: asyncio.subprocess.Process, cycle_id: str, node_name: str) -> list[str]:
+        lines: list[str] = []
+        if process.stdout is None:
+            return lines
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            text = line.decode(errors="replace").rstrip("\n")
+            lines.append(text)
+            if self.stdout_recorder is not None:
+                await self.stdout_recorder(cycle_id, node_name, text)
+        return lines
+
+    def _node(self, node_name: str) -> NodeConfigBase:
         if self.entity_store is not None and "node" in self.entity_store.entity_types:
             try:
                 return _node_from_entity(self.entity_store.resolve(f"node:{node_name}"))
@@ -176,6 +265,12 @@ class NodeExecutor:
         return _ExtensionStorage(tables) if tables else None
 
 
+async def _await_handler_result(handler_name: str, result: object, timeout: float | None) -> object:
+    if not asyncio.iscoroutine(result):
+        raise NodeExecutionError(f"handler must be async: {handler_name}")
+    return await asyncio.wait_for(cast(Awaitable[object], result), timeout=timeout or None)
+
+
 class _EmptyEntityStore:
     def query(self, type: str | None = None) -> list[object]:
         return []
@@ -202,7 +297,7 @@ def _failed(node_name: str, node_input: NodeInput, error: str) -> NodeOutput:
     return NodeOutput(node_name=node_name, ok=False, metadata=_output_metadata(node_input), error=error)
 
 
-def _apply_instance_config(config: NodeConfig, instance: DagNodeInstance | None) -> NodeConfig:
+def _apply_instance_config(config: NodeConfigBase, instance: DagNodeInstance | None) -> NodeConfigBase:
     if instance is None:
         return config
     updates: dict[str, object] = {}
@@ -210,21 +305,40 @@ def _apply_instance_config(config: NodeConfig, instance: DagNodeInstance | None)
     if model is not None:
         if not isinstance(model, str) or not model:
             raise NodeExecutionError("model must be a non-empty string")
-        _update_parameters(updates, config.parameters, {"model": model})
+        if isinstance(config, AgentNodeConfig):
+            updates["model"] = model
+        else:
+            _update_parameters(updates, config.parameters, {"model": model})
     elif _uses_pi(config):
         raise NodeExecutionError("model not configured for instance")
     tools = instance.config.get("tools")
-    if isinstance(tools, list):
+    if hasattr(config, "tools") and isinstance(tools, list):
         updates["tools"] = [str(item) for item in tools]
     source_names = instance.config.get("source_names")
-    if isinstance(source_names, list):
+    if hasattr(config, "source_names") and isinstance(source_names, list):
         updates["source_names"] = [str(item) for item in source_names]
     raw_parameters = instance.config.get("parameters")
-    if isinstance(raw_parameters, dict):
+    if hasattr(config, "parameters") and isinstance(raw_parameters, dict):
         _update_parameters(updates, config.parameters, raw_parameters)
     session_dir = instance.config.get("session_dir")
-    if isinstance(session_dir, str):
+    if hasattr(config, "parameters") and isinstance(session_dir, str):
         _update_parameters(updates, config.parameters, {"session_dir": session_dir})
+    return config.model_copy(update=updates)
+
+
+def _apply_agent_instance_config(config: AgentNodeConfig, instance: DagNodeInstance | None) -> AgentNodeConfig:
+    if instance is None:
+        return config
+    updates: dict[str, object] = {}
+    model = instance.config.get("model")
+    if isinstance(model, str) and model:
+        updates["model"] = model
+    tools = instance.config.get("tools")
+    if isinstance(tools, list):
+        updates["tools"] = [str(item) for item in tools]
+    workdir = instance.config.get("workdir")
+    if isinstance(workdir, str) and workdir:
+        updates["workdir"] = Path(workdir)
     return config.model_copy(update=updates)
 
 
@@ -242,7 +356,8 @@ def _apply_instance_input(
     entity_store: EntityStore | None,
 ) -> NodeInput:
     entities = _instance_entities(instance, entity_store)
-    if not config.source_names and not entities:
+    source_names = getattr(config, "source_names", [])
+    if not source_names and not entities:
         return node_input
     payload = dict(node_input.payload) if isinstance(node_input.payload, dict) else {}
     if isinstance(node_input.payload, dict) and "resume_session" in node_input.payload:
@@ -251,7 +366,7 @@ def _apply_instance_input(
         payload["entities"] = entities
         payload["source_names"] = _source_names(entities)
     else:
-        payload["source_names"] = config.source_names
+        payload["source_names"] = source_names
     return NodeInput(cycle_id=node_input.cycle_id, payload=payload, metadata=node_input.metadata)
 
 
@@ -324,6 +439,43 @@ def _node_from_entity(entity: EntityConfig) -> NodeConfig:
 
 def _uses_pi(config: NodeConfig) -> bool:
     return config.handler in {"run-pi", "pi", "llm"}
+
+
+def _agent_session_dir(root: Path, dag_name: str, instance_id: str, cycle_id: str) -> Path:
+    return root / "agent-sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(cycle_id)
+
+
+def _safe_path_token(value: str) -> str:
+    cleaned = "".join(item if item.isalnum() or item in {"-", "_", "."} else "_" for item in value)
+    return cleaned or "default"
+
+
+def _agent_prompt(payload: object) -> str:
+    if isinstance(payload, dict):
+        prompt = payload.get("prompt")
+        if isinstance(prompt, str):
+            return prompt
+    if isinstance(payload, str):
+        return payload
+    return ""
+
+
+def _agent_env(instance_id: str) -> dict[str, str]:
+    data_dir = Path(os.environ.get("RIG_DATA_DIR", Path.home() / ".rig"))
+    cert_dir = data_dir / "certs" / _safe_path_token(instance_id)
+    return {
+        "RIG_CLIENT_CERT": os.environ.get("RIG_CLIENT_CERT", str(cert_dir / "client.crt")),
+        "RIG_CLIENT_KEY": os.environ.get("RIG_CLIENT_KEY", str(cert_dir / "client.key")),
+        "RIG_DAEMON_ADDR": os.environ.get("RIG_DAEMON_ADDR", "127.0.0.1:9090"),
+        "RIG_IDENTITY": f"node:{instance_id}",
+    }
+
+
+def _agent_cert_env(cert: object) -> dict[str, str]:
+    return {
+        "RIG_CLIENT_CERT": str(getattr(cert, "cert_path")),
+        "RIG_CLIENT_KEY": str(getattr(cert, "key_path")),
+    }
 
 
 def _entity_type_from_output(output_type: str) -> str:

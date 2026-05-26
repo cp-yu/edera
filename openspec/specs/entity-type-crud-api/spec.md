@@ -86,10 +86,21 @@
 #### Scenario: Delete type with cascade
 
 - **WHEN** 前端请求 `DELETE /api/config/entity-types/{name}?cascade=true`，且类型非 protected
-- **THEN** 系统 SHALL 先删除该类型所有实例及相关关系，再删除类型定义文件
+- **THEN** 系统 SHALL 按顺序持久化删除该类型所有实例、相关关系和类型定义文件，但 MUST NOT 承诺跨文件原子性；中间步骤失败时已完成写入不会自动回滚
 
 #### Scenario: Delete protected type
 
 - **WHEN** 前端请求 `DELETE /api/config/entity-types/node`，且 `node` 类型的 `system_protected` 为 `true`
 - **THEN** 系统 MUST 返回 403 错误，message 为 `entity type 'node' is system protected`
+
+### Requirement: Cascade delete 降低事务性承诺
+系统 SHALL 在 `DELETE /api/config/entity-types/{name}?cascade=true` 时按顺序删除类型、实例、关系，但 MUST NOT 保证跨文件原子性。中间步骤失败时 SHALL 返回错误，但已完成的写入不会自动回滚。
+
+#### Scenario: Cascade delete 顺序持久化
+- **WHEN** 前端请求 cascade delete entity type
+- **THEN** 系统 SHALL 依次保存 entities.yaml（删除实例）、entity-relations.yaml（删除关系）、删除 type 文件，任一步骤失败则返回错误
+
+#### Scenario: 中间步骤失败不回滚
+- **WHEN** cascade delete 过程中第二步失败
+- **THEN** 系统 SHALL 返回错误，但第一步的文件修改已持久化，不会自动恢复
 

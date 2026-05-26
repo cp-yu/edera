@@ -27,6 +27,7 @@ export function Inspector() {
   const runtimeNodeId = edge?.from ?? node?.id ?? null
   const runtimeStatus = runtimeNodeId ? runtime.data?.node_statuses?.[runtimeNodeId] : undefined
   const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.cycle_id)
+  const stdout = useNodeStdout(runtimeNodeId)
   const [alias, setAlias] = useState('')
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
@@ -67,7 +68,7 @@ export function Inspector() {
           <h2 className="text-sm font-medium">数据流</h2>
           <p className="text-xs text-muted-foreground">{edge.from} → {edge.to}</p>
         </div>
-        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} />
+        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} stdout={stdout} />
         <a
           href={`/history/dag/${selectedDagName}/nodes/${edge.from}`}
           className="block rounded-md border px-3 py-2 text-center text-xs hover:bg-accent"
@@ -136,7 +137,7 @@ export function Inspector() {
         </button>
       </div>
       {inspectorTab === 'runtime' ? (
-        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} />
+        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} stdout={stdout} />
       ) : (
         <>
       <Field label="Alias" value={alias} onChange={setAlias} />
@@ -187,7 +188,7 @@ export function Inspector() {
   )
 }
 
-function RuntimeStatusView({ status, outputs }: { status?: NodeStatus; outputs: NodeOutputEntity[] }) {
+function RuntimeStatusView({ status, outputs, stdout }: { status?: NodeStatus; outputs: NodeOutputEntity[]; stdout: string[] }) {
   return (
     <div className="space-y-3">
       <div className="space-y-2 rounded-md border p-3 text-xs">
@@ -214,8 +215,32 @@ function RuntimeStatusView({ status, outputs }: { status?: NodeStatus; outputs: 
           </div>
         )}
       </div>
+      <div className="space-y-2">
+        <div className="text-xs font-medium">stdout</div>
+        <pre className="max-h-36 overflow-auto rounded-md border bg-muted/30 p-2 text-[11px] whitespace-pre-wrap">
+          {stdout.length > 0 ? stdout.join('\n') : '暂无输出'}
+        </pre>
+      </div>
     </div>
   )
+}
+
+function useNodeStdout(nodeId: string | null) {
+  const [lines, setLines] = useState<string[]>([])
+
+  useEffect(() => {
+    setLines([])
+    if (!nodeId) return
+    const source = new EventSource(`/api/events/node/${nodeId}`)
+    source.addEventListener('node.stdout', (event) => {
+      const data = JSON.parse((event as MessageEvent).data) as { line?: unknown }
+      if (typeof data.line !== 'string') return
+      setLines((current) => [...current.slice(-199), data.line])
+    })
+    return () => source.close()
+  }, [nodeId])
+
+  return lines
 }
 
 function RuntimeRow({ label, value }: { label: string; value: string }) {

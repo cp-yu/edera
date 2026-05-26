@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { DagNodeRecord, NodeInstance, NodeType, RetryDagResponse, SkillDefinition } from './types'
+import type { DagEdge, DagNodeRecord, NodeInstance, NodeType, RetryDagResponse, SkillDefinition } from './types'
 
 function alertMutationError(error: Error) {
   window.alert(error.message)
@@ -9,7 +9,7 @@ function alertMutationError(error: Error) {
 export function useSaveDag(dagName: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { nodes: DagNodeRecord[]; edges: Array<{ from: string; to: string; fan_out?: boolean; fan_in?: boolean }>; ui?: { nodes?: Record<string, { x: number; y: number }>; edges?: Record<string, { sourceHandle?: string; targetHandle?: string }> } }) =>
+    mutationFn: (body: { nodes: DagNodeRecord[]; edges: DagEdge[]; ui?: { nodes?: Record<string, { x: number; y: number }>; edges?: Record<string, { sourceHandle?: string; targetHandle?: string }> } }) =>
       apiFetch(`/api/graph/dag/${dagName}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dag', dagName] }) },
     onError: alertMutationError,
@@ -28,9 +28,12 @@ export function useSaveNode() {
 export function useRunDag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (dagName: string) =>
-      apiFetch<{ cycle_id: string }>(`/api/pipeline/dag/${dagName}/run`, { method: 'POST' }),
-    onSuccess: (_data, dagName) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
+    mutationFn: ({ dagName, inputs }: { dagName: string; inputs?: Record<string, unknown> }) =>
+      apiFetch<{ cycle_id: string }>(`/api/pipeline/dag/${dagName}/run`, {
+        method: 'POST',
+        body: JSON.stringify(inputs && Object.keys(inputs).length > 0 ? { inputs } : {}),
+      }),
+    onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,
   })
 }

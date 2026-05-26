@@ -75,7 +75,11 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['template']\\); print\\('---INSTRUCTION---'\\); print\\(d['instruction'][:2000]\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('complete:', d['isComplete']\\); print\\(json.dumps\\([\\(a['id'],a['status']\\) for a in d['artifacts']]\\)\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d['applyRequires']\\)\\); print\\(json.dumps\\([\\(a['id'],a['status']\\) for a in d['artifacts']]\\)\\)\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('complete:', d['isComplete']\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('complete:', d['isComplete']\\)\")",
+      "Bash(grep -E \"\\\\.\\(py|ts|js\\)$\")",
+      "Bash(rm -rf /tmp/rig)",
+      "Bash(mkdir -p /tmp/rig)",
+      "Bash(rm -rf /tmp/rig-bff)"
     ]
   }
 }

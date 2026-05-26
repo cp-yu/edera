@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import yaml
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import ValidationError
 
 from stockimformation_core.config.editor import ConfigKind, RuntimeConfigEditor
@@ -35,6 +35,7 @@ from stockimformation_core.config.schema import (
     entity_ref,
 )
 from stockimformation_core.errors import ConfigEditError, ConfigError
+from stockimformation_core.events import event_bus
 from stockimformation_core.storage.repository import (
     analyses_for_advice,
     event_evidence_details,
@@ -54,11 +55,22 @@ from stockimformation_core.storage.repository import (
     source_health_summary,
 )
 from stockimformation_core.pipeline import PipelineRunNotFoundError, RunAlreadyActiveError
-from stockimformation_core.web.deps import config_dir, controller, error_response, handler_registry
+from stockimformation_core.web.deps import config_dir, controller, error_response, grpc_client, handler_registry
 
 router = APIRouter()
 
-INSTANCE_CONFIG_FIELDS = {"model", "skills", "source_names", "entities", "entity_permissions", "timeout_seconds", "session_dir", "tools"}
+INSTANCE_CONFIG_FIELDS = {
+    "model",
+    "skills",
+    "source_names",
+    "entities",
+    "entity_permissions",
+    "timeout_seconds",
+    "session_dir",
+    "workdir",
+    "tools",
+    "input_binding",
+}
 
 
 
@@ -216,6 +228,14 @@ async def api_source_repair_task(
 
 @router.post("/api/pipeline/dag/{dag_name}/run", response_model=None)
 async def api_dag_run(request: Request, dag_name: str) -> JSONResponse | dict[str, object]:
+    client = grpc_client(request)
+    if client is not None:
+        try:
+            body = await request.json()
+        except json.JSONDecodeError:
+            body = {}
+        payload = body["inputs"] if isinstance(body, dict) and "inputs" in body else body.get("payload") if isinstance(body, dict) and "payload" in body else body
+        return await client.dag_trigger(dag_name, payload if payload != {} else None)
     dags = load_dag_configs(config_dir(request) / "dags")
     if dag_name not in dags:
         return error_response(404, "not_found", f"dag '{dag_name}' not found")
@@ -223,7 +243,10 @@ async def api_dag_run(request: Request, dag_name: str) -> JSONResponse | dict[st
         body = await request.json()
     except json.JSONDecodeError:
         body = {}
-    payload = body.get("payload") if isinstance(body, dict) and "payload" in body else body
+    if isinstance(body, dict) and "inputs" in body:
+        payload = body["inputs"]
+    else:
+        payload = body.get("payload") if isinstance(body, dict) and "payload" in body else body
     try:
         if payload is None:
             cycle_id = await controller(request).start_run("manual", dag_name)
@@ -279,6 +302,9 @@ async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]
 
 @router.post("/api/node/{node_id}/stop", response_model=None)
 async def api_node_stop(request: Request, node_id: str) -> JSONResponse | dict[str, object]:
+    client = grpc_client(request)
+    if client is not None:
+        return await client.node_stop(node_id)
     dag_name = _dag_for_node(config_dir(request), node_id)
     if dag_name is None:
         return error_response(404, "not_found", f"node '{node_id}' not found")
@@ -288,6 +314,11 @@ async def api_node_stop(request: Request, node_id: str) -> JSONResponse | dict[s
 
 @router.post("/api/node/{node_id}/resume", response_model=None)
 async def api_node_resume(request: Request, node_id: str, body: dict[str, object]) -> JSONResponse | dict[str, object]:
+    client = grpc_client(request)
+    if client is not None:
+        cycle_id = body.get("cycle_id")
+        prompt = body.get("prompt")
+        return await client.node_resume(node_id, cycle_id if isinstance(cycle_id, str) else None, prompt if isinstance(prompt, str) else "")
     dag_name = _dag_for_node(config_dir(request), node_id)
     if dag_name is None:
         return error_response(404, "not_found", f"node '{node_id}' not found")
@@ -313,6 +344,9 @@ async def api_node_resume(request: Request, node_id: str, body: dict[str, object
 
 @router.get("/api/pipeline/dag/{dag_name}/status", response_model=None)
 async def api_dag_status(request: Request, dag_name: str) -> JSONResponse | dict[str, object]:
+    client = grpc_client(request)
+    if client is not None:
+        return await client.dag_status(dag_name)
     dags = load_dag_configs(config_dir(request) / "dags")
     if dag_name not in dags:
         return error_response(404, "not_found", f"dag '{dag_name}' not found")
@@ -321,9 +355,40 @@ async def api_dag_status(request: Request, dag_name: str) -> JSONResponse | dict
 
 @router.get("/api/node/{node_id}/status", response_model=None)
 async def api_node_status(request: Request, node_id: str) -> JSONResponse | dict[str, object]:
+    client = grpc_client(request)
+    if client is not None:
+        return await client.node_status(node_id)
     if _dag_for_node(config_dir(request), node_id) is None:
         return error_response(404, "not_found", f"node '{node_id}' not found")
     return {"node_id": node_id, "status": await controller(request).node_status(node_id)}
+
+
+@router.get("/api/events/node/{node_id}")
+async def api_node_events(request: Request, node_id: str) -> StreamingResponse:
+    return _event_stream(request, node_id=node_id)
+
+
+@router.get("/api/events/dag/{dag_name}")
+async def api_dag_events(request: Request, dag_name: str) -> StreamingResponse:
+    return _event_stream(request, dag_name=dag_name)
+
+
+def _event_stream(request: Request, node_id: str = "", dag_name: str = "") -> StreamingResponse:
+    client = grpc_client(request)
+
+    async def stream():
+        if client is not None:
+            async for event in client.subscribe_events(node_id=node_id, dag_name=dag_name):
+                yield f"event: {event['type']}\ndata: {json.dumps(event['payload'], ensure_ascii=False)}\n\n"
+            return
+        async for event in event_bus.subscribe():
+            if node_id and event.payload.get("node_id") != node_id:
+                continue
+            if dag_name and event.payload.get("dag_name") != dag_name:
+                continue
+            yield f"event: {event.type}\ndata: {json.dumps(event.payload, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
 
 
 @router.post("/api/pipeline/run", response_model=None)
@@ -766,9 +831,20 @@ async def api_graph_dag_state(request: Request, name: str) -> JSONResponse | dic
                     "output_type": "Any",
                 }
             )
-    edges = [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag.edges]
+    edges = [
+        {
+            "from": e.from_,
+            "to": e.to,
+            "fan_out": e.fan_out,
+            "fan_in": e.fan_in,
+            "optional": e.optional,
+            "fan_in_mode": e.fan_in_mode,
+        }
+        for e in dag.edges
+    ]
     return {
         "name": dag.name,
+        "inputs": [item.model_dump(mode="json") for item in dag.inputs],
         "nodes": node_instances,
         "edges": edges,
         "ui": dag.ui,

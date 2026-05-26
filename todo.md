@@ -10,23 +10,29 @@ ended
 查看fetch节点历史，没有任何输出，这不合理。每个节点都应该可以看到输出才对。
 
 ---
+❯ 切换身份的底层是更换证书？ 也就是说一个系统同时只能一个身份？                                                                                                                                                            
+
+● 对，当前实现就是这样：
+
+  1. 身份 = 证书的 CN（Common Name），服务端从 mTLS 握手中提取 x509_common_name 作为 identity。
+  2. 证书存在 ~/.rig/，rig client init 每次会覆盖之前的文件。
+  3. 所以同一台机器上同一时刻只有一个身份，重新 bootstrap 就把上一个身份覆盖了。
+
+  要支持多身份并存，要么支持指定证书存储路径，要么用目录隔离（如 ~/.rig/profiles/reader/、~/.rig/profiles/human/），通过 --profile 或环境变量切换。当前没有这个机制。
+
+ 遇到问题，现在无法同时多身份。这是有问题的设计.
+感觉可以直接env 设置token完成,陈旧token需要删除机制。
+
+---
 agent节点需要可以插入的，现在web console还没看到这个功能
 
 ---
-确保完全可以通过cli，或者llm友好的形式（比如文本）,完成编辑。
-确认现在有cli 
+[x] 确保完全可以通过cli，或者llm友好的形式（比如文本）,完成编辑。
+[x] 确认现在有cli 
 Web Console实现上一次关闭的时候，上一次阅读是什么DAG，那么打开的时候就是对应哪个DAG。
-需要可以动态的增加dag，完成。  比如先增加 采集节点，然后在采集节点的基础上（此时有数据）增加处理节点（不用重跑一次dag)。 这个目前考虑可以通过前面增加的重试完成曲线救国。
-rig cli需要增加
+[x] 需要可以动态的增加dag，完成。  比如先增加 采集节点，然后在采集节点的基础上（此时有数据）增加处理节点（不用重跑一次dag)。 这个目前考虑可以通过前面增加的重试完成曲线救国。
+[x] rig cli需要增加
 
----
-
-允许改变dag输入的内容
-  curl -X POST http://127.0.0.1:8000/api/pipeline/dag/uzi-skill-analysis/run \
-    -H 'Content-Type: application/json' \
-    -d '{"ticker":"00100.HK"}'
- 
-cd8560aa9100 差不多是这个提交
 
 ---
 
@@ -45,14 +51,14 @@ cd8560aa9100 差不多是这个提交
 
   后端如果已经启动，需要再重启一次才能加载这些 YAML 改动。
 
-非core应该是动态更新才对。
+[x] 非core应该是动态更新才对。
 
 ---
 alias 应该在dag中直接显示。  方便确认，而非固定显示 node类名
 inspector 的保存应该是固定显示在 可视域底部
 node 面板可以按照类别，前缀，分组。
 点击dag上的node可以高亮它，及其连线。
-node 现在配置的type只有function，这不太合理，  虽然 agent广义也属于 function节点，但是真的放入，反而使得rig的特色不凸显，所以type应该是agent和 function两种，后面考虑增加其他。当然还有dag type，可以将dag使用
+[x] node 现在配置的type只有function，这不太合理，  虽然 agent广义也属于 function节点，但是真的放入，反而使得rig的特色不凸显，所以type应该是agent和 function两种，后面考虑增加其他。当然还有dag type，可以将dag使用
 
 ---
 https://github.com/wbh604/UZI-Skill/tree/refactor/v3.0.0-pipeline-architecture
@@ -70,7 +76,7 @@ fincept可以大部分都借鉴。
 
 
 ---
-• 这个 warning 的意思是：现在 DELETE /api/config/entity-types/{name}?cascade=true 的正常路径能工作，会删除类型、该类型实例、相关关系；但实现是按顺序写多个文件，不是严格事务。
+[x] • 这个 warning 的意思是：现在 DELETE /api/config/entity-types/{name}?cascade=true 的正常路径能工作，会删除类型、该类型实例、相关关系；但实现是按顺序写多个文件，不是严格事务。
 
   具体风险场景：
 
@@ -99,7 +105,7 @@ fincept可以大部分都借鉴。
 bubblewrap 实现沙箱。
 
 ---
- 增加边Opptional
+[x] 增加边Opptional
   你问得好：既然 optional 已经在节点上了，还需要边的 optional 属性吗？
                                                                       
   分析一下两者的语义差异：
@@ -118,4 +124,18 @@ bubblewrap 实现沙箱。
   所以对 UZI-Skill 这个实例：节点级 optional 够用，不需要边属性。                                                                                        
    
   你是只解决当前实例的需求，还是想顺便把边级 optional 作为通用能力加到引擎里（为未来场景预留）？                                                         
+
+---
+[x] 现在还不能实时看到 node 运行的内部信息，尤其是 agent节点的。
+
+
+---
+
+[x] session_dir 不是设置pi cli在某个文件夹下工作，而是控制存放session的路径。这个需要修改core 的实现。
+
+---
+https://github.com/Kaka-cheaper/codeSee  codesee将项目可视化， 这里的呈现很舒服 感觉可以借鉴
+
+---
+ https://github.com/steipete/agent-scripts/blob/main/skills/skill-cleaner/SKILL.md agent 反思
 

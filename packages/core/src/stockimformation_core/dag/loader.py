@@ -15,6 +15,7 @@ def load_graph(config: DagConfig, nodes: dict[str, NodeConfig]) -> DagGraph:
     reverse: dict[str, list[str]] = {node_id: [] for node_id in instance_ids}
     fan_out: set[tuple[str, str]] = set()
     fan_in: set[tuple[str, str]] = set()
+    optional: set[tuple[str, str]] = set()
     conditions: dict[tuple[str, str], str] = {}
     fan_in_modes: dict[tuple[str, str], str] = {}
     for raw_edge in config.edges:
@@ -29,11 +30,13 @@ def load_graph(config: DagConfig, nodes: dict[str, NodeConfig]) -> DagGraph:
             fan_out.add((edge.from_, edge.to))
         if edge.fan_in:
             fan_in.add((edge.from_, edge.to))
+        if edge.optional or nodes[instances[edge.from_].type].optional or instances[edge.from_].optional:
+            optional.add((edge.from_, edge.to))
         if edge.condition:
             conditions[(edge.from_, edge.to)] = edge.condition
         fan_in_modes[(edge.from_, edge.to)] = edge.fan_in_mode
     _assert_acyclic(instance_ids, edges)
-    return DagGraph(config.name, instance_ids, instances, edges, reverse, fan_out, fan_in, conditions, fan_in_modes)
+    return DagGraph(config.name, instance_ids, instances, edges, reverse, fan_out, fan_in, optional, conditions, fan_in_modes)
 
 
 def topological_layers(graph: DagGraph) -> list[list[str]]:
@@ -112,5 +115,12 @@ def _visit_sub_dag(
         raise DagError(f"max DAG depth exceeded: {' -> '.join(chain)}")
     dag = dags[dag_name]
     for node in dag.nodes:
-        if node.type in dags:
-            _visit_sub_dag(dags, node.type, max_depth, chain)
+        ref = _dag_ref(dags, node.type)
+        if ref is not None:
+            _visit_sub_dag(dags, ref, max_depth, chain)
+
+
+def _dag_ref(dags: dict[str, DagConfig], node_type: str) -> str | None:
+    if node_type in dags:
+        return node_type
+    return None

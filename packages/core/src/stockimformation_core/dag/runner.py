@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 import asyncio
+from uuid import uuid4
 
 from stockimformation_core.dag.conditions import evaluate_condition
 from stockimformation_core.dag.loader import load_graph, topological_layers
@@ -11,7 +12,7 @@ from stockimformation_core.dag.resources import ResourceSemaphore, get_semaphore
 from stockimformation_core.errors import DagError
 from stockimformation_core.node.executor import NodeExecutor
 from stockimformation_core.node.models import NodeContext, NodeInput, NodeOutput
-from stockimformation_core.config.schema import DagConfig, DagNodeInstance, NodeConfig
+from stockimformation_core.config.schema import DagConfig, DagNodeInstance, DagNodeConfig, NodeConfig
 
 NodeRunRecorder = Callable[[str, str, str | None], Awaitable[None]]
 
@@ -38,6 +39,8 @@ class DagRunner:
         self.nodes = nodes or executor.nodes
         self.depth = depth
         self.path = path
+        if self.executor.dag_executor is None:
+            self.executor.dag_executor = self._execute_dag_node_config
 
     async def run(
         self,
@@ -272,8 +275,7 @@ class DagRunner:
             routed_edges.update(self._routed_edges(graph, node, output.payload, warnings))
             return
         failures[node] = output.error or "node failed"
-        if graph.instances[node].optional:
-            routed_edges.update((node, downstream) for downstream in graph.edges[node])
+        routed_edges.update((node, downstream) for downstream in graph.edges[node] if (node, downstream) in graph.optional_edges)
 
     def _start_node(
         self,
@@ -484,7 +486,7 @@ class DagRunner:
     ) -> NodeOutput:
         if instance.loop is None:
             if instance.type in self.dags:
-                return await self._execute_sub_dag(instance, node_input)
+                return await self._execute_sub_dag(instance, instance.type, {}, node_input)
             output = await self.executor.execute(node, node_input, context)
             return await self._fallback(instance, node_input, context, output)
         if instance.loop.mode == "parallel":
@@ -579,15 +581,17 @@ class DagRunner:
     async def _execute_sub_dag(
         self,
         instance: DagNodeInstance,
+        dag_ref: str,
+        input_mapping: dict[str, str],
         node_input: NodeInput,
     ) -> NodeOutput:
         limit = self.executor.system.max_dag_depth
-        chain = (*self.path, instance.type)
-        if instance.type in self.path:
+        chain = (*self.path, dag_ref)
+        if dag_ref in self.path:
             return NodeOutput(node_name=instance.id, ok=False, error=f"sub DAG cycle: {' -> '.join(chain)}")
         if self.depth >= limit:
             return NodeOutput(node_name=instance.id, ok=False, error=f"max DAG depth exceeded: {' -> '.join(chain)}")
-        graph = load_graph(self.dags[instance.type], self.nodes)
+        graph = load_graph(self.dags[dag_ref], self.nodes)
         runner = DagRunner(
             self.executor,
             self.recorder,
@@ -596,8 +600,10 @@ class DagRunner:
             self.depth + 1,
             chain,
         )
+        child_cycle_id = uuid4().hex
+        payload = _mapped_input(node_input.payload, input_mapping)
         try:
-            result = await runner.run(graph, node_input.cycle_id, node_input.payload)
+            result = await runner.run(graph, child_cycle_id, payload)
         except DagError as exc:
             return NodeOutput(node_name=instance.id, ok=False, error=str(exc))
         if result.ok:
@@ -605,10 +611,35 @@ class DagRunner:
                 node_name=instance.id,
                 ok=True,
                 payload=result.payload,
-                metadata={"sub_dag_failures": result.failures, "warnings": result.warnings},
+                metadata={
+                    "sub_dag_cycle_id": child_cycle_id,
+                    "parent_cycle_id": node_input.cycle_id,
+                    "parent_node": instance.id,
+                    "sub_dag_failures": result.failures,
+                    "warnings": result.warnings,
+                },
             )
         error = "; ".join(result.failures.values()) or "sub DAG failed"
-        return NodeOutput(node_name=instance.id, ok=False, error=error)
+        return NodeOutput(
+            node_name=instance.id,
+            ok=False,
+            metadata={"sub_dag_cycle_id": child_cycle_id, "parent_cycle_id": node_input.cycle_id, "parent_node": instance.id},
+            error=error,
+        )
+
+    async def _execute_dag_node_config(
+        self,
+        config: DagNodeConfig,
+        node_name: str,
+        node_input: NodeInput,
+        _context: NodeContext,
+    ) -> NodeOutput:
+        instance = self.executor.instances.get(node_name)
+        if instance is None:
+            return NodeOutput(node_name=node_name, ok=False, error=f"missing dag node instance: {node_name}")
+        if config.dag_ref not in self.dags:
+            return NodeOutput(node_name=node_name, ok=False, error=f"missing dag config: {config.dag_ref}")
+        return await self._execute_sub_dag(instance, config.dag_ref, config.input_mapping, node_input)
 
     async def _record(self, node: str, status: str, error: str | None = None) -> None:
         if self.recorder is not None:
@@ -625,7 +656,7 @@ class DagRunner:
     ) -> object:
         upstreams = graph.reverse_edges[node]
         if not upstreams:
-            return initial_payload
+            return self._source_payload(graph, node, initial_payload)
         values: list[object] = []
         for name in upstreams:
             output = outputs.get(name)
@@ -635,7 +666,7 @@ class DagRunner:
                 if output.payload is not None:
                     values.append(payloads[name])
                 continue
-            if graph.instances[name].optional:
+            if (name, node) in graph.optional_edges:
                 values.append(None)
         if not values:
             return []
@@ -710,7 +741,30 @@ class DagRunner:
             return True
         if not all(upstream in outputs for upstream in upstreams):
             return False
-        return any((upstream, node) in routed_edges for upstream in upstreams)
+        for upstream in upstreams:
+            output = outputs[upstream]
+            if output.ok:
+                if (upstream, node) in routed_edges:
+                    continue
+                return False
+            if (upstream, node) in graph.optional_edges:
+                continue
+            return False
+        return True
+
+    def _source_payload(self, graph: DagGraph, node: str, initial_payload: object) -> object:
+        binding = self._input_binding(graph, node)
+        if binding is None or not isinstance(initial_payload, dict) or binding not in initial_payload:
+            return initial_payload
+        return initial_payload[binding]
+
+    def _input_binding(self, graph: DagGraph, node: str) -> str | None:
+        config = self.nodes.get(graph.instances[node].type)
+        binding = getattr(config, "input_binding", None)
+        if isinstance(binding, str) and binding:
+            return binding
+        value = graph.instances[node].config.get("input_binding")
+        return value if isinstance(value, str) and value else None
 
     def _has_startable(
         self,
@@ -970,6 +1024,13 @@ def collect(values: Sequence[object]) -> list[object]:
         else:
             collected.append(value)
     return collected
+
+
+def _mapped_input(payload: object, input_mapping: dict[str, str]) -> object:
+    if not input_mapping:
+        return payload
+    source = payload if isinstance(payload, dict) else {"payload": payload}
+    return {name: source[path] for name, path in input_mapping.items() if path in source}
 
 
 def _merge_stream_results(node: str, results: list[NodeOutput]) -> NodeOutput:

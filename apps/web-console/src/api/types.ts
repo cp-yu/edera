@@ -3,9 +3,17 @@ export interface DagEdge {
   to: string
   fan_out?: boolean
   fan_in?: boolean
+  optional?: boolean
   fan_in_mode?: 'barrier' | 'accumulate' | 'collect' | 'stream'
   sourceHandle?: string
   targetHandle?: string
+}
+
+export interface DagInputDefinition {
+  name: string
+  type: string
+  required?: boolean
+  default?: unknown
 }
 
 export type NodeRole = 'source' | 'processor' | 'sink'
@@ -88,6 +96,7 @@ export interface DagUi {
 
 export interface DagState {
   name: string
+  inputs: DagInputDefinition[]
   nodes: NodeInstance[]
   edges: DagEdge[]
   ui: DagUi

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -122,22 +122,62 @@ class SkillConfig(BaseModel):
     parameters_schema: dict[str, Any] = Field(default_factory=dict)
 
 
-class NodeConfig(BaseModel):
+class NodeConfigBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    type: Literal["function"] = "function"
     role: NodeRole = "processor"
+    input_type: str
+    output_type: str
+    optional: bool = False
+    timeout_seconds: float | None = Field(default=None, gt=0)
+
+
+class FunctionNodeConfig(NodeConfigBase):
+    type: Literal["function"] = "function"
+    handler: str
     skills: list[str] = Field(default_factory=list)
-    handler: str | None = None
     system_prompt_file: str | None = None
     system_prompt: str | None = None
     tools: list[str] = Field(default_factory=list)
-    input_type: str
-    output_type: str
-    timeout_seconds: float | None = Field(default=None, gt=0)
     source_names: list[str] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
+    parameters_schema: dict[str, Any] = Field(default_factory=dict)
+    input_binding: str | None = None
+
+    @field_validator("skills", mode="before")
+    @classmethod
+    def _skill_names(cls, value: object) -> object:
+        if isinstance(value, list):
+            return [item.get("name") if isinstance(item, dict) else item for item in value]
+        return value
+
+    @field_validator("tools")
+    @classmethod
+    def _pi_tools(cls, value: list[str]) -> list[str]:
+        return _validate_tools(value)
+
+    @field_validator("parameters")
+    @classmethod
+    def _json_like_parameters(cls, value: dict[str, Any]) -> dict[str, Any]:
+        _validate_parameter_mapping(value)
+        return value
+
+    @field_validator("parameters_schema")
+    @classmethod
+    def _json_like_parameters_schema(cls, value: dict[str, Any]) -> dict[str, Any]:
+        _validate_json_schema_object(value)
+        return value
+
+
+class AgentNodeConfig(NodeConfigBase):
+    type: Literal["agent"]
+    model: str
+    workdir: Path | None = None
+    skills: list[str] = Field(default_factory=list)
+    tools: list[str] = Field(default_factory=list)
+    system_prompt_file: str | None = None
+    system_prompt: str | None = None
     parameters_schema: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("skills", mode="before")
@@ -152,23 +192,49 @@ class NodeConfig(BaseModel):
     def _pi_tools(cls, value: list[str]) -> list[str]:
         return _validate_tools(value)
 
-    @model_validator(mode="after")
-    def _type_specific_fields(self) -> NodeConfig:
-        if self.type == "function" and not self.handler:
-            raise ValueError("function node requires handler")
-        return self
-
-    @field_validator("parameters")
-    @classmethod
-    def _json_like_parameters(cls, value: dict[str, Any]) -> dict[str, Any]:
-        _validate_parameter_mapping(value)
-        return value
-
     @field_validator("parameters_schema")
     @classmethod
     def _json_like_parameters_schema(cls, value: dict[str, Any]) -> dict[str, Any]:
         _validate_json_schema_object(value)
         return value
+
+
+class DagNodeConfig(NodeConfigBase):
+    type: Literal["dag"]
+    dag_ref: str
+    input_mapping: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("input_mapping")
+    @classmethod
+    def _json_like_input_mapping(cls, value: dict[str, str]) -> dict[str, str]:
+        return {str(key): str(item) for key, item in value.items()}
+
+
+class NodeConfig(FunctionNodeConfig):
+    _variants: ClassVar[dict[str, type[NodeConfigBase]]] = {
+        "function": FunctionNodeConfig,
+        "agent": AgentNodeConfig,
+        "dag": DagNodeConfig,
+    }
+
+    @classmethod
+    def model_validate(cls, obj: Any, *args: Any, **kwargs: Any) -> NodeConfigBase:
+        if isinstance(obj, NodeConfigBase):
+            return obj
+        if isinstance(obj, dict):
+            node_type = obj.get("type", "function")
+            variant = cls._variants.get(str(node_type))
+            if variant is not None and variant is not cls:
+                return variant.model_validate(obj, *args, **kwargs)
+        return super().model_validate(obj, *args, **kwargs)
+
+    @classmethod
+    def model_construct(cls, _fields_set: set[str] | None = None, **values: Any) -> NodeConfigBase:
+        node_type = values.get("type", "function")
+        variant = cls._variants.get(str(node_type))
+        if variant is not None and variant is not cls:
+            return variant.model_construct(_fields_set=_fields_set, **values)
+        return super().model_construct(_fields_set=_fields_set, **values)
 
 
 def _validate_parameter_mapping(value: dict[str, Any]) -> None:
@@ -248,6 +314,7 @@ class DagEdge(BaseModel):
     to: str
     fan_out: bool = False
     fan_in: bool = False
+    optional: bool = False
     condition: str | None = None
     fan_in_mode: Literal["barrier", "accumulate", "collect", "stream"] = "barrier"
 
@@ -287,8 +354,18 @@ class DagNodeInstance(BaseModel):
         return value
 
 
+class DagInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    type: str = "Any"
+    required: bool = False
+    default: Any = None
+
+
 class DagConfig(BaseModel):
     name: str
+    inputs: list[DagInputConfig] = Field(default_factory=list)
     nodes: list[DagNodeInstance]
     edges: list[DagEdge]
     ui: dict[str, Any] = Field(default_factory=dict)
@@ -300,7 +377,7 @@ class AppConfig(BaseModel):
     entities: EntitiesConfig
     entity_relations: EntityRelationsConfig
     runtime: RuntimeSettings
-    nodes: dict[str, NodeConfig]
+    nodes: dict[str, NodeConfigBase]
     skills: dict[str, SkillConfig]
     dags: dict[str, DagConfig]
 
