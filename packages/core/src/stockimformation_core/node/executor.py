@@ -4,7 +4,6 @@ import asyncio
 import importlib.util
 import re
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
 from uuid import uuid4
@@ -85,15 +84,30 @@ class NodeExecutor:
         except Exception as exc:
             return _failed(node_name, node_input, str(exc))
         metadata = _output_metadata(effective_input)
-        if self.output_recorder is not None:
-            await self.output_recorder(
-                effective_input.cycle_id,
-                node_name,
-                _entity_type_from_output(effective.output_type),
-                payload,
-                str(metadata["session_id"]) if isinstance(metadata.get("session_id"), str) else None,
-            )
+        if isinstance(payload, NodeOutput):
+            if payload.ok:
+                await self._record_output(effective_input, node_name, effective, payload.payload, metadata)
+            return payload
+        await self._record_output(effective_input, node_name, effective, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+
+    async def _record_output(
+        self,
+        node_input: NodeInput,
+        node_name: str,
+        config: NodeConfig,
+        payload: object,
+        metadata: dict[str, object],
+    ) -> None:
+        if self.output_recorder is None:
+            return
+        await self.output_recorder(
+            node_input.cycle_id,
+            node_name,
+            _entity_type_from_output(config.output_type),
+            payload,
+            str(metadata["session_id"]) if isinstance(metadata.get("session_id"), str) else None,
+        )
 
     async def _execute_payload(
         self,

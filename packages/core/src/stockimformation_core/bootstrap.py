@@ -27,11 +27,15 @@ class BootstrapResult:
     storage_tables: dict[str, list[StorageTableDescriptor]]
     table_names: dict[str, dict[str, str]]
 
+    def __iter__(self):
+        return iter(self.manifests)
+
 
 def scan_extensions(
-    extensions_dirs: list[Path],
+    extensions_dirs: list[Path] | None = None,
     config_dir: Path | None = None,
 ) -> BootstrapResult:
+    extensions_dirs = extensions_dirs or [Path("extensions")]
     handlers = HandlerRegistry()
     extension_entity_types: dict[str, EntityTypeConfig] = {}
     manifests: list[ExtensionManifest] = []

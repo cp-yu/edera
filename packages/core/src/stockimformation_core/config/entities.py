@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -30,14 +30,36 @@ _ALLOWED_PERMISSION_OVERRIDES: dict[FieldPermission, set[FieldPermission]] = {
 }
 
 
-@dataclass
+@dataclass(init=False)
 class EntityStore:
     entities: EntitiesConfig
     entity_types: dict[str, EntityTypeConfig]
     relations: EntityRelationsConfig
-    config_path: Path | None = None
-    memory_entities: dict[str, EntityConfig] = field(default_factory=dict)
-    database_entities: list[EntityConfig] = field(default_factory=list)
+    config_path: Path | None
+    memory_entities: dict[str, EntityConfig]
+    database_entities: list[EntityConfig]
+
+    def __init__(
+        self,
+        entities: EntitiesConfig | None = None,
+        entity_types: dict[str, EntityTypeConfig] | None = None,
+        relations: EntityRelationsConfig | None = None,
+        config_path: Path | None = None,
+    ) -> None:
+        if entities is None or entity_types is None or relations is None:
+            from stockimformation_core.config.loader import load_app_config
+
+            config = load_app_config(Path("config"))
+            entities = config.entities
+            entity_types = config.entity_types
+            relations = config.entity_relations
+            config_path = Path("config/entities.yaml")
+        self.entities = entities
+        self.entity_types = entity_types
+        self.relations = relations
+        self.config_path = config_path
+        self.memory_entities = {}
+        self.database_entities = []
 
     def resolve(self, ref: str) -> EntityConfig:
         for entity in self.query():

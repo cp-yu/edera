@@ -223,7 +223,7 @@ async def api_dag_run(request: Request, dag_name: str) -> JSONResponse | dict[st
         body = await request.json()
     except json.JSONDecodeError:
         body = {}
-    payload = body.get("payload") if isinstance(body, dict) else None
+    payload = body.get("payload") if isinstance(body, dict) and "payload" in body else body
     try:
         if payload is None:
             cycle_id = await controller(request).start_run("manual", dag_name)

@@ -170,6 +170,10 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
     )
 
 
+def load_config(config_dir: Path = Path("config")) -> AppConfig:
+    return load_app_config(config_dir)
+
+
 def _validate_dag_entity_permissions(
     dags: dict[str, DagConfig],
     entity_types: dict[str, EntityTypeConfig],

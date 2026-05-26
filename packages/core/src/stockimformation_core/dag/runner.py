@@ -626,14 +626,17 @@ class DagRunner:
         upstreams = graph.reverse_edges[node]
         if not upstreams:
             return initial_payload
-        values = [
-            payloads[name]
-            for name in upstreams
-            if outputs.get(name)
-            and (outputs[name].ok or graph.instances[name].optional)
-            and (name, node) in routed_edges
-            and outputs[name].payload is not None
-        ]
+        values: list[object] = []
+        for name in upstreams:
+            output = outputs.get(name)
+            if output is None or (name, node) not in routed_edges:
+                continue
+            if output.ok:
+                if output.payload is not None:
+                    values.append(payloads[name])
+                continue
+            if graph.instances[name].optional:
+                values.append(None)
         if not values:
             return []
         if len(values) == 1:
@@ -878,14 +881,20 @@ class DagRunner:
             return
         wait_tasks = [asyncio.create_task(item.released.wait()) for item in blocked]
         wait_tasks.append(asyncio.create_task(stop_event.wait()))
-        done, pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
-        for item in blocked:
-            item.released.clear()
-        await asyncio.gather(*pending, return_exceptions=True)
-        for task in done:
-            task.result()
+        try:
+            done, pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+            for item in blocked:
+                item.released.clear()
+            await asyncio.gather(*pending, return_exceptions=True)
+            for task in done:
+                task.result()
+        except asyncio.CancelledError:
+            for task in wait_tasks:
+                task.cancel()
+            await asyncio.gather(*wait_tasks, return_exceptions=True)
+            raise
 
     def _acquire_resource(
         self,

@@ -83,6 +83,7 @@ class PipelineController:
         self.factory: async_sessionmaker[AsyncSession] | None = None
         self.active_runs: dict[str, DagRunContext] = {}
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._db_write_lock = asyncio.Lock()
 
     async def start(self, run_startup: bool = True) -> None:
         config = load_app_config(self.config_dir)
@@ -357,8 +358,8 @@ class PipelineController:
                     graph.instances,
                     self.config_dir,
                     extension_tables=bootstrap.table_names,
-                    output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: _record_node_output(
-                        factory, output_cycle_id, node_id, entity_type, payload, session_id
+                    output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: self._record_node_output(
+                        output_cycle_id, node_id, entity_type, payload, session_id
                     ),
                 ),
                 recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
@@ -451,9 +452,21 @@ class PipelineController:
         status: str,
         error: str | None,
     ) -> None:
-        async with self._factory()() as session:
-            await mark_node_run(session, cycle_id, node, status, error)
-            await session.commit()
+        async with self._db_write_lock:
+            async with self._factory()() as session:
+                await mark_node_run(session, cycle_id, node, status, error)
+                await session.commit()
+
+    async def _record_node_output(
+        self,
+        cycle_id: str,
+        node_id: str,
+        entity_type: str,
+        payload: object,
+        session_id: str | None,
+    ) -> None:
+        async with self._db_write_lock:
+            await _record_node_output(self._factory(), cycle_id, node_id, entity_type, payload, session_id)
 
     async def _finish_cancelled(self, cycle_id: str) -> None:
         async with self._factory()() as session:

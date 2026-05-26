@@ -15,6 +15,7 @@ from stockimformation_core.errors import DatabaseError
 def _enable_sqlite_wal(dbapi_connection: Any, _connection_record: object) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=30000")
     cursor.close()
 
 
