@@ -234,8 +234,9 @@ function useNodeStdout(nodeId: string | null) {
     const source = new EventSource(`/api/events/node/${nodeId}`)
     source.addEventListener('node.stdout', (event) => {
       const data = JSON.parse((event as MessageEvent).data) as { line?: unknown }
-      if (typeof data.line !== 'string') return
-      setLines((current) => [...current.slice(-199), data.line])
+      const line = data.line
+      if (typeof line !== 'string') return
+      setLines((current) => [...current.slice(-199), line])
     })
     return () => source.close()
   }, [nodeId])

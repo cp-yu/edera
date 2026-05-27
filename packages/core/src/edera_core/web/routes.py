@@ -184,8 +184,9 @@ async def api_source_logs(
     source_name: str | None = None,
     limit: int = 50,
 ) -> dict[str, object]:
+    source_names = list(_source_map(_entity_store(config_dir(request))).keys())
     async with controller(request)._factory()() as session:
-        logs = await source_execution_logs(session, source_name, _limit(limit))
+        logs = await source_execution_logs(session, source_name, _limit(limit), source_names)
     return {"logs": logs}
 
 
@@ -1175,7 +1176,7 @@ async def _source_health(request: Request) -> dict[str, object]:
     source_names = list(_source_map(_entity_store(config_dir(request))).keys())
     async with controller(request)._factory()() as session:
         health = await source_health_summary(session, source_names)
-        logs = await source_execution_logs(session)
+        logs = await source_execution_logs(session, source_names=source_names)
     return {"sources": health, "logs": logs}
 
 
@@ -1218,6 +1219,7 @@ def _metadata_bar(briefing: Any | None, failed_sources: dict[str, object]) -> di
             "degraded": False,
             "disclaimer": "本系统产出仅供学习参考，不构成投资建议。",
         }
+    data = _model_payload(briefing)
     data_window = _briefing_metadata(briefing).get("data_window", {})
     if not isinstance(data_window, dict):
         data_window = {}
@@ -1225,8 +1227,8 @@ def _metadata_bar(briefing: Any | None, failed_sources: dict[str, object]) -> di
     end = data_window.get("end", "")
     window = f"{start} 至 {end}" if start or end else "无数据窗口"
     return {
-        "cycle_id": _model_payload(briefing).get("cycle_id", ""),
-        "created_at": str(_model_payload(briefing).get("created_at") or ""),
+        "cycle_id": data.get("cycle_id", ""),
+        "created_at": str(data.get("created_at") or ""),
         "window": window,
         "failed_count": len(failed_sources),
         "degraded": bool(failed_sources),

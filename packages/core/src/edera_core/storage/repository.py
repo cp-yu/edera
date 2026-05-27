@@ -311,10 +311,13 @@ async def source_recoveries(
     session: AsyncSession,
     source_name: str | None = None,
     limit: int = 100,
+    source_names: list[str] | None = None,
 ) -> list[SourceRecovery]:
     statement = select(SourceRecovery).order_by(col(SourceRecovery.created_at).desc(), col(SourceRecovery.id).desc()).limit(limit)
     if source_name is not None:
         statement = statement.where(SourceRecovery.source_name == source_name)
+    elif source_names is not None:
+        statement = statement.where(col(SourceRecovery.source_name).in_(source_names))
     result = await session.exec(statement)
     return list(result.all())
 
@@ -368,22 +371,28 @@ async def source_execution_logs(
     session: AsyncSession,
     source_name: str | None = None,
     limit: int = 50,
+    source_names: list[str] | None = None,
 ) -> list[dict[str, object]]:
-    recovery_rows = await source_recoveries(session, source_name, limit)
+    allowed_sources = set(source_names or [])
+    if source_name is not None and source_names is not None and source_name not in allowed_sources:
+        return []
+    recovery_rows = await source_recoveries(session, source_name, limit, source_names)
     logs = [_source_recovery_log_dict(item) for item in recovery_rows]
-    remaining = max(limit - len(logs), 0)
-    if remaining <= 0:
+    if source_name is None and not allowed_sources:
         return logs[:limit]
     statement = (
         select(NodeRun, PipelineRun)
         .join(PipelineRun, col(NodeRun.cycle_id) == col(PipelineRun.cycle_id))
         .order_by(col(NodeRun.started_at).desc(), col(NodeRun.id).desc())
-        .limit(remaining)
+        .limit(limit)
     )
     if source_name:
         statement = statement.where(NodeRun.node_name == source_name)
+    else:
+        statement = statement.where(col(NodeRun.node_name).in_(allowed_sources))
     result = await session.exec(statement)
     logs.extend(_source_log_dict(node, run) for node, run in result.all())
+    logs.sort(key=_source_log_time, reverse=True)
     return logs[:limit]
 
 
@@ -505,6 +514,7 @@ def _source_log_dict(node: NodeRun, run: PipelineRun) -> dict[str, object]:
         "dag_name": run.dag_name,
         "node_id": node.node_name,
         "status": node.status,
+        "pipeline_status": run.status,
         "started_at": node.started_at.isoformat() if node.started_at else None,
         "ended_at": node.ended_at.isoformat() if node.ended_at else None,
         "error": node.error,
@@ -518,11 +528,16 @@ def _source_recovery_log_dict(recovery: SourceRecovery) -> dict[str, object]:
         "dag_name": None,
         "node_id": recovery.node_id,
         "status": "failed" if recovery.escalated else "succeeded",
+        "pipeline_status": None,
         "started_at": recovery.created_at.isoformat(),
         "ended_at": recovery.created_at.isoformat(),
         "error": recovery.latest_failure_reason,
         "recovery": _source_recovery_dict(recovery),
     }
+
+
+def _source_log_time(log: dict[str, object]) -> str:
+    return str(log.get("started_at") or log.get("ended_at") or "")
 
 
 def _source_recovery_dict(recovery: SourceRecovery | None) -> dict[str, object] | None:

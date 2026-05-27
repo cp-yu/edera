@@ -105,7 +105,7 @@ export function useSourcesHealth() {
 }
 
 export function useSourceLogs(sourceName?: string) {
-  const qs = sourceName ? `?source_name=${sourceName}` : ''
+  const qs = sourceName ? `?${new URLSearchParams({ source_name: sourceName }).toString()}` : ''
   return useQuery({
     queryKey: ['sourceLogs', sourceName],
     queryFn: () => apiFetch<{ logs: SourceLog[] }>(`/api/sources/logs${qs}`),

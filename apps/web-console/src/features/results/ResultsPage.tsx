@@ -1,5 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useResults } from '@/api/queries'
+import type { Advice } from '@/api/types'
+
+type SummaryItem = Advice & { degraded?: unknown; direction_label?: unknown }
+
+const directionLabels: Record<string, string> = { buy: '买入', sell: '卖出', hold: '持有' }
 
 export function ResultsPage() {
   const { data, error, isError, isLoading } = useResults()
@@ -8,9 +13,35 @@ export function ResultsPage() {
   if (isError) return <div className="p-6 text-destructive">加载结果失败: {error?.message ?? '未知错误'}</div>
   if (!data) return <div className="p-6 text-muted-foreground">暂无数据</div>
 
+  const summaryItems = data.summary_items.length > 0 ? data.summary_items : data.advices
+  const failedSources = Object.entries(data.failed_sources)
+  const hasResults =
+    !!data.briefing ||
+    data.briefings.length > 0 ||
+    data.advices.length > 0 ||
+    data.events.length > 0 ||
+    data.summary_items.length > 0
+
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       <h1 className="text-xl font-semibold">结果概览</h1>
+
+      {!hasResults && (
+        <section className="rounded-lg border p-4 text-sm text-muted-foreground">
+          当前数据库没有可展示结果。
+        </section>
+      )}
+
+      <section className="rounded-lg border p-4 space-y-3">
+        <h2 className="text-sm font-medium">当前周期</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+          <MetadataItem label="Cycle" value={String(data.metadata_bar.cycle_id ?? '无')} />
+          <MetadataItem label="创建时间" value={String(data.metadata_bar.created_at ?? '') || '无'} />
+          <MetadataItem label="数据窗口" value={String(data.metadata_bar.window ?? '无数据窗口')} />
+          <MetadataItem label="失败源" value={String(data.metadata_bar.failed_count ?? 0)} />
+        </div>
+        <p className="text-xs text-muted-foreground">{String(data.metadata_bar.disclaimer ?? '')}</p>
+      </section>
 
       {data.briefing && (
         <section className="rounded-lg border p-4 space-y-2">
@@ -22,6 +53,63 @@ export function ResultsPage() {
           </div>
           <p className="text-sm text-muted-foreground line-clamp-3">{data.briefing.content}</p>
           <p className="text-xs text-muted-foreground">{data.briefing.created_at}</p>
+        </section>
+      )}
+
+      {data.briefings.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium">历史简报</h2>
+          <div className="rounded-lg border divide-y">
+            {data.briefings.slice(0, 5).map((briefing) => (
+              <Link
+                key={briefing.id}
+                to={`/results/briefings/${briefing.id}`}
+                className="block p-3 text-sm hover:bg-muted/30"
+              >
+                <div className="font-medium line-clamp-1">{briefing.content}</div>
+                <div className="text-xs text-muted-foreground">{briefing.created_at}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {summaryItems.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium">当前摘要</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {summaryItems.slice(0, 6).map((item) => (
+              <Link
+                key={item.id}
+                to={`/results/advices/${item.id}`}
+                className="rounded-lg border p-3 space-y-1 text-sm hover:bg-muted/30"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium">{item.stock_code}</span>
+                  <span className="text-xs text-muted-foreground">{summaryStateLabel(item)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">{item.reason}</p>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>置信度 {(item.confidence * 100).toFixed(0)}%</span>
+                  <span>{item.created_at.slice(0, 10)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {failedSources.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium">失败源</h2>
+          <div className="rounded-lg border divide-y">
+            {failedSources.map(([name, reason]) => (
+              <div key={name} className="p-3 text-sm">
+                <div className="font-medium">{name}</div>
+                <div className="text-xs text-red-500">{reason}</div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
@@ -86,4 +174,19 @@ export function ResultsPage() {
       )}
     </div>
   )
+}
+
+function MetadataItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="font-medium break-words">{value}</div>
+    </div>
+  )
+}
+
+function summaryStateLabel(item: SummaryItem) {
+  if (item.low_confidence) return '低置信度'
+  if (item.degraded) return '采集降级'
+  return String(item.direction_label ?? directionLabels[item.direction] ?? item.direction)
 }

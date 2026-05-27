@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useSourcesHealth, useSourceLogs } from '@/api/queries'
 
 export function SourcesPage() {
+  const [selectedSource, setSelectedSource] = useState<string | undefined>()
   const { data: healthData, isLoading, isError, error, refetch } = useSourcesHealth()
-  const { data: logsData } = useSourceLogs()
+  const { data: logsData } = useSourceLogs(selectedSource)
 
   if (isLoading) return <div className="p-6 text-muted-foreground">加载中...</div>
 
@@ -27,6 +29,13 @@ export function SourcesPage() {
               <span className="text-sm font-medium">{source.source_name}</span>
               <StatusBadge status={source.latest_status} />
             </div>
+            <button
+              type="button"
+              onClick={() => setSelectedSource(source.source_name)}
+              className="text-xs text-blue-500 hover:underline"
+            >
+              查看日志
+            </button>
             <div className="text-xs text-muted-foreground space-y-1">
               {source.success_rate !== null && (
                 <div>成功率: {(source.success_rate * 100).toFixed(0)}% ({source.window_size}次)</div>
@@ -44,7 +53,18 @@ export function SourcesPage() {
 
       {logs.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-medium">执行日志</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-medium">执行日志</h2>
+            {selectedSource && (
+              <button
+                type="button"
+                onClick={() => setSelectedSource(undefined)}
+                className="text-xs text-blue-500 hover:underline"
+              >
+                全部日志
+              </button>
+            )}
+          </div>
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
@@ -59,8 +79,8 @@ export function SourcesPage() {
                 {logs.slice(0, 20).map((log, i) => (
                   <tr key={i} className="border-t">
                     <td className="px-4 py-2">{log.source_name}</td>
-                    <td className="px-4 py-2">{log.node_status}</td>
-                    <td className="px-4 py-2 text-muted-foreground">{log.started_at?.slice(0, 19)}</td>
+                    <td className="px-4 py-2">{log.status}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{formatLogTime(log.started_at, log.ended_at)}</td>
                     <td className="px-4 py-2 text-red-500 text-xs">{log.error}</td>
                   </tr>
                 ))}
@@ -71,6 +91,10 @@ export function SourcesPage() {
       )}
     </div>
   )
+}
+
+function formatLogTime(startedAt: string | null, endedAt: string | null) {
+  return (startedAt ?? endedAt)?.slice(0, 19) ?? '无开始时间'
 }
 
 function StatusBadge({ status }: { status: string }) {

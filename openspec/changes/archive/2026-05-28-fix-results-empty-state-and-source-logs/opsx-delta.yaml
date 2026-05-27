@@ -1,0 +1,24 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.web.source-health-monitoring
+      type: capability
+      intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态和信息源日志契约
+    - id: cap.web.sources-monitor-ui
+      type: capability
+      intent: 信息源监控页面能力，覆盖信息源健康摘要、执行日志、错误态和用户可读状态展示
+  relations:
+    - from: cap.web.source-health-monitoring
+      type: contains
+      to: dom.web
+    - from: cap.web.sources-monitor-ui
+      type: contains
+      to: dom.web
+
+MODIFIED:
+  capabilities:
+    - id: cap.web.result-explorer
+      intent: 结果浏览能力，覆盖统一输出 Entity 下的简报、建议、分析、原文、失败信息、metadata bar、历史简报、字符串深链标识和错误/空态展示
+
+REMOVED:
+  capabilities: []

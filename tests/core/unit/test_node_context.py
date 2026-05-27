@@ -1,12 +1,13 @@
 import pytest
 import yaml
+from datetime import datetime, timezone
 from sqlmodel import select
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
 from edera_core.errors import ConfigError
 from edera_core.storage.database import create_engine, init_db, session_factory, sqlite_url
-from edera_core.storage.entities import EdgeInput, NodeOutputEntity, SourceRecovery
+from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, PipelineRun, SourceRecovery
 from edera_core.storage.repository import source_execution_logs, source_health_summary, upsert_edge_input, upsert_source_recovery
 from edera_core.node.models import NodeContext
 
@@ -252,3 +253,97 @@ async def test_source_health_reads_source_recoveries(tmp_path) -> None:
     assert health[0]["recovery_status"] == "escalated"
     assert logs[0]["source_name"] == "hn-rss"
     assert logs[0]["node_id"] == "fetcher"
+    assert logs[0]["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_source_execution_logs_exclude_unconfigured_node_runs(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    async with factory() as session:
+        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="failed", dag_name="default"))
+        session.add(NodeRun(cycle_id="cycle-1", node_name="hn-rss", status="failed", error="timeout"))
+        session.add(NodeRun(cycle_id="cycle-1", node_name="ordinary-node", status="succeeded"))
+        await upsert_source_recovery(
+            session,
+            "cycle-1",
+            "fetcher",
+            "unconfigured-source",
+            {"recovery_status": "escalated", "latest_failure_reason": "stale"},
+        )
+        await session.commit()
+        logs = await source_execution_logs(session, source_names=["hn-rss"])
+
+    assert [log["source_name"] for log in logs] == ["hn-rss"]
+    assert logs[0]["status"] == "failed"
+    assert logs[0]["pipeline_status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_source_execution_logs_without_source_set_only_returns_recovery_logs(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    async with factory() as session:
+        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="succeeded", dag_name="default"))
+        session.add(NodeRun(cycle_id="cycle-1", node_name="ordinary-node", status="succeeded"))
+        await upsert_source_recovery(
+            session,
+            "cycle-1",
+            "fetcher",
+            "hn-rss",
+            {"recovery_status": "none"},
+        )
+        await session.commit()
+        logs = await source_execution_logs(session)
+
+    assert [log["source_name"] for log in logs] == ["hn-rss"]
+
+
+@pytest.mark.asyncio
+async def test_source_execution_logs_rejects_unconfigured_explicit_source(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    async with factory() as session:
+        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="succeeded", dag_name="default"))
+        session.add(NodeRun(cycle_id="cycle-1", node_name="ordinary-node", status="succeeded"))
+        await session.commit()
+        logs = await source_execution_logs(session, source_name="ordinary-node", source_names=["hn-rss"])
+
+    assert logs == []
+
+
+@pytest.mark.asyncio
+async def test_source_execution_logs_sorts_merged_logs_before_limiting(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    async with factory() as session:
+        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="failed", dag_name="default"))
+        session.add(
+            NodeRun(
+                cycle_id="cycle-1",
+                node_name="hn-rss",
+                status="failed",
+                started_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
+            )
+        )
+        recovery = await upsert_source_recovery(
+            session,
+            "cycle-1",
+            "fetcher",
+            "hn-rss",
+            {"recovery_status": "escalated", "latest_failure_reason": "older"},
+        )
+        recovery.created_at = datetime(2026, 5, 2, tzinfo=timezone.utc)
+        session.add(recovery)
+        await session.commit()
+        logs = await source_execution_logs(session, limit=1, source_names=["hn-rss"])
+
+    assert [log["node_id"] for log in logs] == ["hn-rss"]

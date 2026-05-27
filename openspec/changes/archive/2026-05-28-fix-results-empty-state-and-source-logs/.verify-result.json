@@ -1,0 +1,261 @@
+{
+  "timestamp": "2026-05-27T15:47:22.903Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "3fba610d57f90cf01a472527abe080dc5d0e871867b99f2e72f22581e2afde9d",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context reviewer subagent",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "apps/web-console/src/api/queries.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/features/results/ResultsPage.tsx",
+      "apps/web-console/src/features/sources/SourcesPage.tsx",
+      "apps/web-console/tests/results-error-state.spec.ts",
+      "apps/web-console/tests/sources-logs.spec.ts",
+      "openspec/changes/fix-results-empty-state-and-source-logs/design.md",
+      "openspec/changes/fix-results-empty-state-and-source-logs/opsx-delta.yaml",
+      "openspec/changes/fix-results-empty-state-and-source-logs/proposal.md",
+      "openspec/changes/fix-results-empty-state-and-source-logs/specs/result-explorer/spec.md",
+      "openspec/changes/fix-results-empty-state-and-source-logs/specs/source-health-monitoring/spec.md",
+      "openspec/changes/fix-results-empty-state-and-source-logs/specs/sources-monitor-ui/spec.md",
+      "openspec/changes/fix-results-empty-state-and-source-logs/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "tests/core/integration/test_results_api.py",
+      "tests/core/unit/test_node_context.py"
+    ],
+    "evidenceFingerprint": "7259e71e17a866c3244990ae0625b82ef9fa25d54b36500f2ea2645383ddd567",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/api/queries.ts",
+        "hash": "82730bb376fcdce54102ac03c8a476d6ce3e6778159d94b97f81e0ecabab6623"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "4c5e982c9d3555ee38424079cd2171a734c082fd63643dbcfa31151f8b24a33c"
+      },
+      {
+        "path": "apps/web-console/src/features/results/ResultsPage.tsx",
+        "hash": "257073cdeb18652e1ac859fc608ce84167252adf512ed7f3aae93e208598b089"
+      },
+      {
+        "path": "apps/web-console/src/features/sources/SourcesPage.tsx",
+        "hash": "aa31ad1337f76970e38de2b327a6d0c89ecb00c1ba1e11c3e06c67d6400d9b9c"
+      },
+      {
+        "path": "apps/web-console/tests/results-error-state.spec.ts",
+        "hash": "e255ede46b47c9db420bc0f4b4bfc47af5d25fc4faed3ef86c99b3ed32de40e9"
+      },
+      {
+        "path": "apps/web-console/tests/sources-logs.spec.ts",
+        "hash": "9c4835f80ac0dc49d16159f37bea5d9c8672d14224323a1499ffa5a1db4d3c19"
+      },
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/design.md",
+        "hash": "49b4cd0a1293fc9884994c4e107671505a3a55a05fd18f73c1e23a26c0c58799"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/opsx-delta.yaml",
+        "hash": "51ac8f255aafc3e820b5ae8854bc30af1d03b0aaeb212ebd75c87616dcebb86f"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/proposal.md",
+        "hash": "35dd3598ebbeb518edfa8619ece55f36b7ba5b4309c6d0f947257b2ef503c504"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/specs/result-explorer/spec.md",
+        "hash": "75acda18b8d7eddea97ec671bb1e5b34a675883d41a8e8a4648d19f343c5ade3"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/specs/source-health-monitoring/spec.md",
+        "hash": "a3eea3091fa5961c8c56f043af18e93276bb231955f01f3e557b7a651675ddd8"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/specs/sources-monitor-ui/spec.md",
+        "hash": "2c6e274e564b51547560ff919d437a5afa753fd301ea30ac882f3cc7a94a8d9e"
+      },
+      {
+        "path": "openspec/changes/fix-results-empty-state-and-source-logs/tasks.md",
+        "hash": "3fba610d57f90cf01a472527abe080dc5d0e871867b99f2e72f22581e2afde9d"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "4090d1e0514e372c86890b3e9e2c22b6d250862586a28ff6e34a15b433b782e1"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "f1c0e29f8855cd4542c8752a2f26fe0f7bb541a4a9618f730ac9d4fb7732289b"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "cccf18075a98d465968bf267288f6334003f323d77eaa646c51b532f484c4ece"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "f4a025e83221a6807fd424b7d2965b7d67c7013e27c4e9240a8bc1a2eaf3113b"
+      },
+      {
+        "path": "tests/core/integration/test_results_api.py",
+        "hash": "7b9aa9f74659c4b734140244c9050ffef3c512454412da24ddd88394d10af3be"
+      },
+      {
+        "path": "tests/core/unit/test_node_context.py",
+        "hash": "c0563231252d0c4ac6e7efadbbb19bcbbecaf5d24ac0be6e933c841bf074fa73"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "df253034157d7c92b7880b3f75858b20d03d6068"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-27T15:51:15.588Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Cache _model_payload(briefing) once inside _metadata_bar to remove duplicate payload extraction without changing returned metadata.",
+        "files": [
+          "packages/core/src/edera_core/web/routes.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-27T15:56:08.341Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/web/routes.py": "cb5b0be13c207b906d47864e9e57e01185e0e0ef703471e5d7e364269bef99bb"
+    },
+    "baseline": {
+      "timestamp": "2026-05-27T15:47:22.903Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "3fba610d57f90cf01a472527abe080dc5d0e871867b99f2e72f22581e2afde9d",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context reviewer subagent",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "apps/web-console/src/api/queries.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/features/results/ResultsPage.tsx",
+          "apps/web-console/src/features/sources/SourcesPage.tsx",
+          "apps/web-console/tests/results-error-state.spec.ts",
+          "apps/web-console/tests/sources-logs.spec.ts",
+          "openspec/changes/fix-results-empty-state-and-source-logs/design.md",
+          "openspec/changes/fix-results-empty-state-and-source-logs/opsx-delta.yaml",
+          "openspec/changes/fix-results-empty-state-and-source-logs/proposal.md",
+          "openspec/changes/fix-results-empty-state-and-source-logs/specs/result-explorer/spec.md",
+          "openspec/changes/fix-results-empty-state-and-source-logs/specs/source-health-monitoring/spec.md",
+          "openspec/changes/fix-results-empty-state-and-source-logs/specs/sources-monitor-ui/spec.md",
+          "openspec/changes/fix-results-empty-state-and-source-logs/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "tests/core/integration/test_results_api.py",
+          "tests/core/unit/test_node_context.py"
+        ],
+        "evidenceFingerprint": "7d74da514124658e6e6c63fb354a7669b8f9c4f0955610f446b3aa5ba154967a",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/api/queries.ts",
+            "hash": "82730bb376fcdce54102ac03c8a476d6ce3e6778159d94b97f81e0ecabab6623"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "4c5e982c9d3555ee38424079cd2171a734c082fd63643dbcfa31151f8b24a33c"
+          },
+          {
+            "path": "apps/web-console/src/features/results/ResultsPage.tsx",
+            "hash": "257073cdeb18652e1ac859fc608ce84167252adf512ed7f3aae93e208598b089"
+          },
+          {
+            "path": "apps/web-console/src/features/sources/SourcesPage.tsx",
+            "hash": "aa31ad1337f76970e38de2b327a6d0c89ecb00c1ba1e11c3e06c67d6400d9b9c"
+          },
+          {
+            "path": "apps/web-console/tests/results-error-state.spec.ts",
+            "hash": "e255ede46b47c9db420bc0f4b4bfc47af5d25fc4faed3ef86c99b3ed32de40e9"
+          },
+          {
+            "path": "apps/web-console/tests/sources-logs.spec.ts",
+            "hash": "9c4835f80ac0dc49d16159f37bea5d9c8672d14224323a1499ffa5a1db4d3c19"
+          },
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/design.md",
+            "hash": "49b4cd0a1293fc9884994c4e107671505a3a55a05fd18f73c1e23a26c0c58799"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/opsx-delta.yaml",
+            "hash": "51ac8f255aafc3e820b5ae8854bc30af1d03b0aaeb212ebd75c87616dcebb86f"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/proposal.md",
+            "hash": "35dd3598ebbeb518edfa8619ece55f36b7ba5b4309c6d0f947257b2ef503c504"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/specs/result-explorer/spec.md",
+            "hash": "75acda18b8d7eddea97ec671bb1e5b34a675883d41a8e8a4648d19f343c5ade3"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/specs/source-health-monitoring/spec.md",
+            "hash": "a3eea3091fa5961c8c56f043af18e93276bb231955f01f3e557b7a651675ddd8"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/specs/sources-monitor-ui/spec.md",
+            "hash": "2c6e274e564b51547560ff919d437a5afa753fd301ea30ac882f3cc7a94a8d9e"
+          },
+          {
+            "path": "openspec/changes/fix-results-empty-state-and-source-logs/tasks.md",
+            "hash": "3fba610d57f90cf01a472527abe080dc5d0e871867b99f2e72f22581e2afde9d"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "0914c400a36b6a99a08bc7b74aeff9064ff87bba0389cdd6c8d09a9b28b09d35"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "c2aae0fadd54a6f386e19d2897aab181352398c9761661d27bb905eb8360ef34"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "cccf18075a98d465968bf267288f6334003f323d77eaa646c51b532f484c4ece"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "cb5b0be13c207b906d47864e9e57e01185e0e0ef703471e5d7e364269bef99bb"
+          },
+          {
+            "path": "tests/core/integration/test_results_api.py",
+            "hash": "7b9aa9f74659c4b734140244c9050ffef3c512454412da24ddd88394d10af3be"
+          },
+          {
+            "path": "tests/core/unit/test_node_context.py",
+            "hash": "c0563231252d0c4ac6e7efadbbb19bcbbecaf5d24ac0be6e933c841bf074fa73"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "df253034157d7c92b7880b3f75858b20d03d6068"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

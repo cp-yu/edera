@@ -114,3 +114,9 @@ relations:
   - from: cap.core.runtime-input-context
     type: contains
     to: dom.core
+  - from: cap.web.source-health-monitoring
+    type: contains
+    to: dom.web
+  - from: cap.web.sources-monitor-ui
+    type: contains
+    to: dom.web

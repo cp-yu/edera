@@ -248,8 +248,8 @@ export interface SourceHealth {
 export interface SourceLog {
   cycle_id: string
   source_name: string
-  node_status: string
-  pipeline_status: string
+  status: string
+  pipeline_status: string | null
   started_at: string | null
   ended_at: string | null
   error: string | null
