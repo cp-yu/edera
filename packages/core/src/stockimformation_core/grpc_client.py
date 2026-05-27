@@ -131,16 +131,25 @@ def bootstrap_address(address: str) -> str:
 def _channel_credentials(data_dir: Path):
     if os.environ.get("RIG_ENV") == "dev":
         return None
-    cert_path = Path(os.environ.get("RIG_CLIENT_CERT", data_dir / "client.crt"))
-    key_path = Path(os.environ.get("RIG_CLIENT_KEY", data_dir / "client.key"))
-    ca_path = Path(os.environ.get("RIG_CA_CERT", data_dir / "ca.crt"))
-    if not cert_path.exists() or not key_path.exists() or not ca_path.exists():
+    cert = _load_pem("RIG_CLIENT_CERT", data_dir / "client.crt")
+    key = _load_pem("RIG_CLIENT_KEY", data_dir / "client.key")
+    ca = _load_pem("RIG_CA_CERT", data_dir / "ca.crt")
+    if cert is None or key is None or ca is None:
         return None
     return grpc.ssl_channel_credentials(
-        root_certificates=ca_path.read_bytes(),
-        private_key=key_path.read_bytes(),
-        certificate_chain=cert_path.read_bytes(),
+        root_certificates=ca,
+        private_key=key,
+        certificate_chain=cert,
     )
+
+
+def _load_pem(env_name: str, fallback_path: Path) -> bytes | None:
+    value = os.environ.get(env_name)
+    if value:
+        return value.encode()
+    if fallback_path.exists():
+        return fallback_path.read_bytes()
+    return None
 
 
 def _entity_response(entity: Any) -> dict[str, object]:

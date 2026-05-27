@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import tempfile
 from pathlib import Path
 
 import grpc
@@ -21,21 +22,27 @@ from stockimformation_core.rig_cli import _entity_payload, _query
 class RigDaemon:
     def __init__(
         self,
-        data_dir: Path = Path.home() / ".rig",
+        data_dir: Path | None = None,
         address: str = "127.0.0.1:9090",
         config_dir: Path = Path("config"),
         controller: PipelineController | None = None,
         bootstrap_address: str | None = None,
     ) -> None:
-        self.data_dir = data_dir
+        self.data_dir = resolve_data_dir(data_dir)
         self.address = address
         self.bootstrap_address = bootstrap_address or _bootstrap_address(address)
         self.config_dir = config_dir
-        self.ca = CertificateAuthority(data_dir)
-        self.controller = controller or PipelineController(config_dir, agent_certificate_issuer=self.issue_agent_certificate)
+        self.ca = CertificateAuthority(self.data_dir)
+        self.controller = controller or PipelineController(
+            config_dir,
+            agent_certificate_issuer=self.issue_agent_certificate,
+            daemon_data_dir=self.data_dir,
+        )
         self._owns_controller = controller is None
         if controller is not None and controller.agent_certificate_issuer is None:
             controller.agent_certificate_issuer = self.issue_agent_certificate
+        if controller is not None and controller.daemon_data_dir is None:
+            controller.daemon_data_dir = self.data_dir
         self.server = grpc.aio.server()
         self.bootstrap_server = grpc.aio.server()
         self._proto = load_rig_proto()
@@ -45,12 +52,13 @@ class RigDaemon:
 
     async def start(self) -> None:
         self.ca.ensure()
+        (self.data_dir / "sessions").mkdir(parents=True, exist_ok=True)
         if self._owns_controller:
             await self.controller.start(run_startup=False)
         if os.environ.get("RIG_ENV") == "dev":
             self.bound_port = self.server.add_insecure_port(self.address)
         else:
-            server_cert = self.ca.issue_server()
+            server_cert = self.ca.issue_server(self.address)
             credentials = grpc.ssl_server_credentials(
                 [(server_cert.key_path.read_bytes(), server_cert.cert_path.read_bytes())],
                 root_certificates=self.ca.ca_cert_pem(),
@@ -211,9 +219,9 @@ class _SystemService:
         common_name = request.common_name or "human:default"
         issued = self.daemon.ca.issue_client(common_name, 365 * 24 * 3600)
         return self.pb2.ClientInitResponse(
-            client_cert_pem=issued.cert_path.read_text(encoding="utf-8"),
-            client_key_pem=issued.key_path.read_text(encoding="utf-8"),
-            ca_cert_pem=self.daemon.ca.ca_cert_pem().decode(),
+            client_cert_pem=issued.cert_pem,
+            client_key_pem=issued.key_pem,
+            ca_cert_pem=issued.ca_pem,
         )
 
     async def SubscribeEvents(self, request, context):
@@ -327,9 +335,40 @@ def _bootstrap_address(address: str) -> str:
         return address
 
 
+def resolve_data_dir(cli_arg: Path | str | None = None) -> Path:
+    if cli_arg is not None:
+        return Path(cli_arg)
+    env_value = os.environ.get("RIG_DAEMON_DATA_DIR")
+    if env_value:
+        return Path(env_value)
+    default = Path("/var/lib/rig")
+    if _writable_dir(default):
+        return default
+    return Path.home() / ".local" / "share" / "rig"
+
+
+def ensure_ca(data_dir: Path) -> CertificateAuthority:
+    ca = CertificateAuthority(data_dir)
+    ca.ensure()
+    return ca
+
+
+def ensure_server_cert(data_dir: Path, listen_address: str) -> None:
+    CertificateAuthority(data_dir).issue_server(listen_address)
+
+
+def _writable_dir(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=path):
+            return True
+    except OSError:
+        return False
+
+
 async def serve(
     address: str = "127.0.0.1:9090",
-    data_dir: Path = Path.home() / ".rig",
+    data_dir: Path | None = None,
     config_dir: Path = Path("config"),
     bootstrap_address: str | None = None,
 ) -> None:

@@ -105,3 +105,6 @@ relations:
   - from: cap.core.agent-realtime-observability
     type: contains
     to: dom.core
+  - from: cap.core.daemon-data-directory
+    type: contains
+    to: dom.core

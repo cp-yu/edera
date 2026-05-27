@@ -1,0 +1,19 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.daemon-data-directory
+      type: capability
+      intent: Daemon 数据目录管理，覆盖目录结构定义、RIG_DAEMON_DATA_DIR 配置、CA 自动生成和与客户端目录的隔离边界
+  relations:
+    - from: cap.core.daemon-data-directory
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.rig-daemon-grpc
+      intent: Rig daemon gRPC 服务，覆盖 service 定义、mTLS 传输、agent 短期证书内存签发与 PEM env 注入和 dev 模式
+    - id: cap.core.agent-executor
+      intent: Agent 节点独立执行分支，覆盖 subprocess 启动、stdout 实时 streaming、stop/resume 生命周期、workdir/session 分离和证书 PEM env 注入
+    - id: cap.core.rig-cli
+      intent: Rig CLI gRPC client，证书加载优先级为 env PEM 内容 > ~/.rig/ 文件 fallback，增加 daemon 连接管理

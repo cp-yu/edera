@@ -47,6 +47,7 @@ class NodeExecutor:
         dag_executor: DagExecutor | None = None,
         agent_certificate_issuer: AgentCertificateIssuer | None = None,
         extension_tables: dict[str, dict[str, str]] | None = None,
+        daemon_data_dir: Path | None = None,
         **legacy_kwargs: object,
     ) -> None:
         if handler_registry is None:
@@ -71,6 +72,7 @@ class NodeExecutor:
         self.dag_executor = dag_executor
         self.agent_certificate_issuer = agent_certificate_issuer
         self.extension_tables = extension_tables or {}
+        self.daemon_data_dir = daemon_data_dir
         self._modules: dict[str, ModuleType] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
 
@@ -169,7 +171,7 @@ class NodeExecutor:
         instance: DagNodeInstance | None,
     ) -> NodeOutput:
         effective = _apply_agent_instance_config(config, instance)
-        session_dir = _agent_session_dir(self.system.workspace_root, context.dag_name, context.instance_id, node_input.cycle_id)
+        session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.cycle_id)
         session_dir.mkdir(parents=True, exist_ok=True)
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
         if any(session_dir.iterdir()):
@@ -211,6 +213,11 @@ class NodeExecutor:
             return False
         process.terminate()
         return True
+
+    def _agent_data_dir(self) -> Path:
+        if self.daemon_data_dir is not None:
+            return self.daemon_data_dir
+        return Path(os.environ.get("RIG_DAEMON_DATA_DIR", self.system.workspace_root))
 
     async def _stream_stdout(self, process: asyncio.subprocess.Process, cycle_id: str, node_name: str) -> list[str]:
         lines: list[str] = []
@@ -442,7 +449,7 @@ def _uses_pi(config: NodeConfig) -> bool:
 
 
 def _agent_session_dir(root: Path, dag_name: str, instance_id: str, cycle_id: str) -> Path:
-    return root / "agent-sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(cycle_id)
+    return root / "sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(cycle_id)
 
 
 def _safe_path_token(value: str) -> str:
@@ -461,11 +468,7 @@ def _agent_prompt(payload: object) -> str:
 
 
 def _agent_env(instance_id: str) -> dict[str, str]:
-    data_dir = Path(os.environ.get("RIG_DATA_DIR", Path.home() / ".rig"))
-    cert_dir = data_dir / "certs" / _safe_path_token(instance_id)
     return {
-        "RIG_CLIENT_CERT": os.environ.get("RIG_CLIENT_CERT", str(cert_dir / "client.crt")),
-        "RIG_CLIENT_KEY": os.environ.get("RIG_CLIENT_KEY", str(cert_dir / "client.key")),
         "RIG_DAEMON_ADDR": os.environ.get("RIG_DAEMON_ADDR", "127.0.0.1:9090"),
         "RIG_IDENTITY": f"node:{instance_id}",
     }
@@ -473,8 +476,9 @@ def _agent_env(instance_id: str) -> dict[str, str]:
 
 def _agent_cert_env(cert: object) -> dict[str, str]:
     return {
-        "RIG_CLIENT_CERT": str(getattr(cert, "cert_path")),
-        "RIG_CLIENT_KEY": str(getattr(cert, "key_path")),
+        "RIG_CLIENT_CERT": str(getattr(cert, "cert_pem")),
+        "RIG_CLIENT_KEY": str(getattr(cert, "key_pem")),
+        "RIG_CA_CERT": str(getattr(cert, "ca_pem")),
     }
 
 

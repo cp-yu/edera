@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.rig-cli
-    intent: Rig CLI，从 HTTP client 改为 gRPC client，增加 daemon 连接管理和证书配置
+    intent: Rig CLI gRPC client，证书加载优先级为 env PEM 内容 > ~/.rig/ 文件 fallback，增加 daemon 连接管理
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -183,7 +183,7 @@ capabilities:
     intent: NodeConfig Discriminated Union 模型，覆盖 function/agent/dag 三种变体的字段定义、Pydantic 判别器和 YAML 反序列化
     type: capability
   - id: cap.core.agent-executor
-    intent: Agent 节点独立执行分支，覆盖 subprocess 启动、stdout 实时 streaming、stop/resume 生命周期和 workdir/session 分离
+    intent: Agent 节点独立执行分支，覆盖 subprocess 启动、stdout 实时 streaming、stop/resume 生命周期、workdir/session 分离和证书 PEM env 注入
     type: capability
   - id: cap.core.sub-dag-execution
     intent: 子 DAG 作为节点嵌套执行，覆盖独立 cycle_id、parent_cycle_id 关联、source/sink 接口映射和递归上限
@@ -198,7 +198,7 @@ capabilities:
     intent: 全量配置热加载，覆盖 file watch、增量重载、handler 模块缓存清除和 manifest 重新扫描
     type: capability
   - id: cap.core.rig-daemon-grpc
-    intent: Rig daemon gRPC 服务，覆盖 service 定义、mTLS 传输、agent 短期证书签发和 dev 模式
+    intent: Rig daemon gRPC 服务，覆盖 service 定义、mTLS 传输、agent 短期证书内存签发与 PEM env 注入和 dev 模式
     type: capability
   - id: cap.core.rig-cli-full-crud
     intent: Rig CLI 完整 CRUD，覆盖 entity create/delete、dag status/edit、node output 和 client init
@@ -208,4 +208,7 @@ capabilities:
     type: capability
   - id: cap.core.agent-realtime-observability
     intent: Agent 节点实时可观测，覆盖 stdout event bus、SSE 推送和 Web Console 展示
+    type: capability
+  - id: cap.core.daemon-data-directory
+    intent: Daemon 数据目录管理，覆盖目录结构定义、RIG_DAEMON_DATA_DIR 配置、CA 自动生成和与客户端目录的隔离边界
     type: capability

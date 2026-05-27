@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -11,11 +12,11 @@ from stockimformation_core.cert import CertificateAuthority
 from stockimformation_core.config.schema import AgentNodeConfig, DagConfig, DagNodeConfig, FunctionNodeConfig, NodeConfig
 from stockimformation_core.dag.loader import load_graph
 from stockimformation_core.dag.runner import DagRunner
-from stockimformation_core.daemon import RigDaemon, _DagService, _NodeService, _SystemService
+from stockimformation_core.daemon import RigDaemon, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
 from stockimformation_core.events import event_bus
-from stockimformation_core.grpc_client import RigGrpcClient
+from stockimformation_core.grpc_client import RigGrpcClient, _load_pem
 from stockimformation_core.hot_reload import clear_handler_cache
-from stockimformation_core.node.executor import NodeExecutor
+from stockimformation_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
 from stockimformation_core.node.models import NodeInput
 
 
@@ -133,6 +134,7 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
         system=_system().model_copy(update={"workspace_root": tmp_path / "runs"}),
         runtime=_runtime().model_copy(update={"pi_bin": str(fake_pi)}),
         stdout_recorder=lambda _cycle, _node, line: _append(events, line),
+        daemon_data_dir=tmp_path / "rig",
     )
 
     output = await executor.execute("agent", NodeInput(cycle_id="cycle", payload={"prompt": "do it"}))
@@ -157,9 +159,58 @@ def test_clear_handler_cache() -> None:
 def test_certificate_authority_issues_agent_cert(tmp_path: Path) -> None:
     issued = CertificateAuthority(tmp_path).issue_client("node:agent-1", 60)
 
-    assert issued.cert_path.exists()
-    assert issued.key_path.exists()
+    assert issued.cert_pem.startswith("-----BEGIN CERTIFICATE-----")
+    assert issued.key_pem.startswith("-----BEGIN PRIVATE KEY-----")
+    assert issued.ca_pem.startswith("-----BEGIN CERTIFICATE-----")
     assert issued.common_name == "node:agent-1"
+    assert not (tmp_path / "certs").exists()
+
+
+def test_grpc_client_loads_pem_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    pem = "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+    monkeypatch.setenv("RIG_CLIENT_CERT", pem)
+
+    assert _load_pem("RIG_CLIENT_CERT", Path("/nonexist")) == pem.encode()
+
+
+def test_grpc_client_loads_pem_from_file_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "client.crt"
+    path.write_text("FAKEPEM", encoding="utf-8")
+    monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
+
+    assert _load_pem("RIG_CLIENT_CERT", path) == b"FAKEPEM"
+
+
+def test_daemon_data_dir_env_priority(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RIG_DAEMON_DATA_DIR", "/tmp/test-rig-data")
+
+    assert resolve_data_dir(None) == Path("/tmp/test-rig-data")
+
+
+def test_daemon_ca_and_server_cert_generation(tmp_path: Path) -> None:
+    ensure_ca(tmp_path)
+    ensure_server_cert(tmp_path, "localhost")
+
+    assert (tmp_path / "ca.crt").exists()
+    assert (tmp_path / "ca.key").exists()
+    assert (tmp_path / "server.crt").exists()
+    assert (tmp_path / "server.key").exists()
+    assert oct((tmp_path / "ca.key").stat().st_mode)[-3:] == "600"
+    assert oct((tmp_path / "server.key").stat().st_mode)[-3:] == "600"
+
+
+def test_agent_cert_env_injects_pem_content() -> None:
+    cert = SimpleNamespace(cert_pem="CERT_PEM", key_pem="KEY_PEM", ca_pem="CA_PEM")
+
+    assert _agent_cert_env(cert) == {
+        "RIG_CLIENT_CERT": "CERT_PEM",
+        "RIG_CLIENT_KEY": "KEY_PEM",
+        "RIG_CA_CERT": "CA_PEM",
+    }
+
+
+def test_agent_session_dir_uses_daemon_data_dir(tmp_path: Path) -> None:
+    assert _agent_session_dir(tmp_path, "dag", "agent", "cycle") == tmp_path / "sessions" / "dag" / "agent" / "cycle"
 
 
 @pytest.mark.asyncio
@@ -176,9 +227,9 @@ async def test_daemon_grpc_server_start(tmp_path: Path) -> None:
 async def test_rig_grpc_client_connects_to_daemon(tmp_path: Path) -> None:
     daemon = RigDaemon(tmp_path, "127.0.0.1:0")
     issued = daemon.ca.issue_client("human:test", 3600)
-    (tmp_path / "client.crt").write_bytes(issued.cert_path.read_bytes())
-    (tmp_path / "client.key").write_bytes(issued.key_path.read_bytes())
-    (tmp_path / "ca.crt").write_bytes(daemon.ca.ca_cert_pem())
+    (tmp_path / "client.crt").write_text(issued.cert_pem, encoding="utf-8")
+    (tmp_path / "client.key").write_text(issued.key_pem, encoding="utf-8")
+    (tmp_path / "ca.crt").write_text(issued.ca_pem, encoding="utf-8")
     await daemon.start()
     client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", tmp_path)
     try:
@@ -275,9 +326,9 @@ async def test_daemon_grpc_entity_update_enforces_node_permissions(tmp_path: Pat
     issued = daemon.ca.issue_client("node:reader", 3600)
     client_dir = tmp_path / "client"
     client_dir.mkdir()
-    (client_dir / "client.crt").write_bytes(issued.cert_path.read_bytes())
-    (client_dir / "client.key").write_bytes(issued.key_path.read_bytes())
-    (client_dir / "ca.crt").write_bytes(daemon.ca.ca_cert_pem())
+    (client_dir / "client.crt").write_text(issued.cert_pem, encoding="utf-8")
+    (client_dir / "client.key").write_text(issued.key_pem, encoding="utf-8")
+    (client_dir / "ca.crt").write_text(issued.ca_pem, encoding="utf-8")
     await daemon.start()
     client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", client_dir)
     try:
@@ -318,6 +369,7 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
 
     class Controller:
         agent_certificate_issuer = None
+        daemon_data_dir = None
 
         async def stop_current(self, dag_name: str, force: bool = False, node_id: str | None = None) -> str:
             assert dag_name == "default"
@@ -342,6 +394,37 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
 
     assert stopped.status == "stopped"
     assert resumed.cycle_id == "cycle-1"
+    assert daemon.controller.daemon_data_dir == tmp_path / "rig"
+
+
+def test_daemon_resume_path_reissues_agent_cert(tmp_path: Path) -> None:
+    issued: list[tuple[str, int]] = []
+
+    def issuer(instance_id: str, ttl_seconds: int) -> object:
+        issued.append((instance_id, ttl_seconds))
+        return SimpleNamespace(cert_pem="CERT", key_pem="KEY", ca_pem="CA")
+
+    executor = NodeExecutor(
+        {
+            "agent": NodeConfig.model_validate(
+                {
+                    "name": "agent",
+                    "type": "agent",
+                    "model": "m",
+                    "input_type": "Any",
+                    "output_type": "Any",
+                }
+            )
+        },
+        _system().model_copy(update={"llm_timeout_seconds": 12}),
+        _runtime(),
+        agent_certificate_issuer=issuer,
+        daemon_data_dir=tmp_path / "rig",
+    )
+    cert = executor.agent_certificate_issuer("agent", 12)
+
+    assert _agent_cert_env(cert)["RIG_CLIENT_CERT"] == "CERT"
+    assert issued == [("agent", 12)]
 
 
 async def _append(items: list[str], value: str) -> None:

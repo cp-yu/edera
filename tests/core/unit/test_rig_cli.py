@@ -387,6 +387,36 @@ def test_rig_dag_edit_uses_grpc_when_daemon_addr_is_set(monkeypatch: pytest.Monk
     assert '"updated": true' in capsys.readouterr().out
 
 
+def test_rig_daemon_passes_data_dir_to_daemon_serve(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, Path | None, Path, str | None]] = []
+
+    async def fake_serve(address: str, data_dir: Path | None, config_dir: Path, bootstrap_address: str | None) -> None:
+        calls.append((address, data_dir, config_dir, bootstrap_address))
+
+    import stockimformation_core.daemon as daemon_module
+
+    monkeypatch.setattr(daemon_module, "serve", fake_serve)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "rig",
+            "--config-dir",
+            str(tmp_path / "config"),
+            "daemon",
+            "--address",
+            "127.0.0.1:19090",
+            "--bootstrap-address",
+            "127.0.0.1:19091",
+            "--data-dir",
+            str(tmp_path / "rig-data"),
+        ],
+    )
+
+    main()
+
+    assert calls == [("127.0.0.1:19090", tmp_path / "rig-data", tmp_path / "config", "127.0.0.1:19091")]
+
+
 def _minimal_config(tmp_path) -> object:
     config_dir = tmp_path / "config"
     config_dir.mkdir()

@@ -78,6 +78,7 @@ class PipelineController:
         scheduler: AsyncIOScheduler | None = None,
         extensions_dirs: list[Path] | None = None,
         agent_certificate_issuer: Callable[[str, int], object] | None = None,
+        daemon_data_dir: Path | None = None,
     ) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or [Path("extensions")]
@@ -88,6 +89,7 @@ class PipelineController:
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._db_write_lock = asyncio.Lock()
         self.agent_certificate_issuer = agent_certificate_issuer
+        self.daemon_data_dir = daemon_data_dir
 
     async def start(self, run_startup: bool = True) -> None:
         config = load_app_config(self.config_dir)
@@ -374,6 +376,7 @@ class PipelineController:
                     line=line,
                 ),
                 agent_certificate_issuer=self.agent_certificate_issuer,
+                daemon_data_dir=self.daemon_data_dir,
             )
             ctx = self.active_runs.get(dag_name)
             if ctx is not None and ctx.cycle_id == cycle_id:
@@ -569,6 +572,7 @@ def _build_executor(
     output_recorder=None,
     stdout_recorder=None,
     agent_certificate_issuer=None,
+    daemon_data_dir: Path | None = None,
 ) -> NodeExecutor:
     entity_store = EntityStore(
         app_config.entities,
@@ -589,6 +593,7 @@ def _build_executor(
         stdout_recorder=stdout_recorder,
         agent_certificate_issuer=agent_certificate_issuer,
         extension_tables=extension_tables,
+        daemon_data_dir=daemon_data_dir,
     )
 
 

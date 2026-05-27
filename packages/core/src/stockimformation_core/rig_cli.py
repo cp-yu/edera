@@ -30,6 +30,7 @@ def main() -> None:
     _node_parser(subparsers.add_parser("node"))
     _dag_parser(subparsers.add_parser("dag"))
     _client_parser(subparsers.add_parser("client"))
+    _daemon_parser(subparsers.add_parser("daemon"))
     args = parser.parse_args()
     try:
         result = _dispatch(args)
@@ -105,6 +106,12 @@ def _client_parser(parser: argparse.ArgumentParser) -> None:
     init.add_argument("--common-name", default=os.environ.get("RIG_IDENTITY", "human:default"))
 
 
+def _daemon_parser(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--address", default=os.environ.get("RIG_DAEMON_ADDR", "127.0.0.1:9090"))
+    parser.add_argument("--bootstrap-address", default=os.environ.get("RIG_DAEMON_BOOTSTRAP_ADDR"))
+    parser.add_argument("--data-dir")
+
+
 def _dispatch(args: argparse.Namespace) -> object:
     if args.command == "entity":
         return _entity(args)
@@ -114,6 +121,8 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _dag(args)
     if args.command == "client":
         return _client(args)
+    if args.command == "daemon":
+        return _daemon(args)
     raise ValueError(f"unknown command: {args.command}")
 
 
@@ -211,6 +220,13 @@ def _client(args: argparse.Namespace) -> object:
     (target / "ca.crt").write_text(str(certs["ca_cert_pem"]), encoding="utf-8")
     (target / "config.json").write_text(json.dumps({"server": args.server}, ensure_ascii=False), encoding="utf-8")
     return {"configured": True, "server": args.server, "path": str(target / "config.json")}
+
+
+def _daemon(args: argparse.Namespace) -> object:
+    from stockimformation_core.daemon import serve as serve_daemon
+
+    data_dir = Path(args.data_dir) if args.data_dir else None
+    return asyncio.run(serve_daemon(args.address, data_dir, Path(args.config_dir), args.bootstrap_address))
 
 
 def _use_grpc(args: argparse.Namespace) -> bool:
