@@ -107,6 +107,14 @@ If `openspec/project.opsx.yaml` exists:
 - Use `openspec/specs/` for behavior documentation
 - Cross-reference domains to understand system boundaries
 
+### Impact Sweeps
+
+Invoke `openspec-impact-sweeper` when exploration reaches a code-change concept that needs impact discovery, a user term does not clearly map to project terminology and may affect scope, the user introduces a new module, workflow, command, configuration key, project concept, or unfamiliar domain term that may affect implementation scope, or you are preparing to say the discussion is ready for proposal/change artifacts.
+
+Call the sweeper once per concept with `projectRoot`, `concept`, optional `optionalChangeName`, optional `knownUserTerms`, and optional `focus`. Treat each new concept as an independent sweep, even if another concept was already swept earlier in the conversation. After the sweeper returns, read the JSON report path it returned before summarizing impact findings.
+
+If the report contains questions that affect scope or proposal readiness, ask the user instead of choosing silently. Do not claim proposal readiness until those scope-affecting questions are resolved or explicitly deferred by the user.
+
 If the user mentioned a specific change name, read its artifacts for context.
 
 ### When no change exists
