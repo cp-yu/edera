@@ -392,11 +392,17 @@ async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
 async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from stockimformation_core.web import app as web_app
 
-    calls: list[tuple[str | None, Path | None, bool]] = []
+    calls: list[tuple[str | None, Path | None, bool, bool]] = []
 
     class FakeGrpcClient:
-        def __init__(self, address: str | None = None, data_dir: Path | None = None, allow_insecure: bool = False) -> None:
-            calls.append((address, data_dir, allow_insecure))
+        def __init__(
+            self,
+            address: str | None = None,
+            data_dir: Path | None = None,
+            allow_insecure: bool = False,
+            force_insecure: bool = False,
+        ) -> None:
+            calls.append((address, data_dir, allow_insecure, force_insecure))
 
         async def init_client(self, common_name: str) -> dict[str, str]:
             assert common_name == "bff:web-console"
@@ -412,8 +418,8 @@ async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: 
     grpc = await web_app._bff_grpc_client()
 
     assert isinstance(grpc, FakeGrpcClient)
-    assert calls[0] == ("127.0.0.1:9091", tmp_path / "bff", True)
-    assert calls[-1] == (None, tmp_path / "bff", False)
+    assert calls[0] == ("127.0.0.1:9091", tmp_path / "bff", False, True)
+    assert calls[-1] == (None, tmp_path / "bff", False, False)
     assert (tmp_path / "bff" / "client.crt").read_text(encoding="utf-8") == "cert"
 
 
@@ -428,10 +434,17 @@ async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
     closed = False
 
     class FakeGrpcClient:
-        def __init__(self, address: str | None = None, data_dir: Path | None = None, allow_insecure: bool = False) -> None:
+        def __init__(
+            self,
+            address: str | None = None,
+            data_dir: Path | None = None,
+            allow_insecure: bool = False,
+            force_insecure: bool = False,
+        ) -> None:
             self.address = address
             self.data_dir = data_dir
             self.allow_insecure = allow_insecure
+            self.force_insecure = force_insecure
 
         async def init_client(self, common_name: str) -> dict[str, str]:
             assert common_name == "bff:web-console"

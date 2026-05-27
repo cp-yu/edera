@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.rig-cli
-    intent: Rig CLI gRPC client，证书加载优先级为 env PEM 内容 > ~/.rig/ 文件 fallback，增加 daemon 连接管理
+    intent: Rig CLI gRPC client，gRPC client 层只读取环境变量 PEM；文件 fallback 由 CLI 入口针对 human-facing 子命令显式注入；引入 force_insecure 标志解耦 bootstrap 与 mTLS 路径
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse

@@ -99,7 +99,7 @@ async def _bff_grpc_client() -> RigGrpcClient:
     if not (data_dir / "client.crt").exists():
         data_dir.mkdir(parents=True, exist_ok=True)
         daemon_addr = os.environ.get("RIG_DAEMON_ADDR")
-        bootstrap = RigGrpcClient(bootstrap_address(daemon_addr) if daemon_addr else None, data_dir, allow_insecure=True)
+        bootstrap = RigGrpcClient(bootstrap_address(daemon_addr) if daemon_addr else None, data_dir, force_insecure=True)
         try:
             certs = await bootstrap.init_client("bff:web-console")
             (data_dir / "client.crt").write_text(certs["client_cert_pem"], encoding="utf-8")
@@ -107,4 +107,7 @@ async def _bff_grpc_client() -> RigGrpcClient:
             (data_dir / "ca.crt").write_text(certs["ca_cert_pem"], encoding="utf-8")
         finally:
             await bootstrap.close()
+    os.environ["RIG_CLIENT_CERT"] = (data_dir / "client.crt").read_text(encoding="utf-8")
+    os.environ["RIG_CLIENT_KEY"] = (data_dir / "client.key").read_text(encoding="utf-8")
+    os.environ["RIG_CA_CERT"] = (data_dir / "ca.crt").read_text(encoding="utf-8")
     return RigGrpcClient(data_dir=data_dir)

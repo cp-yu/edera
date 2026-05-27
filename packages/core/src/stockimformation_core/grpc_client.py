@@ -11,14 +11,23 @@ from stockimformation_core.grpc_runtime import load_rig_proto
 
 
 class RigGrpcClient:
-    def __init__(self, address: str | None = None, data_dir: Path | None = None, allow_insecure: bool = False) -> None:
+    def __init__(
+        self,
+        address: str | None = None,
+        data_dir: Path | None = None,
+        allow_insecure: bool = False,
+        force_insecure: bool = False,
+    ) -> None:
         self.data_dir = data_dir or Path.home() / ".rig"
         self.address = address or _daemon_addr(self.data_dir)
         self._proto = load_rig_proto()
-        credentials = _channel_credentials(self.data_dir)
-        if credentials is None and not (allow_insecure or os.environ.get("RIG_ENV") == "dev"):
-            raise FileNotFoundError("gRPC client certificate files are required")
-        self._channel = grpc.aio.secure_channel(self.address, credentials) if credentials is not None else grpc.aio.insecure_channel(self.address)
+        if force_insecure:
+            self._channel = grpc.aio.insecure_channel(self.address)
+        else:
+            credentials = _channel_credentials()
+            if credentials is None and not (allow_insecure or os.environ.get("RIG_ENV") == "dev"):
+                raise FileNotFoundError("gRPC client certificate files are required")
+            self._channel = grpc.aio.secure_channel(self.address, credentials) if credentials is not None else grpc.aio.insecure_channel(self.address)
         self.entities = self._proto.pb2_grpc.EntityServiceStub(self._channel)
         self.dags = self._proto.pb2_grpc.DagServiceStub(self._channel)
         self.nodes = self._proto.pb2_grpc.NodeServiceStub(self._channel)
@@ -128,28 +137,19 @@ def bootstrap_address(address: str) -> str:
         return address
 
 
-def _channel_credentials(data_dir: Path):
+def _channel_credentials():
     if os.environ.get("RIG_ENV") == "dev":
         return None
-    cert = _load_pem("RIG_CLIENT_CERT", data_dir / "client.crt")
-    key = _load_pem("RIG_CLIENT_KEY", data_dir / "client.key")
-    ca = _load_pem("RIG_CA_CERT", data_dir / "ca.crt")
+    cert = os.environ.get("RIG_CLIENT_CERT")
+    key = os.environ.get("RIG_CLIENT_KEY")
+    ca = os.environ.get("RIG_CA_CERT")
     if cert is None or key is None or ca is None:
         return None
     return grpc.ssl_channel_credentials(
-        root_certificates=ca,
-        private_key=key,
-        certificate_chain=cert,
+        root_certificates=ca.encode(),
+        private_key=key.encode(),
+        certificate_chain=cert.encode(),
     )
-
-
-def _load_pem(env_name: str, fallback_path: Path) -> bytes | None:
-    value = os.environ.get(env_name)
-    if value:
-        return value.encode()
-    if fallback_path.exists():
-        return fallback_path.read_bytes()
-    return None
 
 
 def _entity_response(entity: Any) -> dict[str, object]:

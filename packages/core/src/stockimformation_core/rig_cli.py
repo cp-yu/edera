@@ -33,6 +33,8 @@ def main() -> None:
     _daemon_parser(subparsers.add_parser("daemon"))
     args = parser.parse_args()
     try:
+        if _should_inject_human_cert_env(args):
+            _inject_human_cert_env()
         result = _dispatch(args)
     except PermissionError as exc:
         parser.exit(1, f"Permission denied: {exc}\n")
@@ -124,6 +126,24 @@ def _dispatch(args: argparse.Namespace) -> object:
     if args.command == "daemon":
         return _daemon(args)
     raise ValueError(f"unknown command: {args.command}")
+
+
+def _should_inject_human_cert_env(args: argparse.Namespace) -> bool:
+    return args.command != "daemon" and not (args.command == "client" and args.client_command == "init")
+
+
+def _inject_human_cert_env() -> None:
+    cert_dir = Path.home() / ".rig"
+    for env_name, filename in (
+        ("RIG_CLIENT_CERT", "client.crt"),
+        ("RIG_CLIENT_KEY", "client.key"),
+        ("RIG_CA_CERT", "ca.crt"),
+    ):
+        if env_name in os.environ:
+            continue
+        path = cert_dir / filename
+        if path.exists():
+            os.environ[env_name] = path.read_text(encoding="utf-8")
 
 
 def _entity(args: argparse.Namespace) -> object:
@@ -299,7 +319,7 @@ def _dag_edit_payload(args: argparse.Namespace) -> dict[str, object]:
 
 
 async def _grpc_client_init(server: str, common_name: str) -> dict[str, str]:
-    client = RigGrpcClient(bootstrap_address(server), allow_insecure=True)
+    client = RigGrpcClient(bootstrap_address(server), force_insecure=True)
     try:
         return await client.init_client(common_name)
     finally:

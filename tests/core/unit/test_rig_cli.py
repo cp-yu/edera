@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 
 import pytest
 
 from stockimformation_core.storage import create_engine, init_db, session_factory
 from stockimformation_core.storage.repository import store_node_output_entities
-from stockimformation_core.rig_cli import main
+from stockimformation_core.rig_cli import _grpc_client_init, _inject_human_cert_env, main
 
 
 @pytest.fixture(autouse=True)
@@ -337,6 +338,106 @@ def test_rig_client_init_writes_config(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert (tmp_path / ".rig" / "client.crt").read_text(encoding="utf-8") == "cert"
     assert (tmp_path / ".rig" / "client.key").read_text(encoding="utf-8") == "key"
     assert (tmp_path / ".rig" / "ca.crt").read_text(encoding="utf-8") == "ca"
+
+
+def test_inject_human_cert_env_reads_missing_values(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    rig_dir = tmp_path / ".rig"
+    rig_dir.mkdir()
+    (rig_dir / "client.crt").write_text("CERT", encoding="utf-8")
+    (rig_dir / "client.key").write_text("KEY", encoding="utf-8")
+    (rig_dir / "ca.crt").write_text("CA", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
+    monkeypatch.delenv("RIG_CLIENT_KEY", raising=False)
+    monkeypatch.delenv("RIG_CA_CERT", raising=False)
+
+    _inject_human_cert_env()
+
+    assert os.environ["RIG_CLIENT_CERT"] == "CERT"
+    assert os.environ["RIG_CLIENT_KEY"] == "KEY"
+    assert os.environ["RIG_CA_CERT"] == "CA"
+
+
+def test_inject_human_cert_env_preserves_existing_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    rig_dir = tmp_path / ".rig"
+    rig_dir.mkdir()
+    (rig_dir / "client.crt").write_text("CERT", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setenv("RIG_CLIENT_CERT", "ORIGINAL")
+
+    _inject_human_cert_env()
+
+    assert os.environ["RIG_CLIENT_CERT"] == "ORIGINAL"
+
+
+def test_client_init_skips_human_cert_injection(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    async def fake_init(server: str, common_name: str) -> dict[str, str]:
+        return {"client_cert_pem": "new-cert", "client_key_pem": "new-key", "ca_cert_pem": "new-ca"}
+
+    rig_dir = tmp_path / ".rig"
+    rig_dir.mkdir()
+    (rig_dir / "client.crt").write_text("OLD", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
+    monkeypatch.delenv("RIG_CLIENT_KEY", raising=False)
+    monkeypatch.delenv("RIG_CA_CERT", raising=False)
+    monkeypatch.setattr("stockimformation_core.rig_cli._grpc_client_init", fake_init)
+    monkeypatch.setattr("sys.argv", ["rig", "client", "init", "--server", "localhost:9090"])
+
+    main()
+
+    assert "RIG_CLIENT_CERT" not in os.environ
+
+
+def test_daemon_skips_human_cert_injection(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    async def fake_serve(address: str, data_dir: Path | None, config_dir: Path, bootstrap_address: str | None) -> None:
+        return None
+
+    import stockimformation_core.daemon as daemon_module
+
+    rig_dir = tmp_path / ".rig"
+    rig_dir.mkdir()
+    (rig_dir / "client.crt").write_text("OLD", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
+    monkeypatch.setattr(daemon_module, "serve", fake_serve)
+    monkeypatch.setattr("sys.argv", ["rig", "daemon"])
+
+    main()
+
+    assert "RIG_CLIENT_CERT" not in os.environ
+
+
+def test_rig_client_init_uses_force_insecure(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str | None, bool, bool]] = []
+
+    class FakeClient:
+        def __init__(
+            self,
+            address: str | None = None,
+            data_dir: Path | None = None,
+            allow_insecure: bool = False,
+            force_insecure: bool = False,
+        ) -> None:
+            calls.append((address, allow_insecure, force_insecure))
+
+        async def init_client(self, common_name: str) -> dict[str, str]:
+            assert common_name == "human:test"
+            return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("stockimformation_core.rig_cli.RigGrpcClient", FakeClient)
+
+    import asyncio
+
+    assert asyncio.run(_grpc_client_init("localhost:9090", "human:test")) == {
+        "client_cert_pem": "cert",
+        "client_key_pem": "key",
+        "ca_cert_pem": "ca",
+    }
+    assert calls == [("localhost:9091", False, True)]
 
 
 def test_rig_cli_uses_grpc_when_daemon_addr_is_set(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

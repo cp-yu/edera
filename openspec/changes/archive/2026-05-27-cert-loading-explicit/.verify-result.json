@@ -1,0 +1,231 @@
+{
+  "timestamp": "2026-05-27T04:48:39.807Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "5852cee995ca82e4d713be61fefae96a8070041eedbb26f0afa1e6cfaffb1f03",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context-reviewer",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "openspec/changes/cert-loading-explicit/design.md",
+      "openspec/changes/cert-loading-explicit/opsx-delta.yaml",
+      "openspec/changes/cert-loading-explicit/proposal.md",
+      "openspec/changes/cert-loading-explicit/specs/rig-cli/spec.md",
+      "openspec/changes/cert-loading-explicit/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/stockimformation_core/grpc_client.py",
+      "packages/core/src/stockimformation_core/node/executor.py",
+      "packages/core/src/stockimformation_core/rig_cli.py",
+      "packages/core/src/stockimformation_core/web/app.py",
+      "packages/core/tests/test_agent_clear_env_fails.py",
+      "packages/core/tests/test_bootstrap_with_existing_cert.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/unit/test_core_architecture_overhaul.py",
+      "tests/core/unit/test_rig_cli.py"
+    ],
+    "evidenceFingerprint": "cda36dcff49937c9060ea77af63ba06ffb2809c19283012c7b259a8be79f1c9f",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/cert-loading-explicit/design.md",
+        "hash": "4cb63a2768fd94e3c6a62e4f19ea744d516f6e8740e680730b341698dce6214a"
+      },
+      {
+        "path": "openspec/changes/cert-loading-explicit/opsx-delta.yaml",
+        "hash": "60e928b391ffb0fba07f9519f7a9467f507cdd18c472461ee49614319b74e010"
+      },
+      {
+        "path": "openspec/changes/cert-loading-explicit/proposal.md",
+        "hash": "7d0adce1f02de8330171c4ab3fc5c6c767d12341ca6cfdc5841d2644f719ef13"
+      },
+      {
+        "path": "openspec/changes/cert-loading-explicit/specs/rig-cli/spec.md",
+        "hash": "d4d52c42e65f72709ef8c29bdba27e7561b7cf90328a0aebc9a189a48b7a2cb6"
+      },
+      {
+        "path": "openspec/changes/cert-loading-explicit/tasks.md",
+        "hash": "5852cee995ca82e4d713be61fefae96a8070041eedbb26f0afa1e6cfaffb1f03"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "103a6e827c27e399de19f39cbcfa0e0f034cca4e62787c9db9aae12090fc20bd"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "6c3b1fa4d1c5b27c527ff4760e7be772032a89db0555c5b39b84d902b81acb4b"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/grpc_client.py",
+        "hash": "9d32b71ecde743d848f4a46d9024906caeba73dca4f3da9954d562bd751e13c9"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/node/executor.py",
+        "hash": "fa1a405cd36af3e83a568e8f3da22a35a65a80cb71ec9c43d3d3822a4f756b24"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/rig_cli.py",
+        "hash": "5f16d24206cc4deff304b3389d1136b45ceb55eddf2889f856256736de7bd7f3"
+      },
+      {
+        "path": "packages/core/src/stockimformation_core/web/app.py",
+        "hash": "2e85cbb9a7618ed8f2c15b7a8ab56dc80d8f6cc6e13826c54817bbd4f856b982"
+      },
+      {
+        "path": "packages/core/tests/test_agent_clear_env_fails.py",
+        "hash": "6a1e7b3b1b818963dd299448c5bc5625b5df536a1c57fa59ca0383ca718a2de2"
+      },
+      {
+        "path": "packages/core/tests/test_bootstrap_with_existing_cert.py",
+        "hash": "39154b46001211a169ba1e012d3e6a90375295ece1e4c9234d0be258c4ba86f1"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "ee9b00ee83ad6fa95774dabc1ee54a81d05ae99dec2819fa0827f986de148b8e"
+      },
+      {
+        "path": "tests/core/unit/test_core_architecture_overhaul.py",
+        "hash": "f3e371355c21aa9c7b97912867a02fee8875e78893aada406ec61bac9b7eebfc"
+      },
+      {
+        "path": "tests/core/unit/test_rig_cli.py",
+        "hash": "9a4b63ba5c7b641c7dd8d24f475c3e7a7a1a60929c93a33b31de8106ba82a013"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "950bc8699938f3d2c171f6d9a2c3bea85d2f5449"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-27T04:51:09.483Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Make force_insecure an explicit branch in RigGrpcClient.__init__ instead of mutating allow_insecure.",
+        "files": [
+          "packages/core/src/stockimformation_core/grpc_client.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-27T04:54:26.602Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/stockimformation_core/grpc_client.py": "85c1b2d0178790d1d43d7eb3da794ac3ffe5a7b6d33c1ea2b48e9d18998d0f89"
+    },
+    "baseline": {
+      "timestamp": "2026-05-27T04:48:39.807Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "5852cee995ca82e4d713be61fefae96a8070041eedbb26f0afa1e6cfaffb1f03",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context-reviewer",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "openspec/changes/cert-loading-explicit/design.md",
+          "openspec/changes/cert-loading-explicit/opsx-delta.yaml",
+          "openspec/changes/cert-loading-explicit/proposal.md",
+          "openspec/changes/cert-loading-explicit/specs/rig-cli/spec.md",
+          "openspec/changes/cert-loading-explicit/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/stockimformation_core/grpc_client.py",
+          "packages/core/src/stockimformation_core/node/executor.py",
+          "packages/core/src/stockimformation_core/rig_cli.py",
+          "packages/core/src/stockimformation_core/web/app.py",
+          "packages/core/tests/test_agent_clear_env_fails.py",
+          "packages/core/tests/test_bootstrap_with_existing_cert.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/unit/test_core_architecture_overhaul.py",
+          "tests/core/unit/test_rig_cli.py"
+        ],
+        "evidenceFingerprint": "e5bf6b81d52c881014d1acc3709869a94cf8a5962c174eb6dbc1aef2f3fb8eaa",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/cert-loading-explicit/design.md",
+            "hash": "4cb63a2768fd94e3c6a62e4f19ea744d516f6e8740e680730b341698dce6214a"
+          },
+          {
+            "path": "openspec/changes/cert-loading-explicit/opsx-delta.yaml",
+            "hash": "60e928b391ffb0fba07f9519f7a9467f507cdd18c472461ee49614319b74e010"
+          },
+          {
+            "path": "openspec/changes/cert-loading-explicit/proposal.md",
+            "hash": "7d0adce1f02de8330171c4ab3fc5c6c767d12341ca6cfdc5841d2644f719ef13"
+          },
+          {
+            "path": "openspec/changes/cert-loading-explicit/specs/rig-cli/spec.md",
+            "hash": "d4d52c42e65f72709ef8c29bdba27e7561b7cf90328a0aebc9a189a48b7a2cb6"
+          },
+          {
+            "path": "openspec/changes/cert-loading-explicit/tasks.md",
+            "hash": "5852cee995ca82e4d713be61fefae96a8070041eedbb26f0afa1e6cfaffb1f03"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "8917e1f99134c79e46f9d65a1c013ec1e942d72cdf6922098081857d75052919"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "c71ce4dc83f10399b6d40ff7d3320c361cd430eef89261e10e3095194fc4def9"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/grpc_client.py",
+            "hash": "85c1b2d0178790d1d43d7eb3da794ac3ffe5a7b6d33c1ea2b48e9d18998d0f89"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/node/executor.py",
+            "hash": "fa1a405cd36af3e83a568e8f3da22a35a65a80cb71ec9c43d3d3822a4f756b24"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/rig_cli.py",
+            "hash": "5f16d24206cc4deff304b3389d1136b45ceb55eddf2889f856256736de7bd7f3"
+          },
+          {
+            "path": "packages/core/src/stockimformation_core/web/app.py",
+            "hash": "2e85cbb9a7618ed8f2c15b7a8ab56dc80d8f6cc6e13826c54817bbd4f856b982"
+          },
+          {
+            "path": "packages/core/tests/test_agent_clear_env_fails.py",
+            "hash": "6a1e7b3b1b818963dd299448c5bc5625b5df536a1c57fa59ca0383ca718a2de2"
+          },
+          {
+            "path": "packages/core/tests/test_bootstrap_with_existing_cert.py",
+            "hash": "39154b46001211a169ba1e012d3e6a90375295ece1e4c9234d0be258c4ba86f1"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "ee9b00ee83ad6fa95774dabc1ee54a81d05ae99dec2819fa0827f986de148b8e"
+          },
+          {
+            "path": "tests/core/unit/test_core_architecture_overhaul.py",
+            "hash": "f3e371355c21aa9c7b97912867a02fee8875e78893aada406ec61bac9b7eebfc"
+          },
+          {
+            "path": "tests/core/unit/test_rig_cli.py",
+            "hash": "9a4b63ba5c7b641c7dd8d24f475c3e7a7a1a60929c93a33b31de8106ba82a013"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "950bc8699938f3d2c171f6d9a2c3bea85d2f5449"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

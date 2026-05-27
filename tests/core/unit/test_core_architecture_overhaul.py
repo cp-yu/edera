@@ -14,7 +14,7 @@ from stockimformation_core.dag.loader import load_graph
 from stockimformation_core.dag.runner import DagRunner
 from stockimformation_core.daemon import RigDaemon, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
 from stockimformation_core.events import event_bus
-from stockimformation_core.grpc_client import RigGrpcClient, _load_pem
+from stockimformation_core.grpc_client import RigGrpcClient, _channel_credentials
 from stockimformation_core.hot_reload import clear_handler_cache
 from stockimformation_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
 from stockimformation_core.node.models import NodeInput
@@ -169,16 +169,20 @@ def test_certificate_authority_issues_agent_cert(tmp_path: Path) -> None:
 def test_grpc_client_loads_pem_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     pem = "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
     monkeypatch.setenv("RIG_CLIENT_CERT", pem)
+    monkeypatch.setenv("RIG_CLIENT_KEY", pem)
+    monkeypatch.setenv("RIG_CA_CERT", pem)
 
-    assert _load_pem("RIG_CLIENT_CERT", Path("/nonexist")) == pem.encode()
+    assert _channel_credentials() is not None
 
 
-def test_grpc_client_loads_pem_from_file_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    path = tmp_path / "client.crt"
-    path.write_text("FAKEPEM", encoding="utf-8")
+def test_grpc_client_ignores_pem_file_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "client.crt").write_text("FAKEPEM", encoding="utf-8")
     monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
+    monkeypatch.delenv("RIG_CLIENT_KEY", raising=False)
+    monkeypatch.delenv("RIG_CA_CERT", raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
 
-    assert _load_pem("RIG_CLIENT_CERT", path) == b"FAKEPEM"
+    assert _channel_credentials() is None
 
 
 def test_daemon_data_dir_env_priority(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -224,12 +228,12 @@ async def test_daemon_grpc_server_start(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_rig_grpc_client_connects_to_daemon(tmp_path: Path) -> None:
+async def test_rig_grpc_client_connects_to_daemon(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     daemon = RigDaemon(tmp_path, "127.0.0.1:0")
     issued = daemon.ca.issue_client("human:test", 3600)
-    (tmp_path / "client.crt").write_text(issued.cert_pem, encoding="utf-8")
-    (tmp_path / "client.key").write_text(issued.key_pem, encoding="utf-8")
-    (tmp_path / "ca.crt").write_text(issued.ca_pem, encoding="utf-8")
+    monkeypatch.setenv("RIG_CLIENT_CERT", issued.cert_pem)
+    monkeypatch.setenv("RIG_CLIENT_KEY", issued.key_pem)
+    monkeypatch.setenv("RIG_CA_CERT", issued.ca_pem)
     await daemon.start()
     client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", tmp_path)
     try:
@@ -240,19 +244,19 @@ async def test_rig_grpc_client_connects_to_daemon(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_daemon_bootstrap_issues_client_cert_for_mtls_port(tmp_path: Path) -> None:
+async def test_daemon_bootstrap_issues_client_cert_for_mtls_port(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
     daemon = RigDaemon(tmp_path / "rig", "127.0.0.1:0", config_dir, bootstrap_address="127.0.0.1:0")
     await daemon.start()
-    bootstrap = RigGrpcClient(f"127.0.0.1:{daemon.bootstrap_bound_port}", tmp_path / "bootstrap", allow_insecure=True)
+    bootstrap = RigGrpcClient(f"127.0.0.1:{daemon.bootstrap_bound_port}", tmp_path / "bootstrap", force_insecure=True)
     client_dir = tmp_path / "client"
     client_dir.mkdir()
     try:
         certs = await bootstrap.init_client("human:test")
-        (client_dir / "client.crt").write_text(certs["client_cert_pem"], encoding="utf-8")
-        (client_dir / "client.key").write_text(certs["client_key_pem"], encoding="utf-8")
-        (client_dir / "ca.crt").write_text(certs["ca_cert_pem"], encoding="utf-8")
+        monkeypatch.setenv("RIG_CLIENT_CERT", certs["client_cert_pem"])
+        monkeypatch.setenv("RIG_CLIENT_KEY", certs["client_key_pem"])
+        monkeypatch.setenv("RIG_CA_CERT", certs["ca_cert_pem"])
     finally:
         await bootstrap.close()
     client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", client_dir)
