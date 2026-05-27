@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_types import HandlerContext, NodeInput
+from edera_types import HandlerContext, NodeInput
 
 _ADAPTER_PATH = Path(__file__).parents[2] / "extensions" / "uzi-skill" / "adapter.py"
 _SPEC = importlib.util.spec_from_file_location("test_uzi_skill_adapter", _ADAPTER_PATH)

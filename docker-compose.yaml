@@ -1,5 +1,5 @@
 services:
-  stockimformation:
+  edera:
     build: .
     env_file:
       - .env

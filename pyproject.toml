@@ -16,7 +16,7 @@ exclude = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["stockimformation_core", "stockimformation_types"]
+packages = ["edera_core", "edera_types"]
 
 [[tool.mypy.overrides]]
 module = [

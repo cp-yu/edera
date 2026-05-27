@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from stockimformation_core.handler_validator import validate_handler
+from edera_core.handler_validator import validate_handler
 
 
 def test_handler_validator(tmp_path: Path) -> None:
@@ -17,7 +17,7 @@ def test_handler_validator(tmp_path: Path) -> None:
     assert validate_handler(bad_syntax)[0].startswith("syntax error:")
 
     result = subprocess.run(
-        ["uv", "run", "stockimformation", "handler-validate", str(good)],
+        ["uv", "run", "edera", "handler-validate", str(good)],
         check=True,
         text=True,
         capture_output=True,

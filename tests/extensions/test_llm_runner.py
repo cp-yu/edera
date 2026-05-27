@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
-from stockimformation_core.errors import NodeExecutionError
-from stockimformation_types import NodeInput
+from edera_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
+from edera_core.errors import NodeExecutionError
+from edera_types import NodeInput
 
 
 _LLM_PATH = Path(__file__).parents[2] / "extensions" / "_lib" / "llm.py"

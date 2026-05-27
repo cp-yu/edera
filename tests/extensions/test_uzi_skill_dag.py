@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.bootstrap import scan_extensions
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.loader import load_app_config
-from stockimformation_core.dag.loader import load_graph, topological_layers
-from stockimformation_core.dag.runner import DagRunner
-from stockimformation_core.node.executor import NodeExecutor
-from stockimformation_types import NodeOutput
+from edera_core.bootstrap import scan_extensions
+from edera_core.config.entities import EntityStore
+from edera_core.config.loader import load_app_config
+from edera_core.dag.loader import load_graph, topological_layers
+from edera_core.dag.runner import DagRunner
+from edera_core.node.executor import NodeExecutor
+from edera_types import NodeOutput
 
 
 def test_extension_manifest_loads() -> None:

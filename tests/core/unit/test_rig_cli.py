@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.storage import create_engine, init_db, session_factory
-from stockimformation_core.storage.repository import store_node_output_entities
-from stockimformation_core.rig_cli import _grpc_client_init, _inject_human_cert_env, main
+from edera_core.storage import create_engine, init_db, session_factory
+from edera_core.storage.repository import store_node_output_entities
+from edera_core.rig_cli import _grpc_client_init, _inject_human_cert_env, main
 
 
 @pytest.fixture(autouse=True)
@@ -169,7 +169,7 @@ def test_rig_entity_create_delete(monkeypatch: pytest.MonkeyPatch, tmp_path, cap
 def test_rig_node_status_uses_http_api(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setattr("pathlib.Path.home", lambda: Path("/tmp/no-rig-cli-config"))
     monkeypatch.setattr("sys.argv", ["rig", "node", "status", "reader"])
-    monkeypatch.setattr("stockimformation_core.rig_cli._post", lambda api_url, path, payload, method="POST": {"node_id": "reader", "status": "idle"})
+    monkeypatch.setattr("edera_core.rig_cli._post", lambda api_url, path, payload, method="POST": {"node_id": "reader", "status": "idle"})
 
     main()
 
@@ -185,7 +185,7 @@ def test_rig_dag_trigger_sends_payload(monkeypatch: pytest.MonkeyPatch, capsys: 
 
     monkeypatch.setattr("pathlib.Path.home", lambda: Path("/tmp/no-rig-cli-config"))
     monkeypatch.setattr("sys.argv", ["rig", "dag", "trigger", "default", "--payload", '{"x": 1}'])
-    monkeypatch.setattr("stockimformation_core.rig_cli._post", fake_post)
+    monkeypatch.setattr("edera_core.rig_cli._post", fake_post)
 
     main()
 
@@ -196,7 +196,7 @@ def test_rig_dag_trigger_sends_payload(monkeypatch: pytest.MonkeyPatch, capsys: 
 def test_rig_dag_status_uses_http_api(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setattr("pathlib.Path.home", lambda: Path("/tmp/no-rig-cli-config"))
     monkeypatch.setattr("sys.argv", ["rig", "dag", "status", "default"])
-    monkeypatch.setattr("stockimformation_core.rig_cli._post", lambda api_url, path, payload, method="POST": {"dag_name": "default"})
+    monkeypatch.setattr("edera_core.rig_cli._post", lambda api_url, path, payload, method="POST": {"dag_name": "default"})
 
     main()
 
@@ -237,7 +237,7 @@ def test_rig_node_resume_sends_prompt(monkeypatch: pytest.MonkeyPatch, capsys: p
 
     monkeypatch.setattr("pathlib.Path.home", lambda: Path("/tmp/no-rig-cli-config"))
     monkeypatch.setattr("sys.argv", ["rig", "node", "resume", "reader", "--prompt", "adjust"])
-    monkeypatch.setattr("stockimformation_core.rig_cli._post", fake_post)
+    monkeypatch.setattr("edera_core.rig_cli._post", fake_post)
 
     main()
 
@@ -328,7 +328,7 @@ def test_rig_client_init_writes_config(monkeypatch: pytest.MonkeyPatch, tmp_path
         return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
 
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("stockimformation_core.rig_cli._grpc_client_init", fake_init)
+    monkeypatch.setattr("edera_core.rig_cli._grpc_client_init", fake_init)
     monkeypatch.setattr("sys.argv", ["rig", "client", "init", "--server", "localhost:9090"])
 
     main()
@@ -381,7 +381,7 @@ def test_client_init_skips_human_cert_injection(monkeypatch: pytest.MonkeyPatch,
     monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
     monkeypatch.delenv("RIG_CLIENT_KEY", raising=False)
     monkeypatch.delenv("RIG_CA_CERT", raising=False)
-    monkeypatch.setattr("stockimformation_core.rig_cli._grpc_client_init", fake_init)
+    monkeypatch.setattr("edera_core.rig_cli._grpc_client_init", fake_init)
     monkeypatch.setattr("sys.argv", ["rig", "client", "init", "--server", "localhost:9090"])
 
     main()
@@ -393,7 +393,7 @@ def test_daemon_skips_human_cert_injection(monkeypatch: pytest.MonkeyPatch, tmp_
     async def fake_serve(address: str, data_dir: Path | None, config_dir: Path, bootstrap_address: str | None) -> None:
         return None
 
-    import stockimformation_core.daemon as daemon_module
+    import edera_core.daemon as daemon_module
 
     rig_dir = tmp_path / ".rig"
     rig_dir.mkdir()
@@ -428,7 +428,7 @@ def test_rig_client_init_uses_force_insecure(monkeypatch: pytest.MonkeyPatch) ->
         async def close(self) -> None:
             return None
 
-    monkeypatch.setattr("stockimformation_core.rig_cli.RigGrpcClient", FakeClient)
+    monkeypatch.setattr("edera_core.rig_cli.RigGrpcClient", FakeClient)
 
     import asyncio
 
@@ -454,7 +454,7 @@ def test_rig_cli_uses_grpc_when_daemon_addr_is_set(monkeypatch: pytest.MonkeyPat
             return None
 
     monkeypatch.setenv("RIG_DAEMON_ADDR", "127.0.0.1:19090")
-    monkeypatch.setattr("stockimformation_core.rig_cli.RigGrpcClient", FakeClient)
+    monkeypatch.setattr("edera_core.rig_cli.RigGrpcClient", FakeClient)
     monkeypatch.setattr("sys.argv", ["rig", "dag", "trigger", "default", "--payload", '{"x": 1}'])
 
     main()
@@ -477,7 +477,7 @@ def test_rig_dag_edit_uses_grpc_when_daemon_addr_is_set(monkeypatch: pytest.Monk
             return None
 
     monkeypatch.setenv("RIG_DAEMON_ADDR", "127.0.0.1:19090")
-    monkeypatch.setattr("stockimformation_core.rig_cli.RigGrpcClient", FakeClient)
+    monkeypatch.setattr("edera_core.rig_cli.RigGrpcClient", FakeClient)
     monkeypatch.setattr(
         "sys.argv",
         ["rig", "dag", "edit", "default", "add-edge", "--from", "a", "--to", "b", "--optional"],
@@ -494,7 +494,7 @@ def test_rig_daemon_passes_data_dir_to_daemon_serve(monkeypatch: pytest.MonkeyPa
     async def fake_serve(address: str, data_dir: Path | None, config_dir: Path, bootstrap_address: str | None) -> None:
         calls.append((address, data_dir, config_dir, bootstrap_address))
 
-    import stockimformation_core.daemon as daemon_module
+    import edera_core.daemon as daemon_module
 
     monkeypatch.setattr(daemon_module, "serve", fake_serve)
     monkeypatch.setattr(

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from stockimformation_core.config.schema import EntityConfig
-from stockimformation_types import HandlerContext
+from edera_core.config.schema import EntityConfig
+from edera_types import HandlerContext
 
 from _lib.models import Advice, AnalysisResult
 

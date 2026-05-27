@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.grpc_client import RigGrpcClient
+from edera_core.grpc_client import RigGrpcClient
 
 
 def test_agent_clear_env_fails_without_file_fallback(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

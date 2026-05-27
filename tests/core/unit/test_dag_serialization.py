@@ -1,4 +1,4 @@
-from stockimformation_core.config.schema import DagConfig
+from edera_core.config.schema import DagConfig
 
 
 def test_serialize_with_entities() -> None:

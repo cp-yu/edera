@@ -17,4 +17,4 @@ COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
 
 VOLUME ["/app/logs", "/app/data", "/app/config"]
-CMD ["stockimformation"]
+CMD ["edera"]

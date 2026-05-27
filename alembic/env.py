@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
-from stockimformation_core.storage.entities import NodeOutputEntity, NodeRun, PipelineRun
+from edera_core.storage.entities import NodeOutputEntity, NodeRun, PipelineRun
 
 config = context.config
 

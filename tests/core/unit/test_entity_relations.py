@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from stockimformation_core.config.loader import (
+from edera_core.config.loader import (
     load_entities_config,
     load_entity_relations_config,
     load_entity_type_configs,

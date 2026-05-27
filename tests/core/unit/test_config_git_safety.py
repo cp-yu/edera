@@ -2,7 +2,7 @@ import threading
 import time
 from pathlib import Path
 
-from stockimformation_core.config.git import commit_config_changes, config_write_lock
+from edera_core.config.git import commit_config_changes, config_write_lock
 
 
 def test_config_git_safety(tmp_path: Path) -> None:

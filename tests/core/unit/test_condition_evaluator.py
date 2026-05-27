@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
-from stockimformation_core.dag.conditions import evaluate_condition
+from edera_core.config.entities import EntityStore
+from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
+from edera_core.dag.conditions import evaluate_condition
 
 
 def test_default_condition_evaluator() -> None:

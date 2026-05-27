@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from stockimformation_types import HandlerContext
+from edera_types import HandlerContext
 
 from _lib.http_fetch import dedupe_raw_items, fetch_with_recovery, source_map, tags_for_source
 

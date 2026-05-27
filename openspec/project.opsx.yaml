@@ -1,9 +1,9 @@
 schema_version: 1
 project:
-  id: proj.stockimformation
-  name: stockImformation
-  intent: 个人股票信息管道，覆盖本机 Web 控制台、配置管理、数据持久化、DAG 运行和交易建议能力
-  scope: 覆盖 stockImformation 应用、配置、运行时管道、Web API 和 OpenSpec 跟踪制品
+  id: proj.edera
+  name: Edera
+  intent: 以 Entity 为统一原语、以 DAG 为执行模型的通用编排内核，覆盖本机 Web 控制台、配置管理、数据持久化、DAG 运行和控制面能力
+  scope: 覆盖 Edera 应用、配置、运行时管道、Web API 和 OpenSpec 跟踪制品
   roots:
     - path: .
 domains:
@@ -33,7 +33,7 @@ domains:
     boundary: 拥有统一 Entity 原语、DAG/Trigger 编排和跨层运行时能力
 capabilities:
   - id: cap.web.local-web-console
-    intent: 仅本机访问的 Web 控制台，覆盖导航、页面渲染、HTTP API 和本地访问边界
+    intent: Edera Web API 与 Web Console 基础能力，覆盖默认本机监听、JSON API、统一导航命名和 API title
     type: capability
     domain: dom.web
   - id: cap.web.result-explorer
@@ -128,10 +128,10 @@ capabilities:
     intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor 提取和依赖校验
     type: capability
   - id: cap.core.core-bootstrap
-    intent: 核心 bootstrap，逻辑可重入，支持运行时重新扫描和 registry 原子替换
+    intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
     type: capability
   - id: cap.core.handler-context-protocol
-    intent: 统一 HandlerContext 单参数调用协议、HandlerProtocol 和 EntityStoreProtocol 接口定义，承载于独立 core-types 包
+    intent: 统一 HandlerContext、HandlerProtocol、EntityStoreProtocol、NodeInput 和 NodeOutput 接口定义承载于 edera-types / edera_types 包
     type: capability
   - id: cap.core.extension-declarative-storage
     intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.rig-cli
-    intent: Rig CLI gRPC client，gRPC client 层只读取环境变量 PEM；文件 fallback 由 CLI 入口针对 human-facing 子命令显式注入；引入 force_insecure 标志解耦 bootstrap 与 mTLS 路径
+    intent: rig CLI 作为 Edera 控制面入口保留，gRPC client 证书和 daemon 连接继续使用 RIG_* 控制面环境变量
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -210,5 +210,8 @@ capabilities:
     intent: Agent 节点实时可观测，覆盖 stdout event bus、SSE 推送和 Web Console 展示
     type: capability
   - id: cap.core.daemon-data-directory
-    intent: Daemon 数据目录管理，覆盖目录结构定义、RIG_DAEMON_DATA_DIR 配置、CA 自动生成和与客户端目录的隔离边界
+    intent: Daemon 数据目录管理使用 Edera 项目默认目录，保留 RIG_* 作为控制面连接和证书变量
+    type: capability
+  - id: cap.core.project-identity
+    intent: Edera 项目 canonical identity，覆盖项目名、slug、包命名、命令名、环境变量前缀、默认路径和 README 名称来源说明
     type: capability

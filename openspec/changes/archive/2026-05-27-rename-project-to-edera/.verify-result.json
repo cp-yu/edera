@@ -1,0 +1,335 @@
+{
+  "timestamp": "2026-05-27T05:59:55.021Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "48c5aeace9c31dfb082348863484bb7e207f4102587a78232d7b003936bc51f8",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context follow-up reviewer",
+    "evidenceFiles": [
+      ".env.example",
+      "Dockerfile",
+      "README.md",
+      "alembic.ini",
+      "alembic/env.py",
+      "apps/web-console/index.html",
+      "config/system.toml",
+      "dev.sh",
+      "docker-compose.yaml",
+      "openspec/changes/rename-project-to-edera/design.md",
+      "openspec/changes/rename-project-to-edera/opsx-delta.yaml",
+      "openspec/changes/rename-project-to-edera/proposal.md",
+      "openspec/changes/rename-project-to-edera/specs/core-bootstrap/spec.md",
+      "openspec/changes/rename-project-to-edera/specs/daemon-data-directory/spec.md",
+      "openspec/changes/rename-project-to-edera/specs/handler-context-protocol/spec.md",
+      "openspec/changes/rename-project-to-edera/specs/local-web-console/spec.md",
+      "openspec/changes/rename-project-to-edera/specs/project-identity/spec.md",
+      "openspec/changes/rename-project-to-edera/specs/rig-cli/spec.md",
+      "openspec/changes/rename-project-to-edera/tasks.md",
+      "openspec/project.opsx.yaml",
+      "packages/core-types/pyproject.toml",
+      "packages/core-types/src/edera_types/__init__.py",
+      "packages/core/pyproject.toml",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/daemon.py",
+      "packages/core/src/edera_core/grpc_runtime.py",
+      "packages/core/src/edera_core/main.py",
+      "packages/core/src/edera_core/web/app.py",
+      "pyproject.toml"
+    ],
+    "evidenceFingerprint": "3b76d1cf02f38c2bba7c6585f35107f429e994fa15106ae61967ebecc05ee4a5",
+    "evidenceFingerprintEntries": [
+      {
+        "path": ".env.example",
+        "hash": "447c6eb07fb460026444775e9e423df284c3f537103e3234b0895aff6245216d"
+      },
+      {
+        "path": "alembic.ini",
+        "hash": "662c8ea994085859828868340a290ec673908a6630b23878ba7f402f67e5d18a"
+      },
+      {
+        "path": "alembic/env.py",
+        "hash": "d17fbb046b37b96023495ab1824e9876d694c63fb619b252c518fe4083910e0e"
+      },
+      {
+        "path": "apps/web-console/index.html",
+        "hash": "6ed92244a9f41aee04655bf1f65305c6ef298b0086d805b111c6374a2501b1a6"
+      },
+      {
+        "path": "config/system.toml",
+        "hash": "7b960de12c0afcb9df178bd346428be53a8c1cb3c70d5d6a298216b5477d8644"
+      },
+      {
+        "path": "dev.sh",
+        "hash": "028b88185f26468d43a92b84110e0a6d91e97a5c4192346481ce9da0d86854d0"
+      },
+      {
+        "path": "docker-compose.yaml",
+        "hash": "1b8c27e2e47def43855f03e96c953b8d17943c841f2c9f8c3346eca8b1a9ae39"
+      },
+      {
+        "path": "Dockerfile",
+        "hash": "c653568510f51c56881b43527d780548bbcc323cb864710e2b5f3d8175a2d123"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/design.md",
+        "hash": "8af2d7e8300897260f1a2bd2daf07b173f74ee368021007112b43f87ade7db5d"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/opsx-delta.yaml",
+        "hash": "05cd7b1ab559ca6e5a341441589f56e25873b50643b8d30685d220d8e645a021"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/proposal.md",
+        "hash": "5f9cf179964ca23a6977ecab600444dbe8f86a18559b1618879f1a9767e593c1"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/specs/core-bootstrap/spec.md",
+        "hash": "86bbf56d4f461d6b72e0b7ed9cab06702df69ece271c2e33e0ebf191eb69a90a"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/specs/daemon-data-directory/spec.md",
+        "hash": "5f92055c864dc80aa0f7c7b9406847b6a838a0bf3ee674e53a266ebbb33360de"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/specs/handler-context-protocol/spec.md",
+        "hash": "46bc626562495399f8c28d10670656e7b8355049ea829143ec485c56021baaf8"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/specs/local-web-console/spec.md",
+        "hash": "29a29070b1d78586785cb52ca89330afe731dcb340c5c6eba899f1d256c15c76"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/specs/project-identity/spec.md",
+        "hash": "eb58f8ffd7a4102aa6de514221a0935978bc7dfd1ac31ce1c81390b245a5f725"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/specs/rig-cli/spec.md",
+        "hash": "dee3cde7e775adc6fe878023d5ffa139125420dec55317ee8c39c5e45e209bd9"
+      },
+      {
+        "path": "openspec/changes/rename-project-to-edera/tasks.md",
+        "hash": "48c5aeace9c31dfb082348863484bb7e207f4102587a78232d7b003936bc51f8"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "80b422319c3ab2a0c38130cfcd32bdbaae4e1c8e20b4cac9a3e84766acc15125"
+      },
+      {
+        "path": "packages/core-types/pyproject.toml",
+        "hash": "c8ee05bc462823a9167ec3a9987dac5fcb9cfc426a405589548bf0a15c886caf"
+      },
+      {
+        "path": "packages/core-types/src/edera_types/__init__.py",
+        "hash": "6afcfab754d0230b7d476f923e9e31431f856b727cc72adaa8f20089ad5578a6"
+      },
+      {
+        "path": "packages/core/pyproject.toml",
+        "hash": "fdf4d02d1e549332e2496f1ea950c8bf0c93c40b5b0e15af668cf23785809746"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "4ffb0cbf21b30a7e8aa27e79bb8fc74ad198c505c9fa0f554fcd91ad7fdfd8e2"
+      },
+      {
+        "path": "packages/core/src/edera_core/daemon.py",
+        "hash": "13a218eb3acb615617ccd0894d413551709961a05597f7b37fee651312886d9f"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_runtime.py",
+        "hash": "809eedd8578cff80c834779510a0437a13e77de71d8edbc8825f31c07d2368b9"
+      },
+      {
+        "path": "packages/core/src/edera_core/main.py",
+        "hash": "fa7e73710f9cd74e213b3e95a7e2d13e1bbcf42a2a73c4dd404a73e1980da17a"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/app.py",
+        "hash": "164ab9b076f2dc051e411d0b2946b3d5248e9b3bbefd7d55acebc49432e64c7c"
+      },
+      {
+        "path": "pyproject.toml",
+        "hash": "3eacce627922453eba4cbb4f09add96511bb29a9f75b60e4afce9b396b84ac87"
+      },
+      {
+        "path": "README.md",
+        "hash": "a4be7caf5f96bda907bac314a77482a4edb09a2076eca81cbb5b3762a2079955"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "c4f413eeebc5ae5593af5735f9b41b3a40ede7dd"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-27T06:01:18.910Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-27T05:59:55.021Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "48c5aeace9c31dfb082348863484bb7e207f4102587a78232d7b003936bc51f8",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context follow-up reviewer",
+        "evidenceFiles": [
+          ".env.example",
+          "Dockerfile",
+          "README.md",
+          "alembic.ini",
+          "alembic/env.py",
+          "apps/web-console/index.html",
+          "config/system.toml",
+          "dev.sh",
+          "docker-compose.yaml",
+          "openspec/changes/rename-project-to-edera/design.md",
+          "openspec/changes/rename-project-to-edera/opsx-delta.yaml",
+          "openspec/changes/rename-project-to-edera/proposal.md",
+          "openspec/changes/rename-project-to-edera/specs/core-bootstrap/spec.md",
+          "openspec/changes/rename-project-to-edera/specs/daemon-data-directory/spec.md",
+          "openspec/changes/rename-project-to-edera/specs/handler-context-protocol/spec.md",
+          "openspec/changes/rename-project-to-edera/specs/local-web-console/spec.md",
+          "openspec/changes/rename-project-to-edera/specs/project-identity/spec.md",
+          "openspec/changes/rename-project-to-edera/specs/rig-cli/spec.md",
+          "openspec/changes/rename-project-to-edera/tasks.md",
+          "openspec/project.opsx.yaml",
+          "packages/core-types/pyproject.toml",
+          "packages/core-types/src/edera_types/__init__.py",
+          "packages/core/pyproject.toml",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/daemon.py",
+          "packages/core/src/edera_core/grpc_runtime.py",
+          "packages/core/src/edera_core/main.py",
+          "packages/core/src/edera_core/web/app.py",
+          "pyproject.toml"
+        ],
+        "evidenceFingerprint": "227a5567cc925d4e92b1ffc68091aa082ee1aaa40963adf1ae35acbc02b30999",
+        "evidenceFingerprintEntries": [
+          {
+            "path": ".env.example",
+            "hash": "447c6eb07fb460026444775e9e423df284c3f537103e3234b0895aff6245216d"
+          },
+          {
+            "path": "alembic.ini",
+            "hash": "662c8ea994085859828868340a290ec673908a6630b23878ba7f402f67e5d18a"
+          },
+          {
+            "path": "alembic/env.py",
+            "hash": "d17fbb046b37b96023495ab1824e9876d694c63fb619b252c518fe4083910e0e"
+          },
+          {
+            "path": "apps/web-console/index.html",
+            "hash": "6ed92244a9f41aee04655bf1f65305c6ef298b0086d805b111c6374a2501b1a6"
+          },
+          {
+            "path": "config/system.toml",
+            "hash": "7b960de12c0afcb9df178bd346428be53a8c1cb3c70d5d6a298216b5477d8644"
+          },
+          {
+            "path": "dev.sh",
+            "hash": "028b88185f26468d43a92b84110e0a6d91e97a5c4192346481ce9da0d86854d0"
+          },
+          {
+            "path": "docker-compose.yaml",
+            "hash": "1b8c27e2e47def43855f03e96c953b8d17943c841f2c9f8c3346eca8b1a9ae39"
+          },
+          {
+            "path": "Dockerfile",
+            "hash": "c653568510f51c56881b43527d780548bbcc323cb864710e2b5f3d8175a2d123"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/design.md",
+            "hash": "8af2d7e8300897260f1a2bd2daf07b173f74ee368021007112b43f87ade7db5d"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/opsx-delta.yaml",
+            "hash": "05cd7b1ab559ca6e5a341441589f56e25873b50643b8d30685d220d8e645a021"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/proposal.md",
+            "hash": "5f9cf179964ca23a6977ecab600444dbe8f86a18559b1618879f1a9767e593c1"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/specs/core-bootstrap/spec.md",
+            "hash": "86bbf56d4f461d6b72e0b7ed9cab06702df69ece271c2e33e0ebf191eb69a90a"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/specs/daemon-data-directory/spec.md",
+            "hash": "5f92055c864dc80aa0f7c7b9406847b6a838a0bf3ee674e53a266ebbb33360de"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/specs/handler-context-protocol/spec.md",
+            "hash": "46bc626562495399f8c28d10670656e7b8355049ea829143ec485c56021baaf8"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/specs/local-web-console/spec.md",
+            "hash": "29a29070b1d78586785cb52ca89330afe731dcb340c5c6eba899f1d256c15c76"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/specs/project-identity/spec.md",
+            "hash": "eb58f8ffd7a4102aa6de514221a0935978bc7dfd1ac31ce1c81390b245a5f725"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/specs/rig-cli/spec.md",
+            "hash": "dee3cde7e775adc6fe878023d5ffa139125420dec55317ee8c39c5e45e209bd9"
+          },
+          {
+            "path": "openspec/changes/rename-project-to-edera/tasks.md",
+            "hash": "48c5aeace9c31dfb082348863484bb7e207f4102587a78232d7b003936bc51f8"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "f10413fb0c9f97b0a1afa564322e557bd843a5a1bfe56cdadeb9a68376f0cf63"
+          },
+          {
+            "path": "packages/core-types/pyproject.toml",
+            "hash": "c8ee05bc462823a9167ec3a9987dac5fcb9cfc426a405589548bf0a15c886caf"
+          },
+          {
+            "path": "packages/core-types/src/edera_types/__init__.py",
+            "hash": "6afcfab754d0230b7d476f923e9e31431f856b727cc72adaa8f20089ad5578a6"
+          },
+          {
+            "path": "packages/core/pyproject.toml",
+            "hash": "fdf4d02d1e549332e2496f1ea950c8bf0c93c40b5b0e15af668cf23785809746"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "4ffb0cbf21b30a7e8aa27e79bb8fc74ad198c505c9fa0f554fcd91ad7fdfd8e2"
+          },
+          {
+            "path": "packages/core/src/edera_core/daemon.py",
+            "hash": "13a218eb3acb615617ccd0894d413551709961a05597f7b37fee651312886d9f"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_runtime.py",
+            "hash": "809eedd8578cff80c834779510a0437a13e77de71d8edbc8825f31c07d2368b9"
+          },
+          {
+            "path": "packages/core/src/edera_core/main.py",
+            "hash": "fa7e73710f9cd74e213b3e95a7e2d13e1bbcf42a2a73c4dd404a73e1980da17a"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/app.py",
+            "hash": "164ab9b076f2dc051e411d0b2946b3d5248e9b3bbefd7d55acebc49432e64c7c"
+          },
+          {
+            "path": "pyproject.toml",
+            "hash": "3eacce627922453eba4cbb4f09add96511bb29a9f75b60e4afce9b396b84ac87"
+          },
+          {
+            "path": "README.md",
+            "hash": "a4be7caf5f96bda907bac314a77482a4edb09a2076eca81cbb5b3762a2079955"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "c4f413eeebc5ae5593af5735f9b41b3a40ede7dd"
+      }
+    }
+  }
+}

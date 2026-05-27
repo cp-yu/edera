@@ -1,5 +1,5 @@
-from stockimformation_core.config.entities import PERMISSIONS, field_permission
-from stockimformation_core.config.schema import EntityTypeConfig
+from edera_core.config.entities import PERMISSIONS, field_permission
+from edera_core.config.schema import EntityTypeConfig
 
 
 def test_default_read_write() -> None:

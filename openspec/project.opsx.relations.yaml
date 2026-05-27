@@ -108,3 +108,6 @@ relations:
   - from: cap.core.daemon-data-directory
     type: contains
     to: dom.core
+  - from: cap.core.project-identity
+    type: contains
+    to: dom.core

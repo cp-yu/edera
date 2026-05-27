@@ -9,8 +9,8 @@ from typing import Any
 import feedparser
 import httpx
 
-from stockimformation_core.config.schema import EntityConfig, SystemConfig, entity_ref
-from stockimformation_types import EntityStoreProtocol
+from edera_core.config.schema import EntityConfig, SystemConfig, entity_ref
+from edera_types import EntityStoreProtocol
 
 from _lib.models import RawItem
 

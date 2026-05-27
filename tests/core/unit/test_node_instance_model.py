@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from stockimformation_core.config.schema import DagNodeInstance, NodeConfig
+from edera_core.config.schema import DagNodeInstance, NodeConfig
 
 
 def test_entities_field() -> None:

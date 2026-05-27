@@ -1,0 +1,26 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.project-identity
+      type: capability
+      intent: Edera 项目 canonical identity，覆盖项目名、slug、包命名、命令名、环境变量前缀、默认路径和 README 名称来源说明
+  relations:
+    - from: cap.core.project-identity
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.core-bootstrap
+      intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
+    - id: cap.core.handler-context-protocol
+      intent: 统一 HandlerContext、HandlerProtocol、EntityStoreProtocol、NodeInput 和 NodeOutput 接口定义承载于 edera-types / edera_types 包
+    - id: cap.core.rig-cli
+      intent: rig CLI 作为 Edera 控制面入口保留，gRPC client 证书和 daemon 连接继续使用 RIG_* 控制面环境变量
+    - id: cap.core.daemon-data-directory
+      intent: Daemon 数据目录管理使用 Edera 项目默认目录，保留 RIG_* 作为控制面连接和证书变量
+    - id: cap.web.local-web-console
+      intent: Edera Web API 与 Web Console 基础能力，覆盖默认本机监听、JSON API、统一导航命名和 API title
+
+REMOVED:
+  capabilities: []

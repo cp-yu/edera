@@ -1,8 +1,8 @@
 import pytest
 
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
-from stockimformation_core.trigger import TriggerExecutor
+from edera_core.config.entities import EntityStore
+from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
+from edera_core.trigger import TriggerExecutor
 
 
 @pytest.mark.asyncio

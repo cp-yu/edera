@@ -1,7 +1,7 @@
 [project]
-name = "stockimformation-types"
+name = "edera-types"
 version = "0.1.0"
-description = "Shared extension protocols for stockImformation"
+description = "Shared extension protocols for Edera"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0",

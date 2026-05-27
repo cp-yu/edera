@@ -7,16 +7,16 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from stockimformation_core.storage import create_engine, init_db, session_factory, sqlite_url
-from stockimformation_core.storage.repository import (
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.storage.repository import (
     create_pipeline_run,
     finish_pipeline_run,
     get_pipeline_run,
     recent_pipeline_runs,
     store_node_output_entities,
 )
-from stockimformation_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RetryRunResult, RunAlreadyActiveError
-from stockimformation_core.web.app import create_app
+from edera_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RetryRunResult, RunAlreadyActiveError
+from edera_core.web.app import create_app
 
 
 class FakeController(PipelineController):
@@ -390,7 +390,7 @@ async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    from stockimformation_core.web import app as web_app
+    from edera_core.web import app as web_app
 
     calls: list[tuple[str | None, Path | None, bool, bool]] = []
 
@@ -428,7 +428,7 @@ async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from stockimformation_core.web import app as web_app
+    from edera_core.web import app as web_app
 
     _write_dag_config(tmp_path)
     closed = False
@@ -570,7 +570,7 @@ async def test_pipeline_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: py
     _write_run_pi_extension(extensions_dir)
     fake_pi = _write_fake_pi(tmp_path)
     capture = tmp_path / "pi-calls.json"
-    monkeypatch.setenv("STOCKIMFORMATION_PI_BIN", str(fake_pi))
+    monkeypatch.setenv("EDERA_PI_BIN", str(fake_pi))
     monkeypatch.setenv("CAPTURE", str(capture))
     session_dir = tmp_path / "persistent-session"
     session_dir.mkdir()
@@ -800,7 +800,7 @@ def _write_run_pi_extension(path: Path) -> None:
     extension.mkdir(parents=True)
     extension.joinpath("handler.py").write_text(
         "from _lib.llm import run_pi\n"
-        "from stockimformation_core.config.schema import NodeConfig\n"
+        "from edera_core.config.schema import NodeConfig\n"
         "async def run(ctx):\n"
         "    config = NodeConfig(\n"
         "        name=ctx.node_type,\n"

@@ -4,7 +4,7 @@
 此规约记录变更 rig-session-reuse 引入的行为，请在后续同步或归档前补全正式 Purpose。
 ## Requirements
 ### Requirement: CLI binary 入口
-系统 SHALL 提供名为 `rig` 的 CLI binary，作为 agent 和人类访问引擎能力的统一入口。
+系统 SHALL 提供名为 `rig` 的 CLI binary，作为 agent 和人类访问 Edera 控制面能力的统一入口。`rig` 是控制命令名，不是项目 canonical name。
 
 #### Scenario: CLI 可执行
 - **WHEN** 用户或 agent 在终端执行 `rig --help`
@@ -13,6 +13,11 @@
 #### Scenario: 版本查询
 - **WHEN** 用户执行 `rig --version`
 - **THEN** 系统 SHALL 输出当前版本号
+
+#### Scenario: Project command separate from control command
+- **WHEN** 用户需要启动 Edera 服务入口
+- **THEN** 用户 SHALL 使用 `edera` console script
+- **AND** `rig` SHALL 保持为控制面 CLI
 
 ### Requirement: 身份声明
 `rig` CLI SHALL 支持双身份模式：通过 `RIG_IDENTITY` 环境变量设置默认身份，通过 `--identity` flag 覆盖。
@@ -78,7 +83,7 @@
 - **THEN** 系统 SHALL 允许操作（human 身份不受 entity_permissions 限制）
 
 ### Requirement: gRPC Client 实现
-`rig` CLI SHALL 作为 gRPC client 连接 rig daemon。证书加载语义：gRPC client 层 SHALL 仅从环境变量读取 PEM 内容，不读文件系统；文件读取由 CLI 入口层在 dispatch 子命令前显式完成（针对 human-facing 子命令）。
+`rig` CLI SHALL 作为 gRPC client 连接 rig daemon。证书加载语义：gRPC client 层 SHALL 仅从环境变量读取 PEM 内容，不读文件系统；文件读取由 CLI 入口层在 dispatch 子命令前显式完成（针对 human-facing 子命令）。控制面身份、证书和连接环境变量 SHALL 继续使用 `RIG_*` 前缀，不迁移到 `EDERA_*`。
 
 #### Scenario: gRPC 连接 daemon
 - **WHEN** 用户执行任意 rig 命令

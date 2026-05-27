@@ -1,5 +1,5 @@
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
+from edera_core.config.entities import EntityStore
+from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
 
 
 def _store() -> EntityStore:

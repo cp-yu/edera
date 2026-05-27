@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.rig_cli import main
+from edera_core.rig_cli import main
 
 
 def test_client_init_bootstraps_with_existing_cert(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -31,7 +31,7 @@ def test_client_init_bootstraps_with_existing_cert(monkeypatch: pytest.MonkeyPat
     (rig_dir / "client.key").write_text("old-key", encoding="utf-8")
     (rig_dir / "ca.crt").write_text("old-ca", encoding="utf-8")
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("stockimformation_core.rig_cli.RigGrpcClient", FakeClient)
+    monkeypatch.setattr("edera_core.rig_cli.RigGrpcClient", FakeClient)
     monkeypatch.setattr("sys.argv", ["rig", "client", "init", "--server", "localhost:9090"])
 
     main()

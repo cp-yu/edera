@@ -2,12 +2,12 @@ import pytest
 import yaml
 from sqlmodel import select
 
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
-from stockimformation_core.errors import ConfigError
-from stockimformation_core.storage.database import create_engine, init_db, session_factory, sqlite_url
-from stockimformation_core.storage.entities import NodeOutputEntity
-from stockimformation_core.node.models import NodeContext
+from edera_core.config.entities import EntityStore
+from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
+from edera_core.errors import ConfigError
+from edera_core.storage.database import create_engine, init_db, session_factory, sqlite_url
+from edera_core.storage.entities import NodeOutputEntity
+from edera_core.node.models import NodeContext
 
 
 def _context() -> NodeContext:

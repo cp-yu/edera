@@ -1,8 +1,8 @@
 import pytest
 
-from stockimformation_core.config.entities import validate_permission_overrides
-from stockimformation_core.config.schema import EntityTypeConfig
-from stockimformation_core.errors import ConfigError
+from edera_core.config.entities import validate_permission_overrides
+from edera_core.config.schema import EntityTypeConfig
+from edera_core.errors import ConfigError
 
 
 def test_valid_escalation() -> None:

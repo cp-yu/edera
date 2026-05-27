@@ -8,8 +8,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "stockimformation-core",
-    "stockimformation-types",
+    "edera-core",
+    "edera-types",
 ]
 
 [[package]]
@@ -1043,7 +1043,7 @@ wheels = [
 ]
 
 [[package]]
-name = "stockimformation-core"
+name = "edera-core"
 version = "0.1.0"
 source = { editable = "packages/core" }
 dependencies = [
@@ -1061,7 +1061,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "sqlmodel" },
-    { name = "stockimformation-types" },
+    { name = "edera-types" },
     { name = "uvicorn" },
     { name = "watchfiles" },
 ]
@@ -1090,7 +1090,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.12" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "sqlmodel", specifier = ">=0.0.22" },
-    { name = "stockimformation-types", editable = "packages/core-types" },
+    { name = "edera-types", editable = "packages/core-types" },
     { name = "uvicorn", specifier = ">=0.30.6" },
     { name = "watchfiles", specifier = ">=0.24.0" },
 ]
@@ -1104,7 +1104,7 @@ dev = [
 ]
 
 [[package]]
-name = "stockimformation-types"
+name = "edera-types"
 version = "0.1.0"
 source = { editable = "packages/core-types" }
 dependencies = [

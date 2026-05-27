@@ -8,7 +8,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from stockimformation_types import HandlerContext, NodeOutput
+from edera_types import HandlerContext, NodeOutput
 
 
 async def run(ctx: HandlerContext) -> NodeOutput:

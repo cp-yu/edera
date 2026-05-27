@@ -1,10 +1,10 @@
 [project]
-name = "stockimformation-core"
+name = "edera-core"
 version = "0.1.0"
-description = "Core runtime for stockImformation"
+description = "Core runtime for Edera"
 requires-python = ">=3.12"
 dependencies = [
-    "stockimformation-types",
+    "edera-types",
     "aiosqlite>=0.20.0",
     "alembic>=1.13.3",
     "apscheduler>=3.10.4",
@@ -24,11 +24,11 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-stockimformation-types = { workspace = true }
+edera-types = { workspace = true }
 
 [project.scripts]
-stockimformation = "stockimformation_core.main:main"
-rig = "stockimformation_core.rig_cli:main"
+edera = "edera_core.main:main"
+rig = "edera_core.rig_cli:main"
 
 [dependency-groups]
 dev = [

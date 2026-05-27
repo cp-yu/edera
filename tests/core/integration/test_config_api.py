@@ -2,9 +2,9 @@ import pytest
 import yaml
 from httpx import ASGITransport, AsyncClient
 
-from stockimformation_core.storage import create_engine, init_db, session_factory, sqlite_url
-from stockimformation_core.pipeline import PipelineController
-from stockimformation_core.web.app import create_app
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.pipeline import PipelineController
+from edera_core.web.app import create_app
 
 
 class FakeController(PipelineController):

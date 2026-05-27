@@ -8,16 +8,16 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from stockimformation_core.cert import CertificateAuthority
-from stockimformation_core.config.schema import AgentNodeConfig, DagConfig, DagNodeConfig, FunctionNodeConfig, NodeConfig
-from stockimformation_core.dag.loader import load_graph
-from stockimformation_core.dag.runner import DagRunner
-from stockimformation_core.daemon import RigDaemon, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
-from stockimformation_core.events import event_bus
-from stockimformation_core.grpc_client import RigGrpcClient, _channel_credentials
-from stockimformation_core.hot_reload import clear_handler_cache
-from stockimformation_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
-from stockimformation_core.node.models import NodeInput
+from edera_core.cert import CertificateAuthority
+from edera_core.config.schema import AgentNodeConfig, DagConfig, DagNodeConfig, FunctionNodeConfig, NodeConfig
+from edera_core.dag.loader import load_graph
+from edera_core.dag.runner import DagRunner
+from edera_core.daemon import RigDaemon, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
+from edera_core.events import event_bus
+from edera_core.grpc_client import RigGrpcClient, _channel_credentials
+from edera_core.hot_reload import clear_handler_cache
+from edera_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
+from edera_core.node.models import NodeInput
 
 
 def test_node_config_discriminated_union() -> None:
@@ -288,7 +288,7 @@ async def test_daemon_streams_events_over_grpc(tmp_path: Path) -> None:
 async def test_pipeline_publishes_dag_status_events(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
-    from stockimformation_core.pipeline import PipelineController
+    from edera_core.pipeline import PipelineController
 
     controller = PipelineController(config_dir)
     await controller.start(run_startup=False)
@@ -436,13 +436,13 @@ async def _append(items: list[str], value: str) -> None:
 
 
 def _system():
-    from stockimformation_core.config.schema import SystemConfig
+    from edera_core.config.schema import SystemConfig
 
     return SystemConfig()
 
 
 def _runtime():
-    from stockimformation_core.config.schema import RuntimeSettings
+    from edera_core.config.schema import RuntimeSettings
 
     return RuntimeSettings()
 

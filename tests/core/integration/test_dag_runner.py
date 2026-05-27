@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.config.loader import load_app_config
-from stockimformation_core.config.schema import NodeConfig
-from stockimformation_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
-from stockimformation_core.dag.runner import DagRunner
-from stockimformation_core.errors import DagError
-from stockimformation_core.node.executor import NodeExecutor
-from stockimformation_core.node.models import FunctionHandler, NodeInput
+from edera_core.config.loader import load_app_config
+from edera_core.config.schema import NodeConfig
+from edera_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
+from edera_core.dag.runner import DagRunner
+from edera_core.errors import DagError
+from edera_core.node.executor import NodeExecutor
+from edera_core.node.models import FunctionHandler, NodeInput
 
 
 @pytest.mark.asyncio
@@ -802,7 +802,7 @@ async def _failing_handler(_node_input: NodeInput) -> object:
 
 
 def _node_output(node: str, payload: object):
-    from stockimformation_core.node.models import NodeOutput
+    from edera_core.node.models import NodeOutput
 
     return NodeOutput(node_name=node, ok=True, payload=payload)
 

@@ -1,13 +1,15 @@
-# stockImformation
+# Edera
 
-配置驱动的个人股票信息采集、分析、建议和推送管道。
+以 Entity 为统一原语、以 DAG 为执行模型的通用编排内核。
+
+`Edera` 源自 `Entity`、`DAG`、`Execution`、`Runtime`、`Architecture` 的组合。`edera` 也有 ivy（常春藤）含义，项目借用其连接、攀附、延展的隐喻。
 
 ## 本机 Web 控制台
 
 启动服务：
 
 ```bash
-uv run stockimformation
+uv run edera
 ```
 
 默认地址是 `http://127.0.0.1:8000`。`config/system.toml` 中的 `web_host` 固定校验为

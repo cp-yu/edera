@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.bootstrap import scan_extensions
-from stockimformation_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
-from stockimformation_core.engine import Engine
-from stockimformation_core.node.executor import NodeExecutor
-from stockimformation_core.registry import HandlerRegistry
-from stockimformation_types import NodeInput
+from edera_core.bootstrap import scan_extensions
+from edera_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
+from edera_core.engine import Engine
+from edera_core.node.executor import NodeExecutor
+from edera_core.registry import HandlerRegistry
+from edera_types import NodeInput
 
 
 def test_scan_extensions_registers_manifest_handlers() -> None:
@@ -121,9 +121,9 @@ async def test_engine_provides_start_run_shutdown(monkeypatch: pytest.MonkeyPatc
     async def shutdown(self) -> None:
         calls.append(("shutdown", None, None))
 
-    monkeypatch.setattr("stockimformation_core.pipeline.PipelineController.start", start)
-    monkeypatch.setattr("stockimformation_core.pipeline.PipelineController.run_now", run_now)
-    monkeypatch.setattr("stockimformation_core.pipeline.PipelineController.shutdown", shutdown)
+    monkeypatch.setattr("edera_core.pipeline.PipelineController.start", start)
+    monkeypatch.setattr("edera_core.pipeline.PipelineController.run_now", run_now)
+    monkeypatch.setattr("edera_core.pipeline.PipelineController.shutdown", shutdown)
 
     engine = Engine(Path("config"), [Path("extensions")])
     await engine.start()

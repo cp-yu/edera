@@ -3,15 +3,15 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.loader import _validate_entities, load_app_config
-from stockimformation_core.config.schema import EntitiesConfig, EntityConfig
-from stockimformation_core.dag.loader import load_graph
-from stockimformation_core.dag.resources import clear_semaphore_cache, get_semaphore
-from stockimformation_core.dag.runner import DagRunner
-from stockimformation_core.errors import ConfigError
-from stockimformation_core.node.executor import NodeExecutor
-from stockimformation_core.node.models import NodeInput
+from edera_core.config.entities import EntityStore
+from edera_core.config.loader import _validate_entities, load_app_config
+from edera_core.config.schema import EntitiesConfig, EntityConfig
+from edera_core.dag.loader import load_graph
+from edera_core.dag.resources import clear_semaphore_cache, get_semaphore
+from edera_core.dag.runner import DagRunner
+from edera_core.errors import ConfigError
+from edera_core.node.executor import NodeExecutor
+from edera_core.node.models import NodeInput
 
 
 @pytest.fixture(autouse=True)

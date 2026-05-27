@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 
 
-def migrate(path: Path = Path("data/stockimformation.db")) -> None:
+def migrate(path: Path = Path("data/edera.db")) -> None:
     if not path.exists():
         return
     with sqlite3.connect(path) as conn:

@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.config.schema import DagConfig, EntitiesConfig, EntityTypeConfig, NodeConfig, SkillConfig
-from stockimformation_core.config.editor import RuntimeConfigEditor
-from stockimformation_core.errors import ConfigEditError
-from stockimformation_core.web.routes import _build_inspector_schema, _graph_dag_payload, _graph_node_payload
+from edera_core.config.schema import DagConfig, EntitiesConfig, EntityTypeConfig, NodeConfig, SkillConfig
+from edera_core.config.editor import RuntimeConfigEditor
+from edera_core.errors import ConfigEditError
+from edera_core.web.routes import _build_inspector_schema, _graph_dag_payload, _graph_node_payload
 
 
 def test_config_editor_rejects_invalid_system_without_writing(tmp_path: Path) -> None:

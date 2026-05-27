@@ -2,18 +2,18 @@ from pathlib import Path
 
 import pytest
 
-from stockimformation_core.config.entities import EntityStore
-from stockimformation_core.config.loader import load_app_config
-from stockimformation_core.config.schema import (
+from edera_core.config.entities import EntityStore
+from edera_core.config.loader import load_app_config
+from edera_core.config.schema import (
     DagNodeInstance,
     EntitiesConfig,
     EntityRelationsConfig,
     EntityTypeConfig,
     NodeConfig,
 )
-from stockimformation_core.node.executor import NodeExecutor, _apply_instance_config
-from stockimformation_core.node.models import NodeContext, NodeInput
-from stockimformation_types import NodeOutput
+from edera_core.node.executor import NodeExecutor, _apply_instance_config
+from edera_core.node.models import NodeContext, NodeInput
+from edera_types import NodeOutput
 
 
 @pytest.mark.asyncio
@@ -115,7 +115,7 @@ async def test_node_entity_execution_uses_registry_module_cache(tmp_path: Path) 
     handler = tmp_path / "dynamic.py"
     handler.write_text("async def run(ctx):\n    return {'version': 1}\n", encoding="utf-8")
     node = config.nodes["rss-fetcher"].model_copy(update={"handler": "dynamic"})
-    from stockimformation_core.registry import HandlerRegistry
+    from edera_core.registry import HandlerRegistry
 
     registry = HandlerRegistry()
     registry.register("dynamic", handler)
@@ -256,7 +256,7 @@ async def test_context_handler_receives_full_input_and_params(tmp_path: Path) ->
         encoding="utf-8",
     )
     node = config.nodes["rss-fetcher"].model_copy(update={"parameters": {"limit": 2}})
-    from stockimformation_core.registry import HandlerRegistry
+    from edera_core.registry import HandlerRegistry
 
     registry = HandlerRegistry()
     registry.register("fetch-rss", handler)

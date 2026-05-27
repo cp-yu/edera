@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from stockimformation_types import HandlerContext
+from edera_types import HandlerContext
 
 from _lib.models import AnalysisResult, RawItem
 

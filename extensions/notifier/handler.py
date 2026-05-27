@@ -5,8 +5,8 @@ from typing import Any
 
 import httpx
 
-from stockimformation_core.config.schema import RuntimeSettings
-from stockimformation_types import HandlerContext
+from edera_core.config.schema import RuntimeSettings
+from edera_types import HandlerContext
 
 from _lib.models import Advice, Briefing
 
