@@ -109,11 +109,11 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
 2.5. **Execute Full Verify**
 
    When the verify result is missing or stale, execute the same verify contract as `$openspec-verify-change` using the `subagent-orchestrated` skeleton:
-   - Build the explicit evidence bundle from change artifacts, git evidence, final file contents, and prior `.verify-result.json` when present
-   - Spawn the reviewer subagent and instruct it to invoke the `openspec-reviewer` skill for canonical Phase 1; keep completeness / correctness / coherence judgment inside the reviewer contract
+   - Determine `changeName`, absolute `changeDir`, and absolute `projectRoot`
+   - Spawn the reviewer subagent with Read and Bash tool capability, instruct it to invoke the `openspec-reviewer` skill for canonical Phase 1, and pass only `changeName`, `changeDir`, and `projectRoot`
    - Validate the reviewer payload, apply only deterministic `tasks.md` write-back in the main workspace, and persist the canonical Phase 1 payload
-   - Execute the verify workflow end-to-end, including Phase 2 (spawn optimizer subagent with `openspec-optimizer` skill invoke) whenever the `$openspec-verify-change` contract would make it eligible
-   - In `P1_SPECULATIVE_FENCE`, rebuild the speculative evidence bundle and invoke the reviewer subagent again for the speculative verdict
+   - Execute the verify workflow end-to-end, including Phase 2 (spawn optimizer subagent with Read and Bash tool capability, invoke `openspec-optimizer`, and pass only `changeName`, `changeDir`, and `projectRoot`) whenever the `$openspec-verify-change` contract would make it eligible
+   - In `P1_SPECULATIVE_FENCE`, invoke the reviewer subagent again with `changeName`, `changeDir`, and `projectRoot` for the speculative verdict
    - The top-level archive flow MUST NOT inline a current-agent review skeleton or silently downgrade to reread mode
    - If the canonical Phase 1 `result` is `PASS` or `PASS_WITH_WARNINGS`, and optimization is not disabled by config or an explicit `--skip-optimization` request, archive-time full verify MUST continue into Phase 2
    - Archive-time caution about speculative edits is NOT a valid reason to downgrade the run into a Phase-1-only verify
