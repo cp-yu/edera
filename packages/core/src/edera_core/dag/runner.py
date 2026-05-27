@@ -14,7 +14,19 @@ from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeContext, NodeInput, NodeOutput
 from edera_core.config.schema import DagConfig, DagNodeInstance, DagNodeConfig, NodeConfig
 
-NodeRunRecorder = Callable[[str, str, str | None], Awaitable[None]]
+NodeRunRecorder = Callable[[str, str, str | None, str | None], Awaitable[None]]
+EdgeInputRecorder = Callable[["EdgeInputFact"], Awaitable[None]]
+
+
+@dataclass(frozen=True)
+class EdgeInputFact:
+    cycle_id: str
+    from_node_id: str
+    to_node_id: str
+    edge_optional: bool
+    status: str
+    has_payload: bool
+    error_summary: str | None = None
 
 
 @dataclass(frozen=True)
@@ -28,6 +40,7 @@ class DagRunner:
         self,
         executor: NodeExecutor,
         recorder: NodeRunRecorder | None = None,
+        edge_recorder: EdgeInputRecorder | None = None,
         dags: dict[str, DagConfig] | None = None,
         nodes: dict[str, NodeConfig] | None = None,
         depth: int = 1,
@@ -35,6 +48,7 @@ class DagRunner:
     ) -> None:
         self.executor = executor
         self.recorder = recorder
+        self.edge_recorder = edge_recorder
         self.dags = dags or {}
         self.nodes = nodes or executor.nodes
         self.depth = depth
@@ -96,13 +110,14 @@ class DagRunner:
                 if stop_event.is_set() and not running:
                     break
                 if not running:
-                    self._start_ready_nodes(
+                    await self._start_ready_nodes(
                         running,
                         graph,
                         cycle_id,
                         initial_payload,
                         outputs,
                         payloads,
+                        failures,
                         routed_edges,
                         warnings,
                         started,
@@ -200,13 +215,14 @@ class DagRunner:
                             acquired,
                         )
                         completed_accumulate = True
-                    self._start_ready_nodes(
+                    await self._start_ready_nodes(
                         running,
                         graph,
                         cycle_id,
                         initial_payload,
                         outputs,
                         payloads,
+                        failures,
                         routed_edges,
                         warnings,
                         started,
@@ -215,13 +231,14 @@ class DagRunner:
                         acquired,
                     )
                 if completed_accumulate:
-                    self._start_ready_nodes(
+                    await self._start_ready_nodes(
                         running,
                         graph,
                         cycle_id,
                         initial_payload,
                         outputs,
                         payloads,
+                        failures,
                         routed_edges,
                         warnings,
                         started,
@@ -241,7 +258,7 @@ class DagRunner:
             await asyncio.gather(*running.values(), return_exceptions=True)
             self._release_all(acquired)
             raise
-        source_nodes = [node for node in graph.nodes if not graph.reverse_edges[node]]
+        source_nodes = [node for node in graph.nodes if node in allowed and not graph.reverse_edges[node]]
         if (
             source_nodes
             and all(node in outputs and not outputs[node].ok for node in source_nodes)
@@ -299,7 +316,7 @@ class DagRunner:
             self._run_node(graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
         )
 
-    def _start_ready_nodes(
+    async def _start_ready_nodes(
         self,
         running: dict[str, asyncio.Task[tuple[str, NodeOutput]]],
         graph: DagGraph,
@@ -307,6 +324,7 @@ class DagRunner:
         initial_payload: object,
         outputs: dict[str, NodeOutput],
         payloads: dict[str, object],
+        failures: dict[str, str],
         routed_edges: set[tuple[str, str]],
         warnings: list[str],
         started: set[str],
@@ -324,7 +342,24 @@ class DagRunner:
             if self._ready(graph, node, outputs, routed_edges):
                 if not self._acquire_resource(graph.instances[node], acquired):
                     continue
+                await self._record_edge_inputs(cycle_id, graph, node, outputs, routed_edges)
                 self._start_node(running, graph, node, cycle_id, initial_payload, outputs, payloads, routed_edges, warnings)
+                started.add(node)
+            elif self._blocked_by_required_failure(graph, node, outputs):
+                await self._record_edge_inputs(cycle_id, graph, node, outputs, routed_edges)
+                error = self._upstream_failure_error(graph, node, outputs)
+                await self._record(node, "failed", error, "upstream_failed")
+                self._store_result(
+                    graph,
+                    node,
+                    NodeOutput(node_name=node, ok=False, error=error),
+                    outputs,
+                    payloads,
+                    failures,
+                    routed_edges,
+                    warnings,
+                    acquired,
+                )
                 started.add(node)
 
     async def _run_accumulate_downstreams(
@@ -432,7 +467,7 @@ class DagRunner:
             ]
         )
         output = _merge_fan_out_results(node, results)
-        await self._record(node, "succeeded" if output.ok else "failed", output.error)
+        await self._record(node, "succeeded" if output.ok else "failed", output.error, _failure_kind(output))
         return node, output
 
     async def _run_fan_out_item(
@@ -474,7 +509,7 @@ class DagRunner:
         )
         await self._record(node, "running")
         output = await self._execute_node(graph.instances[node], node, node_input, context)
-        await self._record(node, "succeeded" if output.ok else "failed", output.error)
+        await self._record(node, "succeeded" if output.ok else "failed", output.error, _failure_kind(output))
         return node, output
 
     async def _execute_node(
@@ -502,8 +537,6 @@ class DagRunner:
     ) -> NodeOutput:
         if output.ok:
             return output
-        if instance.fallback == "skip":
-            return output.model_copy(update={"ok": True, "payload": None, "metadata": {"skipped": True}, "error": None})
         if instance.fallback == "switch_model" and instance.fallback_model:
             current = self.executor.instances.get(instance.id)
             parameters = dict(instance.config.get("parameters", {})) if isinstance(instance.config.get("parameters"), dict) else {}
@@ -594,11 +627,12 @@ class DagRunner:
         graph = load_graph(self.dags[dag_ref], self.nodes)
         runner = DagRunner(
             self.executor,
-            self.recorder,
-            self.dags,
-            self.nodes,
-            self.depth + 1,
-            chain,
+            recorder=self.recorder,
+            edge_recorder=self.edge_recorder,
+            dags=self.dags,
+            nodes=self.nodes,
+            depth=self.depth + 1,
+            path=chain,
         )
         child_cycle_id = uuid4().hex
         payload = _mapped_input(node_input.payload, input_mapping)
@@ -641,9 +675,28 @@ class DagRunner:
             return NodeOutput(node_name=node_name, ok=False, error=f"missing dag config: {config.dag_ref}")
         return await self._execute_sub_dag(instance, config.dag_ref, config.input_mapping, node_input)
 
-    async def _record(self, node: str, status: str, error: str | None = None) -> None:
+    async def _record(
+        self,
+        node: str,
+        status: str,
+        error: str | None = None,
+        failure_kind: str | None = None,
+    ) -> None:
         if self.recorder is not None:
-            await self.recorder(node, status, error)
+            await self.recorder(node, status, error, failure_kind)
+
+    async def _record_edge_inputs(
+        self,
+        cycle_id: str,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> None:
+        if self.edge_recorder is None:
+            return
+        for upstream in graph.reverse_edges[node]:
+            await self.edge_recorder(self._edge_input_fact(cycle_id, graph, upstream, node, outputs, routed_edges))
 
     def _input_payload(
         self,
@@ -665,9 +718,6 @@ class DagRunner:
             if output.ok:
                 if output.payload is not None:
                     values.append(payloads[name])
-                continue
-            if (name, node) in graph.optional_edges:
-                values.append(None)
         if not values:
             return []
         if len(values) == 1:
@@ -704,18 +754,21 @@ class DagRunner:
         warnings: list[str],
     ) -> dict[str, object]:
         metadata: dict[str, object] = {"upstreams": graph.reverse_edges[node]}
-        failures: dict[str, str] = {}
-        recovery: dict[str, object] = {}
+        edge_inputs: list[dict[str, object]] = []
         for upstream in graph.reverse_edges[node]:
-            output = outputs.get(upstream)
-            if output is None:
-                continue
-            failures.update(output.metadata.get("failures", {}))
-            recovery.update(output.metadata.get("source_recovery", {}))
-        if failures:
-            metadata["failures"] = failures
-        if recovery:
-            metadata["source_recovery"] = recovery
+            fact = self._edge_input_fact("", graph, upstream, node, outputs, set())
+            edge_inputs.append(
+                {
+                    "from_node_id": fact.from_node_id,
+                    "to_node_id": fact.to_node_id,
+                    "edge_optional": fact.edge_optional,
+                    "status": fact.status,
+                    "has_payload": fact.has_payload,
+                    "error_summary": fact.error_summary,
+                }
+            )
+        if edge_inputs:
+            metadata["edge_inputs"] = edge_inputs
         if warnings:
             metadata["warnings"] = warnings
         return metadata
@@ -751,6 +804,62 @@ class DagRunner:
                 continue
             return False
         return True
+
+    def _blocked_by_required_failure(
+        self,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+    ) -> bool:
+        upstreams = graph.reverse_edges[node]
+        return bool(upstreams) and all(upstream in outputs for upstream in upstreams) and any(
+            not outputs[upstream].ok and (upstream, node) not in graph.optional_edges
+            for upstream in upstreams
+        )
+
+    def _upstream_failure_error(
+        self,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+    ) -> str:
+        blocked = [
+            f"{upstream}: {outputs[upstream].error or 'node failed'}"
+            for upstream in graph.reverse_edges[node]
+            if upstream in outputs and not outputs[upstream].ok and (upstream, node) not in graph.optional_edges
+        ]
+        return "required upstream failed: " + "; ".join(blocked)
+
+    def _edge_input_fact(
+        self,
+        cycle_id: str,
+        graph: DagGraph,
+        upstream: str,
+        node: str,
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> EdgeInputFact:
+        output = outputs.get(upstream)
+        status = "unknown"
+        has_payload = False
+        error_summary = None
+        if output is not None and output.ok:
+            has_payload = output.payload is not None and (not routed_edges or (upstream, node) in routed_edges)
+            status = "available" if has_payload else "empty"
+        elif output is not None and output.metadata.get("runtime_status") == "unknown":
+            status = "unknown"
+        elif output is not None:
+            status = "failed"
+            error_summary = output.error or "node failed"
+        return EdgeInputFact(
+            cycle_id=cycle_id,
+            from_node_id=upstream,
+            to_node_id=node,
+            edge_optional=(upstream, node) in graph.optional_edges,
+            status=status,
+            has_payload=has_payload,
+            error_summary=error_summary,
+        )
 
     def _source_payload(self, graph: DagGraph, node: str, initial_payload: object) -> object:
         binding = self._input_binding(graph, node)
@@ -800,6 +909,21 @@ class DagRunner:
             for node in graph.nodes
         )
 
+    def _has_required_failure(
+        self,
+        graph: DagGraph,
+        started: set[str],
+        allowed: set[str],
+        outputs: dict[str, NodeOutput],
+    ) -> bool:
+        return any(
+            node not in started
+            and node in allowed
+            and self._node_fan_in_mode(graph, node) != "accumulate"
+            and self._blocked_by_required_failure(graph, node, outputs)
+            for node in graph.nodes
+        )
+
     def _has_blocked_accumulate(
         self,
         graph: DagGraph,
@@ -845,6 +969,11 @@ class DagRunner:
             allowed,
             outputs,
             routed_edges,
+        ) or self._has_required_failure(
+            graph,
+            started,
+            allowed,
+            outputs,
         ) or self._has_blocked_accumulate(
             graph,
             started,
@@ -1024,6 +1153,10 @@ def collect(values: Sequence[object]) -> list[object]:
         else:
             collected.append(value)
     return collected
+
+
+def _failure_kind(output: NodeOutput) -> str | None:
+    return None if output.ok else "execution_failed"
 
 
 def _mapped_input(payload: object, input_mapping: dict[str, str]) -> object:

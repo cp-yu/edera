@@ -99,7 +99,7 @@ async def test_dag_input_binding_and_optional_barrier() -> None:
 
     assert result.node_outputs["source"].payload == "AAPL"
     assert result.node_outputs["sink"].ok
-    assert result.node_outputs["sink"].payload == ["AAPL", None]
+    assert result.node_outputs["sink"].payload == "AAPL"
 
 
 @pytest.mark.asyncio
@@ -108,8 +108,8 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
     capture = tmp_path / "capture.txt"
     fake_pi.write_text(
         "#!/usr/bin/env python3\n"
-        "import os, pathlib, sys\n"
-        f"pathlib.Path({str(capture)!r}).write_text(os.getcwd() + '\\n' + os.environ['RIG_IDENTITY'] + '\\n' + ' '.join(sys.argv[1:]))\n"
+        "import json, os, pathlib, sys\n"
+        f"pathlib.Path({str(capture)!r}).write_text(os.getcwd() + '\\n' + os.environ['RIG_IDENTITY'] + '\\n' + json.dumps(sys.argv[1:]))\n"
         "print('hello')\n",
         encoding="utf-8",
     )
@@ -144,7 +144,9 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
     captured = capture.read_text(encoding="utf-8").splitlines()
     assert captured[0] == str(workdir)
     assert captured[1] == "node:agent"
-    assert "--session-dir" in captured[2]
+    args = json.loads(captured[2])
+    session_dir = Path(args[args.index("--session-dir") + 1])
+    assert (session_dir / "runtime-context.json").exists()
 
 
 def test_clear_handler_cache() -> None:

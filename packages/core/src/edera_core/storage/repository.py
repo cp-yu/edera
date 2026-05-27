@@ -7,7 +7,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from edera_core.config.schema import EntityConfig
-from edera_core.storage.entities import NodeOutputEntity, NodeRun, PipelineRun, utc_now
+from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, PipelineRun, SourceRecovery, utc_now
 
 
 async def store_node_output_entities(
@@ -210,6 +210,7 @@ async def mark_node_run(
     node_name: str,
     status: str,
     error: str | None = None,
+    failure_kind: str | None = None,
 ) -> NodeRun:
     result = await session.exec(select(NodeRun).where(NodeRun.cycle_id == cycle_id, NodeRun.node_name == node_name))
     node_run = result.first()
@@ -218,6 +219,7 @@ async def mark_node_run(
         node_run = NodeRun(cycle_id=cycle_id, node_name=node_name, status=status)
     node_run.status = status
     node_run.error = error
+    node_run.failure_kind = failure_kind if status == "failed" else None
     if status == "running" and node_run.started_at is None:
         node_run.started_at = now
     if status in {"succeeded", "failed", "skipped", "cancelled"}:
@@ -225,6 +227,96 @@ async def mark_node_run(
     session.add(node_run)
     await session.flush()
     return node_run
+
+
+async def upsert_edge_input(
+    session: AsyncSession,
+    cycle_id: str,
+    from_node_id: str,
+    to_node_id: str,
+    edge_optional: bool,
+    status: str,
+    has_payload: bool,
+    error_summary: str | None = None,
+) -> EdgeInput:
+    result = await session.exec(
+        select(EdgeInput).where(
+            EdgeInput.cycle_id == cycle_id,
+            EdgeInput.from_node_id == from_node_id,
+            EdgeInput.to_node_id == to_node_id,
+        )
+    )
+    edge_input = result.first()
+    if edge_input is None:
+        edge_input = EdgeInput(
+            cycle_id=cycle_id,
+            from_node_id=from_node_id,
+            to_node_id=to_node_id,
+            edge_optional=edge_optional,
+            status=status,
+            has_payload=has_payload,
+            error_summary=error_summary,
+        )
+    else:
+        edge_input.edge_optional = edge_optional
+        edge_input.status = status
+        edge_input.has_payload = has_payload
+        edge_input.error_summary = error_summary
+    session.add(edge_input)
+    await session.flush()
+    return edge_input
+
+
+async def edge_inputs_for_cycle(session: AsyncSession, cycle_id: str) -> list[EdgeInput]:
+    result = await session.exec(
+        select(EdgeInput).where(EdgeInput.cycle_id == cycle_id).order_by(col(EdgeInput.id))
+    )
+    return list(result.all())
+
+
+async def upsert_source_recovery(
+    session: AsyncSession,
+    cycle_id: str,
+    node_id: str,
+    source_name: str,
+    summary: dict[str, object],
+) -> SourceRecovery:
+    result = await session.exec(
+        select(SourceRecovery).where(
+            SourceRecovery.cycle_id == cycle_id,
+            SourceRecovery.node_id == node_id,
+            SourceRecovery.source_name == source_name,
+        )
+    )
+    recovery = result.first()
+    if recovery is None:
+        recovery = SourceRecovery(
+            cycle_id=cycle_id,
+            node_id=node_id,
+            source_name=source_name,
+            recovery_status=str(summary.get("recovery_status") or "none"),
+        )
+    recovery.recovery_status = str(summary.get("recovery_status") or recovery.recovery_status)
+    recovery.attempt_count = _int_value(summary.get("attempt_count"))
+    recovery.recoverable_reason = _optional_str(summary.get("recoverable_reason"))
+    recovery.latest_failure_reason = _optional_str(summary.get("latest_failure_reason"))
+    recovery.escalated = bool(summary.get("escalated") or recovery.recovery_status == "escalated")
+    recovery.escalation_reason = _optional_str(summary.get("escalation_reason"))
+    session.add(recovery)
+    await session.flush()
+    return recovery
+
+
+async def source_recoveries(
+    session: AsyncSession,
+    source_name: str | None = None,
+    limit: int = 100,
+) -> list[SourceRecovery]:
+    statement = select(SourceRecovery).order_by(col(SourceRecovery.created_at).desc(), col(SourceRecovery.id).desc()).limit(limit)
+    if source_name is not None:
+        statement = statement.where(SourceRecovery.source_name == source_name)
+    result = await session.exec(statement)
+    return list(result.all())
 
 
 async def get_pipeline_run(session: AsyncSession, cycle_id: str) -> PipelineRun | None:
@@ -277,16 +369,22 @@ async def source_execution_logs(
     source_name: str | None = None,
     limit: int = 50,
 ) -> list[dict[str, object]]:
+    recovery_rows = await source_recoveries(session, source_name, limit)
+    logs = [_source_recovery_log_dict(item) for item in recovery_rows]
+    remaining = max(limit - len(logs), 0)
+    if remaining <= 0:
+        return logs[:limit]
     statement = (
         select(NodeRun, PipelineRun)
         .join(PipelineRun, col(NodeRun.cycle_id) == col(PipelineRun.cycle_id))
         .order_by(col(NodeRun.started_at).desc(), col(NodeRun.id).desc())
-        .limit(limit)
+        .limit(remaining)
     )
     if source_name:
         statement = statement.where(NodeRun.node_name == source_name)
     result = await session.exec(statement)
-    return [_source_log_dict(node, run) for node, run in result.all()]
+    logs.extend(_source_log_dict(node, run) for node, run in result.all())
+    return logs[:limit]
 
 
 async def source_health_summary(
@@ -296,6 +394,8 @@ async def source_health_summary(
 ) -> list[dict[str, object]]:
     summaries = []
     for source_name in source_names:
+        recoveries = await source_recoveries(session, source_name, 1)
+        latest_recovery = recoveries[0] if recoveries else None
         result = await session.exec(
             select(NodeRun)
             .where(NodeRun.node_name == source_name)
@@ -307,6 +407,9 @@ async def source_health_summary(
         success_count = sum(1 for run in finished if run.status == "succeeded")
         latest = runs[0] if runs else None
         failed = next((run for run in runs if run.status == "failed" and run.error), None)
+        latest_failure_reason = latest_recovery.latest_failure_reason if latest_recovery else None
+        if not latest_failure_reason and failed:
+            latest_failure_reason = failed.error
         summaries.append(
             {
                 "source_name": source_name,
@@ -315,7 +418,9 @@ async def source_health_summary(
                 "latest_run_at": latest.started_at.isoformat() if latest and latest.started_at else None,
                 "success_rate": success_count / len(finished) if finished else None,
                 "window_size": len(finished),
-                "latest_failure_reason": failed.error if failed else None,
+                "latest_failure_reason": latest_failure_reason,
+                "recovery_status": latest_recovery.recovery_status if latest_recovery else "none",
+                "recovery": _source_recovery_dict(latest_recovery) if latest_recovery else None,
             }
         )
     return summaries
@@ -398,11 +503,55 @@ def _source_log_dict(node: NodeRun, run: PipelineRun) -> dict[str, object]:
         "source_name": node.node_name,
         "cycle_id": node.cycle_id,
         "dag_name": run.dag_name,
+        "node_id": node.node_name,
         "status": node.status,
         "started_at": node.started_at.isoformat() if node.started_at else None,
         "ended_at": node.ended_at.isoformat() if node.ended_at else None,
         "error": node.error,
     }
+
+
+def _source_recovery_log_dict(recovery: SourceRecovery) -> dict[str, object]:
+    return {
+        "source_name": recovery.source_name,
+        "cycle_id": recovery.cycle_id,
+        "dag_name": None,
+        "node_id": recovery.node_id,
+        "status": "failed" if recovery.escalated else "succeeded",
+        "started_at": recovery.created_at.isoformat(),
+        "ended_at": recovery.created_at.isoformat(),
+        "error": recovery.latest_failure_reason,
+        "recovery": _source_recovery_dict(recovery),
+    }
+
+
+def _source_recovery_dict(recovery: SourceRecovery | None) -> dict[str, object] | None:
+    if recovery is None:
+        return None
+    return {
+        "cycle_id": recovery.cycle_id,
+        "node_id": recovery.node_id,
+        "source_name": recovery.source_name,
+        "recovery_status": recovery.recovery_status,
+        "attempt_count": recovery.attempt_count,
+        "recoverable_reason": recovery.recoverable_reason,
+        "latest_failure_reason": recovery.latest_failure_reason,
+        "escalated": recovery.escalated,
+        "escalation_reason": recovery.escalation_reason,
+        "created_at": recovery.created_at.isoformat(),
+    }
+
+
+def _optional_str(value: object) -> str | None:
+    return str(value) if value is not None and str(value) else None
+
+
+def _int_value(value: object) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    return 0
 
 
 async def _node_outputs(session: AsyncSession, entity_type: str, limit: int = 100) -> list[EntityConfig]:

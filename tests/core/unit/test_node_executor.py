@@ -266,7 +266,40 @@ async def test_context_handler_receives_full_input_and_params(tmp_path: Path) ->
     output = await executor.execute("rss-fetcher", node_input)
 
     assert output.payload == {"payload": {"source_names": ["hn-rss"]}, "limit": 2}
-    assert output.metadata["failures"] == {"source": "failed"}
+    assert "failures" not in output.metadata
+
+
+@pytest.mark.asyncio
+async def test_context_handler_records_source_recovery(tmp_path: Path) -> None:
+    config = load_app_config(Path("config"))
+    handler = tmp_path / "handler.py"
+    handler.write_text(
+        "async def run(ctx):\n"
+        "    await ctx.runtime.record_source_recovery('hn-rss', {'recovery_status': 'escalated'})\n"
+        "    return {'ok': True}\n",
+        encoding="utf-8",
+    )
+    recorded: list[tuple[str, str, str, dict[str, object]]] = []
+
+    async def recorder(cycle_id: str, node_id: str, source_name: str, summary: dict[str, object]) -> None:
+        recorded.append((cycle_id, node_id, source_name, summary))
+
+    from edera_core.registry import HandlerRegistry
+
+    registry = HandlerRegistry()
+    registry.register("fetch-rss", handler)
+    executor = NodeExecutor(
+        {"rss-fetcher": config.nodes["rss-fetcher"]},
+        config.system,
+        config.runtime,
+        registry.seal(),
+        source_recovery_recorder=recorder,
+    )
+
+    output = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+
+    assert output.ok
+    assert recorded == [("cycle", "rss-fetcher", "hn-rss", {"recovery_status": "escalated"})]
 
 
 @pytest.mark.asyncio

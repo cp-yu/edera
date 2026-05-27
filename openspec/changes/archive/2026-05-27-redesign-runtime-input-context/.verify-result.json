@@ -1,0 +1,175 @@
+{
+  "timestamp": "2026-05-27T14:18:08.941Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Focused runtime-input-context verification passed. A broader tests/core/unit/test_core_architecture_overhaul.py run still has an unrelated gRPC client certificate setup failure in test_daemon_grpc_entity_update_enforces_node_permissions."
+    }
+  ],
+  "tasksFileHash": "eacfaeb483dca7a9fbb2716c615c7245aa080a6d26113c6d1346aafd4e957b31",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "manual-focused",
+    "evidenceFiles": [
+      "packages/core-types/src/edera_types/__init__.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/node/executor.py",
+      "packages/core/src/edera_core/pipeline.py",
+      "packages/core/src/edera_core/rig_cli.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "tests/core/integration/test_dag_runner.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/unit/test_node_context.py",
+      "tests/core/unit/test_node_executor.py",
+      "tests/core/unit/test_rig_cli.py"
+    ],
+    "evidenceFingerprint": "94176b711e45021c37a1b9793bdeff32ef616f8e046d904032d4a008117b222a",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "packages/core-types/src/edera_types/__init__.py",
+        "hash": "ff00707be1a9cd6055493e360ab5af6a883afc30a095707ab43297a32014fc1d"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "2e8f9b6f32f47f535ec3a3bf4e5bc32c9ab5f72ced9c2bde9bdf6ae44898104e"
+      },
+      {
+        "path": "packages/core/src/edera_core/node/executor.py",
+        "hash": "592571bc5178e084561f58694bb6bf30dd14a3a52588bb24ff652646383c0c7c"
+      },
+      {
+        "path": "packages/core/src/edera_core/pipeline.py",
+        "hash": "158b746794c45c9deb5b42c02490e5257652080f5149633237a60e54fdb7275b"
+      },
+      {
+        "path": "packages/core/src/edera_core/rig_cli.py",
+        "hash": "4cde69ce50753f41bae91365f67c16ea16e1321ef313648a04947e205d75a196"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "784d4cff2a717bd5cee040933cc8326764753a39b9b6d94b285612fea1fbdaa7"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "e7e63428abeb4f86105c9c7ac22c27c5496356506f253095048dceaa6ae7cdb3"
+      },
+      {
+        "path": "tests/core/integration/test_dag_runner.py",
+        "hash": "8c29faaacdb969b58fc2264489eda393e47f50d48b3d7039cd83bedefff7429f"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "3ed6311ca4192d3f64ce3e25b4f32836421343f63087de3f9f531646def25300"
+      },
+      {
+        "path": "tests/core/unit/test_node_context.py",
+        "hash": "a6871e6bd09442ac20df647756a631a79fed8d630b9ba0ec3978ae7211cfec29"
+      },
+      {
+        "path": "tests/core/unit/test_node_executor.py",
+        "hash": "3c057b1717c8b7b01bebde0b68c5a5bf88bd1c09c9224185e62bd858d781d407"
+      },
+      {
+        "path": "tests/core/unit/test_rig_cli.py",
+        "hash": "d059a8c271e6ef71fcb4bfb4ab5e92f6d11fb5b4ec625ad44761d6c3e83bb6b6"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "cf962a0a7643bd2bc869d5d528eb5803b1266416"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-27T14:21:23.918Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Optimizer subagent returned: No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-27T14:18:08.941Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Focused runtime-input-context verification passed. A broader tests/core/unit/test_core_architecture_overhaul.py run still has an unrelated gRPC client certificate setup failure in test_daemon_grpc_entity_update_enforces_node_permissions."
+        }
+      ],
+      "tasksFileHash": "eacfaeb483dca7a9fbb2716c615c7245aa080a6d26113c6d1346aafd4e957b31",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "manual-focused",
+        "evidenceFiles": [
+          "packages/core-types/src/edera_types/__init__.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/node/executor.py",
+          "packages/core/src/edera_core/pipeline.py",
+          "packages/core/src/edera_core/rig_cli.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "tests/core/integration/test_dag_runner.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/unit/test_node_context.py",
+          "tests/core/unit/test_node_executor.py",
+          "tests/core/unit/test_rig_cli.py"
+        ],
+        "evidenceFingerprint": "94176b711e45021c37a1b9793bdeff32ef616f8e046d904032d4a008117b222a",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "packages/core-types/src/edera_types/__init__.py",
+            "hash": "ff00707be1a9cd6055493e360ab5af6a883afc30a095707ab43297a32014fc1d"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "2e8f9b6f32f47f535ec3a3bf4e5bc32c9ab5f72ced9c2bde9bdf6ae44898104e"
+          },
+          {
+            "path": "packages/core/src/edera_core/node/executor.py",
+            "hash": "592571bc5178e084561f58694bb6bf30dd14a3a52588bb24ff652646383c0c7c"
+          },
+          {
+            "path": "packages/core/src/edera_core/pipeline.py",
+            "hash": "158b746794c45c9deb5b42c02490e5257652080f5149633237a60e54fdb7275b"
+          },
+          {
+            "path": "packages/core/src/edera_core/rig_cli.py",
+            "hash": "4cde69ce50753f41bae91365f67c16ea16e1321ef313648a04947e205d75a196"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "784d4cff2a717bd5cee040933cc8326764753a39b9b6d94b285612fea1fbdaa7"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "e7e63428abeb4f86105c9c7ac22c27c5496356506f253095048dceaa6ae7cdb3"
+          },
+          {
+            "path": "tests/core/integration/test_dag_runner.py",
+            "hash": "8c29faaacdb969b58fc2264489eda393e47f50d48b3d7039cd83bedefff7429f"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "3ed6311ca4192d3f64ce3e25b4f32836421343f63087de3f9f531646def25300"
+          },
+          {
+            "path": "tests/core/unit/test_node_context.py",
+            "hash": "a6871e6bd09442ac20df647756a631a79fed8d630b9ba0ec3978ae7211cfec29"
+          },
+          {
+            "path": "tests/core/unit/test_node_executor.py",
+            "hash": "3c057b1717c8b7b01bebde0b68c5a5bf88bd1c09c9224185e62bd858d781d407"
+          },
+          {
+            "path": "tests/core/unit/test_rig_cli.py",
+            "hash": "d059a8c271e6ef71fcb4bfb4ab5e92f6d11fb5b4ec625ad44761d6c3e83bb6b6"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "cf962a0a7643bd2bc869d5d528eb5803b1266416"
+      }
+    }
+  }
+}

@@ -1,4 +1,9 @@
-统一用语
+缺少一个配置dag 触发源的web console位置。
+
+rig cli改名 Edera cli
+
+
+edera  cli 形成 设计讨论
 
 ---
 
@@ -142,4 +147,25 @@ https://github.com/Kaka-cheaper/codeSee  codesee将项目可视化， 这里的�
 
 ---
  https://github.com/steipete/agent-scripts/blob/main/skills/skill-cleaner/SKILL.md agent 反思
+
+---
+ 父子 dag调用关系
+
+
+---
+• 剩余风险指的是：子代理没有把 uv run edera node|dag|entity ... 这条 console-script 入口 完整稳定跑通。
+
+  具体不是业务逻辑问题：
+
+  - rig node output export ... 已通过，能导出 payload。
+  - rig entity query ... 已通过，能查询 runtime.edge-input / runtime.source-recovery。
+  - 代码里 edera_core.main.main() 确实会把首参数是 entity/node/dag/client/daemon 的命令转交给 edera_core.rig_cli.main()。
+  - packages/core/pyproject.toml 里也定义了：
+      - edera = "edera_core.main:main"
+      - rig = "edera_core.rig_cli:main"
+
+  风险点只是环境/入口层：在当前验收环境里从 /tmp 跑 uv run edera ... 时，子代理遇到 entrypoint 或 daemon/local-mode 相关问题，后续探针还出现挂起，所以它没有把“edera 命令别名等价于 rig 路径”这件事作为端到端事实确认。
+
+  换句话说：核心功能已验收；未完全确认的是 edera node output export ... 这条包装命令在当前运行环境下是否和 rig node output export ... 一样稳定。这个可以单独补一个小测试，直接 monkeypatch sys.argv=["edera", "node", ...]
+  验证委托，或者修正 CLI local-mode 后跑真实 console-script。
 

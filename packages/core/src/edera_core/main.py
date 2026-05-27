@@ -32,6 +32,12 @@ async def serve(config_dir: Path = Path("config")) -> None:
 
 
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] in {"entity", "node", "dag", "client", "daemon"}:
+        from edera_core.rig_cli import main as rig_main
+
+        sys.argv[0] = "edera"
+        rig_main()
+        return
     parser = argparse.ArgumentParser(prog="edera")
     parser.add_argument("--config-dir", type=Path, default=Path("config"))
     subparsers = parser.add_subparsers(dest="command")

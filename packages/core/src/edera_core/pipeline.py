@@ -18,7 +18,7 @@ from edera_core.config.git import commit_config_changes
 from edera_core.config.schema import AppConfig, DagNodeInstance
 from edera_core.bootstrap import create_extension_tables, scan_extensions
 from edera_core.dag.loader import load_graph
-from edera_core.dag.runner import DagRunner
+from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.events import event_bus
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.entities import PipelineRun
@@ -31,10 +31,13 @@ from edera_core.storage.repository import (
     latest_finished_pipeline_run,
     mark_node_run,
     delete_node_outputs_for_nodes,
+    edge_inputs_for_cycle,
     query_node_output_entities,
     recent_pipeline_runs,
     restart_pipeline_run,
     store_node_output_entities,
+    upsert_edge_input,
+    upsert_source_recovery,
 )
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeOutput
@@ -191,7 +194,7 @@ class PipelineController:
             if original_cycle_id is None:
                 raise PipelineRunNotFoundError("latest finished run")
             prefilled = await self._prefilled_outputs(original_cycle_id, graph, retry_nodes)
-            missing_inputs = _missing_prefilled_inputs(graph, retry_nodes, set(prefilled))
+            missing_inputs = _missing_prefilled_inputs(graph, retry_nodes, set(prefilled), set())
             if missing_inputs:
                 raise ValueError(f"missing prefilled outputs: {', '.join(missing_inputs)}")
             retry_cycle_id = uuid4().hex
@@ -360,30 +363,16 @@ class PipelineController:
                 await session.commit()
         await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status="started")
         try:
-            executor = _build_executor(
-                config,
-                bootstrap.handler_registry,
-                graph.instances,
-                self.config_dir,
-                extension_tables=bootstrap.table_names,
-                output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: self._record_node_output(
-                    output_cycle_id, node_id, entity_type, payload, session_id
-                ),
-                stdout_recorder=lambda output_cycle_id, node_id, line: event_bus.publish(
-                    "node.stdout",
-                    cycle_id=output_cycle_id,
-                    node_id=node_id,
-                    line=line,
-                ),
-                agent_certificate_issuer=self.agent_certificate_issuer,
-                daemon_data_dir=self.daemon_data_dir,
-            )
+            executor = self._build_run_executor(config, bootstrap, graph)
             ctx = self.active_runs.get(dag_name)
             if ctx is not None and ctx.cycle_id == cycle_id:
                 ctx.executor = executor
             result = await DagRunner(
                 executor,
-                recorder=lambda node, status, error: self._record_node(cycle_id, node, status, error),
+                recorder=lambda node, status, error, failure_kind: self._record_node(
+                    cycle_id, node, status, error, failure_kind
+                ),
+                edge_recorder=lambda fact: self._record_edge_input(fact),
             ).run(
                 graph,
                 cycle_id,
@@ -392,7 +381,6 @@ class PipelineController:
                 retry_nodes=retry_nodes,
                 prefilled_outputs=prefilled_outputs,
             )
-            await _record_source_runs(factory, cycle_id, result.node_outputs)
             await _persist_outputs(
                 factory,
                 config.system.retention_count,
@@ -440,6 +428,7 @@ class PipelineController:
             if original is None:
                 raise PipelineRunNotFoundError(original_cycle_id)
             outputs = await query_node_output_entities(session, cycle_id=original_cycle_id, limit=10000)
+            edge_facts = await edge_inputs_for_cycle(session, original_cycle_id)
         prefilled: dict[str, NodeOutput] = {}
         payloads: dict[str, list[object]] = defaultdict(list)
         for entity in outputs:
@@ -449,6 +438,14 @@ class PipelineController:
         for node_id, values in payloads.items():
             payload = values[0] if len(values) == 1 else list(reversed(values))
             prefilled[node_id] = NodeOutput(node_name=node_id, ok=True, payload=payload)
+        for fact in edge_facts:
+            if fact.from_node_id in graph.instances and fact.from_node_id not in retry_nodes and fact.from_node_id not in prefilled:
+                prefilled[fact.from_node_id] = NodeOutput(
+                    node_name=fact.from_node_id,
+                    ok=False,
+                    metadata={"runtime_status": fact.status},
+                    error=fact.error_summary,
+                )
         return prefilled
 
     async def _pipeline_run(self, cycle_id: str) -> PipelineRun | None:
@@ -474,10 +471,26 @@ class PipelineController:
         node: str,
         status: str,
         error: str | None,
+        failure_kind: str | None = None,
     ) -> None:
         async with self._db_write_lock:
             async with self._factory()() as session:
-                await mark_node_run(session, cycle_id, node, status, error)
+                await mark_node_run(session, cycle_id, node, status, error, failure_kind)
+                await session.commit()
+
+    async def _record_edge_input(self, fact: EdgeInputFact) -> None:
+        async with self._db_write_lock:
+            async with self._factory()() as session:
+                await upsert_edge_input(
+                    session,
+                    fact.cycle_id,
+                    fact.from_node_id,
+                    fact.to_node_id,
+                    fact.edge_optional,
+                    fact.status,
+                    fact.has_payload,
+                    fact.error_summary,
+                )
                 await session.commit()
 
     async def _record_node_output(
@@ -491,6 +504,18 @@ class PipelineController:
         async with self._db_write_lock:
             await _record_node_output(self._factory(), cycle_id, node_id, entity_type, payload, session_id)
 
+    async def _record_source_recovery(
+        self,
+        cycle_id: str,
+        node_id: str,
+        source_name: str,
+        summary: dict[str, object],
+    ) -> None:
+        async with self._db_write_lock:
+            async with self._factory()() as session:
+                await upsert_source_recovery(session, cycle_id, node_id, source_name, summary)
+                await session.commit()
+
     async def _finish_cancelled(self, cycle_id: str, dag_name: str) -> None:
         async with self._factory()() as session:
             await finish_pipeline_run(session, cycle_id, "cancelled")
@@ -501,6 +526,27 @@ class PipelineController:
         if self.factory is None:
             raise RuntimeError("pipeline controller has not been started")
         return self.factory
+
+    def _build_run_executor(self, config: AppConfig, bootstrap, graph) -> NodeExecutor:
+        return _build_executor(
+            config,
+            bootstrap.handler_registry,
+            graph.instances,
+            self.config_dir,
+            extension_tables=bootstrap.table_names,
+            output_recorder=lambda output_cycle_id, node_id, entity_type, payload, session_id: self._record_node_output(
+                output_cycle_id, node_id, entity_type, payload, session_id
+            ),
+            stdout_recorder=lambda output_cycle_id, node_id, line: event_bus.publish(
+                "node.stdout",
+                cycle_id=output_cycle_id,
+                node_id=node_id,
+                line=line,
+            ),
+            agent_certificate_issuer=self.agent_certificate_issuer,
+            daemon_data_dir=self.daemon_data_dir,
+            source_recovery_recorder=self._record_source_recovery,
+        )
 
 
 def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str]:
@@ -545,24 +591,6 @@ async def _record_node_output(
         await session.commit()
 
 
-async def _record_source_runs(
-    factory: async_sessionmaker[AsyncSession],
-    cycle_id: str,
-    outputs: Mapping[str, NodeOutput],
-) -> None:
-    recovery = _source_recovery(outputs)
-    if not recovery:
-        return
-    async with factory() as session:
-        for source_name, summary in recovery.items():
-            if not isinstance(summary, dict):
-                continue
-            status = "failed" if summary.get("recovery_status") == "escalated" else "succeeded"
-            error = str(summary.get("latest_failure_reason") or "") or None
-            await mark_node_run(session, cycle_id, source_name, status, error)
-        await session.commit()
-
-
 def _build_executor(
     app_config: AppConfig,
     handler_registry,
@@ -573,6 +601,7 @@ def _build_executor(
     stdout_recorder=None,
     agent_certificate_issuer=None,
     daemon_data_dir: Path | None = None,
+    source_recovery_recorder=None,
 ) -> NodeExecutor:
     entity_store = EntityStore(
         app_config.entities,
@@ -594,6 +623,7 @@ def _build_executor(
         agent_certificate_issuer=agent_certificate_issuer,
         extension_tables=extension_tables,
         daemon_data_dir=daemon_data_dir,
+        source_recovery_recorder=source_recovery_recorder,
     )
 
 
@@ -606,13 +636,6 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
         if isinstance(name, str):
             refs.append(f"{entity.type}:{name}")
     return refs
-
-
-def _source_recovery(outputs: Mapping[str, NodeOutput]) -> dict[str, object]:
-    recovery: dict[str, object] = {}
-    for output in outputs.values():
-        recovery.update(output.metadata.get("source_recovery", {}))
-    return recovery
 
 
 def _run_dict(run: PipelineRun) -> dict[str, object]:
@@ -644,11 +667,16 @@ def _downstream_union(graph, node_ids: list[str]) -> set[str]:
     return retry_nodes
 
 
-def _missing_prefilled_inputs(graph, retry_nodes: set[str], prefilled_nodes: set[str]) -> list[str]:
+def _missing_prefilled_inputs(
+    graph,
+    retry_nodes: set[str],
+    prefilled_nodes: set[str],
+    allowed_missing: set[str],
+) -> list[str]:
     missing: set[str] = set()
     for node_id in retry_nodes:
         for upstream in graph.reverse_edges[node_id]:
-            if upstream not in retry_nodes and upstream not in prefilled_nodes:
+            if upstream not in retry_nodes and upstream not in prefilled_nodes and upstream not in allowed_missing:
                 missing.add(upstream)
     return sorted(missing)
 

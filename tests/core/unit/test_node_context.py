@@ -6,7 +6,8 @@ from edera_core.config.entities import EntityStore
 from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
 from edera_core.errors import ConfigError
 from edera_core.storage.database import create_engine, init_db, session_factory, sqlite_url
-from edera_core.storage.entities import NodeOutputEntity
+from edera_core.storage.entities import EdgeInput, NodeOutputEntity, SourceRecovery
+from edera_core.storage.repository import source_execution_logs, source_health_summary, upsert_edge_input, upsert_source_recovery
 from edera_core.node.models import NodeContext
 
 
@@ -193,3 +194,61 @@ async def test_entity_store_three_tiers_uses_database_layer(tmp_path) -> None:
     assert len(result.all()) == 1
     assert queried[0].id == created.id
     assert queried[0].attributes["payload"]["summary"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_runtime_fact_tables_and_upserts(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    async with factory() as session:
+        await upsert_edge_input(session, "cycle-1", "source", "sink", True, "failed", False, "node failed")
+        await upsert_edge_input(session, "cycle-1", "source", "sink", True, "unknown", False, None)
+        await upsert_source_recovery(
+            session,
+            "cycle-1",
+            "fetcher",
+            "hn-rss",
+            {"recovery_status": "retrying", "attempt_count": 1, "latest_failure_reason": "timeout"},
+        )
+        await upsert_source_recovery(
+            session,
+            "cycle-1",
+            "fetcher",
+            "hn-rss",
+            {"recovery_status": "escalated", "attempt_count": 2, "latest_failure_reason": "still failing"},
+        )
+        await session.commit()
+        edge_rows = (await session.exec(select(EdgeInput))).all()
+        recovery_rows = (await session.exec(select(SourceRecovery))).all()
+
+    assert len(edge_rows) == 1
+    assert edge_rows[0].status == "unknown"
+    assert len(recovery_rows) == 1
+    assert recovery_rows[0].recovery_status == "escalated"
+    assert recovery_rows[0].attempt_count == 2
+
+
+@pytest.mark.asyncio
+async def test_source_health_reads_source_recoveries(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    async with factory() as session:
+        await upsert_source_recovery(
+            session,
+            "cycle-1",
+            "fetcher",
+            "hn-rss",
+            {"recovery_status": "escalated", "latest_failure_reason": "timeout", "escalated": True},
+        )
+        await session.commit()
+        health = await source_health_summary(session, ["hn-rss"])
+        logs = await source_execution_logs(session, "hn-rss")
+
+    assert health[0]["latest_failure_reason"] == "timeout"
+    assert health[0]["recovery_status"] == "escalated"
+    assert logs[0]["source_name"] == "hn-rss"
+    assert logs[0]["node_id"] == "fetcher"

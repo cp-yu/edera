@@ -32,13 +32,11 @@ async def run(ctx: HandlerContext) -> dict[str, Any]:
             continue
         lines.append(f"{code} {name}: {advice.direction} confidence={advice.confidence:.2f} {advice.reason}")
     failures = ctx.input.metadata.get("failures", {})
-    source_recovery = ctx.input.metadata.get("source_recovery", {})
     source_names = [str(source.attributes.get("name") or source.id) for source in sources]
     metadata = {
         "configured_sources": source_names,
         "successful_sources": [source_name for source_name in source_names if source_name not in failures],
         "failed_sources": failures,
-        "source_recovery": source_recovery,
         "data_window": {
             "start": min((advice.data_window_start for advice in advices), default=datetime.now(timezone.utc)),
             "end": max((advice.data_window_end for advice in advices), default=datetime.now(timezone.utc)),

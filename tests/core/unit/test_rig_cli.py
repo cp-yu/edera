@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import store_node_output_entities
+from edera_core.storage.repository import store_node_output_entities, upsert_edge_input, upsert_source_recovery
 from edera_core.rig_cli import _grpc_client_init, _inject_human_cert_env, main
 
 
@@ -319,6 +319,88 @@ def test_rig_node_output_queries_history(monkeypatch: pytest.MonkeyPatch, tmp_pa
     main()
 
     assert '"summary": "done"' in capsys.readouterr().out
+
+
+def test_rig_node_output_export_writes_payload(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    config_dir = _minimal_config(tmp_path)
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
+    import asyncio
+
+    async def seed() -> None:
+        await init_db(engine)
+        try:
+            factory = session_factory(engine)
+            async with factory() as session:
+                await store_node_output_entities(session, "cycle-1", "reader", "analysis", {"summary": "done"}, None)
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(seed())
+    out = tmp_path / "payload.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "rig",
+            "--config-dir",
+            str(config_dir),
+            "node",
+            "output",
+            "export",
+            "--cycle",
+            "cycle-1",
+            "--node",
+            "reader",
+            "--out",
+            str(out),
+        ],
+    )
+
+    main()
+
+    assert out.read_text(encoding="utf-8") == '{"summary": "done"}'
+
+
+def test_rig_query_projects_runtime_facts(monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    config_dir = _minimal_config(tmp_path)
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
+    import asyncio
+
+    async def seed() -> None:
+        await init_db(engine)
+        try:
+            factory = session_factory(engine)
+            async with factory() as session:
+                await upsert_edge_input(session, "cycle-1", "source", "sink", True, "failed", False, "node failed")
+                await upsert_source_recovery(
+                    session,
+                    "cycle-1",
+                    "fetcher",
+                    "hn-rss",
+                    {"recovery_status": "escalated", "latest_failure_reason": "timeout"},
+                )
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(seed())
+    monkeypatch.setattr(
+        "sys.argv",
+        ["rig", "--config-dir", str(config_dir), "entity", "query", "type=runtime.edge-input AND cycle_id=cycle-1"],
+    )
+    main()
+    edge_output = capsys.readouterr().out
+    monkeypatch.setattr(
+        "sys.argv",
+        ["rig", "--config-dir", str(config_dir), "entity", "query", "type=runtime.source-recovery AND source_name=hn-rss"],
+    )
+    main()
+    recovery_output = capsys.readouterr().out
+
+    assert '"type": "runtime.edge-input"' in edge_output
+    assert '"from_node_id": "source"' in edge_output
+    assert '"type": "runtime.source-recovery"' in recovery_output
+    assert '"latest_failure_reason": "timeout"' in recovery_output
 
 
 def test_rig_client_init_writes_config(monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:

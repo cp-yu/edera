@@ -111,3 +111,6 @@ relations:
   - from: cap.core.project-identity
     type: contains
     to: dom.core
+  - from: cap.core.runtime-input-context
+    type: contains
+    to: dom.core

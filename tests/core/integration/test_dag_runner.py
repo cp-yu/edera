@@ -6,7 +6,7 @@ import pytest
 from edera_core.config.loader import load_app_config
 from edera_core.config.schema import NodeConfig
 from edera_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
-from edera_core.dag.runner import DagRunner
+from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.errors import DagError
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import FunctionHandler, NodeInput
@@ -694,26 +694,33 @@ async def test_sub_dag_execution() -> None:
 
 
 @pytest.mark.asyncio
-async def test_optional_node_and_fallback() -> None:
+async def test_optional_failure_excluded_from_payload_and_required_failure_recorded() -> None:
     config = load_app_config(Path("config"))
-    nodes = _condition_nodes()
+    nodes = {
+        **_condition_nodes(),
+        "source-a": NodeConfig(name="source-a", type="function", role="source", handler="source-a", input_type="Any", output_type="Any"),
+    }
     graph = load_graph(
         config.dags["default"].model_validate(
             {
                 "name": "optional-test",
                 "nodes": [
                     {"id": "optional", "type": "rss-fetcher", "optional": True},
-                    {"id": "fallback", "type": "advisor", "fallback": "skip"},
+                    {"id": "required", "type": "advisor"},
+                    {"id": "source", "type": "source-a"},
                     {"id": "sink", "type": "briefing-generator"},
                 ],
                 "edges": [
                     {"from": "optional", "to": "sink"},
-                    {"from": "fallback", "to": "sink"},
+                    {"from": "source", "to": "sink"},
+                    {"from": "required", "to": "sink"},
                 ],
             }
         ),
         nodes,
     )
+    edge_facts: list[EdgeInputFact] = []
+    node_runs: list[tuple[str, str, str | None, str | None]] = []
     executor = NodeExecutor(
         nodes,
         config.system,
@@ -721,16 +728,42 @@ async def test_optional_node_and_fallback() -> None:
         {
             "fetch-rss": _failing_handler,
             "generate-advice": _failing_handler,
+            "source-a": _handler(["raw"]),
             "generate-briefing": _handler({"done": True}),
         },
         graph.instances,
     )
 
-    result = await DagRunner(executor).run(graph, "cycle", {})
+    result = await DagRunner(
+        executor,
+        recorder=lambda node, status, error, failure_kind: _append_async(node_runs, (node, status, error, failure_kind)),
+        edge_recorder=lambda fact: _append_async(edge_facts, fact),
+    ).run(graph, "cycle", {})
 
     assert result.node_outputs["optional"].ok is False
-    assert result.node_outputs["fallback"].metadata["skipped"] is True
-    assert result.node_outputs["sink"].payload == {"done": True}
+    assert result.node_outputs["sink"].ok is False
+    assert result.node_outputs["sink"].error and "required upstream failed" in result.node_outputs["sink"].error
+    assert ("sink", "failed", result.node_outputs["sink"].error, "upstream_failed") in node_runs
+    assert {fact.from_node_id for fact in edge_facts if fact.to_node_id == "sink"} == {"optional", "required", "source"}
+    optional_fact = next(fact for fact in edge_facts if fact.from_node_id == "optional" and fact.to_node_id == "sink")
+    source_fact = next(fact for fact in edge_facts if fact.from_node_id == "source" and fact.to_node_id == "sink")
+    assert optional_fact.status == "failed"
+    assert optional_fact.error_summary == "source failed"
+    assert source_fact.status == "available"
+    assert source_fact.has_payload is True
+
+
+def test_fallback_skip_is_rejected() -> None:
+    config = load_app_config(Path("config"))
+
+    with pytest.raises(ValueError):
+        config.dags["default"].model_validate(
+            {
+                "name": "invalid-fallback",
+                "nodes": [{"id": "fallback", "type": "advisor", "fallback": "skip"}],
+                "edges": [],
+            }
+        )
 
 
 @pytest.mark.asyncio
@@ -795,6 +828,10 @@ def _handler(value: object) -> FunctionHandler:
         return value
 
     return handler
+
+
+async def _append_async(target: list, value: object) -> None:
+    target.append(value)
 
 
 async def _failing_handler(_node_input: NodeInput) -> object:

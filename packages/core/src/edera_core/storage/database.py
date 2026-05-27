@@ -27,6 +27,7 @@ async def init_db(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
         await _ensure_pipeline_retry_of(conn)
+        await _ensure_node_run_failure_kind(conn)
         result = await conn.execute(text("PRAGMA journal_mode"))
         mode = result.scalar_one()
         if str(mode).lower() != "wal":
@@ -60,3 +61,10 @@ async def _ensure_pipeline_retry_of(conn) -> None:
     if "retry_of" in {row[1] for row in result.fetchall()}:
         return
     await conn.execute(text("ALTER TABLE pipeline_runs ADD COLUMN retry_of VARCHAR"))
+
+
+async def _ensure_node_run_failure_kind(conn) -> None:
+    result = await conn.execute(text("PRAGMA table_info(node_runs)"))
+    if "failure_kind" in {row[1] for row in result.fetchall()}:
+        return
+    await conn.execute(text("ALTER TABLE node_runs ADD COLUMN failure_kind VARCHAR"))

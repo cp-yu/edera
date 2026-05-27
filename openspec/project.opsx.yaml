@@ -131,19 +131,19 @@ capabilities:
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
     type: capability
   - id: cap.core.handler-context-protocol
-    intent: 统一 HandlerContext、HandlerProtocol、EntityStoreProtocol、NodeInput 和 NodeOutput 接口定义承载于 edera-types / edera_types 包
+    intent: HandlerContext 增加 runtime API，用于 source fetcher 等 handler 显式记录运行期事实
     type: capability
   - id: cap.core.extension-declarative-storage
     intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
     type: capability
   - id: cap.operations.dag-event-driven-executor
-    intent: DAG 事件驱动执行器，fan-in barrier 增加 edge optional 判定逻辑
+    intent: DAG dispatcher 在目标节点调度决策点生成所有直接入边 facts，并用 node failure_kind 区分执行失败和上游失败
     type: capability
   - id: cap.operations.dag-run-control
-    intent: DAG 运行控制能力，覆盖 soft stop（asyncio.Event）、hard stop（task.cancel）和节点重试（single/cascade mode，支持多节点批量）
+    intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断
     type: capability
   - id: cap.web.dag-run-observability
-    intent: DAG 运行能观性，覆盖 Inspector Runtime tab、edge 数据流查看和节点历史页面
+    intent: Web/CLI 运行观察能力消费 runtime tables 投影出的 edge input 与 source recovery facts
     type: capability
   - id: cap.web.dag-creation
     intent: DAG 创建能力，覆盖前端 dialog 交互和后端 API 创建空 DAG 配置文件
@@ -183,7 +183,7 @@ capabilities:
     intent: NodeConfig Discriminated Union 模型，覆盖 function/agent/dag 三种变体的字段定义、Pydantic 判别器和 YAML 反序列化
     type: capability
   - id: cap.core.agent-executor
-    intent: Agent 节点独立执行分支，覆盖 subprocess 启动、stdout 实时 streaming、stop/resume 生命周期、workdir/session 分离和证书 PEM env 注入
+    intent: Agent 节点默认获得简短 runtime context，并通过 CLI export 按需获取 payload 文件
     type: capability
   - id: cap.core.sub-dag-execution
     intent: 子 DAG 作为节点嵌套执行，覆盖独立 cycle_id、parent_cycle_id 关联、source/sink 接口映射和递归上限
@@ -192,7 +192,7 @@ capabilities:
     intent: DAG 输入参数声明，覆盖 inputs schema 定义、source 节点 input_binding、运行时参数注入和 CLI/API/Web 触发
     type: capability
   - id: cap.core.edge-optional
-    intent: 边级和节点级 optional 属性，覆盖 fan-in barrier 容错判定、节点级语法糖展开和错误路径隔离
+    intent: 边级 optional 失败只进入 runtime facts/context，不再以 None/null 占位污染下游 payload
     type: capability
   - id: cap.core.config-hot-reload
     intent: 全量配置热加载，覆盖 file watch、增量重载、handler 模块缓存清除和 manifest 重新扫描
@@ -214,4 +214,7 @@ capabilities:
     type: capability
   - id: cap.core.project-identity
     intent: Edera 项目 canonical identity，覆盖项目名、slug、包命名、命令名、环境变量前缀、默认路径和 README 名称来源说明
+    type: capability
+  - id: cap.core.runtime-input-context
+    intent: Runtime facts 以具体表存储并投影为 runtime entities，覆盖 edge input facts、source recovery facts、干净 payload 聚合、agent runtime context 和 CLI export
     type: capability

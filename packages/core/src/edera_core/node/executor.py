@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 import os
 import re
 from collections.abc import Awaitable, Callable
@@ -10,7 +11,7 @@ from types import ModuleType
 from typing import Any, cast
 from uuid import uuid4
 
-from edera_types import HandlerContext, NodeInput, NodeOutput
+from edera_types import HandlerContext, NodeInput, NodeOutput, RuntimeSourceRecoveryRecorder
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.schema import (
@@ -48,6 +49,7 @@ class NodeExecutor:
         agent_certificate_issuer: AgentCertificateIssuer | None = None,
         extension_tables: dict[str, dict[str, str]] | None = None,
         daemon_data_dir: Path | None = None,
+        source_recovery_recorder: RuntimeSourceRecoveryRecorder | None = None,
         **legacy_kwargs: object,
     ) -> None:
         if handler_registry is None:
@@ -73,6 +75,7 @@ class NodeExecutor:
         self.agent_certificate_issuer = agent_certificate_issuer
         self.extension_tables = extension_tables or {}
         self.daemon_data_dir = daemon_data_dir
+        self.source_recovery_recorder = source_recovery_recorder
         self._modules: dict[str, ModuleType] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
 
@@ -158,6 +161,7 @@ class NodeExecutor:
             cycle_id=node_input.cycle_id,
             entity_store=self.entity_store or _EmptyEntityStore(),
             storage=self._handler_storage(handler_name),
+            runtime=_RuntimeContext(node_input.cycle_id, context.instance_id, self.source_recovery_recorder),
         )
         result = cast(Callable[[HandlerContext], object], handler)(ctx)
         return await _await_handler_result(handler_name, result, timeout)
@@ -173,10 +177,12 @@ class NodeExecutor:
         effective = _apply_agent_instance_config(config, instance)
         session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.cycle_id)
         session_dir.mkdir(parents=True, exist_ok=True)
+        runtime_context = _agent_runtime_context(node_input, context)
+        (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
         if any(session_dir.iterdir()):
             cmd.append("--continue")
-        prompt = _agent_prompt(node_input.payload)
+        prompt = _agent_prompt(node_input.payload, runtime_context)
         if prompt:
             cmd.extend(["--prompt", prompt])
         env = os.environ.copy()
@@ -300,6 +306,23 @@ class _ExtensionStorage:
             raise NodeExecutionError(f"extension table not declared: {name}") from exc
 
 
+class _RuntimeContext:
+    def __init__(
+        self,
+        cycle_id: str,
+        node_id: str,
+        recorder: RuntimeSourceRecoveryRecorder | None,
+    ) -> None:
+        self._cycle_id = cycle_id
+        self._node_id = node_id
+        self._recorder = recorder
+
+    async def record_source_recovery(self, source_name: str, summary: dict[str, Any]) -> None:
+        if self._recorder is None:
+            return
+        await self._recorder(self._cycle_id, self._node_id, source_name, summary)
+
+
 def _failed(node_name: str, node_input: NodeInput, error: str) -> NodeOutput:
     return NodeOutput(node_name=node_name, ok=False, metadata=_output_metadata(node_input), error=error)
 
@@ -412,11 +435,7 @@ def _source_names(entities: list[str]) -> list[str]:
 
 
 def _output_metadata(node_input: NodeInput) -> dict[str, object]:
-    metadata: dict[str, object] = {"cycle_id": node_input.cycle_id}
-    for key in ("failures", "source_recovery"):
-        if key in node_input.metadata:
-            metadata[key] = node_input.metadata[key]
-    return metadata
+    return {"cycle_id": node_input.cycle_id}
 
 
 def _node_from_entity(entity: EntityConfig) -> NodeConfig:
@@ -457,14 +476,25 @@ def _safe_path_token(value: str) -> str:
     return cleaned or "default"
 
 
-def _agent_prompt(payload: object) -> str:
+def _agent_prompt(payload: object, runtime_context: dict[str, object] | None = None) -> str:
+    context = runtime_context or {}
+    prefix = f"Runtime context: {json.dumps(context, ensure_ascii=False)}"
     if isinstance(payload, dict):
         prompt = payload.get("prompt")
         if isinstance(prompt, str):
-            return prompt
+            return f"{prefix}\n\n{prompt}"
     if isinstance(payload, str):
-        return payload
-    return ""
+        return f"{prefix}\n\n{payload}"
+    return prefix
+
+
+def _agent_runtime_context(node_input: NodeInput, context: NodeContext) -> dict[str, object]:
+    return {
+        "cycle_id": node_input.cycle_id,
+        "dag_name": context.dag_name,
+        "node_id": context.instance_id,
+        "edge_inputs": node_input.metadata.get("edge_inputs", []),
+    }
 
 
 def _agent_env(instance_id: str) -> dict[str, str]:

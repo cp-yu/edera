@@ -15,7 +15,7 @@ from edera_core.config.schema import AppConfig, EntityConfig, entity_ref
 from edera_core.errors import ConfigError
 from edera_core.grpc_client import RigGrpcClient, bootstrap_address
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import query_node_output_entities
+from edera_core.storage.repository import edge_inputs_for_cycle, query_node_output_entities, source_recoveries
 
 
 def main() -> None:
@@ -74,8 +74,11 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     resume.add_argument("--prompt", default="")
     resume.add_argument("--cycle-id")
     output = subparsers.add_parser("output")
-    output.add_argument("node_id")
+    output.add_argument("output_args", nargs="*")
     output.add_argument("--cycle-id")
+    output.add_argument("--cycle")
+    output.add_argument("--node")
+    output.add_argument("--out")
 
 
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
@@ -186,7 +189,13 @@ def _node(args: argparse.Namespace) -> object:
             payload["cycle_id"] = args.cycle_id
         return _post(args.api_url, f"/api/node/{args.node_id}/resume", payload)
     if args.node_command == "output":
-        expression = f"type=node-output AND node_id={args.node_id}"
+        if args.output_args and args.output_args[0] == "export":
+            return _export_node_output(args)
+        node_id = args.output_args[1] if args.output_args[:1] == ["query"] and len(args.output_args) > 1 else None
+        node_id = node_id or (args.output_args[0] if args.output_args else None)
+        if not node_id:
+            raise ValueError("node_id is required")
+        expression = f"type=node-output AND node_id={node_id}"
         if args.cycle_id:
             expression = f"{expression} AND cycle_id={args.cycle_id}"
         args.entity_command = "query"
@@ -286,7 +295,13 @@ async def _grpc_node(args: argparse.Namespace) -> object:
         if args.node_command == "resume":
             return await client.node_resume(args.node_id, args.cycle_id, args.prompt)
         if args.node_command == "output":
-            return await client.node_output(args.node_id, args.cycle_id)
+            if args.output_args and args.output_args[0] == "export":
+                raise ValueError("node output export is only available in local mode")
+            node_id = args.output_args[1] if args.output_args[:1] == ["query"] and len(args.output_args) > 1 else None
+            node_id = node_id or (args.output_args[0] if args.output_args else None)
+            if not node_id:
+                raise ValueError("node_id is required")
+            return await client.node_output(node_id, args.cycle_id)
     finally:
         await client.close()
     raise ValueError(f"unknown node command: {args.node_command}")
@@ -382,6 +397,9 @@ def _query(
     relation_filters = _relation_filters(parts)
     if relation_filters:
         return _readable_entities(identity, store, permissions, _query_relations(store, relation_filters))
+    runtime_filters = _runtime_filters(parts)
+    if runtime_filters is not None:
+        return _readable_entities(identity, store, permissions, asyncio_run(_query_runtime_facts(app, runtime_filters)))
     node_output_filters = _node_output_filters(parts)
     if node_output_filters is not None:
         return _readable_entities(identity, store, permissions, asyncio_run(_query_node_outputs(app, node_output_filters)))
@@ -481,6 +499,17 @@ def _node_output_filters(parts: list[str]) -> dict[str, str] | None:
     return filters if filters.get("type") == "node-output" or "node_id" in filters or "cycle_id" in filters else None
 
 
+def _runtime_filters(parts: list[str]) -> dict[str, str] | None:
+    filters: dict[str, str] = {}
+    for part in parts:
+        if "=" not in part:
+            continue
+        key, value = [item.strip() for item in part.split("=", 1)]
+        if key in {"type", "cycle_id", "source_name"}:
+            filters[key] = value
+    return filters if filters.get("type") in {"runtime.edge-input", "runtime.source-recovery"} else None
+
+
 async def _query_node_outputs(app: AppConfig, filters: dict[str, str]) -> list[EntityConfig]:
     engine = create_engine(app.system.database_url)
     try:
@@ -497,6 +526,70 @@ async def _query_node_outputs(app: AppConfig, filters: dict[str, str]) -> list[E
             )
     finally:
         await engine.dispose()
+
+
+async def _query_runtime_facts(app: AppConfig, filters: dict[str, str]) -> list[EntityConfig]:
+    engine = create_engine(app.system.database_url)
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            if filters["type"] == "runtime.edge-input":
+                cycle_id = filters.get("cycle_id")
+                if cycle_id is None:
+                    return []
+                return [_edge_input_entity(item) for item in await edge_inputs_for_cycle(session, cycle_id)]
+            return [
+                _source_recovery_entity(item)
+                for item in await source_recoveries(session, filters.get("source_name"), 100)
+            ]
+    finally:
+        await engine.dispose()
+
+
+def _edge_input_entity(item) -> EntityConfig:
+    attributes = {
+        "cycle_id": item.cycle_id,
+        "from_node_id": item.from_node_id,
+        "to_node_id": item.to_node_id,
+        "edge_optional": item.edge_optional,
+        "status": item.status,
+        "has_payload": item.has_payload,
+        "error_summary": item.error_summary,
+        "created_at": item.created_at,
+    }
+    return EntityConfig(id=f"{item.cycle_id}:{item.from_node_id}->{item.to_node_id}", type="runtime.edge-input", attributes=attributes)
+
+
+def _source_recovery_entity(item) -> EntityConfig:
+    attributes = {
+        "cycle_id": item.cycle_id,
+        "node_id": item.node_id,
+        "source_name": item.source_name,
+        "recovery_status": item.recovery_status,
+        "attempt_count": item.attempt_count,
+        "recoverable_reason": item.recoverable_reason,
+        "latest_failure_reason": item.latest_failure_reason,
+        "escalated": item.escalated,
+        "escalation_reason": item.escalation_reason,
+        "created_at": item.created_at,
+    }
+    return EntityConfig(id=f"{item.cycle_id}:{item.node_id}:{item.source_name}", type="runtime.source-recovery", attributes=attributes)
+
+
+def _export_node_output(args: argparse.Namespace) -> dict[str, object]:
+    if args.output_args != ["export"]:
+        raise ValueError("usage: rig node output export --cycle <cycle_id> --node <node_id> --out <path>")
+    if not args.cycle or not args.node or not args.out:
+        raise ValueError("cycle, node, and out are required")
+    app = load_app_config(Path(args.config_dir))
+    outputs = asyncio_run(_query_node_outputs(app, {"cycle_id": args.cycle, "node_id": args.node}))
+    payload = [item.attributes.get("payload") for item in outputs]
+    value: object = payload[0] if len(payload) == 1 else payload
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(value, ensure_ascii=False, default=str), encoding="utf-8")
+    return {"exported": True, "path": str(out), "count": len(payload)}
 
 
 def asyncio_run(coro: Coroutine[Any, Any, list[EntityConfig]]) -> list[EntityConfig]:

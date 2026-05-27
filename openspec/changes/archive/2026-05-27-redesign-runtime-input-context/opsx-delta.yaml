@@ -1,0 +1,28 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.runtime-input-context
+      type: capability
+      intent: Runtime facts 以具体表存储并投影为 runtime entities，覆盖 edge input facts、source recovery facts、干净 payload 聚合、agent runtime context 和 CLI export
+  relations:
+    - from: cap.core.runtime-input-context
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.edge-optional
+      intent: 边级 optional 失败只进入 runtime facts/context，不再以 None/null 占位污染下游 payload
+    - id: cap.operations.dag-event-driven-executor
+      intent: DAG dispatcher 在目标节点调度决策点生成所有直接入边 facts，并用 node failure_kind 区分执行失败和上游失败
+    - id: cap.operations.dag-run-control
+      intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断
+    - id: cap.core.handler-context-protocol
+      intent: HandlerContext 增加 runtime API，用于 source fetcher 等 handler 显式记录运行期事实
+    - id: cap.core.agent-executor
+      intent: Agent 节点默认获得简短 runtime context，并通过 CLI export 按需获取 payload 文件
+    - id: cap.web.dag-run-observability
+      intent: Web/CLI 运行观察能力消费 runtime tables 投影出的 edge input 与 source recovery facts
+
+REMOVED:
+  capabilities: []

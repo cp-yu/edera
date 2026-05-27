@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
 from pydantic import BaseModel
@@ -29,6 +30,7 @@ class HandlerContext:
     cycle_id: str
     entity_store: EntityStoreProtocol
     storage: StorageProtocol | None = None
+    runtime: RuntimeContextProtocol | None = None
 
 
 class HandlerProtocol(Protocol):
@@ -47,11 +49,20 @@ class StorageProtocol(Protocol):
     def table(self, name: str) -> str: ...
 
 
+class RuntimeContextProtocol(Protocol):
+    def record_source_recovery(self, source_name: str, summary: dict[str, Any]) -> Awaitable[None]: ...
+
+
+RuntimeSourceRecoveryRecorder = Callable[[str, str, str, dict[str, Any]], Awaitable[None]]
+
+
 __all__ = [
     "EntityStoreProtocol",
     "HandlerContext",
     "HandlerProtocol",
     "NodeInput",
     "NodeOutput",
+    "RuntimeContextProtocol",
+    "RuntimeSourceRecoveryRecorder",
     "StorageProtocol",
 ]

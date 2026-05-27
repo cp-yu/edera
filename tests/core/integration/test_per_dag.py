@@ -10,10 +10,13 @@ from httpx import ASGITransport, AsyncClient
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
     create_pipeline_run,
+    edge_inputs_for_cycle,
     finish_pipeline_run,
     get_pipeline_run,
+    node_runs_for_cycle,
     recent_pipeline_runs,
     store_node_output_entities,
+    upsert_edge_input,
 )
 from edera_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RetryRunResult, RunAlreadyActiveError
 from edera_core.web.app import create_app
@@ -266,7 +269,9 @@ async def test_retry_node_missing_prefilled_upstream_returns_error(tmp_path: Pat
         "  to: node-b\n",
         encoding="utf-8",
     )
-    ctrl = PipelineController(tmp_path)
+    extensions_dir = tmp_path / "extensions"
+    _write_node_b_extension(extensions_dir)
+    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
@@ -277,6 +282,96 @@ async def test_retry_node_missing_prefilled_upstream_returns_error(tmp_path: Pat
             await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
     finally:
         await ctrl.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_retry_allows_missing_optional_historical_upstream(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    (tmp_path / "nodes" / "node-b.yaml").write_text(
+        "name: node-b\n"
+        "type: function\n"
+        "handler: node-b\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\n"
+        "nodes:\n"
+        "- id: node-a\n"
+        "  type: node-a\n"
+        "- id: node-b\n"
+        "  type: node-b\n"
+        "edges:\n"
+        "- from: node-a\n"
+        "  to: node-b\n"
+        "  optional: true\n",
+        encoding="utf-8",
+    )
+    extensions_dir = tmp_path / "extensions"
+    _write_node_b_extension(extensions_dir)
+    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-original", "manual", ["node-a", "node-b"], dag_name="default")
+            await upsert_edge_input(session, "cycle-original", "node-a", "node-b", True, "failed", False, "old failure")
+            await finish_pipeline_run(session, "cycle-original", "failed")
+            await session.commit()
+        result = await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
+        await ctrl.active_runs["default"].task
+        async with ctrl._factory()() as session:
+            facts = await edge_inputs_for_cycle(session, result.cycle_id)
+    finally:
+        await ctrl.shutdown()
+
+    assert result.retry_nodes == ["node-b"]
+    assert [(fact.from_node_id, fact.to_node_id, fact.status, fact.error_summary) for fact in facts] == [
+        ("node-a", "node-b", "failed", "old failure")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_retry_blocks_missing_required_historical_upstream(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    (tmp_path / "nodes" / "node-b.yaml").write_text(
+        "name: node-b\n"
+        "type: function\n"
+        "handler: node-b\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\n"
+        "nodes:\n"
+        "- id: node-a\n"
+        "  type: node-a\n"
+        "- id: node-b\n"
+        "  type: node-b\n"
+        "edges:\n"
+        "- from: node-a\n"
+        "  to: node-b\n",
+        encoding="utf-8",
+    )
+    ctrl = PipelineController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-original", "manual", ["node-a", "node-b"], dag_name="default")
+            await upsert_edge_input(session, "cycle-original", "node-a", "node-b", False, "unknown", False, None)
+            await finish_pipeline_run(session, "cycle-original", "failed")
+            await session.commit()
+        result = await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
+        await ctrl.active_runs["default"].task
+        async with ctrl._factory()() as session:
+            runs = await node_runs_for_cycle(session, result.cycle_id)
+    finally:
+        await ctrl.shutdown()
+
+    node_b = next(run for run in runs if run.node_name == "node-b")
+    assert node_b.status == "failed"
+    assert node_b.failure_kind == "upstream_failed"
 
 
 @pytest.mark.asyncio
@@ -837,6 +932,12 @@ def _write_reflection_extension(path: Path) -> None:
         "    return {'target': target, 'edited': str(path)}\n",
         encoding="utf-8",
     )
+
+
+def _write_node_b_extension(path: Path) -> None:
+    extension = path / "node-b"
+    extension.mkdir(parents=True)
+    extension.joinpath("handler.py").write_text("async def run(ctx):\n    return {'payload': ctx.input.payload}\n", encoding="utf-8")
 
 
 def _write_fake_pi(path: Path) -> Path:

@@ -335,7 +335,7 @@ class DagNodeInstance(BaseModel):
     optional: bool = False
     fan_in_mode: Literal["barrier", "accumulate"] = "barrier"
     loop: DagLoopConfig | None = None
-    fallback: Literal["switch_model", "skip"] | None = None
+    fallback: Literal["switch_model"] | None = None
     fallback_model: str | None = None
     resource: str | None = None
 
