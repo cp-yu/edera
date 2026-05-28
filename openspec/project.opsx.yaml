@@ -198,11 +198,11 @@ capabilities:
     intent: 全量配置热加载，覆盖 file watch、增量重载、handler 模块缓存清除和 manifest 重新扫描
     type: capability
   - id: cap.core.edera-server-grpc
-    intent: edera-server 后端引擎 gRPC 服务，覆盖 service 定义、mTLS 传输、bootstrap 端口、agent/BFF 短期证书签发与 dev 模式
+    intent: edera-server 后端引擎 gRPC 服务，覆盖 8 个 service 定义（EntityService、DagService、NodeService、SystemService、GraphService、ConfigService、QueryService、PipelineService）、mTLS 传输、bootstrap 端口、agent/BFF 短期证书签发与 dev 模式
     type: capability
     domain: dom.core
   - id: cap.web.edera-web-bff
-    intent: edera-web 网页 BFF，覆盖纯 gRPC client、BFF cert 内存模式、HTTP/SSE 转发、token 认证和 bind/port 配置
+    intent: edera-web 网页 BFF，所有 HTTP route handler 纯 gRPC 调用，不 import config/storage/pipeline 模块，deps.py 仅暴露 grpc_client 和 error_response
     type: capability
     domain: dom.web
   - id: cap.core.bff-web-gateway
@@ -225,4 +225,16 @@ capabilities:
     type: capability
   - id: cap.web.sources-monitor-ui
     intent: 信息源监控页面能力，覆盖信息源健康摘要、执行日志、错误态和用户可读状态展示
+    type: capability
+  - id: cap.core.grpc-graph-service
+    intent: gRPC GraphService，覆盖 DAG/Node-type/Skill/Handler 的完整 CRUD 和 runtime-status 查询，验证逻辑在 server 端执行
+    type: capability
+  - id: cap.core.grpc-config-service
+    intent: gRPC ConfigService，覆盖 system config、entity-types config 和通用配置文件的读写，验证逻辑在 server 端执行
+    type: capability
+  - id: cap.core.grpc-query-service
+    intent: gRPC QueryService，覆盖 briefings/advices/results/sources health/source logs/node-outputs/history 等 DB 查询
+    type: capability
+  - id: cap.core.grpc-pipeline-service
+    intent: gRPC PipelineService，覆盖 pipeline run/pause/resume/stop、dag stop/retry 和 source repair task 等控制面操作
     type: capability

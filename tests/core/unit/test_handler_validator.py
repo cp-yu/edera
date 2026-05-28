@@ -1,5 +1,6 @@
 import subprocess
 from pathlib import Path
+import json
 
 from edera_core.handler_validator import validate_handler
 
@@ -22,4 +23,4 @@ def test_handler_validator(tmp_path: Path) -> None:
         text=True,
         capture_output=True,
     )
-    assert result.stdout.strip() == "ok"
+    assert json.loads(result.stdout) == {"ok": True}

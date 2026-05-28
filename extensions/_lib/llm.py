@@ -43,7 +43,7 @@ async def run_pi(
     args.append(_json(node_input))
     env = os.environ.copy()
     env["PI_CODING_AGENT_DIR"] = str(workspace / "pi-home")
-    env["RIG_IDENTITY"] = f"node:{instance_id}"
+    env["EDERA_IDENTITY"] = f"node:{instance_id}"
     process = await asyncio.create_subprocess_exec(*args, cwd=workspace, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     if process.returncode != 0:

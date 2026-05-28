@@ -1,0 +1,70 @@
+from __future__ import annotations
+
+import json
+
+import grpc
+import pytest
+
+from edera_core.query_service import _QueryService
+from edera_core.proto import edera_pb2 as pb2
+from edera_core.storage import create_engine, init_db, session_factory
+from edera_core.storage.repository import store_node_output_entities
+
+from service_fakes import AbortError, FakeContext, FakeDaemon
+
+
+@pytest.mark.asyncio
+async def test_latest_briefing(tmp_path):
+    daemon = await _daemon(tmp_path)
+    async with daemon.controller._factory()() as session:
+        await store_node_output_entities(session, "c1", "briefing", "briefing", {"content": "hello", "created_at": "2026-01-01T00:00:00"})
+        await session.commit()
+    service = _QueryService(daemon)
+
+    result = await service.LatestBriefing(pb2.EmptyRequest(), FakeContext())
+
+    assert json.loads(result.json)["briefing"]["content"] == "hello"
+    await daemon.controller.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_advice_not_found(tmp_path):
+    service = _QueryService(await _daemon(tmp_path))
+
+    with pytest.raises(AbortError) as exc:
+        await service.GetAdvice(pb2.NameRequest(name="missing"), FakeContext())
+
+    assert exc.value.code == grpc.StatusCode.NOT_FOUND
+    await service.daemon.controller.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_results_summary(tmp_path):
+    daemon = await _daemon(tmp_path)
+    async with daemon.controller._factory()() as session:
+        await store_node_output_entities(session, "c1", "briefing", "briefing", {"content": "hello", "created_at": "2026-01-01T00:00:00"})
+        await store_node_output_entities(session, "c1", "advisor", "advice", {"stock_code": "AAPL", "direction": "buy", "created_at": "2026-01-01T00:00:00"})
+        await session.commit()
+    service = _QueryService(daemon)
+
+    result = await service.ResultsSummary(pb2.AdviceQueryRequest(stock_code="AAPL"), FakeContext())
+    payload = json.loads(result.json)
+
+    assert {"briefing", "briefings", "advices", "events", "event_details", "summary_items", "metadata_bar", "failed_sources"}.issubset(payload)
+    assert payload["advices"][0]["stock_code"] == "AAPL"
+    await daemon.controller.engine.dispose()
+
+
+async def _daemon(tmp_path):
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
+    await init_db(engine)
+    return FakeDaemon(tmp_path, Controller(engine, session_factory(engine)))
+
+
+class Controller:
+    def __init__(self, engine, factory):
+        self.engine = engine
+        self.factory = factory
+
+    def _factory(self):
+        return self.factory

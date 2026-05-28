@@ -1,0 +1,237 @@
+{
+  "timestamp": "2026-05-28T07:12:35.854Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "Service and BFF scenario coverage",
+      "message": "Implementation evidence covers declared services/routes, with targeted tests plus full Python suite passing after stale test migration."
+    }
+  ],
+  "tasksFileHash": "da13f6cd6626c7c92f38a04c4271b91cab0063e67b780025b2ab9214770cfbb3",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "openspec/changes/complete-web-grpc-routes/tasks.md",
+      "packages/core/src/edera_core/config_service.py",
+      "packages/core/src/edera_core/graph_service.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/pipeline_service.py",
+      "packages/core/src/edera_core/proto/edera_pb2.py",
+      "packages/core/src/edera_core/proto/edera_pb2_grpc.py",
+      "packages/core/src/edera_core/query_service.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/service_common.py",
+      "packages/core/src/edera_core/web/deps.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "packages/core/tests/test_config_service.py",
+      "packages/core/tests/test_graph_service.py",
+      "packages/core/tests/test_pipeline_service.py",
+      "packages/core/tests/test_query_service.py",
+      "packages/core/tests/test_web_routes.py",
+      "proto/edera.proto"
+    ],
+    "evidenceFingerprint": "090d37e33c67917d11782346f9655d8a9a12292be696fa71a987d429c29d8e48",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/complete-web-grpc-routes/tasks.md",
+        "hash": "da13f6cd6626c7c92f38a04c4271b91cab0063e67b780025b2ab9214770cfbb3"
+      },
+      {
+        "path": "packages/core/src/edera_core/config_service.py",
+        "hash": "c8106337b43ac402c3f3bf15424a445d0056bd1995329e1c81b49c2f43f22f27"
+      },
+      {
+        "path": "packages/core/src/edera_core/graph_service.py",
+        "hash": "05e08a3af368dbcf51cd79df3f20acbc122003fe13e22f94eec28a071edbc01a"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "a4323137fb79f6849da27b0bcc3f7e651cb85d6c43016cfc1b3f0bceee1bafb4"
+      },
+      {
+        "path": "packages/core/src/edera_core/pipeline_service.py",
+        "hash": "d6a3b3ee5324f2844d1a6fffadf612e485d3c47ad10457098d5994e81714135d"
+      },
+      {
+        "path": "packages/core/src/edera_core/proto/edera_pb2_grpc.py",
+        "hash": "83f488a1639ec6630f414db4c7b1cf589329c0a7954da8b14c4dd78832e25b99"
+      },
+      {
+        "path": "packages/core/src/edera_core/proto/edera_pb2.py",
+        "hash": "30b62d41edcfe6498adf0623bd85f97a27bc3e399c9b2274b897d7d60df09b6b"
+      },
+      {
+        "path": "packages/core/src/edera_core/query_service.py",
+        "hash": "4fd76013845e7e3744d60c368a7354a866fd0f6582eebe170815653598f73fe3"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "2297798635e6898b868013e8fb88ffaa1f2aef3291d64633f1fb899506235232"
+      },
+      {
+        "path": "packages/core/src/edera_core/service_common.py",
+        "hash": "5ee3b83fcd3ea1e3698957156d2f10782d7d0ac0fc9998379345914c075a1b66"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/deps.py",
+        "hash": "c9467d55ee3ea2c2af23050c1d52940d794d941d3f160d700d1510e3161bc7b3"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "5f8c30d4bbc6802d1f47e175f885cd234529f6989dd97b5baeb373883325d70e"
+      },
+      {
+        "path": "packages/core/tests/test_config_service.py",
+        "hash": "1599eba34851a4f9f60467ff980287fd9354cb85cdb40d77acdcc8aea1a689a5"
+      },
+      {
+        "path": "packages/core/tests/test_graph_service.py",
+        "hash": "611a9d5f3f5ada54620eb06793ca58e2cd648e74eb9ab07e9f5c7a12465181e3"
+      },
+      {
+        "path": "packages/core/tests/test_pipeline_service.py",
+        "hash": "47917ea9600c84395fa0ff1e757bbc41b790fab7e8eeac75cbe8b267a21fae03"
+      },
+      {
+        "path": "packages/core/tests/test_query_service.py",
+        "hash": "6b59e4ad2551e7686cda29e55ac33e97f4ae63501a0e324e7d988ba59473815c"
+      },
+      {
+        "path": "packages/core/tests/test_web_routes.py",
+        "hash": "1772fbce1f459cec6f576a39f6a1e5695374f4b161f4708f5e2deccf5eca337b"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "a3b75b1f9a4e40ace4851c809dab04da44127eeee2fc6173691e49592024a0fc"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "1550b696fc1b210315ff35a8dc392f7261169e4f"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-28T07:12:49.159Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Only stale evidence test fixture was updated after full Python suite passed; no further optimization needed for archive gate."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-28T07:12:35.854Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "Service and BFF scenario coverage",
+          "message": "Implementation evidence covers declared services/routes, with targeted tests plus full Python suite passing after stale test migration."
+        }
+      ],
+      "tasksFileHash": "da13f6cd6626c7c92f38a04c4271b91cab0063e67b780025b2ab9214770cfbb3",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "openspec/changes/complete-web-grpc-routes/tasks.md",
+          "packages/core/src/edera_core/config_service.py",
+          "packages/core/src/edera_core/graph_service.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/pipeline_service.py",
+          "packages/core/src/edera_core/proto/edera_pb2.py",
+          "packages/core/src/edera_core/proto/edera_pb2_grpc.py",
+          "packages/core/src/edera_core/query_service.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/service_common.py",
+          "packages/core/src/edera_core/web/deps.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "packages/core/tests/test_config_service.py",
+          "packages/core/tests/test_graph_service.py",
+          "packages/core/tests/test_pipeline_service.py",
+          "packages/core/tests/test_query_service.py",
+          "packages/core/tests/test_web_routes.py",
+          "proto/edera.proto"
+        ],
+        "evidenceFingerprint": "090d37e33c67917d11782346f9655d8a9a12292be696fa71a987d429c29d8e48",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/complete-web-grpc-routes/tasks.md",
+            "hash": "da13f6cd6626c7c92f38a04c4271b91cab0063e67b780025b2ab9214770cfbb3"
+          },
+          {
+            "path": "packages/core/src/edera_core/config_service.py",
+            "hash": "c8106337b43ac402c3f3bf15424a445d0056bd1995329e1c81b49c2f43f22f27"
+          },
+          {
+            "path": "packages/core/src/edera_core/graph_service.py",
+            "hash": "05e08a3af368dbcf51cd79df3f20acbc122003fe13e22f94eec28a071edbc01a"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "a4323137fb79f6849da27b0bcc3f7e651cb85d6c43016cfc1b3f0bceee1bafb4"
+          },
+          {
+            "path": "packages/core/src/edera_core/pipeline_service.py",
+            "hash": "d6a3b3ee5324f2844d1a6fffadf612e485d3c47ad10457098d5994e81714135d"
+          },
+          {
+            "path": "packages/core/src/edera_core/proto/edera_pb2_grpc.py",
+            "hash": "83f488a1639ec6630f414db4c7b1cf589329c0a7954da8b14c4dd78832e25b99"
+          },
+          {
+            "path": "packages/core/src/edera_core/proto/edera_pb2.py",
+            "hash": "30b62d41edcfe6498adf0623bd85f97a27bc3e399c9b2274b897d7d60df09b6b"
+          },
+          {
+            "path": "packages/core/src/edera_core/query_service.py",
+            "hash": "4fd76013845e7e3744d60c368a7354a866fd0f6582eebe170815653598f73fe3"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "2297798635e6898b868013e8fb88ffaa1f2aef3291d64633f1fb899506235232"
+          },
+          {
+            "path": "packages/core/src/edera_core/service_common.py",
+            "hash": "5ee3b83fcd3ea1e3698957156d2f10782d7d0ac0fc9998379345914c075a1b66"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/deps.py",
+            "hash": "c9467d55ee3ea2c2af23050c1d52940d794d941d3f160d700d1510e3161bc7b3"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "5f8c30d4bbc6802d1f47e175f885cd234529f6989dd97b5baeb373883325d70e"
+          },
+          {
+            "path": "packages/core/tests/test_config_service.py",
+            "hash": "1599eba34851a4f9f60467ff980287fd9354cb85cdb40d77acdcc8aea1a689a5"
+          },
+          {
+            "path": "packages/core/tests/test_graph_service.py",
+            "hash": "611a9d5f3f5ada54620eb06793ca58e2cd648e74eb9ab07e9f5c7a12465181e3"
+          },
+          {
+            "path": "packages/core/tests/test_pipeline_service.py",
+            "hash": "47917ea9600c84395fa0ff1e757bbc41b790fab7e8eeac75cbe8b267a21fae03"
+          },
+          {
+            "path": "packages/core/tests/test_query_service.py",
+            "hash": "6b59e4ad2551e7686cda29e55ac33e97f4ae63501a0e324e7d988ba59473815c"
+          },
+          {
+            "path": "packages/core/tests/test_web_routes.py",
+            "hash": "1772fbce1f459cec6f576a39f6a1e5695374f4b161f4708f5e2deccf5eca337b"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "a3b75b1f9a4e40ace4851c809dab04da44127eeee2fc6173691e49592024a0fc"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "1550b696fc1b210315ff35a8dc392f7261169e4f"
+      }
+    }
+  }
+}

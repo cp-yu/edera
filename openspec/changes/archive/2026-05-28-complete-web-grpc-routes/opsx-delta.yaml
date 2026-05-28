@@ -1,0 +1,35 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.grpc-graph-service
+      type: capability
+      intent: gRPC GraphService，覆盖 DAG/Node-type/Skill/Handler 的完整 CRUD 和 runtime-status 查询，验证逻辑在 server 端执行
+    - id: cap.core.grpc-config-service
+      type: capability
+      intent: gRPC ConfigService，覆盖 system config、entity-types config 和通用配置文件的读写，验证逻辑在 server 端执行
+    - id: cap.core.grpc-query-service
+      type: capability
+      intent: gRPC QueryService，覆盖 briefings/advices/results/sources health/source logs/node-outputs/history 等 DB 查询
+    - id: cap.core.grpc-pipeline-service
+      type: capability
+      intent: gRPC PipelineService，覆盖 pipeline run/pause/resume/stop、dag stop/retry 和 source repair task 等控制面操作
+  relations:
+    - from: cap.core.grpc-graph-service
+      type: contains
+      to: dom.core
+    - from: cap.core.grpc-config-service
+      type: contains
+      to: dom.config
+    - from: cap.core.grpc-query-service
+      type: contains
+      to: dom.data
+    - from: cap.core.grpc-pipeline-service
+      type: contains
+      to: dom.operations
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.edera-server-grpc
+      intent: edera-server 后端引擎 gRPC 服务，覆盖 8 个 service 定义（EntityService、DagService、NodeService、SystemService、GraphService、ConfigService、QueryService、PipelineService）、mTLS 传输、bootstrap 端口、agent/BFF 短期证书签发与 dev 模式
+    - id: cap.web.edera-web-bff
+      intent: edera-web 网页 BFF，所有 HTTP route handler 纯 gRPC 调用，不 import config/storage/pipeline 模块，deps.py 仅暴露 grpc_client 和 error_response

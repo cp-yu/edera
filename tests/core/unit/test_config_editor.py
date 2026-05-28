@@ -5,7 +5,7 @@ import pytest
 from edera_core.config.schema import DagConfig, EntitiesConfig, EntityTypeConfig, NodeConfig, SkillConfig
 from edera_core.config.editor import RuntimeConfigEditor
 from edera_core.errors import ConfigEditError
-from edera_core.web.routes import _build_inspector_schema, _graph_dag_payload, _graph_node_payload
+from edera_core.service_common import build_inspector_schema, graph_dag_payload, graph_node_payload
 
 
 def test_config_editor_rejects_invalid_system_without_writing(tmp_path: Path) -> None:
@@ -156,7 +156,7 @@ def _copy_dir(source: Path, target: Path) -> None:
 
 
 def test_graph_dag_payload_round_trip_preserves_ui_metadata() -> None:
-    payload = _graph_dag_payload(
+    payload = graph_dag_payload(
         "test-dag",
         {
             "nodes": [
@@ -184,7 +184,7 @@ def test_graph_dag_payload_round_trip_preserves_ui_metadata() -> None:
 
 
 def test_graph_dag_payload_validates_with_dag_config() -> None:
-    payload = _graph_dag_payload(
+    payload = graph_dag_payload(
         "default",
         {
             "nodes": [
@@ -199,7 +199,7 @@ def test_graph_dag_payload_validates_with_dag_config() -> None:
 
 
 def test_graph_node_payload_round_trip() -> None:
-    payload = _graph_node_payload(
+    payload = graph_node_payload(
         "reader",
         {
             "skills": ["summarize"],
@@ -217,7 +217,7 @@ def test_graph_node_payload_round_trip() -> None:
 
 
 def test_graph_dag_payload_splits_schema_fields() -> None:
-    payload = _graph_dag_payload(
+    payload = graph_dag_payload(
         "default",
         {
             "nodes": [
@@ -258,7 +258,7 @@ def test_build_inspector_schema_merges_dynamic_and_parameter_fields() -> None:
             },
         }
     )
-    schema = _build_inspector_schema(
+    schema = build_inspector_schema(
         node,
         {"summarize": SkillConfig(name="summarize", description="", handler="summarize")},
         {"stock": EntityTypeConfig.model_validate({"display_name": "Stock", "business_id_field": "code", "display_template": "{code}"})},
@@ -270,7 +270,7 @@ def test_build_inspector_schema_merges_dynamic_and_parameter_fields() -> None:
 
 def test_graph_node_payload_rejects_credentials() -> None:
     with pytest.raises(ConfigEditError):
-        _graph_node_payload(
+        graph_node_payload(
             "reader",
             {
                 "skills": ["summarize"],

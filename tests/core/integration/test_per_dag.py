@@ -100,6 +100,12 @@ class FakeGrpcClient:
         if dag_name:
             yield {"type": "dag.status", "payload": {"dag_name": dag_name, "status": "started"}}
 
+    async def config_list(self) -> dict[str, object]:
+        return {"configs": []}
+
+    async def config_list_entity_types(self) -> dict[str, object]:
+        return {"types": {}}
+
 
 # --- PLACEHOLDER_TESTS ---
 
@@ -832,20 +838,17 @@ async def test_bff_legacy_local_config_route_fails_closed(tmp_path: Path) -> Non
     app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/config")
-    assert response.status_code == 501
+    assert response.status_code == 200
+    assert response.json() == {"configs": []}
 
 
 @pytest.mark.asyncio
 async def test_bff_entity_types_route_uses_grpc(tmp_path: Path) -> None:
     class EntityTypesGrpcClient(FakeGrpcClient):
-        async def entity_list(self, type_name: str | None = None) -> list[dict[str, object]]:
-            assert type_name == "entity_type"
-            return [
-                {
-                    "id": "stock",
-                    "type": "entity_type",
-                    "attributes": {
-                        "name": "stock",
+        async def config_list_entity_types(self) -> dict[str, object]:
+            return {
+                "types": {
+                    "stock": {
                         "display_name": "Stock",
                         "business_id_field": "code",
                         "display_template": "{code}",
@@ -854,9 +857,9 @@ async def test_bff_entity_types_route_uses_grpc(tmp_path: Path) -> None:
                         "schema": {},
                         "field_permissions": {},
                         "validate": True,
-                    },
+                    }
                 }
-            ]
+            }
 
     _write_dag_config(tmp_path)
     app = create_app(EntityTypesGrpcClient())

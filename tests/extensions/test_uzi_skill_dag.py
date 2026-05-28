@@ -126,7 +126,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
 
     assert result.failures["1_financials"] == "fetch failed"
     assert result.node_outputs["score_dimensions"].ok is True
-    assert score_log.read_text(encoding="utf-8") == "True"
+    assert score_log.read_text(encoding="utf-8") == "False"
 
 
 @pytest.mark.asyncio

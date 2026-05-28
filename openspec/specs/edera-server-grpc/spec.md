@@ -4,7 +4,7 @@
 定义 `edera-server` 后端引擎的 gRPC service、mTLS、bootstrap 端口、证书签发、数据目录和 dev 模式语义。
 ## Requirements
 ### Requirement: gRPC Service 定义
-`edera-server` SHALL 暴露 gRPC 服务，包含 `EntityService`、`DagService`、`NodeService`、`SystemService` 四个 service。Proto package 为 `edera.v1`，文件路径 `proto/edera.proto`。本 capability 接替原 `rig-daemon-grpc`。
+`edera-server` SHALL 暴露 gRPC 服务，包含 `EntityService`、`DagService`、`NodeService`、`SystemService`、`GraphService`、`ConfigService`、`QueryService`、`PipelineService` 八个 service。Proto package 为 `edera.v1`，文件路径 `proto/edera.proto`。本 capability 接替原 `rig-daemon-grpc`。
 
 #### Scenario: EntityService 提供 CRUD
 - **WHEN** 客户端调用 `EntityService.Create`
@@ -21,6 +21,22 @@
 #### Scenario: DagService 提供触发和查询
 - **WHEN** 客户端调用 `DagService.Trigger`
 - **THEN** server SHALL 启动 DAG 执行并返回 cycle_id
+
+#### Scenario: GraphService 注册到 server
+- **WHEN** `edera-server` 启动
+- **THEN** server SHALL 通过 `add_GraphServiceServicer_to_server` 注册 GraphService 实现
+
+#### Scenario: ConfigService 注册到 server
+- **WHEN** `edera-server` 启动
+- **THEN** server SHALL 通过 `add_ConfigServiceServicer_to_server` 注册 ConfigService 实现
+
+#### Scenario: QueryService 注册到 server
+- **WHEN** `edera-server` 启动
+- **THEN** server SHALL 通过 `add_QueryServiceServicer_to_server` 注册 QueryService 实现
+
+#### Scenario: PipelineService 注册到 server
+- **WHEN** `edera-server` 启动
+- **THEN** server SHALL 通过 `add_PipelineServiceServicer_to_server` 注册 PipelineService 实现
 
 #### Scenario: Proto package 为 edera.v1
 - **WHEN** 检查 `proto/edera.proto` 文件

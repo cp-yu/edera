@@ -12,12 +12,16 @@ import grpc
 import yaml
 
 from edera_core.cert import CertificateAuthority, IssuedCertificate
+from edera_core.config_service import _ConfigService
 from edera_core.config.entities import EntityStore, can_read, can_write, field_permission
 from edera_core.config.loader import load_app_config
 from edera_core.config.schema import AppConfig, EntityConfig, entity_ref
 from edera_core.events import event_bus
+from edera_core.graph_service import _GraphService
+from edera_core.pipeline_service import _PipelineService
 from edera_core.pipeline import PipelineController
 from edera_core.proto import edera_pb2 as pb2, edera_pb2_grpc as pb2_grpc
+from edera_core.query_service import _QueryService
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.repository import edge_inputs_for_cycle, query_node_output_entities, source_recoveries
 
@@ -91,6 +95,10 @@ class Server:
         self.pb2_grpc.add_DagServiceServicer_to_server(_DagService(self), self.server)
         self.pb2_grpc.add_NodeServiceServicer_to_server(_NodeService(self), self.server)
         self.pb2_grpc.add_SystemServiceServicer_to_server(_SystemService(self, bootstrap=False), self.server)
+        self.pb2_grpc.add_GraphServiceServicer_to_server(_GraphService(self), self.server)
+        self.pb2_grpc.add_ConfigServiceServicer_to_server(_ConfigService(self), self.server)
+        self.pb2_grpc.add_QueryServiceServicer_to_server(_QueryService(self), self.server)
+        self.pb2_grpc.add_PipelineServiceServicer_to_server(_PipelineService(self), self.server)
         self.pb2_grpc.add_SystemServiceServicer_to_server(_SystemService(self, bootstrap=True), self.bootstrap_server)
 
 

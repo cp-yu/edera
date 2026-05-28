@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.rig_cli import main
+from edera_core.cli import main
 
 
 def test_client_init_bootstraps_with_existing_cert(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -14,7 +14,7 @@ def test_client_init_bootstraps_with_existing_cert(monkeypatch: pytest.MonkeyPat
             allow_insecure: bool = False,
             force_insecure: bool = False,
         ) -> None:
-            assert address == "localhost:9091"
+            assert address == "localhost:9090"
             assert not allow_insecure
             assert force_insecure
 
@@ -25,16 +25,15 @@ def test_client_init_bootstraps_with_existing_cert(monkeypatch: pytest.MonkeyPat
         async def close(self) -> None:
             return None
 
-    rig_dir = tmp_path / ".rig"
-    rig_dir.mkdir()
-    (rig_dir / "client.crt").write_text("old-cert", encoding="utf-8")
-    (rig_dir / "client.key").write_text("old-key", encoding="utf-8")
-    (rig_dir / "ca.crt").write_text("old-ca", encoding="utf-8")
+    edera_dir = tmp_path / ".edera"
+    edera_dir.mkdir()
+    (edera_dir / "client.crt").write_text("old-cert", encoding="utf-8")
+    (edera_dir / "client.key").write_text("old-key", encoding="utf-8")
+    (edera_dir / "ca.crt").write_text("old-ca", encoding="utf-8")
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("edera_core.rig_cli.RigGrpcClient", FakeClient)
-    monkeypatch.setattr("sys.argv", ["rig", "client", "init", "--server", "localhost:9090"])
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "client", "init", "--server", "localhost:9090"])
 
     main()
 
-    assert (rig_dir / "client.crt").read_text(encoding="utf-8") == "new-cert"
-
+    assert (edera_dir / "client.crt").read_text(encoding="utf-8") == "new-cert"

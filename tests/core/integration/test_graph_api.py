@@ -3,96 +3,70 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from edera_core.bootstrap import scan_extensions
-from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
-from edera_core.pipeline import PipelineController
 from edera_core.web.app import create_app
 
 
-class FakeController(PipelineController):
-    async def start(self, run_startup: bool = True) -> None:
-        self.engine = create_engine(sqlite_url(self.config_dir / "web.db"))
-        await init_db(self.engine)
-        self.factory = session_factory(self.engine)
-        self.scheduler.start()
-
-
-def _copy_project_config(tmp_path):
-    root = tmp_path / "project"
-    root.mkdir()
-    _copy_dir("config", root / "config")
-    _copy_dir("schemas", root / "schemas")
-    _copy_dir("extensions", root / "extensions")
-    _copy_dir("prompts", root / "prompts")
-    _copy_dir("skills", root / "skills")
-    return root
-
-
-def _copy_dir(source, target) -> None:
-    from pathlib import Path
-
-    source_path = Path(source)
-    target.mkdir(parents=True)
-    for path in source_path.rglob("*"):
-        if "__pycache__" in path.parts:
-            continue
-        dest = target / path.relative_to(source_path)
-        if path.is_dir():
-            dest.mkdir()
-        else:
-            dest.write_text(path.read_text())
-
-
-def _app(root):
-    bootstrap = scan_extensions([root / "extensions"], root / "config")
-    return create_app(
-        root / "config",
-        FakeController(root / "config"),
-        handler_registry=bootstrap.handler_registry,
-        run_startup=False,
-    )
-
-
 @pytest.mark.asyncio
-async def test_handler_read_uses_registry_path(tmp_path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = _app(root)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/graph/handlers/fetch-api")
-    assert response.status_code == 200
-    assert response.json()["code"] == (root / "extensions" / "api-fetcher" / "handler.py").read_text(
-        encoding="utf-8"
-    )
+async def test_graph_routes_use_grpc_client() -> None:
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
 
-
-@pytest.mark.asyncio
-async def test_handler_read_returns_404_for_missing_handler(tmp_path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = _app(root)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/graph/handlers/missing-handler")
-    assert response.status_code == 404
-    assert response.json()["error"]["type"] == "not_found"
-
-
-@pytest.mark.asyncio
-async def test_handler_save_uses_registry_path(tmp_path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = _app(root)
-    code = "async def run(ctx):\n    return []\n"
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.put("/api/graph/handlers/fetch-api", json={"code": code})
-    assert response.status_code == 200
-    assert (root / "extensions" / "api-fetcher" / "handler.py").read_text(encoding="utf-8") == code
-    assert not (root / "extensions" / "fetch-api" / "handler.py").exists()
-
-
-@pytest.mark.asyncio
-async def test_graph_nodes_and_dags_return_200(tmp_path) -> None:
-    root = _copy_project_config(tmp_path)
-    app = _app(root)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         nodes = await client.get("/api/graph/nodes")
         dags = await client.get("/api/graph/dags")
-    assert nodes.status_code == 200
-    assert dags.status_code == 200
+        dag = await client.get("/api/graph/dag/default")
+        saved = await client.put("/api/graph/dag/default", json={"nodes": [], "edges": [], "ui": {}})
+
+    assert nodes.json()["nodes"][0]["name"] == "reader"
+    assert dags.json()["dags"] == ["default"]
+    assert dag.json()["name"] == "default"
+    assert saved.json()["saved"] == "default"
+    assert grpc.calls == [
+        ("graph_list_node_types",),
+        ("graph_list_dags",),
+        ("graph_get_dag", "default"),
+        ("graph_save_dag", "default", {"nodes": [], "edges": [], "ui": {}}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_graph_handler_routes_use_grpc_client() -> None:
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        read = await client.get("/api/graph/handlers/fetch-api")
+        saved = await client.put("/api/graph/handlers/fetch-api", json={"code": "async def run(ctx): return []\n"})
+
+    assert read.json()["code"] == "async def run(ctx): return []\n"
+    assert saved.json()["saved"] == "fetch-api"
+
+
+class FakeGrpcClient:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, ...]] = []
+
+    async def close(self) -> None:
+        return None
+
+    async def graph_list_node_types(self) -> dict[str, object]:
+        self.calls.append(("graph_list_node_types",))
+        return {"nodes": [{"name": "reader"}]}
+
+    async def graph_list_dags(self) -> dict[str, object]:
+        self.calls.append(("graph_list_dags",))
+        return {"dags": ["default"]}
+
+    async def graph_get_dag(self, name: str) -> dict[str, object]:
+        self.calls.append(("graph_get_dag", name))
+        return {"name": name, "nodes": [], "edges": [], "ui": {}}
+
+    async def graph_save_dag(self, name: str, payload: dict[str, object]) -> dict[str, object]:
+        self.calls.append(("graph_save_dag", name, payload))
+        return {"saved": name}
+
+    async def graph_get_handler(self, name: str) -> dict[str, object]:
+        return {"name": name, "code": "async def run(ctx): return []\n"}
+
+    async def graph_save_handler(self, name: str, code: str) -> dict[str, object]:
+        return {"saved": name, "code": code}
