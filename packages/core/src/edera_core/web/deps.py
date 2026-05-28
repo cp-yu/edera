@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import cast
+from typing import NoReturn, cast
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from edera_core.grpc_client import RigGrpcClient
-from edera_core.pipeline import PipelineController
-from edera_core.registry import HandlerRegistry
+from edera_core.grpc_client import GrpcClient
+
+_UNSUPPORTED_ROUTE = "route requires edera-server gRPC API"
 
 
 def error_response(status_code: int, error_type: str, message: str) -> JSONResponse:
@@ -18,17 +17,21 @@ def error_response(status_code: int, error_type: str, message: str) -> JSONRespo
     )
 
 
-def controller(request: Request) -> PipelineController:
-    return cast(PipelineController, request.app.state.controller)
+def _unsupported_route() -> NoReturn:
+    raise HTTPException(status_code=501, detail=_UNSUPPORTED_ROUTE)
 
 
-def config_dir(request: Request) -> Path:
-    return cast(Path, request.app.state.config_dir)
+def controller(_request: Request) -> NoReturn:
+    _unsupported_route()
 
 
-def handler_registry(request: Request) -> HandlerRegistry | None:
-    return cast(HandlerRegistry | None, request.app.state.handler_registry)
+def config_dir(_request: Request) -> NoReturn:
+    _unsupported_route()
 
 
-def grpc_client(request: Request) -> RigGrpcClient | None:
-    return cast(RigGrpcClient | None, getattr(request.app.state, "grpc_client", None))
+def handler_registry(_request: Request) -> NoReturn:
+    _unsupported_route()
+
+
+def grpc_client(request: Request) -> GrpcClient | None:
+    return cast(GrpcClient | None, getattr(request.app.state, "grpc_client", None))

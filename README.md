@@ -2,24 +2,29 @@
 
 以 Entity 为统一原语、以 DAG 为执行模型的通用编排内核。
 
-`Edera` 源自 `Entity`、`DAG`、`Execution`、`Runtime`、`Architecture` 的组合。`edera` 也有 ivy（常春藤）含义，项目借用其连接、攀附、延展的隐喻。
+## 启动拓扑
 
-## 本机 Web 控制台
-
-启动服务：
+服务端运行后端引擎和 Web BFF：
 
 ```bash
-uv run edera
+edera-server --config-dir ./config
+EDERA_SERVER_ADDR=127.0.0.1:9090 edera-web
 ```
 
-默认地址是 `http://127.0.0.1:8000`。`config/system.toml` 中的 `web_host` 固定校验为
-`127.0.0.1`，默认不会绑定 `0.0.0.0` 或暴露公网。
+客户端 CLI 直接连接服务端 gRPC：
 
-控制台提供三个入口：
+```bash
+EDERA_SERVER_ADDR=server.lan:9090 edera entity list
+```
 
-- 结果：最新简报、建议、证据 URL 和失败源。
-- 管道：手动运行、暂停/恢复调度、停止当前运行和最近运行记录。
-- 配置：编辑 `config/` 与 `skills/` 下的运行时配置，保存前执行校验。
+首次初始化客户端证书时，bootstrap 端口只监听服务端本机 `127.0.0.1:9091`。远程客户端先建立 SSH 隧道：
+
+```bash
+ssh -L 9091:localhost:9091 server.lan
+edera client init --server 127.0.0.1:9091
+```
+
+Web 默认监听 `127.0.0.1:8000`，可通过 `edera-web --bind/--port` 或 `EDERA_WEB_BIND`/`EDERA_WEB_PORT` 调整。
 
 ## MiniMax 信息获取验收
 

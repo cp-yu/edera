@@ -26,19 +26,25 @@
 - **AND** MUST NOT 使用 `stockimformation_types`
 
 ### Requirement: Project command and control command
-系统 SHALL 提供 `edera` 作为项目主入口命令，保留 `rig` 作为控制面 CLI 命令。系统 MUST NOT 再提供 `stockimformation` console script。
+系统 SHALL 提供 `edera`、`edera-server`、`edera-web` 三个 console scripts，分别承担控制 CLI、后端引擎、网页 BFF 入口。系统 MUST NOT 再提供 `stockimformation` 或 `rig` console script。
 
 #### Scenario: Project entrypoint
-- **WHEN** 用户执行 `uv run edera`
-- **THEN** 系统 SHALL 启动 Edera 服务入口
+- **WHEN** 用户执行 `uv run edera --help`
+- **THEN** 系统 SHALL 输出控制 CLI 子命令列表
 
-#### Scenario: Control CLI remains rig
-- **WHEN** 用户执行 `rig --help`
-- **THEN** 系统 SHALL 输出控制面子命令列表
+#### Scenario: Server entrypoint
+- **WHEN** 用户执行 `edera-server --config-dir ./config`
+- **THEN** 系统 SHALL 启动后端引擎并监听 gRPC 端口
 
-#### Scenario: Old project command removed
+#### Scenario: Web entrypoint
+- **WHEN** 用户执行 `edera-web`
+- **THEN** 系统 SHALL 启动网页 BFF 进程
+
+#### Scenario: Old project commands removed
 - **WHEN** 检查 package console scripts
 - **THEN** MUST NOT 存在名为 `stockimformation` 的 console script
+- **AND** MUST NOT 存在名为 `rig` 的 console script
+- **AND** MUST NOT 存在 `edera`(无参) 启动 web 的隐式语义
 
 ### Requirement: README name origin
 README SHALL 说明 `Edera` 名称来源：`Entity`、`DAG`、`Execution`、`Runtime`、`Architecture`。README 还 SHALL 说明 `edera` 的 ivy（常春藤）隐喻，用于表达连接、攀附、延展，并明确项目定位为通用编排内核。
@@ -60,4 +66,3 @@ README SHALL 说明 `Edera` 名称来源：`Entity`、`DAG`、`Execution`、`Run
 - **WHEN** 系统使用默认配置
 - **THEN** 默认数据库路径 SHALL 指向 `data/edera.db`
 - **AND** 默认 workspace 路径 SHALL 位于 `/tmp/edera/runs`
-

@@ -7,7 +7,7 @@
 系统 SHALL 支持对 LLM 节点执行 soft stop 后通过 resume session 附带干预指令重启。
 
 #### Scenario: Soft stop 运行中节点
-- **WHEN** 用户对正在运行的 LLM 节点执行 soft stop（通过 API 或 `rig` CLI）
+- **WHEN** 用户对正在运行的 LLM 节点执行 soft stop（通过 API 或 `edera` CLI）
 - **THEN** 系统 SHALL 设置 stop_event，pi 进程在当前轮次完成后退出，session 文件保留完整
 
 #### Scenario: Resume with intervention prompt
@@ -30,13 +30,12 @@ Resume 执行完成后，系统 SHALL 用新输出替换原节点的输出记录
 - **THEN** 系统 SHALL 标记下游节点为待重新执行状态（cascade retry）
 
 ### Requirement: CLI 干预入口
-`rig` CLI SHALL 提供节点干预命令。
+`edera` CLI SHALL 提供节点干预命令。
 
 #### Scenario: CLI stop 节点
-- **WHEN** 用户执行 `rig node stop llm-analyze`
+- **WHEN** 用户执行 `edera node stop llm-analyze`
 - **THEN** 系统 SHALL 对该节点当前运行实例执行 soft stop
 
 #### Scenario: CLI resume 节点
-- **WHEN** 用户执行 `rig node resume llm-analyze --prompt "关注宏观经济因素"`
+- **WHEN** 用户执行 `edera node resume llm-analyze --prompt "关注宏观经济因素"`
 - **THEN** 系统 SHALL 找到该节点最近的 sandbox，以 `--continue` 模式启动 pi 并传入 prompt
-

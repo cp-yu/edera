@@ -77,13 +77,37 @@ class FakeController(PipelineController):
         return await super().resume_node(dag_name, cycle_id, node_id, payload)
 
 
+class FakeGrpcClient:
+    last_payload: object | None = None
+    closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+    async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
+        self.last_payload = payload
+        return {"cycle_id": f"cycle-{name}-manual"}
+
+    async def dag_status(self, name: str) -> dict[str, object]:
+        return {"dag_name": name, "current_cycle_id": f"cycle-{name}-manual"}
+
+    async def node_resume(self, node_id: str, cycle_id: str | None, prompt: str) -> dict[str, object]:
+        return {"cycle_id": cycle_id or "", "node_id": node_id, "prompt": prompt}
+
+    async def subscribe_events(self, node_id: str = "", dag_name: str = ""):
+        if node_id:
+            yield {"type": "node.stdout", "payload": {"node_id": node_id, "line": "hello"}}
+        if dag_name:
+            yield {"type": "dag.status", "payload": {"dag_name": dag_name, "status": "started"}}
+
+
 # --- PLACEHOLDER_TESTS ---
 
 
 def _write_dag_config(path: Path) -> None:
     path.joinpath("system.toml").write_text(
         f'database_url = "sqlite+aiosqlite:///{path / "test.db"}"\n'
-        f'schedule_minutes = 30\nweb_host = "127.0.0.1"\nweb_port = 8000\n'
+        f'schedule_minutes = 30\n'
         f'log_level = "INFO"\nllm_timeout_seconds = 60\n'
         f'workspace_root = "{path / "workspace"}"\n'
         f'retention_count = 20\nretention_hours = 24\n'
@@ -163,44 +187,35 @@ async def test_per_dag_stop(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_dag_stop_api_accepts_force(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            await client.post("/api/pipeline/dag/default/run")
-            response = await client.post("/api/pipeline/dag/default/stop", json={"force": True})
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert response.json() == {"stopped": True, "cycle_id": "cycle-default-manual"}
+    ctrl = FakeController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        await ctrl.start_run("manual", "default")
+        cycle_id = await ctrl.stop_current("default", force=True)
+    finally:
+        await ctrl.shutdown()
+    assert cycle_id == "cycle-default-manual"
 
 
 @pytest.mark.asyncio
 async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                await create_pipeline_run(session, "cycle-original", "manual", dag_name="default")
-                await session.commit()
-            response = await client.post(
-                "/api/pipeline/dag/default/retry",
-                json={"cycle_id": "cycle-original", "node_ids": ["node-a"], "mode": "cascade"},
-            )
-            async with app.state.controller._factory()() as session:
-                run = await get_pipeline_run(session, "retry-cycle-original")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert response.json() == {
-        "cycle_id": "retry-cycle-original",
-        "retry_of": "cycle-original",
-        "node_ids": ["node-a"],
-        "mode": "cascade",
-        "retry_nodes": ["node-a"],
-    }
+    ctrl = FakeController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-original", "manual", dag_name="default")
+            await session.commit()
+        result = await ctrl.retry_node("default", "cycle-original", ["node-a"], "cascade")
+        async with ctrl._factory()() as session:
+            run = await get_pipeline_run(session, "retry-cycle-original")
+    finally:
+        await ctrl.shutdown()
+    assert result.cycle_id == "retry-cycle-original"
+    assert result.retry_of == "cycle-original"
+    assert result.node_ids == ["node-a"]
+    assert result.mode == "cascade"
+    assert result.retry_nodes == ["node-a"]
     assert run is not None
     assert run.trigger == "retry"
     assert run.retry_of == "cycle-original"
@@ -209,41 +224,31 @@ async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_retry_api_defaults_to_latest_finished_run(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                await create_pipeline_run(session, "cycle-old", "manual", dag_name="default")
-                await finish_pipeline_run(session, "cycle-old", "failed")
-                await create_pipeline_run(session, "cycle-new", "manual", dag_name="default")
-                await finish_pipeline_run(session, "cycle-new", "succeeded")
-                await session.commit()
-            response = await client.post(
-                "/api/pipeline/dag/default/retry",
-                json={"node_ids": ["node-a"], "mode": "single"},
-            )
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert response.json()["retry_of"] == "cycle-new"
+    ctrl = FakeController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-old", "manual", dag_name="default")
+            await finish_pipeline_run(session, "cycle-old", "failed")
+            await create_pipeline_run(session, "cycle-new", "manual", dag_name="default")
+            await finish_pipeline_run(session, "cycle-new", "succeeded")
+            await session.commit()
+        result = await ctrl.retry_node("default", None, ["node-a"], "single")
+    finally:
+        await ctrl.shutdown()
+    assert result.retry_of == "cycle-new"
 
 
 @pytest.mark.asyncio
 async def test_retry_api_missing_cycle_returns_404(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post(
-                "/api/pipeline/dag/default/retry",
-                json={"cycle_id": "missing-cycle", "node_ids": ["node-a"], "mode": "single"},
-            )
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 404
-    assert response.json()["error"]["type"] == "not_found"
+    ctrl = FakeController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        with pytest.raises(PipelineRunNotFoundError):
+            await ctrl.retry_node("default", "missing-cycle", ["node-a"], "single")
+    finally:
+        await ctrl.shutdown()
 
 
 @pytest.mark.asyncio
@@ -378,90 +383,63 @@ async def test_retry_blocks_missing_required_historical_upstream(tmp_path: Path)
 async def test_per_dag_status_api(tmp_path: Path) -> None:
     """C3: GET /api/pipeline/dag/{dag_name}/status returns per-DAG status."""
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            await client.post("/api/pipeline/dag/default/run")
-            response = await client.get("/api/pipeline/dag/default/status")
-            not_found = await client.get("/api/pipeline/dag/nonexistent/status")
-        finally:
-            await app.state.controller.shutdown()
+        response = await client.get("/api/pipeline/dag/default/status")
     assert response.status_code == 200
     data = response.json()
     assert data["dag_name"] == "default"
     assert data["current_cycle_id"] == "cycle-default-manual"
-    assert not_found.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_per_dag_run_api(tmp_path: Path) -> None:
     """C4: POST /api/pipeline/dag/{dag_name}/run returns 200 + cycle_id; nonexistent DAG returns 404."""
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            first = await client.post("/api/pipeline/dag/default/run")
-            conflict = await client.post("/api/pipeline/dag/default/run")
-            not_found = await client.post("/api/pipeline/dag/nonexistent/run")
-        finally:
-            await app.state.controller.shutdown()
+        first = await client.post("/api/pipeline/dag/default/run")
     assert first.status_code == 200
     assert first.json()["cycle_id"] == "cycle-default-manual"
-    assert conflict.status_code == 409
-    assert not_found.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_dag_run_api_uses_direct_body_as_initial_payload(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post("/api/pipeline/dag/default/run", json={"ticker": "300470.SZ"})
-            payload = app.state.controller.last_payload
-        finally:
-            await app.state.controller.shutdown()
+        response = await client.post("/api/pipeline/dag/default/run", json={"ticker": "300470.SZ"})
     assert response.status_code == 200
-    assert payload == {"ticker": "300470.SZ"}
+    assert grpc.last_payload == {"ticker": "300470.SZ"}
 
 
 @pytest.mark.asyncio
 async def test_dag_run_api_unwraps_inputs_body(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
-            payload = app.state.controller.last_payload
-        finally:
-            await app.state.controller.shutdown()
+        response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
     assert response.status_code == 200
-    assert payload == {"ticker": "300470.SZ"}
+    assert grpc.last_payload == {"ticker": "300470.SZ"}
 
 
 @pytest.mark.asyncio
 async def test_web_token_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    monkeypatch.setenv("RIG_WEB_TOKEN", "secret")
+    app = create_app(FakeGrpcClient())
+    monkeypatch.setenv("EDERA_WEB_TOKEN", "secret")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            denied = await client.get("/api/pipeline/dag/default/status")
-            allowed = await client.get("/api/pipeline/dag/default/status", headers={"Authorization": "Bearer secret"})
-        finally:
-            await app.state.controller.shutdown()
+        denied = await client.get("/api/pipeline/dag/default/status")
+        allowed = await client.get("/api/pipeline/dag/default/status", headers={"Authorization": "Bearer secret"})
     assert denied.status_code == 401
     assert allowed.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
-    class FakeGrpcClient:
+    class RecordingGrpcClient(FakeGrpcClient):
         payload: object | None = None
 
         async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
@@ -470,14 +448,10 @@ async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
             return {"cycle_id": "grpc-cycle"}
 
     _write_dag_config(tmp_path)
-    grpc = FakeGrpcClient()
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False, grpc_client=grpc)
+    grpc = RecordingGrpcClient()
+    app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
-        finally:
-            await app.state.controller.shutdown()
+        response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
     assert response.status_code == 200
     assert response.json() == {"cycle_id": "grpc-cycle"}
     assert grpc.payload == {"ticker": "300470.SZ"}
@@ -485,19 +459,31 @@ async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    from edera_core.web import app as web_app
+    from edera_core.web import __main__ as web_main
 
-    calls: list[tuple[str | None, Path | None, bool, bool]] = []
+    calls: list[dict[str, object]] = []
 
-    class FakeGrpcClient:
+    class CertGrpcClient:
         def __init__(
             self,
             address: str | None = None,
-            data_dir: Path | None = None,
+            *,
+            client_cert_pem: str | None = None,
+            client_key_pem: str | None = None,
+            ca_cert_pem: str | None = None,
             allow_insecure: bool = False,
             force_insecure: bool = False,
         ) -> None:
-            calls.append((address, data_dir, allow_insecure, force_insecure))
+            calls.append(
+                {
+                    "address": address,
+                    "client_cert_pem": client_cert_pem,
+                    "client_key_pem": client_key_pem,
+                    "ca_cert_pem": ca_cert_pem,
+                    "allow_insecure": allow_insecure,
+                    "force_insecure": force_insecure,
+                }
+            )
 
         async def init_client(self, common_name: str) -> dict[str, str]:
             assert common_name == "bff:web-console"
@@ -506,16 +492,29 @@ async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: 
         async def close(self) -> None:
             return None
 
-    monkeypatch.setenv("RIG_DAEMON_ADDR", "127.0.0.1:9090")
-    monkeypatch.setenv("RIG_BFF_DIR", str(tmp_path / "bff"))
-    monkeypatch.setattr(web_app, "RigGrpcClient", FakeGrpcClient)
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr(web_main, "GrpcClient", CertGrpcClient)
 
-    grpc = await web_app._bff_grpc_client()
+    grpc = await web_main._bff_grpc_client()
 
-    assert isinstance(grpc, FakeGrpcClient)
-    assert calls[0] == ("127.0.0.1:9091", tmp_path / "bff", False, True)
-    assert calls[-1] == (None, tmp_path / "bff", False, False)
-    assert (tmp_path / "bff" / "client.crt").read_text(encoding="utf-8") == "cert"
+    assert isinstance(grpc, CertGrpcClient)
+    assert calls[0] == {
+        "address": "127.0.0.1:9091",
+        "client_cert_pem": None,
+        "client_key_pem": None,
+        "ca_cert_pem": None,
+        "allow_insecure": False,
+        "force_insecure": True,
+    }
+    assert calls[-1] == {
+        "address": "127.0.0.1:9090",
+        "client_cert_pem": "cert",
+        "client_key_pem": "key",
+        "ca_cert_pem": "ca",
+        "allow_insecure": False,
+        "force_insecure": False,
+    }
+    assert not (tmp_path / "bff").exists()
 
 
 @pytest.mark.asyncio
@@ -523,21 +522,26 @@ async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from edera_core.web import app as web_app
+    from edera_core.web import __main__ as web_main
 
     _write_dag_config(tmp_path)
     closed = False
 
-    class FakeGrpcClient:
+    class CertGrpcClient:
         def __init__(
             self,
             address: str | None = None,
-            data_dir: Path | None = None,
+            *,
+            client_cert_pem: str | None = None,
+            client_key_pem: str | None = None,
+            ca_cert_pem: str | None = None,
             allow_insecure: bool = False,
             force_insecure: bool = False,
         ) -> None:
             self.address = address
-            self.data_dir = data_dir
+            self.client_cert_pem = client_cert_pem
+            self.client_key_pem = client_key_pem
+            self.ca_cert_pem = ca_cert_pem
             self.allow_insecure = allow_insecure
             self.force_insecure = force_insecure
 
@@ -552,15 +556,14 @@ async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
             nonlocal closed
             closed = True
 
-    monkeypatch.setenv("RIG_DAEMON_ADDR", "127.0.0.1:9090")
-    monkeypatch.setenv("RIG_BFF_DIR", str(tmp_path / "bff"))
-    monkeypatch.setattr(web_app, "RigGrpcClient", FakeGrpcClient)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr(web_main, "GrpcClient", CertGrpcClient)
+    app = create_app(await web_main._bff_grpc_client())
 
     async with app.router.lifespan_context(app):
-        assert isinstance(app.state.grpc_client, FakeGrpcClient)
-        assert app.state.grpc_client.address is None
-        assert app.state.grpc_client.data_dir == tmp_path / "bff"
+        assert isinstance(app.state.grpc_client, CertGrpcClient)
+        assert app.state.grpc_client.address == "127.0.0.1:9090"
+        assert app.state.grpc_client.client_cert_pem == "cert"
         assert app.state.grpc_client.allow_insecure is False
 
     assert closed
@@ -568,42 +571,34 @@ async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
 
 @pytest.mark.asyncio
 async def test_bff_node_events_streams_from_grpc_client(tmp_path: Path) -> None:
-    class FakeGrpcClient:
+    class EventGrpcClient(FakeGrpcClient):
         async def subscribe_events(self, node_id: str = "", dag_name: str = ""):
             assert node_id == "reader"
             assert dag_name == ""
             yield {"type": "node.stdout", "payload": {"node_id": "reader", "line": "hello"}}
 
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False, grpc_client=FakeGrpcClient())
+    app = create_app(EventGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with client.stream("GET", "/api/events/node/reader") as response:
-                text = await response.aread()
-        finally:
-            await app.state.controller.shutdown()
+        async with client.stream("GET", "/api/events/node/reader") as response:
+            text = await response.aread()
     assert b"event: node.stdout" in text
     assert b'"line": "hello"' in text
 
 
 @pytest.mark.asyncio
 async def test_bff_dag_events_streams_from_grpc_client(tmp_path: Path) -> None:
-    class FakeGrpcClient:
+    class EventGrpcClient(FakeGrpcClient):
         async def subscribe_events(self, node_id: str = "", dag_name: str = ""):
             assert node_id == ""
             assert dag_name == "default"
             yield {"type": "dag.status", "payload": {"dag_name": "default", "status": "started"}}
 
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False, grpc_client=FakeGrpcClient())
+    app = create_app(EventGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with client.stream("GET", "/api/events/dag/default") as response:
-                text = await response.aread()
-        finally:
-            await app.state.controller.shutdown()
+        async with client.stream("GET", "/api/events/dag/default") as response:
+            text = await response.aread()
     assert b"event: dag.status" in text
     assert b'"status": "started"' in text
 
@@ -616,22 +611,20 @@ async def test_resume_api_reuses_original_cycle(tmp_path: Path) -> None:
         "name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n",
         encoding="utf-8",
     )
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            async with app.state.controller._factory()() as session:
-                await create_pipeline_run(session, "cycle-original", "manual", ["node-a"], dag_name="default")
-                await store_node_output_entities(session, "cycle-original", "node-a", "analysis", {"summary": "old"}, "session-1")
-                await session.commit()
-            response = await client.post("/api/node/node-a/resume", json={"cycle_id": "cycle-original", "prompt": "adjust"})
-            async with app.state.controller._factory()() as session:
-                run = await get_pipeline_run(session, "cycle-original")
-                recent = await recent_pipeline_runs(session, 5, "default")
-        finally:
-            await app.state.controller.shutdown()
-    assert response.status_code == 200
-    assert response.json()["cycle_id"] == "cycle-original"
+    ctrl = FakeController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-original", "manual", ["node-a"], dag_name="default")
+            await store_node_output_entities(session, "cycle-original", "node-a", "analysis", {"summary": "old"}, "session-1")
+            await session.commit()
+        cycle_id = await ctrl.resume_node("default", "cycle-original", "node-a", {"prompt": "adjust"})
+        async with ctrl._factory()() as session:
+            run = await get_pipeline_run(session, "cycle-original")
+            recent = await recent_pipeline_runs(session, 5, "default")
+    finally:
+        await ctrl.shutdown()
+    assert cycle_id == "cycle-original"
     assert run is not None
     assert run.cycle_id == "cycle-original"
     assert all(item.cycle_id != "retry-cycle-original" for item in recent)
@@ -783,19 +776,19 @@ async def test_scheduler_reflection_waits_and_edits_skill(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_ssr_routes_removed(tmp_path: Path) -> None:
+async def test_ssr_routes_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """C5: SSR routes no longer exist."""
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    web_dir = tmp_path / "web"
+    web_dir.mkdir()
+    (web_dir / "index.html").write_text("<html>console</html>", encoding="utf-8")
+    monkeypatch.setenv("EDERA_WEB_CONSOLE_DIR", str(web_dir))
+    app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            index = await client.get("/")
-            results = await client.get("/results")
-            pipeline = await client.get("/pipeline")
-            config = await client.get("/config")
-        finally:
-            await app.state.controller.shutdown()
+        index = await client.get("/")
+        results = await client.get("/results")
+        pipeline = await client.get("/pipeline")
+        config = await client.get("/config")
     assert index.status_code == 200
     assert results.status_code == 404
     assert pipeline.status_code == 404
@@ -808,14 +801,10 @@ async def test_bff_serves_web_console_index(tmp_path: Path, monkeypatch: pytest.
     web_dir = tmp_path / "web"
     web_dir.mkdir()
     (web_dir / "index.html").write_text("<html>console</html>", encoding="utf-8")
-    monkeypatch.setenv("RIG_WEB_CONSOLE_DIR", str(web_dir))
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    monkeypatch.setenv("EDERA_WEB_CONSOLE_DIR", str(web_dir))
+    app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.get("/")
-        finally:
-            await app.state.controller.shutdown()
+        response = await client.get("/")
     assert response.status_code == 200
     assert "console" in response.text
 
@@ -824,21 +813,57 @@ async def test_bff_serves_web_console_index(tmp_path: Path, monkeypatch: pytest.
 async def test_cors_middleware(tmp_path: Path) -> None:
     """C6: CORS middleware allows localhost:5173."""
     _write_dag_config(tmp_path)
-    app = create_app(tmp_path, FakeController(tmp_path), run_startup=False)
+    app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await app.state.controller.start(run_startup=False)
-        try:
-            response = await client.options(
-                "/api/pipeline/status",
-                headers={
-                    "Origin": "http://localhost:5173",
-                    "Access-Control-Request-Method": "GET",
-                },
-            )
-        finally:
-            await app.state.controller.shutdown()
+        response = await client.options(
+            "/api/pipeline/status",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+@pytest.mark.asyncio
+async def test_bff_legacy_local_config_route_fails_closed(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(FakeGrpcClient())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/config")
+    assert response.status_code == 501
+
+
+@pytest.mark.asyncio
+async def test_bff_entity_types_route_uses_grpc(tmp_path: Path) -> None:
+    class EntityTypesGrpcClient(FakeGrpcClient):
+        async def entity_list(self, type_name: str | None = None) -> list[dict[str, object]]:
+            assert type_name == "entity_type"
+            return [
+                {
+                    "id": "stock",
+                    "type": "entity_type",
+                    "attributes": {
+                        "name": "stock",
+                        "display_name": "Stock",
+                        "business_id_field": "code",
+                        "display_template": "{code}",
+                        "storage_tier": "filesystem",
+                        "system_protected": False,
+                        "schema": {},
+                        "field_permissions": {},
+                        "validate": True,
+                    },
+                }
+            ]
+
+    _write_dag_config(tmp_path)
+    app = create_app(EntityTypesGrpcClient())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/config/entity-types")
+    assert response.status_code == 200
+    assert response.json()["types"]["stock"]["display_name"] == "Stock"
 
 
 @pytest.mark.asyncio

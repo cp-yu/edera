@@ -6,15 +6,17 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cryptography import x509
+from cryptography.x509.oid import NameOID
 from pydantic import ValidationError
 
 from edera_core.cert import CertificateAuthority
 from edera_core.config.schema import AgentNodeConfig, DagConfig, DagNodeConfig, FunctionNodeConfig, NodeConfig
 from edera_core.dag.loader import load_graph
 from edera_core.dag.runner import DagRunner
-from edera_core.daemon import RigDaemon, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
+from edera_core.server import Server, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
 from edera_core.events import event_bus
-from edera_core.grpc_client import RigGrpcClient, _channel_credentials
+from edera_core.grpc_client import GrpcClient, _channel_credentials
 from edera_core.hot_reload import clear_handler_cache
 from edera_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
 from edera_core.node.models import NodeInput
@@ -109,7 +111,7 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
     fake_pi.write_text(
         "#!/usr/bin/env python3\n"
         "import json, os, pathlib, sys\n"
-        f"pathlib.Path({str(capture)!r}).write_text(os.getcwd() + '\\n' + os.environ['RIG_IDENTITY'] + '\\n' + json.dumps(sys.argv[1:]))\n"
+        f"pathlib.Path({str(capture)!r}).write_text(os.getcwd() + '\\n' + os.environ['EDERA_IDENTITY'] + '\\n' + json.dumps(sys.argv[1:]))\n"
         "print('hello')\n",
         encoding="utf-8",
     )
@@ -134,7 +136,7 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
         system=_system().model_copy(update={"workspace_root": tmp_path / "runs"}),
         runtime=_runtime().model_copy(update={"pi_bin": str(fake_pi)}),
         stdout_recorder=lambda _cycle, _node, line: _append(events, line),
-        daemon_data_dir=tmp_path / "rig",
+        daemon_data_dir=tmp_path / "edera",
     )
 
     output = await executor.execute("agent", NodeInput(cycle_id="cycle", payload={"prompt": "do it"}))
@@ -170,27 +172,27 @@ def test_certificate_authority_issues_agent_cert(tmp_path: Path) -> None:
 
 def test_grpc_client_loads_pem_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     pem = "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
-    monkeypatch.setenv("RIG_CLIENT_CERT", pem)
-    monkeypatch.setenv("RIG_CLIENT_KEY", pem)
-    monkeypatch.setenv("RIG_CA_CERT", pem)
+    monkeypatch.setenv("EDERA_CLIENT_CERT", pem)
+    monkeypatch.setenv("EDERA_CLIENT_KEY", pem)
+    monkeypatch.setenv("EDERA_CA_CERT", pem)
 
     assert _channel_credentials() is not None
 
 
 def test_grpc_client_ignores_pem_file_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / "client.crt").write_text("FAKEPEM", encoding="utf-8")
-    monkeypatch.delenv("RIG_CLIENT_CERT", raising=False)
-    monkeypatch.delenv("RIG_CLIENT_KEY", raising=False)
-    monkeypatch.delenv("RIG_CA_CERT", raising=False)
+    monkeypatch.delenv("EDERA_CLIENT_CERT", raising=False)
+    monkeypatch.delenv("EDERA_CLIENT_KEY", raising=False)
+    monkeypatch.delenv("EDERA_CA_CERT", raising=False)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
 
     assert _channel_credentials() is None
 
 
 def test_daemon_data_dir_env_priority(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RIG_DAEMON_DATA_DIR", "/tmp/test-rig-data")
+    monkeypatch.setenv("EDERA_DATA_DIR", "/tmp/test-edera-data")
 
-    assert resolve_data_dir(None) == Path("/tmp/test-rig-data")
+    assert resolve_data_dir(None) == Path("/tmp/test-edera-data")
 
 
 def test_daemon_ca_and_server_cert_generation(tmp_path: Path) -> None:
@@ -205,13 +207,44 @@ def test_daemon_ca_and_server_cert_generation(tmp_path: Path) -> None:
     assert oct((tmp_path / "server.key").stat().st_mode)[-3:] == "600"
 
 
+@pytest.mark.asyncio
+async def test_bff_cert_uses_web_console_common_name_and_ttl(tmp_path: Path) -> None:
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0")
+    service = _SystemService(daemon, bootstrap=True)
+
+    response = await service.InitClient(daemon.pb2.ClientInitRequest(common_name="bff:web-console"), _FakeGrpcContext())
+    cert = x509.load_pem_x509_certificate(response.client_cert_pem.encode())
+    common_name = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+    not_before = cert.not_valid_before_utc
+    not_after = cert.not_valid_after_utc
+
+    assert common_name == "bff:web-console"
+    assert 6.9 <= (not_after - not_before).total_seconds() / 86400 <= 7.1
+    assert response.client_key_pem.startswith("-----BEGIN PRIVATE KEY-----")
+    assert response.ca_cert_pem.startswith("-----BEGIN CERTIFICATE-----")
+
+
+def test_server_cert_san_reissues_when_public_host_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("EDERA_SERVER_PUBLIC_HOST", "old.edera.lan")
+    ensure_server_cert(tmp_path, "0.0.0.0:9090")
+    old_cert = x509.load_pem_x509_certificate((tmp_path / "server.crt").read_bytes())
+
+    monkeypatch.setenv("EDERA_SERVER_PUBLIC_HOST", "new.edera.lan")
+    ensure_server_cert(tmp_path, "0.0.0.0:9090")
+    new_cert = x509.load_pem_x509_certificate((tmp_path / "server.crt").read_bytes())
+    san = new_cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+
+    assert new_cert.serial_number != old_cert.serial_number
+    assert "new.edera.lan" in san.get_values_for_type(x509.DNSName)
+
+
 def test_agent_cert_env_injects_pem_content() -> None:
     cert = SimpleNamespace(cert_pem="CERT_PEM", key_pem="KEY_PEM", ca_pem="CA_PEM")
 
     assert _agent_cert_env(cert) == {
-        "RIG_CLIENT_CERT": "CERT_PEM",
-        "RIG_CLIENT_KEY": "KEY_PEM",
-        "RIG_CA_CERT": "CA_PEM",
+        "EDERA_CLIENT_CERT": "CERT_PEM",
+        "EDERA_CLIENT_KEY": "KEY_PEM",
+        "EDERA_CA_CERT": "CA_PEM",
     }
 
 
@@ -221,7 +254,7 @@ def test_agent_session_dir_uses_daemon_data_dir(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_daemon_grpc_server_start(tmp_path: Path) -> None:
-    daemon = RigDaemon(tmp_path, "127.0.0.1:0")
+    daemon = Server(tmp_path, "127.0.0.1:0")
     await daemon.start()
     try:
         assert isinstance(daemon.bound_port, int)
@@ -230,14 +263,14 @@ async def test_daemon_grpc_server_start(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_rig_grpc_client_connects_to_daemon(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    daemon = RigDaemon(tmp_path, "127.0.0.1:0")
+async def test_grpc_client_connects_to_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    daemon = Server(tmp_path, "127.0.0.1:0")
     issued = daemon.ca.issue_client("human:test", 3600)
-    monkeypatch.setenv("RIG_CLIENT_CERT", issued.cert_pem)
-    monkeypatch.setenv("RIG_CLIENT_KEY", issued.key_pem)
-    monkeypatch.setenv("RIG_CA_CERT", issued.ca_pem)
+    monkeypatch.setenv("EDERA_CLIENT_CERT", issued.cert_pem)
+    monkeypatch.setenv("EDERA_CLIENT_KEY", issued.key_pem)
+    monkeypatch.setenv("EDERA_CA_CERT", issued.ca_pem)
     await daemon.start()
-    client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", tmp_path)
+    client = GrpcClient(f"127.0.0.1:{daemon.bound_port}")
     try:
         assert await client.health() == {"ok": True}
     finally:
@@ -249,19 +282,17 @@ async def test_rig_grpc_client_connects_to_daemon(tmp_path: Path, monkeypatch: p
 async def test_daemon_bootstrap_issues_client_cert_for_mtls_port(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
-    daemon = RigDaemon(tmp_path / "rig", "127.0.0.1:0", config_dir, bootstrap_address="127.0.0.1:0")
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir)
     await daemon.start()
-    bootstrap = RigGrpcClient(f"127.0.0.1:{daemon.bootstrap_bound_port}", tmp_path / "bootstrap", force_insecure=True)
-    client_dir = tmp_path / "client"
-    client_dir.mkdir()
+    bootstrap = GrpcClient(f"127.0.0.1:{daemon.bootstrap_bound_port}", force_insecure=True)
     try:
         certs = await bootstrap.init_client("human:test")
-        monkeypatch.setenv("RIG_CLIENT_CERT", certs["client_cert_pem"])
-        monkeypatch.setenv("RIG_CLIENT_KEY", certs["client_key_pem"])
-        monkeypatch.setenv("RIG_CA_CERT", certs["ca_cert_pem"])
+        monkeypatch.setenv("EDERA_CLIENT_CERT", certs["client_cert_pem"])
+        monkeypatch.setenv("EDERA_CLIENT_KEY", certs["client_key_pem"])
+        monkeypatch.setenv("EDERA_CA_CERT", certs["ca_cert_pem"])
     finally:
         await bootstrap.close()
-    client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", client_dir)
+    client = GrpcClient(f"127.0.0.1:{daemon.bound_port}")
     try:
         assert await client.health() == {"ok": True}
         assert (await client.dag_status("default"))["dag_name"] == "default"
@@ -272,9 +303,9 @@ async def test_daemon_bootstrap_issues_client_cert_for_mtls_port(tmp_path: Path,
 
 @pytest.mark.asyncio
 async def test_daemon_streams_events_over_grpc(tmp_path: Path) -> None:
-    daemon = RigDaemon(tmp_path / "rig", "127.0.0.1:0", bootstrap_address="127.0.0.1:0")
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0")
     service = _SystemService(daemon, bootstrap=False)
-    request = daemon._proto.pb2.EventSubscribeRequest(node_id="reader")
+    request = daemon.pb2.EventSubscribeRequest(node_id="reader")
     events = service.SubscribeEvents(request, _FakeGrpcContext())
     pending = asyncio.create_task(events.__anext__())
     await asyncio.sleep(0)
@@ -313,7 +344,10 @@ async def test_pipeline_publishes_dag_status_events(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_daemon_grpc_entity_update_enforces_node_permissions(tmp_path: Path) -> None:
+async def test_daemon_grpc_entity_update_enforces_node_permissions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text(
         "name: default\n"
@@ -327,16 +361,14 @@ async def test_daemon_grpc_entity_update_enforces_node_permissions(tmp_path: Pat
         "edges: []\n",
         encoding="utf-8",
     )
-    data_dir = tmp_path / "rig"
-    daemon = RigDaemon(data_dir, "127.0.0.1:0", config_dir)
+    data_dir = tmp_path / "edera"
+    daemon = Server(data_dir, "127.0.0.1:0", config_dir)
     issued = daemon.ca.issue_client("node:reader", 3600)
-    client_dir = tmp_path / "client"
-    client_dir.mkdir()
-    (client_dir / "client.crt").write_text(issued.cert_pem, encoding="utf-8")
-    (client_dir / "client.key").write_text(issued.key_pem, encoding="utf-8")
-    (client_dir / "ca.crt").write_text(issued.ca_pem, encoding="utf-8")
+    monkeypatch.setenv("EDERA_CLIENT_CERT", issued.cert_pem)
+    monkeypatch.setenv("EDERA_CLIENT_KEY", issued.key_pem)
+    monkeypatch.setenv("EDERA_CA_CERT", issued.ca_pem)
     await daemon.start()
-    client = RigGrpcClient(f"127.0.0.1:{daemon.bound_port}", client_dir)
+    client = GrpcClient(f"127.0.0.1:{daemon.bound_port}", identity="node:reader")
     try:
         with pytest.raises(Exception):
             await client.entity_update("stock:TEST", "code", "NEW")
@@ -349,11 +381,11 @@ async def test_daemon_grpc_entity_update_enforces_node_permissions(tmp_path: Pat
 async def test_daemon_dag_edit_persists_config(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
-    daemon = RigDaemon(tmp_path / "rig", "127.0.0.1:0", config_dir)
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir)
     service = _DagService(daemon)
 
     response = await service.Edit(
-        daemon._proto.pb2.DagEditRequest(
+        daemon.pb2.DagEditRequest(
             name="default",
             operation="add-node",
             json='{"id":"reader-1","type":"reader","config":{}}',
@@ -389,18 +421,18 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
             assert payload == {"resume_session": "sandbox:reader-1:cycle-1", "prompt": "adjust"}
             return cycle_id
 
-    daemon = RigDaemon(tmp_path / "rig", "127.0.0.1:0", config_dir, controller=Controller())  # type: ignore[arg-type]
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir, controller=Controller())  # type: ignore[arg-type]
     service = _NodeService(daemon)
 
-    stopped = await service.Stop(daemon._proto.pb2.NodeRef(id="reader-1"), _FakeGrpcContext())
+    stopped = await service.Stop(daemon.pb2.NodeRef(id="reader-1"), _FakeGrpcContext())
     resumed = await service.Resume(
-        daemon._proto.pb2.NodeResumeRequest(id="reader-1", cycle_id="cycle-1", prompt="adjust"),
+        daemon.pb2.NodeResumeRequest(id="reader-1", cycle_id="cycle-1", prompt="adjust"),
         _FakeGrpcContext(),
     )
 
     assert stopped.status == "stopped"
     assert resumed.cycle_id == "cycle-1"
-    assert daemon.controller.daemon_data_dir == tmp_path / "rig"
+    assert daemon.controller.daemon_data_dir == tmp_path / "edera"
 
 
 def test_daemon_resume_path_reissues_agent_cert(tmp_path: Path) -> None:
@@ -425,11 +457,11 @@ def test_daemon_resume_path_reissues_agent_cert(tmp_path: Path) -> None:
         _system().model_copy(update={"llm_timeout_seconds": 12}),
         _runtime(),
         agent_certificate_issuer=issuer,
-        daemon_data_dir=tmp_path / "rig",
+        daemon_data_dir=tmp_path / "edera",
     )
     cert = executor.agent_certificate_issuer("agent", 12)
 
-    assert _agent_cert_env(cert)["RIG_CLIENT_CERT"] == "CERT"
+    assert _agent_cert_env(cert)["EDERA_CLIENT_CERT"] == "CERT"
     assert issued == [("agent", 12)]
 
 
@@ -450,6 +482,9 @@ def _runtime():
 
 
 class _FakeGrpcContext:
+    def invocation_metadata(self):
+        return ()
+
     def auth_context(self):
         return {"x509_common_name": [b"human:test"]}
 
@@ -480,7 +515,7 @@ def _minimal_config(tmp_path: Path) -> Path:
     )
     (config_dir / "entity-relations.yaml").write_text("relations: []\n", encoding="utf-8")
     (config_dir / "system.toml").write_text(
-        f'database_url = "sqlite+aiosqlite:///{tmp_path / "test.db"}"\nweb_host = "127.0.0.1"\n',
+        f'database_url = "sqlite+aiosqlite:///{tmp_path / "test.db"}"\n',
         encoding="utf-8",
     )
     (config_dir / "dags").mkdir()

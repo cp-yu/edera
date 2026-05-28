@@ -1,6 +1,7 @@
 services:
-  edera:
+  edera-server:
     build: .
+    command: ["edera-server", "--config-dir", "/app/config"]
     env_file:
       - .env
     volumes:
@@ -9,5 +10,14 @@ services:
       - ./config:/app/config
       - ./skills:/app/skills
     ports:
-      - "127.0.0.1:8000:8000"
+      - "9090:9090"
+    restart: unless-stopped
+  edera-web:
+    build: .
+    command: ["edera-web"]
+    environment:
+      EDERA_SERVER_ADDR: 127.0.0.1:9090
+    network_mode: "service:edera-server"
+    depends_on:
+      - edera-server
     restart: unless-stopped

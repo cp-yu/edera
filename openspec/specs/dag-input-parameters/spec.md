@@ -29,7 +29,7 @@ Source 节点实例配置 SHALL 支持 `input_binding` 字段，绑定到 DAG �
 DAG 触发 API SHALL 支持 `inputs` 参数，允许外部传入 DAG 声明的输入参数。
 
 #### Scenario: CLI 传递输入参数
-- **WHEN** 用户执行 `rig dag trigger my-dag --input ticker=00100.HK`
+- **WHEN** 用户执行 `edera dag trigger my-dag --input ticker=00100.HK`
 - **THEN** 系统 SHALL 将 `{ticker: "00100.HK"}` 传递给 DAG 运行时
 
 #### Scenario: HTTP API 传递输入参数
@@ -49,4 +49,3 @@ Web Console 的 DAG 触发界面 SHALL 根据 DAG 的 `inputs` 声明动态渲�
 #### Scenario: Sub-DAG inputs 作为接口
 - **WHEN** dag 节点引用的目标 DAG 声明了 `inputs: [{name: data}]`
 - **THEN** 该 dag 节点 SHALL 接受 `input_mapping: {data: upstream_output}` 映射上游输出到子 DAG 的 `data` input
-

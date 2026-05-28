@@ -51,12 +51,6 @@ relations:
   - from: cap.web.dag-cycle-detection-ui
     type: contains
     to: dom.web
-  - from: cap.operations.llm-session-reuse
-    type: depends_on
-    to: cap.core.rig-cli
-  - from: cap.operations.llm-node-intervention
-    type: depends_on
-    to: cap.core.rig-cli
   - from: cap.operations.reflection-dag-pattern
     type: depends_on
     to: cap.operations.llm-session-reuse
@@ -93,12 +87,6 @@ relations:
   - from: cap.core.config-hot-reload
     type: contains
     to: dom.core
-  - from: cap.core.rig-daemon-grpc
-    type: contains
-    to: dom.core
-  - from: cap.core.rig-cli-full-crud
-    type: contains
-    to: dom.core
   - from: cap.core.bff-web-gateway
     type: contains
     to: dom.core
@@ -120,3 +108,18 @@ relations:
   - from: cap.web.sources-monitor-ui
     type: contains
     to: dom.web
+  - from: cap.core.edera-cli
+    type: contains
+    to: dom.core
+  - from: cap.core.edera-server-grpc
+    type: contains
+    to: dom.core
+  - from: cap.web.edera-web-bff
+    type: contains
+    to: dom.web
+  - from: cap.operations.llm-session-reuse
+    type: depends_on
+    to: cap.core.edera-cli
+  - from: cap.operations.llm-node-intervention
+    type: depends_on
+    to: cap.core.edera-cli

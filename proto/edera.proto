@@ -1,10 +1,13 @@
 syntax = "proto3";
 
-package rig.v1;
+package edera.v1;
 
 service EntityService {
   rpc Get(EntityRef) returns (Entity);
+  // EntityService.List
   rpc List(EntityQuery) returns (EntityList);
+  // EntityService.Query
+  rpc Query(QueryRequest) returns (EntityList);
   rpc Create(Entity) returns (Entity);
   rpc Update(Entity) returns (Entity);
   rpc Delete(EntityRef) returns (DeleteResult);
@@ -36,6 +39,11 @@ message EntityRef {
 
 message EntityQuery {
   string type = 1;
+}
+
+message QueryRequest {
+  string expression = 1;
+  string identity = 2;
 }
 
 message Entity {

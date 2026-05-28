@@ -1,0 +1,243 @@
+{
+  "timestamp": "2026-05-27T19:50:06.400Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "bff-web-gateway / HTTP REST API 兼容",
+      "message": "Several retained BFF routes still fail closed instead of being translated to gRPC; /api/config/entity-types and core migrated BFF routes are gRPC-backed."
+    }
+  ],
+  "tasksFileHash": "9e612fd40c9a424008179b0820a9fa5021f38df3682be852f9c0cbde07d800b8",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer-subagent",
+    "evidenceFiles": [
+      "openspec/changes/finalize-edera-rename/design.md",
+      "openspec/changes/finalize-edera-rename/opsx-delta.yaml",
+      "openspec/changes/finalize-edera-rename/proposal.md",
+      "openspec/changes/finalize-edera-rename/specs/bff-web-gateway/spec.md",
+      "openspec/changes/finalize-edera-rename/specs/edera-cli/spec.md",
+      "openspec/changes/finalize-edera-rename/specs/edera-server-grpc/spec.md",
+      "openspec/changes/finalize-edera-rename/specs/edera-web-bff/spec.md",
+      "openspec/changes/finalize-edera-rename/tasks.md",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/web/__main__.py",
+      "packages/core/src/edera_core/web/app.py",
+      "packages/core/src/edera_core/web/deps.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/unit/test_cli.py"
+    ],
+    "evidenceFingerprint": "8be2986f16975351e4e577a976c069b4bb9b6c136312369cbc5a1bae8ee003e4",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/finalize-edera-rename/design.md",
+        "hash": "52752a632797b038b13a2c19f287e6ed9603ee5d8440ef6721a15622c67e2749"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/opsx-delta.yaml",
+        "hash": "d8e942e07342ee44e1c6ef65ae9fb3bdea9278982290d332a91d96735319136d"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/proposal.md",
+        "hash": "8f5905a56f3c82ae35c7e29238f2ae3f5f96197940c0ab07ca072bb70e2480d7"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/specs/bff-web-gateway/spec.md",
+        "hash": "b76f39ada73b17b63f1b2563ab4a350a33bdd2f1168161f1b18ce24ca34d9406"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/specs/edera-cli/spec.md",
+        "hash": "eca98b9e83073ac0583635754b90093ed04209f09c937b5bafabe597c06d6fcc"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/specs/edera-server-grpc/spec.md",
+        "hash": "2c4cc7c67fb5ebb728920ee3c38c0dbcfc112c3c2808ec59ffbe6a37176c1c15"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/specs/edera-web-bff/spec.md",
+        "hash": "857af7ab923ea99ecf4f23135c6b5926f4e9a10f37d5a092fe2a1ef18b07f89c"
+      },
+      {
+        "path": "openspec/changes/finalize-edera-rename/tasks.md",
+        "hash": "9e612fd40c9a424008179b0820a9fa5021f38df3682be852f9c0cbde07d800b8"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "03f762988dc1fcba85ed6911d75d19781781297937e9dfab47018710dcefdbce"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "8b0fa264536e75c305e5309cf646a28e7109d3158053d4bf7337075b40c66724"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "3505404dd3f34476f972c743d03b15d04639271faec70280d432baf1eed9c498"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/__main__.py",
+        "hash": "431b0b61736035bb6c6371a48daaa5b8e4e05374685226690d7c3799d9d97281"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/app.py",
+        "hash": "a915d89b64285f22fe0b5acf24861e617ef0c8fc62dc5ad24363cf6e9a795d5c"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/deps.py",
+        "hash": "46fd4f0adb6b1b7a360c8c9f10299a09e07351cb738854729238fb65a40191df"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "e0759a9d00e78478661aca9531eadf14e4127aeefdeea300f605294d8598586d"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "211a94ff23676db22190b62af3ca8de39405c5ec9f66ef8c80eadc5bd619aa61"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "4e985a56c87edd20b77fabd0863ceac22649d5b039f89880b847fb6fe1c474cf"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "cba782f460250a17482d2aee6bc4467181609109"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-27T19:54:16.595Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Centralize repeated unsupported-route HTTPException construction in web deps without changing behavior.",
+        "files": [
+          "packages/core/src/edera_core/web/deps.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-27T19:59:03.846Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/web/deps.py": "c73fa23c97965174aeee302a33fbf0b41bd35007acbb548c9db7ec9daaa32db5"
+    },
+    "baseline": {
+      "timestamp": "2026-05-27T19:50:06.400Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "bff-web-gateway / HTTP REST API 兼容",
+          "message": "Several retained BFF routes still fail closed instead of being translated to gRPC; /api/config/entity-types and core migrated BFF routes are gRPC-backed."
+        }
+      ],
+      "tasksFileHash": "9e612fd40c9a424008179b0820a9fa5021f38df3682be852f9c0cbde07d800b8",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer-subagent",
+        "evidenceFiles": [
+          "openspec/changes/finalize-edera-rename/design.md",
+          "openspec/changes/finalize-edera-rename/opsx-delta.yaml",
+          "openspec/changes/finalize-edera-rename/proposal.md",
+          "openspec/changes/finalize-edera-rename/specs/bff-web-gateway/spec.md",
+          "openspec/changes/finalize-edera-rename/specs/edera-cli/spec.md",
+          "openspec/changes/finalize-edera-rename/specs/edera-server-grpc/spec.md",
+          "openspec/changes/finalize-edera-rename/specs/edera-web-bff/spec.md",
+          "openspec/changes/finalize-edera-rename/tasks.md",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/web/__main__.py",
+          "packages/core/src/edera_core/web/app.py",
+          "packages/core/src/edera_core/web/deps.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/unit/test_cli.py"
+        ],
+        "evidenceFingerprint": "e22013aa65cb6ab4adc84fcbfc90765a7c84a4ba5fd2ad195adf7a2e850df857",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/finalize-edera-rename/design.md",
+            "hash": "52752a632797b038b13a2c19f287e6ed9603ee5d8440ef6721a15622c67e2749"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/opsx-delta.yaml",
+            "hash": "d8e942e07342ee44e1c6ef65ae9fb3bdea9278982290d332a91d96735319136d"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/proposal.md",
+            "hash": "8f5905a56f3c82ae35c7e29238f2ae3f5f96197940c0ab07ca072bb70e2480d7"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/specs/bff-web-gateway/spec.md",
+            "hash": "b76f39ada73b17b63f1b2563ab4a350a33bdd2f1168161f1b18ce24ca34d9406"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/specs/edera-cli/spec.md",
+            "hash": "eca98b9e83073ac0583635754b90093ed04209f09c937b5bafabe597c06d6fcc"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/specs/edera-server-grpc/spec.md",
+            "hash": "2c4cc7c67fb5ebb728920ee3c38c0dbcfc112c3c2808ec59ffbe6a37176c1c15"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/specs/edera-web-bff/spec.md",
+            "hash": "857af7ab923ea99ecf4f23135c6b5926f4e9a10f37d5a092fe2a1ef18b07f89c"
+          },
+          {
+            "path": "openspec/changes/finalize-edera-rename/tasks.md",
+            "hash": "9e612fd40c9a424008179b0820a9fa5021f38df3682be852f9c0cbde07d800b8"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "85374b70640c8dfbcdd0997c2f8df0af9f32e21369cedf3c9e2056c41c226e45"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "8b0fa264536e75c305e5309cf646a28e7109d3158053d4bf7337075b40c66724"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "3505404dd3f34476f972c743d03b15d04639271faec70280d432baf1eed9c498"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/__main__.py",
+            "hash": "431b0b61736035bb6c6371a48daaa5b8e4e05374685226690d7c3799d9d97281"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/app.py",
+            "hash": "a915d89b64285f22fe0b5acf24861e617ef0c8fc62dc5ad24363cf6e9a795d5c"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/deps.py",
+            "hash": "c73fa23c97965174aeee302a33fbf0b41bd35007acbb548c9db7ec9daaa32db5"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "e0759a9d00e78478661aca9531eadf14e4127aeefdeea300f605294d8598586d"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "211a94ff23676db22190b62af3ca8de39405c5ec9f66ef8c80eadc5bd619aa61"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "4e985a56c87edd20b77fabd0863ceac22649d5b039f89880b847fb6fe1c474cf"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "cba782f460250a17482d2aee6bc4467181609109"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

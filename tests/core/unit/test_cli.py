@@ -1,0 +1,196 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import pytest
+
+from edera_core.cli import _grpc_client_init, _inject_human_cert_env, main
+from edera_core.grpc_client import GrpcClient
+
+
+@pytest.fixture(autouse=True)
+def _isolated_cli_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    for name in (
+        "EDERA_SERVER_ADDR",
+        "EDERA_CLIENT_CERT",
+        "EDERA_CLIENT_KEY",
+        "EDERA_CA_CERT",
+        "EDERA_IDENTITY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path / "home")
+
+
+def test_cli_requires_server_addr(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "list"])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1
+    assert "EDERA_SERVER_ADDR not set" in capsys.readouterr().err
+
+
+def test_inject_human_cert_env_reads_edera_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    edera_dir = tmp_path / ".edera"
+    edera_dir.mkdir()
+    (edera_dir / "client.crt").write_text("CERT", encoding="utf-8")
+    (edera_dir / "client.key").write_text("KEY", encoding="utf-8")
+    (edera_dir / "ca.crt").write_text("CA", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    _inject_human_cert_env()
+
+    assert os.environ["EDERA_CLIENT_CERT"] == "CERT"
+    assert os.environ["EDERA_CLIENT_KEY"] == "KEY"
+    assert os.environ["EDERA_CA_CERT"] == "CA"
+
+
+def test_inject_human_cert_env_preserves_existing_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    edera_dir = tmp_path / ".edera"
+    edera_dir.mkdir()
+    (edera_dir / "client.crt").write_text("CERT", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setenv("EDERA_CLIENT_CERT", "ORIGINAL")
+
+    _inject_human_cert_env()
+
+    assert os.environ["EDERA_CLIENT_CERT"] == "ORIGINAL"
+
+
+def test_client_init_writes_edera_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    async def fake_init(server: str, common_name: str) -> dict[str, str]:
+        assert server == "127.0.0.1:9091"
+        assert common_name == "human:default"
+        return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
+
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("edera_core.cli._grpc_client_init", fake_init)
+    monkeypatch.setattr("sys.argv", ["edera", "client", "init", "--server", "127.0.0.1:9091"])
+
+    main()
+
+    assert '"configured": true' in capsys.readouterr().out
+    assert (tmp_path / ".edera" / "client.crt").read_text(encoding="utf-8") == "cert"
+    assert (tmp_path / ".edera" / "client.key").read_text(encoding="utf-8") == "key"
+    assert (tmp_path / ".edera" / "ca.crt").read_text(encoding="utf-8") == "ca"
+
+
+def test_client_init_uses_force_insecure(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str | None, bool]] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, force_insecure: bool = False, **_kwargs) -> None:
+            calls.append((address, force_insecure))
+
+        async def init_client(self, common_name: str) -> dict[str, str]:
+            assert common_name == "human:test"
+            return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    import asyncio
+
+    assert asyncio.run(_grpc_client_init("127.0.0.1:9091", "human:test")) == {
+        "client_cert_pem": "cert",
+        "client_key_pem": "key",
+        "ca_cert_pem": "ca",
+    }
+    assert calls == [("127.0.0.1:9091", True)]
+
+
+def test_cli_entity_query_uses_running_server(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    running_server,
+) -> None:
+    _set_server_env(monkeypatch, running_server)
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "query", "type=stock"])
+
+    main()
+
+    assert "stock:TEST" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+async def test_grpc_entity_list_returns_entity_types(
+    monkeypatch: pytest.MonkeyPatch,
+    running_server,
+) -> None:
+    _set_server_env(monkeypatch, running_server)
+    client = GrpcClient(running_server["addr"])
+    try:
+        entity_types = await client.entity_list("entity_type")
+    finally:
+        await client.close()
+
+    assert any(item["id"] == "stock" and item["attributes"]["display_name"] == "Stock" for item in entity_types)
+
+
+def test_cli_entity_update_denies_node_without_permission(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    running_server,
+) -> None:
+    _set_server_env(monkeypatch, running_server)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "edera",
+            "--identity",
+            "node:reader",
+            "entity",
+            "update",
+            "stock:TEST",
+            "--field",
+            "code",
+            "--value",
+            "001",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1
+    assert "cannot write stock.code" in capsys.readouterr().err
+
+
+def test_cli_entity_update_human_writes_field(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    running_server,
+) -> None:
+    _set_server_env(monkeypatch, running_server)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "entity", "update", "stock:TEST", "--field", "name", "--value", "Changed"],
+    )
+
+    main()
+
+    assert '"name": "Changed"' in capsys.readouterr().out
+
+
+def test_cli_dag_status_uses_grpc(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    running_server,
+) -> None:
+    _set_server_env(monkeypatch, running_server)
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "status", "default"])
+
+    main()
+
+    assert '"dag_name": "default"' in capsys.readouterr().out
+
+
+def _set_server_env(monkeypatch: pytest.MonkeyPatch, running_server) -> None:
+    monkeypatch.setenv("EDERA_SERVER_ADDR", running_server["addr"])
+    monkeypatch.setenv("EDERA_CLIENT_CERT", running_server["certs"]["client_cert_pem"])
+    monkeypatch.setenv("EDERA_CLIENT_KEY", running_server["certs"]["client_key_pem"])
+    monkeypatch.setenv("EDERA_CA_CERT", running_server["certs"]["ca_cert_pem"])

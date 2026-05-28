@@ -1,0 +1,62 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.edera-cli
+      type: capability
+      intent: edera 控制 CLI（edera 命令）作为纯 gRPC 客户端的 binary 入口、子命令集合、身份声明、mTLS 加载与服务端连接环境变量边界，吸收原 rig-cli 与 rig-cli-full-crud 全部行为
+    - id: cap.core.edera-server-grpc
+      type: capability
+      intent: edera-server 后端引擎的 gRPC service 定义、vendor pb2、mTLS 传输、bootstrap localhost 硬绑、agent 与 BFF 短期证书签发、主端口 bind/SAN 配置、数据/配置目录与 EDERA_DEV 模式
+    - id: cap.web.edera-web-bff
+      type: capability
+      intent: edera-web 网页 BFF 进程作为纯 gRPC 客户端的启动语义、配置无知契约、BFF cert 内存模式与 --bind/--port flag 优先 + env fallback 行为
+  relations:
+    - from: cap.core.edera-cli
+      type: contains
+      to: dom.core
+    - from: cap.core.edera-server-grpc
+      type: contains
+      to: dom.core
+    - from: cap.web.edera-web-bff
+      type: contains
+      to: dom.web
+    - from: cap.operations.llm-session-reuse
+      type: depends_on
+      to: cap.core.edera-cli
+    - from: cap.operations.llm-node-intervention
+      type: depends_on
+      to: cap.core.edera-cli
+MODIFIED:
+  capabilities:
+    - id: cap.core.project-identity
+      intent: Edera 项目 canonical identity，覆盖项目名、slug、包命名、命令名（edera/edera-server/edera-web 三件套，移除 rig 别名）、环境变量前缀、默认路径和 README 名称来源说明
+    - id: cap.core.daemon-data-directory
+      intent: edera-server 数据目录管理使用 EDERA_DATA_DIR（default ~/.local/share/edera-server/），与客户端 ~/.edera/ 物理分离；控制面证书与连接环境变量统一使用 EDERA_* 前缀
+    - id: cap.operations.node-executor
+      intent: 节点执行器，按 NodeConfig type 分发执行；agent subprocess 注入 EDERA_IDENTITY，session 路径基于 EDERA_DATA_DIR/sessions/ 由 server 决定绝对路径
+    - id: cap.web.local-web-console
+      intent: edera-web 纯 BFF HTTP API 服务器，--bind/--port flag 优先 + EDERA_WEB_BIND/PORT env fallback，default 127.0.0.1:8000，FastAPI/OpenAPI title 使用 Edera，不读 system.toml web 字段
+    - id: cap.core.bff-web-gateway
+      intent: BFF Web 网关，作为 gRPC client 连 edera-server，BFF cert 通过本机 bootstrap 获取并仅驻内存（不落盘），EDERA_DEV=1 模式跳过 token 验证
+    - id: cap.operations.llm-node-intervention
+      intent: LLM 节点侵入式干预，stop + resume with prompt 通过 edera node CLI 命令触发
+    - id: cap.operations.reflection-dag-pattern
+      intent: 反思 DAG 模式，cron + idle 触发，通过 edera dag trigger 与 edera entity query 命令交互目标节点
+REMOVED:
+  capabilities:
+    - id: cap.core.rig-cli
+    - id: cap.core.rig-cli-full-crud
+    - id: cap.core.rig-daemon-grpc
+  relations:
+    - from: cap.operations.llm-session-reuse
+      type: depends_on
+      to: cap.core.rig-cli
+    - from: cap.operations.llm-node-intervention
+      type: depends_on
+      to: cap.core.rig-cli
+    - from: cap.core.rig-daemon-grpc
+      type: contains
+      to: dom.core
+    - from: cap.core.rig-cli-full-crud
+      type: contains
+      to: dom.core

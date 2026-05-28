@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN pip install --no-cache-dir uv
-EXPOSE 8000
+EXPOSE 8000 9090 9091
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN uv pip install --system .
@@ -17,4 +17,4 @@ COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
 
 VOLUME ["/app/logs", "/app/data", "/app/config"]
-CMD ["edera"]
+CMD ["edera-server", "--config-dir", "/app/config"]

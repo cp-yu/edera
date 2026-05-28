@@ -38,8 +38,8 @@ class CertificateAuthority:
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         cert = (
             x509.CertificateBuilder()
-            .subject_name(_name("rig-ca"))
-            .issuer_name(_name("rig-ca"))
+            .subject_name(_name("edera-ca"))
+            .issuer_name(_name("edera-ca"))
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(datetime.now(timezone.utc))
@@ -62,15 +62,16 @@ class CertificateAuthority:
     def issue_server(
         self,
         listen_address: str = "localhost",
-        common_name: str = "rig-daemon",
+        common_name: str = "edera-server",
         ttl_seconds: int = 365 * 24 * 3600,
     ) -> ServerCertificate:
         self.ensure()
         cert_path = self.data_dir / "server.crt"
         key_path = self.data_dir / "server.key"
-        if cert_path.exists() and key_path.exists():
+        alt_names = _server_alt_names(listen_address)
+        if cert_path.exists() and key_path.exists() and _cert_has_alt_names(cert_path, alt_names):
             return ServerCertificate(cert_path, key_path)
-        cert_pem, key_pem = self._issue_pem(common_name, ttl_seconds, _server_alt_names(listen_address))
+        cert_pem, key_pem = self._issue_pem(common_name, ttl_seconds, alt_names)
         _write_private_key(key_path, key_pem)
         cert_path.write_bytes(cert_pem)
         return ServerCertificate(cert_path, key_path)
@@ -131,3 +132,12 @@ def _server_alt_names(listen_address: str) -> list[x509.GeneralName]:
         except ValueError:
             names.append(x509.DNSName(host))
     return names
+
+
+def _cert_has_alt_names(path: Path, expected: list[x509.GeneralName]) -> bool:
+    cert = x509.load_pem_x509_certificate(path.read_bytes())
+    try:
+        current = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+    except x509.ExtensionNotFound:
+        return False
+    return set(current) == set(expected)

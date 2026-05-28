@@ -457,6 +457,19 @@ async def api_config_entities_save(
 
 @router.get("/api/config/entity-types", response_model=None)
 async def api_entity_types_list(request: Request) -> JSONResponse | dict[str, object]:
+    client = grpc_client(request)
+    if client is not None:
+        entity_types = {}
+        for item in await client.entity_list("entity_type"):
+            attributes = item.get("attributes")
+            if not isinstance(attributes, dict):
+                continue
+            name = str(attributes.get("name") or item.get("id") or "")
+            if name:
+                payload = dict(attributes)
+                payload.pop("name", None)
+                entity_types[name] = payload
+        return {"types": entity_types}
     try:
         return {"types": _entity_types_payload(load_entity_type_configs(config_dir(request).parent / "schemas" / "entity-types"))}
     except ConfigError as exc:

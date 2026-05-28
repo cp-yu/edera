@@ -2,7 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-BACKEND_PORT=8000
+SERVER_PORT=9090
+WEB_PORT=8000
 FRONTEND_PORT=5173
 
 kill_port() {
@@ -13,23 +14,21 @@ kill_port() {
 
 case "${1:-start}" in
     start)
-        kill_port $BACKEND_PORT
+        kill_port $SERVER_PORT
+        kill_port $WEB_PORT
         kill_port $FRONTEND_PORT
-        .venv/bin/python -c "from edera_core.main import main; main()" &
+        EDERA_DEV=1 EDERA_SERVER_ADDR=127.0.0.1:9090 .venv/bin/edera-server --config-dir ./config &
+        EDERA_DEV=1 EDERA_SERVER_ADDR=127.0.0.1:9090 .venv/bin/edera-web &
         (cd apps/web-console && npm run dev) &
         wait
         ;;
     restart)
-        echo "Restarting..."
-        kill_port $BACKEND_PORT
-        kill_port $FRONTEND_PORT
-        sleep 1
-        .venv/bin/python -c "from edera_core.main import main; main()" &
-        (cd apps/web-console && npm run dev) &
-        wait
+        "$0" stop
+        "$0" start
         ;;
     stop)
-        kill_port $BACKEND_PORT
+        kill_port $SERVER_PORT
+        kill_port $WEB_PORT
         kill_port $FRONTEND_PORT
         echo "Stopped."
         ;;

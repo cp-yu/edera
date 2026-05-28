@@ -26,8 +26,6 @@ class RuntimeSettings(BaseSettings):
 class SystemConfig(BaseModel):
     database_url: str = "sqlite+aiosqlite:///data/edera.db"
     schedule_minutes: int = Field(default=30, ge=1)
-    web_host: str = "127.0.0.1"
-    web_port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = "INFO"
     llm_timeout_seconds: float = Field(default=60.0, ge=0)
     workspace_root: Path = Path("/tmp/edera/runs")
@@ -42,14 +40,6 @@ class SystemConfig(BaseModel):
     price_history_path: Path | None = None
     price_comparison_horizon_days: int = Field(default=7, ge=1)
     price_comparison_threshold_percent: float = Field(default=1.0, ge=0.0)
-
-    @field_validator("web_host")
-    @classmethod
-    def _local_web_host(cls, value: str) -> str:
-        if value != "127.0.0.1":
-            raise ValueError("web_host must be 127.0.0.1")
-        return value
-
 
 FieldPermission = Literal["none", "read-only", "write-only", "read-write"]
 StorageTier = Literal["filesystem", "database", "memory"]

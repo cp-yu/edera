@@ -223,7 +223,7 @@ class NodeExecutor:
     def _agent_data_dir(self) -> Path:
         if self.daemon_data_dir is not None:
             return self.daemon_data_dir
-        return Path(os.environ.get("RIG_DAEMON_DATA_DIR", self.system.workspace_root))
+        return Path(os.environ.get("EDERA_DATA_DIR", self.system.workspace_root))
 
     async def _stream_stdout(self, process: asyncio.subprocess.Process, cycle_id: str, node_name: str) -> list[str]:
         lines: list[str] = []
@@ -499,16 +499,16 @@ def _agent_runtime_context(node_input: NodeInput, context: NodeContext) -> dict[
 
 def _agent_env(instance_id: str) -> dict[str, str]:
     return {
-        "RIG_DAEMON_ADDR": os.environ.get("RIG_DAEMON_ADDR", "127.0.0.1:9090"),
-        "RIG_IDENTITY": f"node:{instance_id}",
+        "EDERA_SERVER_ADDR": os.environ.get("EDERA_SERVER_ADDR", "127.0.0.1:9090"),
+        "EDERA_IDENTITY": f"node:{instance_id}",
     }
 
 
 def _agent_cert_env(cert: object) -> dict[str, str]:
     return {
-        "RIG_CLIENT_CERT": str(getattr(cert, "cert_pem")),
-        "RIG_CLIENT_KEY": str(getattr(cert, "key_pem")),
-        "RIG_CA_CERT": str(getattr(cert, "ca_pem")),
+        "EDERA_CLIENT_CERT": str(getattr(cert, "cert_pem")),
+        "EDERA_CLIENT_KEY": str(getattr(cert, "key_pem")),
+        "EDERA_CA_CERT": str(getattr(cert, "ca_pem")),
     }
 
 

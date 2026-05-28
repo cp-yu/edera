@@ -13,7 +13,7 @@ def test_config_editor_rejects_invalid_system_without_writing(tmp_path: Path) ->
     editor = RuntimeConfigEditor(root / "config", root / "skills")
     original = (root / "config" / "system.toml").read_text()
     with pytest.raises(ConfigEditError):
-        editor.save("system", "system", original.replace('web_host = "127.0.0.1"', 'web_host = "0.0.0.0"'))
+        editor.save("system", "system", original.replace("schedule_minutes = 30", "schedule_minutes = 0"))
     assert (root / "config" / "system.toml").read_text() == original
 
 

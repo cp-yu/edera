@@ -59,7 +59,7 @@ async def test_run_pi_passes_tools_continue_and_identity(tmp_path: Path, monkeyp
         "pathlib.Path(os.environ['CAPTURE']).write_text(json.dumps({\n"
         "    'args': sys.argv[1:],\n"
         "    'cwd': os.getcwd(),\n"
-        "    'identity': os.environ.get('RIG_IDENTITY'),\n"
+        "    'identity': os.environ.get('EDERA_IDENTITY'),\n"
         "    'home': os.environ.get('PI_CODING_AGENT_DIR'),\n"
         "}), encoding='utf-8')\n"
         "print('{\"ok\": true}')\n",

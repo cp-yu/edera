@@ -34,7 +34,7 @@ Agent 节点 SHALL 支持 `workdir` 字段（用户配置的工作目录）和 s
 
 #### Scenario: Session 路径由 daemon data dir 管理
 - **WHEN** agent 节点执行
-- **THEN** `--session-dir` 参数 SHALL 指向 `${RIG_DAEMON_DATA_DIR}/sessions/{dag_name}/{instance_id}/{cycle_id}/`
+- **THEN** `--session-dir` 参数 SHALL 指向 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{cycle_id}/`
 
 ### Requirement: 实时 Stdout Streaming
 Agent 节点执行时，系统 SHALL 实时读取 subprocess 的 stdout，逐行转发到 event bus。
@@ -44,23 +44,23 @@ Agent 节点执行时，系统 SHALL 实时读取 subprocess 的 stdout，逐行
 - **THEN** executor SHALL 立即读取该行并发送到 event bus，不等待进程结束
 
 ### Requirement: 环境变量注入
-Agent 节点执行时，系统 SHALL 注入环境变量：`RIG_CLIENT_CERT`（PEM 内容）、`RIG_CLIENT_KEY`（PEM 内容）、`RIG_CA_CERT`（PEM 内容）、`RIG_DAEMON_ADDR`、`RIG_IDENTITY`（值为 `node:{instance_id}`）。
+Agent 节点执行时，系统 SHALL 注入环境变量：`EDERA_CLIENT_CERT`（PEM 内容）、`EDERA_CLIENT_KEY`（PEM 内容）、`EDERA_CA_CERT`（PEM 内容）、`EDERA_SERVER_ADDR`、`EDERA_IDENTITY`（值为 `node:{instance_id}`）。
 
 #### Scenario: 证书 PEM 内容注入
 - **WHEN** agent 节点启动
-- **THEN** subprocess 环境变量 `RIG_CLIENT_CERT` SHALL 包含 daemon 签发的短期证书 PEM 文本内容
+- **THEN** subprocess 环境变量 `EDERA_CLIENT_CERT` SHALL 包含 server 签发的短期证书 PEM 文本内容
 
 #### Scenario: 私钥 PEM 内容注入
 - **WHEN** agent 节点启动
-- **THEN** subprocess 环境变量 `RIG_CLIENT_KEY` SHALL 包含对应私钥的 PEM 文本内容
+- **THEN** subprocess 环境变量 `EDERA_CLIENT_KEY` SHALL 包含对应私钥的 PEM 文本内容
 
 #### Scenario: CA cert PEM 内容注入
 - **WHEN** agent 节点启动
-- **THEN** subprocess 环境变量 `RIG_CA_CERT` SHALL 包含 daemon CA cert 的 PEM 文本内容
+- **THEN** subprocess 环境变量 `EDERA_CA_CERT` SHALL 包含 server CA cert 的 PEM 文本内容
 
 #### Scenario: Identity 注入
 - **WHEN** agent 节点启动
-- **THEN** subprocess 环境变量 SHALL 包含 `RIG_IDENTITY=node:{instance_id}`
+- **THEN** subprocess 环境变量 SHALL 包含 `EDERA_IDENTITY=node:{instance_id}`
 
 ### Requirement: Stop 生命周期
 系统 SHALL 支持通过 SIGTERM 信号停止 agent 节点的 subprocess。Pi CLI SHALL 在收到 SIGTERM 后保存 session 并优雅退出。
@@ -79,4 +79,3 @@ Agent 节点执行时，系统 SHALL 注入环境变量：`RIG_CLIENT_CERT`（PE
 #### Scenario: Resume 注入新 prompt
 - **WHEN** resume API 包含 `prompt` 参数
 - **THEN** 新 subprocess SHALL 将该 prompt 作为输入传递给 pi CLI
-

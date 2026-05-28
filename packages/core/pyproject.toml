@@ -27,8 +27,9 @@ dependencies = [
 edera-types = { workspace = true }
 
 [project.scripts]
-edera = "edera_core.main:main"
-rig = "edera_core.rig_cli:main"
+edera = "edera_core.cli:main"
+edera-server = "edera_core.server:main"
+edera-web = "edera_core.web.__main__:main"
 
 [dependency-groups]
 dev = [
