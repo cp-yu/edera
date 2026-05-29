@@ -89,10 +89,26 @@ class GrpcClient:
         return [_entity_response(item) for item in response.entities]
 
     async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
-        response = await self.dags.Trigger(
-            pb2.DagTriggerRequest(name=name, inputs_json=json.dumps(payload) if payload is not None else "")
+        return await self.pipeline_emit(f"manual:dag:{name}", payload, source="dag_trigger")
+
+    async def pipeline_emit(
+        self,
+        event: str,
+        payload: object | None = None,
+        *,
+        source: str = "rpc",
+        depth: int = 0,
+    ) -> dict[str, object]:
+        return _json_response(
+            await self.pipeline.Emit(
+                pb2.EmitRequest(
+                    event=event,
+                    payload_json=json.dumps(payload) if payload is not None else "",
+                    source=source,
+                    depth=depth,
+                )
+            )
         )
-        return {"cycle_id": response.cycle_id}
 
     async def dag_status(self, name: str) -> dict[str, object]:
         response = await self.dags.Status(pb2.DagRef(name=name))

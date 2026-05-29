@@ -2819,6 +2819,11 @@ class PipelineServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.Emit = channel.unary_unary(
+                '/edera.v1.PipelineService/Emit',
+                request_serializer=edera__pb2.EmitRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
         self.Run = channel.unary_unary(
                 '/edera.v1.PipelineService/Run',
                 request_serializer=edera__pb2.EmptyRequest.SerializeToString,
@@ -2863,6 +2868,12 @@ class PipelineServiceStub(object):
 
 class PipelineServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def Emit(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Run(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -2915,6 +2926,11 @@ class PipelineServiceServicer(object):
 
 def add_PipelineServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'Emit': grpc.unary_unary_rpc_method_handler(
+                    servicer.Emit,
+                    request_deserializer=edera__pb2.EmitRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
             'Run': grpc.unary_unary_rpc_method_handler(
                     servicer.Run,
                     request_deserializer=edera__pb2.EmptyRequest.FromString,
@@ -2965,6 +2981,33 @@ def add_PipelineServiceServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class PipelineService(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def Emit(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.PipelineService/Emit',
+            edera__pb2.EmitRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def Run(request,

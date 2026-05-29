@@ -3,10 +3,12 @@ bootstrap server 地址固定，但是端口需要退避
 
 缺少一个配置dag 触发源的web console位置。
 
-rig cli改名 Edera cli
+---
+
+[x] rig cli改名 Edera cli
 
 
-edera  cli 形成 设计讨论
+[x] edera  cli 形成 设计讨论
 
 ---
 
@@ -22,18 +24,6 @@ ended
 查看fetch节点历史，没有任何输出，这不合理。每个节点都应该可以看到输出才对。
 
 ---
-❯ 切换身份的底层是更换证书？ 也就是说一个系统同时只能一个身份？                                                                                                                                                            
-
-● 对，当前实现就是这样：
-
-  1. 身份 = 证书的 CN（Common Name），服务端从 mTLS 握手中提取 x509_common_name 作为 identity。
-  2. 证书存在 ~/.rig/，rig client init 每次会覆盖之前的文件。
-  3. 所以同一台机器上同一时刻只有一个身份，重新 bootstrap 就把上一个身份覆盖了。
-
-  要支持多身份并存，要么支持指定证书存储路径，要么用目录隔离（如 ~/.rig/profiles/reader/、~/.rig/profiles/human/），通过 --profile 或环境变量切换。当前没有这个机制。
-
- 遇到问题，现在无法同时多身份。这是有问题的设计.
-感觉可以直接env 设置token完成,陈旧token需要删除机制。
 
 ---
 agent节点需要可以插入的，现在web console还没看到这个功能

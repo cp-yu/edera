@@ -5,84 +5,46 @@
 ## Requirements
 ### Requirement: Trigger Entity 定义
 
-系统 SHALL 支持通过 Trigger Entity 定义触发规则。Trigger Entity MUST 包含 `wait_for`（事件组条件）和 `target`（触发目标）字段。
+系统 SHALL 支持通过 Trigger Entity 定义触发规则。Trigger Entity MUST 包含 `wait_for`（布尔表达式字符串）、`target`（触发目标）和 `enabled`（启用状态，默认 true）字段。
 
-#### Scenario: 定义时间触发器
+#### Scenario: 定义 cron 触发器
 
-- **WHEN** 用户创建 Trigger Entity，`wait_for: {mode: OR, events: ["schedule:09:00"]}`，`target: "dag:morning-analysis"`
-- **THEN** 系统在每天 09:00 触发 `dag:morning-analysis` 的执行
+- **WHEN** 用户创建 Trigger Entity，`wait_for: 'cron:"0 9 * * *"'`，`target: "dag:morning-analysis"`
+- **THEN** 系统在每天 09:00 cron bit 置位时触发 `dag:morning-analysis` 的执行
 
 #### Scenario: 定义事件触发器
 
-- **WHEN** 用户创建 Trigger Entity，`wait_for: {mode: OR, events: ["event:config-changed"]}`，`target: "dag:config-validation"`
-- **THEN** 系统在 config/ 文件变更时触发 `dag:config-validation` 的执行
+- **WHEN** 用户创建 Trigger Entity，`wait_for: 'event:config-changed'`，`target: "dag:config-validation"`
+- **THEN** 系统在 `event:config-changed` bit 置位时触发 `dag:config-validation` 的执行
 
-#### Scenario: 定义叠加触发器
+#### Scenario: 定义复合触发器
 
-- **WHEN** 用户创建 Trigger Entity，`wait_for: {mode: AND, events: ["schedule:09:00", "event:market-open"]}`，`target: "dag:morning-analysis"`
-- **THEN** 系统在 09:00 且 market-open 事件都满足时才触发执行
+- **WHEN** 用户创建 Trigger Entity，`wait_for: 'cron:"0 9 * * *" AND (event:market-open OR event:breaking-news)'`，`target: "dag:morning-analysis"`
+- **THEN** 系统在 cron bit 置位且 market-open 或 breaking-news 任一置位时触发执行
 
-### Requirement: 事件组机制
+#### Scenario: 定义 clear target 触发器
 
-系统 SHALL 实现 FreeRTOS 风格的事件组机制，支持 AND（全部满足）和 OR（任一满足）组合等待。
-
-#### Scenario: AND 模式等待
-
-- **WHEN** Trigger 配置 `mode: AND`，等待 `schedule:09:00` 和 `event:market-open` 两个事件
-- **THEN** 系统仅在两个事件都置位后才触发目标执行
-
-#### Scenario: OR 模式等待
-
-- **WHEN** Trigger 配置 `mode: OR`，等待 `event:price-drop` 和 `event:volume-spike` 两个事件
-- **THEN** 系统在任一事件置位后即触发目标执行
-
-#### Scenario: 事件消费后清除
-
-- **WHEN** 事件被 Trigger 消费触发执行后
-- **THEN** 系统清除该事件的置位状态，下次需要重新触发
-
-### Requirement: 事件源注册
-
-系统 SHALL 支持多种事件源。任何可观测的状态变化 MUST 可以作为事件源。
-
-#### Scenario: Entity 变更事件
-
-- **WHEN** 一个 Entity 的 attributes 被修改
-- **THEN** 系统产生 `event:entity-changed:{entity_ref}` 事件
-
-#### Scenario: 配置文件变更事件
-
-- **WHEN** `config/` 目录下的文件被修改
-- **THEN** 系统产生 `event:config-changed` 事件
-
-#### Scenario: 时间调度事件
-
-- **WHEN** 系统时钟到达 Trigger 中声明的 schedule 时间
-- **THEN** 系统产生对应的 `schedule:{time}` 事件
-
-#### Scenario: Node 输出条件事件
-
-- **WHEN** Node 执行输出满足预定义条件（如 `output.sentiment == 'negative'`）
-- **THEN** 系统产生对应的自定义事件
+- **WHEN** 用户创建 Trigger Entity，`wait_for: 'cron:"0 16 * * *"'`，`target: "clear:event:market-open"`
+- **THEN** 系统在每天 16:00 复位 `event:market-open` bit
 
 ### Requirement: 触发目标
 
-系统 SHALL 支持触发任何可执行 Entity。触发目标 MUST 通过 Entity 引用指定。
+系统 SHALL 支持触发 DAG、Node 或 clear bit。触发目标 MUST 通过 `target` 字段指定，格式为 `dag:<name>` / `node:<id>` / `clear:event:<name>`。
 
 #### Scenario: 触发 DAG 执行
 
-- **WHEN** Trigger 的 `target` 指向一个 DAG Entity
-- **THEN** Trigger Executor 启动该 DAG 的一次完整执行
+- **WHEN** Trigger 的 `target` 为 `dag:default`
+- **THEN** Trigger Executor 启动 `dag:default` 的一次完整执行
 
 #### Scenario: 触发单 Node 执行
 
-- **WHEN** Trigger 的 `target` 指向一个 Node Entity
-- **THEN** Trigger Executor 直接执行该 Node（不经过 DAG 调度）
+- **WHEN** Trigger 的 `target` 为 `node:<id>`
+- **THEN** Trigger Executor 直接执行该 Node
 
-#### Scenario: 用户手动触发
+#### Scenario: 触发 clear bit
 
-- **WHEN** 用户通过 Web Console 或 API 手动触发一个 Trigger
-- **THEN** 系统立即执行该 Trigger 的目标，无需等待事件条件满足
+- **WHEN** Trigger 的 `target` 为 `clear:event:market-open`
+- **THEN** Trigger Executor 复位 `event:market-open` bit
 
 ### Requirement: 事件记录可观测
 
@@ -92,4 +54,18 @@
 
 - **WHEN** 一个事件被产生并触发了 Trigger
 - **THEN** 系统在 run metadata Entity 中记录事件名称、产生时间、消费时间和触发的目标
+
+### Requirement: Trigger enabled 字段
+
+系统 SHALL 支持 Trigger Entity 的 `enabled` 字段（默认 true）。disabled 的 trigger MUST 跳过表达式求值。
+
+#### Scenario: disabled trigger 不触发
+
+- **WHEN** trigger entity 的 `enabled` 为 false，且其 wait_for 表达式中所有 bit 已置位
+- **THEN** 系统不求值该表达式，不 fire
+
+#### Scenario: 一次性 trigger 自动 disable
+
+- **WHEN** trigger 的 `wait_for` 包含精确日期 cron（如 `cron:"0 9 30 5 *"`）且 fire 成功
+- **THEN** 系统自动将该 trigger 的 `enabled` 设为 false
 

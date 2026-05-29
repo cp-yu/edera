@@ -13,7 +13,10 @@ schema:
     name:
       type: string
     wait_for:
-      type: object
+      type: string
     target:
       type: string
+    enabled:
+      type: boolean
+      default: true
 validate: true

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 import asyncio
+import logging
 from uuid import uuid4
 
 from edera_core.dag.conditions import evaluate_condition
@@ -12,10 +13,13 @@ from edera_core.dag.resources import ResourceSemaphore, get_semaphore
 from edera_core.errors import DagError
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeContext, NodeInput, NodeOutput
-from edera_core.config.schema import DagConfig, DagNodeInstance, DagNodeConfig, NodeConfig
+from edera_core.config.schema import DagConfig, DagNodeInstance, DagNodeConfig, EmitDeclaration, NodeConfig
 
 NodeRunRecorder = Callable[[str, str, str | None, str | None], Awaitable[None]]
 EdgeInputRecorder = Callable[["EdgeInputFact"], Awaitable[None]]
+EmitCallback = Callable[[str, object | None], Awaitable[None]]
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,6 +47,7 @@ class DagRunner:
         edge_recorder: EdgeInputRecorder | None = None,
         dags: dict[str, DagConfig] | None = None,
         nodes: dict[str, NodeConfig] | None = None,
+        emit: EmitCallback | None = None,
         depth: int = 1,
         path: tuple[str, ...] = (),
     ) -> None:
@@ -51,6 +56,7 @@ class DagRunner:
         self.edge_recorder = edge_recorder
         self.dags = dags or {}
         self.nodes = nodes or executor.nodes
+        self.emit = emit
         self.depth = depth
         self.path = path
         if self.executor.dag_executor is None:
@@ -197,6 +203,7 @@ class DagRunner:
                         acquired,
                     )
                     if event.output.ok:
+                        await self._emit_node_events(graph, event.node, event.output.payload)
                         await self._run_accumulate_downstreams(
                             graph,
                             event.node,
@@ -583,6 +590,24 @@ class DagRunner:
             metadata={"loop_failures": failures, "loop_until_matched": matched},
             error=None if payload else "; ".join(failures.values()) or "loop produced no output",
         )
+
+    async def _emit_node_events(self, graph: DagGraph, node: str, payload: object) -> None:
+        if self.emit is None:
+            return
+        instance = graph.instances[node]
+        declarations = list(self.nodes[instance.type].emits)
+        instance_emits = instance.config.get("emits")
+        if isinstance(instance_emits, list):
+            declarations = [EmitDeclaration.model_validate(item) for item in instance_emits]
+        for declaration in declarations:
+            if declaration.condition:
+                try:
+                    if not evaluate_condition(declaration.condition, payload, self.executor.entity_store):
+                        continue
+                except Exception as exc:
+                    logger.warning("node emit condition failed for %s: %s", declaration.event, exc)
+                    continue
+            await self.emit(declaration.event, payload)
 
     async def _execute_serial_loop(
         self,

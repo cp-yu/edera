@@ -22,6 +22,7 @@ def main() -> None:
     _entity_parser(subparsers.add_parser("entity"))
     _node_parser(subparsers.add_parser("node"))
     _dag_parser(subparsers.add_parser("dag"))
+    _trigger_parser(subparsers.add_parser("trigger"))
     _client_parser(subparsers.add_parser("client"))
     handler_validate = subparsers.add_parser("handler-validate")
     handler_validate.add_argument("path", type=Path)
@@ -100,6 +101,15 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     remove_edge.add_argument("--to", required=True)
 
 
+def _trigger_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="trigger_command", required=True)
+    emit = subparsers.add_parser("emit")
+    emit.add_argument("event")
+    emit.add_argument("--payload-json", default="")
+    emit.add_argument("--source", default="cli")
+    emit.add_argument("--depth", type=int, default=0)
+
+
 def _client_parser(parser: argparse.ArgumentParser) -> None:
     client_sub = parser.add_subparsers(dest="client_command", required=True)
     init = client_sub.add_parser("init")
@@ -114,6 +124,8 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _run_grpc(_grpc_node(args))
     if args.command == "dag":
         return _run_grpc(_grpc_dag(args))
+    if args.command == "trigger":
+        return _run_grpc(_grpc_trigger(args))
     if args.command == "client":
         return _client(args)
     if args.command == "handler-validate":
@@ -192,6 +204,17 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
         return await client.dag_trigger(args.dag_name, _dag_trigger_payload(args))
     finally:
         await client.close()
+
+
+async def _grpc_trigger(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.trigger_command == "emit":
+            payload = json.loads(args.payload_json) if args.payload_json else None
+            return await client.pipeline_emit(args.event, payload, source=args.source, depth=args.depth)
+    finally:
+        await client.close()
+    raise ValueError(f"unknown trigger command: {args.trigger_command}")
 
 
 def _dag_trigger_payload(args: argparse.Namespace) -> object:

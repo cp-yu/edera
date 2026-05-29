@@ -189,6 +189,34 @@ def test_cli_dag_status_uses_grpc(
     assert '"dag_name": "default"' in capsys.readouterr().out
 
 
+def test_trigger_emit(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def pipeline_emit(self, event: str, payload: object | None, *, source: str, depth: int) -> dict[str, object]:
+            assert event == "event:price-drop"
+            assert payload == {"symbol": "TEST"}
+            assert source == "cli"
+            assert depth == 0
+            return {"event": event, "fired": ["dag:default"]}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "trigger", "emit", "event:price-drop", "--payload-json", '{"symbol":"TEST"}'],
+    )
+
+    main()
+
+    assert '"fired": ["dag:default"]' in capsys.readouterr().out
+
+
 def _set_server_env(monkeypatch: pytest.MonkeyPatch, running_server) -> None:
     monkeypatch.setenv("EDERA_SERVER_ADDR", running_server["addr"])
     monkeypatch.setenv("EDERA_CLIENT_CERT", running_server["certs"]["client_cert_pem"])

@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -18,6 +17,7 @@ from edera_core.config.git import commit_config_changes
 from edera_core.config.schema import AppConfig, DagNodeInstance
 from edera_core.bootstrap import create_extension_tables, scan_extensions
 from edera_core.dag.loader import load_graph
+from edera_core.dag.models import DagGraph
 from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.events import event_bus
 from edera_core.storage import create_engine, init_db, session_factory
@@ -41,6 +41,7 @@ from edera_core.storage.repository import (
 )
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeOutput
+from edera_core.trigger import CronEmitter, TriggerExecutor
 
 
 class RunAlreadyActiveError(Exception):
@@ -78,14 +79,14 @@ class PipelineController:
     def __init__(
         self,
         config_dir: Path = Path("config"),
-        scheduler: AsyncIOScheduler | None = None,
+        scheduler: object | None = None,
         extensions_dirs: list[Path] | None = None,
         agent_certificate_issuer: Callable[[str, int], object] | None = None,
         daemon_data_dir: Path | None = None,
     ) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or [Path("extensions")]
-        self.scheduler = scheduler or AsyncIOScheduler()
+        self.scheduler = scheduler or _TriggerSchedulerState()
         self.engine: AsyncEngine | None = None
         self.factory: async_sessionmaker[AsyncSession] | None = None
         self.active_runs: dict[str, DagRunContext] = {}
@@ -93,6 +94,9 @@ class PipelineController:
         self._db_write_lock = asyncio.Lock()
         self.agent_certificate_issuer = agent_certificate_issuer
         self.daemon_data_dir = daemon_data_dir
+        self.trigger_executor: TriggerExecutor | None = None
+        self.cron_emitter: CronEmitter | None = None
+        self._cron_task: asyncio.Task[object] | None = None
 
     async def start(self, run_startup: bool = True) -> None:
         config = load_app_config(self.config_dir)
@@ -102,21 +106,23 @@ class PipelineController:
         await init_db(self.engine)
         await create_extension_tables(self.engine, bootstrap.storage_tables)
         self.factory = session_factory(self.engine)
-        for dag_name, dag_config in config.dags.items():
-            self.scheduler.add_job(
-                self._start_schedule_run,
-                "interval",
-                minutes=config.system.schedule_minutes,
-                id=f"{dag_name}-dag",
-                max_instances=1,
-                coalesce=True,
-                args=[dag_name],
-            )
+        store = EntityStore(config.entities, config.entity_types, config.entity_relations, self.config_dir / "entities.yaml")
+        _ensure_default_cron_triggers(config, store)
+        self.trigger_executor = self._new_trigger_executor(config, store)
+        await self.trigger_executor.load()
         self.scheduler.start()
+        self.cron_emitter = CronEmitter(self.trigger_executor)
+        self._cron_task = asyncio.create_task(self._cron_loop())
         if run_startup:
             await self.start_run("startup")
 
     async def shutdown(self) -> None:
+        if self._cron_task is not None:
+            self._cron_task.cancel()
+            try:
+                await self._cron_task
+            except asyncio.CancelledError:
+                pass
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
         for ctx in list(self.active_runs.values()):
@@ -144,6 +150,59 @@ class PipelineController:
             await task
         finally:
             self._clear_finished_task(task, dag_name)
+        return cycle_id
+
+    async def emit(
+        self,
+        event: str,
+        payload: object | None = None,
+        *,
+        source: str = "rpc",
+        depth: int = 0,
+    ) -> list[str]:
+        if self.trigger_executor is None or event == "event:config-changed":
+            await self._reload_triggers()
+        return await self.trigger_executor.emit(event, payload, source=source, depth=depth)
+
+    async def _reload_triggers(self) -> None:
+        config = load_app_config(self.config_dir)
+        store = EntityStore(config.entities, config.entity_types, config.entity_relations, self.config_dir / "entities.yaml")
+        self.trigger_executor = self._new_trigger_executor(config, store)
+        await self.trigger_executor.load()
+        self.cron_emitter = CronEmitter(self.trigger_executor)
+
+    def _new_trigger_executor(self, config: AppConfig, store: EntityStore) -> TriggerExecutor:
+        return TriggerExecutor(
+            store,
+            run_dag=lambda name, payload: self.start_run("trigger", name, payload),
+            run_node=lambda name, payload: self.run_node_trigger(name, payload),
+            factory=self.factory,
+            max_depth=config.system.max_trigger_depth,
+        )
+
+    async def run_node_trigger(self, node_id: str, payload: object | None = None) -> str:
+        config = load_app_config(self.config_dir)
+        matches: list[tuple[str, DagNodeInstance]] = []
+        for dag in config.dags.values():
+            for instance in dag.nodes:
+                if instance.id == node_id or instance.alias == node_id:
+                    matches.append((dag.name, instance))
+        if not matches:
+            raise ValueError(f"node '{node_id}' not found")
+        if len(matches) > 1:
+            dag_names = sorted(name for name, _instance in matches)
+            raise ValueError(f"node '{node_id}' is ambiguous across DAGs: {', '.join(dag_names)}")
+        dag_name, instance = matches[0]
+        await self._wait_for_idle(dag_name, payload)
+        async with self._locks[dag_name]:
+            ctx = self.active_runs.get(dag_name)
+            if ctx is not None and not ctx.task.done():
+                raise RunAlreadyActiveError(ctx.cycle_id)
+            cycle_id = uuid4().hex
+            stop_event = asyncio.Event()
+            task = asyncio.create_task(self._run_single_node(cycle_id, "trigger", dag_name, instance, payload, stop_event))
+            self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task, stop_event=stop_event)
+        task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
         return cycle_id
 
     def pause_scheduler(self) -> None:
@@ -303,11 +362,12 @@ class PipelineController:
                     return "failed"
         return "idle"
 
-    async def _start_schedule_run(self, dag_name: str = "default") -> None:
-        try:
-            await self.start_run("schedule", dag_name)
-        except RunAlreadyActiveError:
-            return
+    async def _cron_loop(self) -> None:
+        while True:
+            now = datetime.now(timezone.utc)
+            await asyncio.sleep(max(0.0, 60.0 - now.second - now.microsecond / 1_000_000))
+            if self.cron_emitter is not None:
+                await self.cron_emitter.tick()
 
     async def _wait_for_idle(self, dag_name: str, payload: object | None) -> None:
         target = _wait_for_idle_target(self.config_dir, dag_name, payload)
@@ -373,6 +433,7 @@ class PipelineController:
                     cycle_id, node, status, error, failure_kind
                 ),
                 edge_recorder=lambda fact: self._record_edge_input(fact),
+                emit=lambda event, event_payload: self.emit(event, event_payload, source=f"node:{dag_name}", depth=1),
             ).run(
                 graph,
                 cycle_id,
@@ -398,6 +459,68 @@ class PipelineController:
                 for node, message in result.failures.items()
                 if retry_nodes is None or node in retry_nodes
             ) or None
+            async with factory() as session:
+                await finish_pipeline_run(session, cycle_id, status, error)
+                await session.commit()
+            await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status=status, error=error)
+            commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
+            return result.payload
+        except asyncio.CancelledError:
+            await self._finish_cancelled(cycle_id, dag_name)
+            commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
+            raise
+        except Exception as exc:
+            async with factory() as session:
+                await finish_pipeline_run(session, cycle_id, "failed", str(exc))
+                await session.commit()
+            await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status="failed", error=str(exc))
+            commit_config_changes(self.config_dir, cycle_id, config.system.config_git_commit)
+            raise
+
+    async def _run_single_node(
+        self,
+        cycle_id: str,
+        trigger: str,
+        dag_name: str,
+        instance: DagNodeInstance,
+        payload: object | None,
+        stop_event: asyncio.Event,
+    ) -> object:
+        config = load_app_config(self.config_dir)
+        bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
+        config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+        graph = DagGraph(
+            dag_name,
+            [instance.id],
+            {instance.id: instance},
+            {instance.id: []},
+            {instance.id: []},
+        )
+        factory = self._factory()
+        async with factory() as session:
+            await create_pipeline_run(session, cycle_id, trigger, [instance.id], dag_name)
+            await session.commit()
+        await event_bus.publish("dag.status", cycle_id=cycle_id, dag_name=dag_name, status="started")
+        try:
+            executor = self._build_run_executor(config, bootstrap, graph)
+            ctx = self.active_runs.get(dag_name)
+            if ctx is not None and ctx.cycle_id == cycle_id:
+                ctx.executor = executor
+            result = await DagRunner(
+                executor,
+                recorder=lambda node, status, error, failure_kind: self._record_node(
+                    cycle_id, node, status, error, failure_kind
+                ),
+                emit=lambda event, event_payload: self.emit(event, event_payload, source=f"node:{dag_name}", depth=1),
+            ).run(
+                graph,
+                cycle_id,
+                payload if payload is not None else {"entities": _source_entity_refs(config)},
+                stop_event=stop_event,
+            )
+            await _persist_outputs(factory, config.system.retention_count, config.system.retention_hours)
+            status = "cancelled" if stop_event.is_set() else _result_status(result.node_outputs)
+            error = "; ".join(result.failures.values()) or None
             async with factory() as session:
                 await finish_pipeline_run(session, cycle_id, status, error)
                 await session.commit()
@@ -636,6 +759,52 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
         if isinstance(name, str):
             refs.append(f"{entity.type}:{name}")
     return refs
+
+
+def _ensure_default_cron_triggers(config: AppConfig, store: EntityStore) -> None:
+    existing = {
+        str(trigger.attributes.get("target"))
+        for trigger in store.query("trigger")
+        if str(trigger.attributes.get("wait_for")) == 'cron:"*/30 * * * *"'
+    }
+    for dag_name in sorted(config.dags):
+        target = f"dag:{dag_name}"
+        if target in existing:
+            continue
+        store.create(
+            "trigger",
+            {
+                "name": f"{dag_name}-default-cron",
+                "wait_for": 'cron:"*/30 * * * *"',
+                "target": target,
+                "enabled": True,
+            },
+        )
+
+
+class _TriggerSchedulerState:
+    running = False
+    state = 0
+
+    def start(self) -> None:
+        self.running = True
+        self.state = 1
+
+    def shutdown(self, wait: bool = False) -> None:
+        self.running = False
+        self.state = 0
+
+    def pause(self) -> None:
+        self.state = 2
+
+    def resume(self) -> None:
+        self.state = 1
+
+    def get_jobs(self) -> list[object]:
+        return []
+
+    def get_job(self, job_id: str) -> object | None:
+        return None
 
 
 def _run_dict(run: PipelineRun) -> dict[str, object]:

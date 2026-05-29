@@ -135,3 +135,27 @@ relations:
   - from: cap.core.grpc-pipeline-service
     type: contains
     to: dom.operations
+  - from: cap.core.trigger-expression-language
+    type: contains
+    to: dom.core
+  - from: cap.core.event-group-engine
+    type: contains
+    to: dom.core
+  - from: cap.core.cron-emitter
+    type: contains
+    to: dom.core
+  - from: cap.core.trigger-emit-rpc
+    type: contains
+    to: dom.core
+  - from: cap.core.trigger-loop-guard
+    type: contains
+    to: dom.core
+  - from: cap.core.manual-trigger-prefix
+    type: contains
+    to: dom.core
+  - from: cap.core.node-emits-declaration
+    type: contains
+    to: dom.core
+  - from: cap.web.trigger-workbench-inspector
+    type: contains
+    to: dom.web

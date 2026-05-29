@@ -26,6 +26,7 @@ class RuntimeSettings(BaseSettings):
 class SystemConfig(BaseModel):
     database_url: str = "sqlite+aiosqlite:///data/edera.db"
     schedule_minutes: int = Field(default=30, ge=1)
+    max_trigger_depth: int = Field(default=3, ge=1)
     log_level: str = "INFO"
     llm_timeout_seconds: float = Field(default=60.0, ge=0)
     workspace_root: Path = Path("/tmp/edera/runs")
@@ -103,6 +104,11 @@ class EntityRelationsConfig(BaseModel):
 NodeRole = Literal["source", "processor", "sink"]
 
 
+class EmitDeclaration(BaseModel):
+    event: str
+    condition: str | None = None
+
+
 class SkillConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -121,6 +127,7 @@ class NodeConfigBase(BaseModel):
     output_type: str
     optional: bool = False
     timeout_seconds: float | None = Field(default=None, gt=0)
+    emits: list[EmitDeclaration] = Field(default_factory=list)
 
 
 class FunctionNodeConfig(NodeConfigBase):

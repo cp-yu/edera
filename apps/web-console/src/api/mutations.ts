@@ -29,9 +29,13 @@ export function useRunDag() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ dagName, inputs }: { dagName: string; inputs?: Record<string, unknown> }) =>
-      apiFetch<{ cycle_id: string }>(`/api/pipeline/dag/${dagName}/run`, {
+      apiFetch<{ fired: string[] }>('/api/pipeline/emit', {
         method: 'POST',
-        body: JSON.stringify(inputs && Object.keys(inputs).length > 0 ? { inputs } : {}),
+        body: JSON.stringify({
+          event: `manual:dag:${dagName}`,
+          payload: inputs && Object.keys(inputs).length > 0 ? inputs : undefined,
+          source: 'web',
+        }),
       }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,
@@ -67,6 +71,45 @@ export function useCreateDag() {
     mutationFn: (name: string) =>
       apiFetch<{ dag: { name: string } }>('/api/graph/dag', { method: 'POST', body: JSON.stringify({ name }) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dagList'] }) },
+    onError: alertMutationError,
+  })
+}
+
+export function useCreateEntity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ type, attributes }: { type: string; attributes: Record<string, unknown> }) =>
+      apiFetch('/api/entities', { method: 'POST', body: JSON.stringify({ type, attributes }) }),
+    onSuccess: (_data, { type }) => {
+      qc.invalidateQueries({ queryKey: ['entities', type] })
+      qc.invalidateQueries({ queryKey: ['entities', 'all'] })
+    },
+    onError: alertMutationError,
+  })
+}
+
+export function useUpdateEntity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, attributes }: { id: string; type: string; attributes: Record<string, unknown> }) =>
+      apiFetch(`/api/entities/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ attributes }) }),
+    onSuccess: (_data, { type }) => {
+      qc.invalidateQueries({ queryKey: ['entities', type] })
+      qc.invalidateQueries({ queryKey: ['entities', 'all'] })
+    },
+    onError: alertMutationError,
+  })
+}
+
+export function useDeleteEntity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }: { id: string; type: string }) =>
+      apiFetch(`/api/entities/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: (_data, { type }) => {
+      qc.invalidateQueries({ queryKey: ['entities', type] })
+      qc.invalidateQueries({ queryKey: ['entities', 'all'] })
+    },
     onError: alertMutationError,
   })
 }

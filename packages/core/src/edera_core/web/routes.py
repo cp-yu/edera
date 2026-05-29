@@ -119,6 +119,24 @@ async def api_dag_run(request: Request, dag_name: str) -> Any:
     return await _call(request, lambda client: client.dag_trigger(dag_name, payload if payload != {} else None))
 
 
+@router.post("/api/pipeline/emit", response_model=None)
+async def api_pipeline_emit(request: Request, body: dict[str, object]) -> Any:
+    event = body.get("event")
+    if not isinstance(event, str) or not event:
+        return error_response(400, "invalid_request", "event is required")
+    source = body.get("source")
+    depth = body.get("depth")
+    return await _call(
+        request,
+        lambda client: client.pipeline_emit(
+            event,
+            body.get("payload"),
+            source=source if isinstance(source, str) and source else "web",
+            depth=depth if isinstance(depth, int) else 0,
+        ),
+    )
+
+
 @router.post("/api/pipeline/dag/{dag_name}/stop", response_model=None)
 async def api_dag_stop(request: Request, dag_name: str) -> Any:
     body = await _body(request)

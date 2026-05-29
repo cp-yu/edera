@@ -11,11 +11,37 @@ from service_fakes import AbortError, FakeContext, FakeDaemon
 
 
 class Controller:
-    async def start_run(self, trigger: str):
+    async def emit(self, event: str, payload: object | None = None, *, source: str, depth: int):
         raise RunAlreadyActiveError("active-cycle")
 
     async def retry_node(self, dag_name: str, cycle_id: str | None, node_ids: list[str], mode: str, payload: object):
         raise PipelineRunNotFoundError(cycle_id or "missing")
+
+
+class EmitController:
+    async def emit(self, event: str, payload: object | None, *, source: str, depth: int) -> list[str]:
+        assert event == "event:price-drop"
+        assert payload == {"symbol": "TEST"}
+        assert source == "test"
+        assert depth == 1
+        return ["dag:default"]
+
+
+@pytest.mark.asyncio
+async def test_emit_rpc(tmp_path):
+    service = _PipelineService(FakeDaemon(tmp_path, EmitController()))
+
+    response = await service.Emit(
+        pb2.EmitRequest(
+            event="event:price-drop",
+            payload_json='{"symbol":"TEST"}',
+            source="test",
+            depth=1,
+        ),
+        FakeContext(),
+    )
+
+    assert response.json == '{"event": "event:price-drop", "fired": ["dag:default"]}'
 
 
 @pytest.mark.asyncio
@@ -27,6 +53,15 @@ async def test_run_already_active(tmp_path):
 
     assert exc.value.code == grpc.StatusCode.ALREADY_EXISTS
     assert exc.value.details == "active-cycle"
+
+
+@pytest.mark.asyncio
+async def test_run_uses_manual_emit(tmp_path):
+    service = _PipelineService(FakeDaemon(tmp_path, RunController()))
+
+    response = await service.Run(pb2.EmptyRequest(), FakeContext())
+
+    assert response.json == '{"event": "manual:dag:default", "fired": ["dag:default"]}'
 
 
 @pytest.mark.asyncio
@@ -59,6 +94,15 @@ async def test_repair_task_not_escalated(monkeypatch, tmp_path):
 class FactoryController:
     def _factory(self):
         return lambda: Session()
+
+
+class RunController:
+    async def emit(self, event: str, payload: object | None = None, *, source: str, depth: int) -> list[str]:
+        assert event == "manual:dag:default"
+        assert payload is None
+        assert source == "pipeline-service"
+        assert depth == 0
+        return ["dag:default"]
 
 
 class Session:

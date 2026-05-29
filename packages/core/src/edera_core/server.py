@@ -135,7 +135,9 @@ class _EntityService:
         attrs = json.loads(request.json or "{}")
         if not isinstance(attrs, dict):
             raise ValueError("entity json must be an object")
-        return _entity_message(self.pb2, store, store.create(request.type, attrs))
+        created = store.create(request.type, attrs)
+        await self._emit_entity_changed(store, created)
+        return _entity_message(self.pb2, store, created)
 
     async def Update(self, request, context):
         identity = await _identity(context)
@@ -149,13 +151,23 @@ class _EntityService:
         except PermissionError as exc:
             await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
         updated = entity.model_copy(update={"attributes": {**entity.attributes, data["field"]: data.get("value")}})
-        return _entity_message(self.pb2, store, store.save(updated, _identity_permissions(identity, app.dags)))
+        saved = store.save(updated, _identity_permissions(identity, app.dags))
+        await self._emit_entity_changed(store, saved)
+        return _entity_message(self.pb2, store, saved)
 
     async def Delete(self, request, context):
         await _identity(context)
         store, app = _entity_store(self.daemon.config_dir)
-        store.delete(store.resolve(request.ref).id)
+        entity = store.resolve(request.ref)
+        store.delete(entity.id)
+        await self._emit_entity_changed(store, entity)
         return self.pb2.DeleteResult(deleted=True)
+
+    async def _emit_entity_changed(self, store: EntityStore, entity: EntityConfig) -> None:
+        await self.daemon.controller.emit(
+            f"event:entity-changed:{entity_ref(entity, store.entity_types)}",
+            source="entity-service",
+        )
 
 
 class _DagService:
@@ -166,8 +178,8 @@ class _DagService:
     async def Trigger(self, request, context):
         await _identity(context)
         payload = json.loads(request.inputs_json) if request.inputs_json else None
-        cycle_id = await self.daemon.controller.start_run("manual", request.name, payload)
-        return self.pb2.DagRunRef(cycle_id=cycle_id)
+        await self.daemon.controller.emit(f"manual:dag:{request.name}", payload, source="dag-service", depth=0)
+        return self.pb2.DagRunRef(cycle_id="")
 
     async def Status(self, request, context):
         await _identity(context)

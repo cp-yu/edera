@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useDag, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
-import { useSaveDag } from '@/api/mutations'
-import type { EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance, NodeOutputEntity, NodeStatus } from '@/api/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { RefObject } from 'react'
+import { useDag, useEntities, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
+import { useCreateEntity, useDeleteEntity, useSaveDag, useUpdateEntity } from '@/api/mutations'
+import type { EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance, NodeOutputEntity, NodeStatus, TriggerAttributes } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
 import { SchemaForm } from './SchemaForm'
 
@@ -9,6 +10,8 @@ const TOP_LEVEL_FIELDS = new Set(['model', 'skills', 'entities', 'entity_permiss
 const FIELD_PERMISSIONS = ['none', 'read-only', 'write-only', 'read-write'] as const
 type FieldPermission = typeof FIELD_PERMISSIONS[number]
 type PendingPermissionOverride = { type: string; field: string; permission: string }
+type InspectorTab = 'config' | 'runtime' | 'triggers'
+type TriggerFormValue = TriggerAttributes
 
 const ALLOWED_PERMISSION_OVERRIDES: Record<FieldPermission, FieldPermission[]> = {
   none: ['none', 'read-only', 'write-only', 'read-write'],
@@ -40,7 +43,7 @@ export function Inspector() {
   const typeDefaults = useMemo(() => (node ? defaultValues(node) : {}), [node])
   const displayDefaults = useMemo(() => {
     if (!node) return {}
-    return mergeSchemaDefaults(typeDefaults, node.inspector_schema)
+    return mergeSchemaDefaults(typeDefaults, node.inspector_schema ?? {})
   }, [node, typeDefaults])
   const formSchema = useMemo(() => omitSchemaFields(node?.inspector_schema, ['entities', 'entity_permissions']), [node])
   const selectedEntityTypes = useMemo(() => selectedTypes(formValues.entities), [formValues.entities])
@@ -95,10 +98,27 @@ export function Inspector() {
     )
   }
 
-  if (!node || !dag) {
+  if (!dag) {
     return (
       <aside className="w-[300px] border-l bg-card p-4">
         <p className="text-sm text-muted-foreground">选择节点或连线查看详情</p>
+      </aside>
+    )
+  }
+
+  if (!node) {
+    return (
+      <aside className="w-[300px] space-y-4 overflow-y-auto border-l bg-card p-4">
+        <div>
+          <h2 className="text-sm font-medium">{selectedDagName}</h2>
+          <p className="text-xs text-muted-foreground">DAG</p>
+        </div>
+        <InspectorTabs active={inspectorTab} onChange={setInspectorTab} />
+        {inspectorTab === 'triggers' ? (
+          <TriggersPanel dagName={selectedDagName} dag={dag} node={null} />
+        ) : (
+          <p className="text-sm text-muted-foreground">选择节点或连线查看详情</p>
+        )}
       </aside>
     )
   }
@@ -120,24 +140,11 @@ export function Inspector() {
         <h2 className="text-sm font-medium">{node.alias || node.name}</h2>
         <p className="text-xs text-muted-foreground">{node.type_name} · {node.role}</p>
       </div>
-      <div className="grid grid-cols-2 rounded-md border p-1 text-xs">
-        <button
-          type="button"
-          onClick={() => setInspectorTab('config')}
-          className={`rounded px-2 py-1 ${inspectorTab === 'config' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
-        >
-          Config
-        </button>
-        <button
-          type="button"
-          onClick={() => setInspectorTab('runtime')}
-          className={`rounded px-2 py-1 ${inspectorTab === 'runtime' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
-        >
-          Runtime
-        </button>
-      </div>
+      <InspectorTabs active={inspectorTab} onChange={setInspectorTab} />
       {inspectorTab === 'runtime' ? (
         <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} stdout={stdout} />
+      ) : inspectorTab === 'triggers' ? (
+        <TriggersPanel dagName={selectedDagName} dag={dag} node={node} />
       ) : (
         <>
       <Field label="Alias" value={alias} onChange={setAlias} />
@@ -185,6 +192,328 @@ export function Inspector() {
         </>
       )}
     </aside>
+  )
+}
+
+function InspectorTabs({ active, onChange }: { active: InspectorTab; onChange: (tab: InspectorTab) => void }) {
+  return (
+    <div className="grid grid-cols-3 rounded-md border p-1 text-xs">
+      {(['config', 'runtime', 'triggers'] as const).map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => onChange(tab)}
+          className={`rounded px-2 py-1 ${active === tab ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+        >
+          {tab === 'config' ? 'Config' : tab === 'runtime' ? 'Runtime' : 'Triggers'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function TriggersPanel({ dagName, dag, node }: { dagName: string; dag: { nodes: NodeInstance[] }; node: NodeInstance | null }) {
+  const target = node ? `node:${node.id}` : `dag:${dagName}`
+  const triggers = useEntities('trigger')
+  const createEntity = useCreateEntity()
+  const updateEntity = useUpdateEntity()
+  const deleteEntity = useDeleteEntity()
+  const expressionRef = useRef<HTMLTextAreaElement>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<TriggerFormValue>(() => emptyTrigger(target))
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setEditingId(null)
+    setDraft(emptyTrigger(target))
+    setError('')
+  }, [target])
+
+  const items = (triggers.data?.entities ?? [])
+    .map(toTriggerEntity)
+    .filter((item): item is EntityItem & { attributes: TriggerAttributes } => !!item && item.attributes.target === target)
+
+  const startEdit = (item: EntityItem & { attributes: TriggerAttributes }) => {
+    setEditingId(item.id)
+    setDraft({
+      name: item.attributes.name,
+      wait_for: item.attributes.wait_for,
+      target,
+      enabled: item.attributes.enabled !== false,
+    })
+    setError('')
+  }
+
+  const save = () => {
+    const validation = validateTriggerExpression(draft.wait_for)
+    if (validation) {
+      setError(validation)
+      return
+    }
+    const attributes = {
+      name: draft.name.trim(),
+      wait_for: draft.wait_for.trim(),
+      target,
+      enabled: draft.enabled !== false,
+    }
+    if (!attributes.name) {
+      setError('Trigger 名称不能为空')
+      return
+    }
+    setError('')
+    if (editingId) updateEntity.mutate({ id: editingId, type: 'trigger', attributes })
+    else createEntity.mutate({ type: 'trigger', attributes })
+    setEditingId(null)
+    setDraft(emptyTrigger(target))
+  }
+
+  const insertToken = (token: string) => {
+    const input = expressionRef.current
+    setDraft((current) => ({
+      ...current,
+      wait_for: input
+        ? insertExpressionToken(current.wait_for, token, input.selectionStart, input.selectionEnd)
+        : appendExpressionToken(current.wait_for, token),
+    }))
+    setError('')
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-xs font-medium">Triggers</div>
+        <p className="break-all text-[11px] text-muted-foreground">{target}</p>
+      </div>
+      <div className="space-y-2">
+        {items.length === 0 && <p className="text-xs text-muted-foreground">暂无 trigger</p>}
+        {items.map((item) => (
+          <div key={item.id} className="space-y-2 rounded-md border p-2 text-xs">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate font-medium">{item.attributes.name}</div>
+                <div className="break-all text-[11px] text-muted-foreground">{item.attributes.wait_for}</div>
+              </div>
+              <input
+                aria-label={`${item.attributes.name} enabled`}
+                type="checkbox"
+                checked={item.attributes.enabled !== false}
+                onChange={(event) => updateEntity.mutate({
+                  id: item.id,
+                  type: 'trigger',
+                  attributes: { enabled: event.target.checked },
+                })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => startEdit(item)} className="rounded border px-2 py-1 hover:bg-accent">编辑</button>
+              <button
+                type="button"
+                onClick={() => deleteEntity.mutate({ id: item.id, type: 'trigger' })}
+                className="rounded border px-2 py-1 text-destructive hover:bg-accent"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-2 rounded-md border p-2">
+        <div className="text-xs font-medium">{editingId ? '编辑 trigger' : '新建 trigger'}</div>
+        <Field label="Name" value={draft.name} onChange={(name) => setDraft((current) => ({ ...current, name }))} />
+        <ExpressionEditor
+          inputRef={expressionRef}
+          value={draft.wait_for}
+          error={error}
+          onChange={(wait_for) => {
+            setDraft((current) => ({ ...current, wait_for }))
+            setError('')
+          }}
+        />
+        <CronPicker onInsert={insertToken} />
+        <EventPicker dag={dag} node={node} onInsert={insertToken} />
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={draft.enabled !== false}
+            onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))}
+          />
+          enabled
+        </label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={createEntity.isPending || updateEntity.isPending}
+            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {editingId ? '保存 trigger' : '创建 trigger'}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId(null)
+                setDraft(emptyTrigger(target))
+                setError('')
+              }}
+              className="rounded-md border px-3 py-2 text-sm hover:bg-accent"
+            >
+              取消
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ExpressionEditor({
+  inputRef,
+  value,
+  error,
+  onChange,
+}: {
+  inputRef: RefObject<HTMLTextAreaElement | null>
+  value: string
+  error: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-muted-foreground">Expression</label>
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={3}
+        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+      />
+      {error && <p className="mt-1 text-[11px] text-destructive">{error}</p>}
+    </div>
+  )
+}
+
+function CronPicker({ onInsert }: { onInsert: (token: string) => void }) {
+  const [time, setTime] = useState('09:00')
+  const [repeat, setRepeat] = useState('daily')
+  const [date, setDate] = useState('2026-05-30')
+  const [weekdays, setWeekdays] = useState<string[]>(['1'])
+  const [advanced, setAdvanced] = useState('')
+  const cron = advanced.trim() || cronFromPicker(time, repeat, date, weekdays)
+
+  return (
+    <div className="space-y-2 rounded-md bg-muted/30 p-2">
+      <div className="text-xs font-medium">插入定时</div>
+      <div className="grid grid-cols-[1fr_1.2fr] gap-2">
+        <input
+          aria-label="触发时间"
+          type="time"
+          value={time}
+          onChange={(event) => setTime(event.target.value)}
+          className="rounded border bg-background px-2 py-1 text-xs"
+        />
+        <select
+          aria-label="重复规则"
+          value={repeat}
+          onChange={(event) => setRepeat(event.target.value)}
+          className="rounded border bg-background px-2 py-1 text-xs"
+        >
+          <option value="daily">每天</option>
+          <option value="weekdays">工作日</option>
+          <option value="weekends">周末</option>
+          <option value="custom">自定义周几</option>
+          <option value="once">一次性</option>
+        </select>
+      </div>
+      {repeat === 'custom' && (
+        <div className="grid grid-cols-4 gap-1">
+          {[
+            ['1', '周一'],
+            ['2', '周二'],
+            ['3', '周三'],
+            ['4', '周四'],
+            ['5', '周五'],
+            ['6', '周六'],
+            ['0', '周日'],
+          ].map(([value, label]) => (
+            <label key={value} className="flex items-center gap-1 rounded border px-2 py-1 text-[11px]">
+              <input
+                aria-label={label}
+                type="checkbox"
+                checked={weekdays.includes(value)}
+                onChange={() => setWeekdays((current) => toggleItem(current, value))}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      )}
+      {repeat === 'once' && (
+        <input
+          aria-label="触发日期"
+          type="date"
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
+          className="w-full rounded border bg-background px-2 py-1 text-xs"
+        />
+      )}
+      <input
+        aria-label="高级 cron"
+        value={advanced}
+        onChange={(event) => setAdvanced(event.target.value)}
+        placeholder="高级 cron"
+        className="w-full rounded border bg-background px-2 py-1 text-xs"
+      />
+      <button type="button" onClick={() => onInsert(`cron:"${cron}"`)} className="rounded border px-2 py-1 text-xs hover:bg-accent">
+        插入 {`cron:"${cron}"`}
+      </button>
+    </div>
+  )
+}
+
+function EventPicker({
+  dag,
+  node,
+  onInsert,
+}: {
+  dag: { nodes: NodeInstance[] }
+  node: NodeInstance | null
+  onInsert: (token: string) => void
+}) {
+  const options = eventOptions(dag.nodes, node)
+  const [selected, setSelected] = useState(options[0] ?? '')
+  const [custom, setCustom] = useState('')
+  const token = custom.trim() || selected
+
+  useEffect(() => {
+    setSelected(options[0] ?? '')
+    setCustom('')
+  }, [node?.id])
+
+  return (
+    <div className="space-y-2 rounded-md bg-muted/30 p-2">
+      <div className="text-xs font-medium">插入事件</div>
+      <select
+        aria-label="事件源"
+        value={selected}
+        onChange={(event) => setSelected(event.target.value)}
+        className="w-full rounded border bg-background px-2 py-1 text-xs"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+      <input
+        aria-label="自定义事件"
+        value={custom}
+        onChange={(event) => setCustom(event.target.value)}
+        placeholder="event:custom"
+        className="w-full rounded border bg-background px-2 py-1 text-xs"
+      />
+      <button type="button" onClick={() => token && onInsert(token)} className="rounded border px-2 py-1 text-xs hover:bg-accent">
+        插入事件
+      </button>
+    </div>
   )
 }
 
@@ -251,6 +580,105 @@ function RuntimeRow({ label, value }: { label: string; value: string }) {
       <span className="break-all">{value}</span>
     </div>
   )
+}
+
+function emptyTrigger(target: string): TriggerFormValue {
+  const suffix = target.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '')
+  return { name: `trigger-${suffix}`, wait_for: '', target, enabled: true }
+}
+
+function toTriggerEntity(entity: EntityItem): (EntityItem & { attributes: TriggerAttributes }) | null {
+  const attrs = entity.attributes
+  if (
+    typeof attrs.name !== 'string'
+    || typeof attrs.wait_for !== 'string'
+    || typeof attrs.target !== 'string'
+  ) {
+    return null
+  }
+  return {
+    ...entity,
+    attributes: {
+      name: attrs.name,
+      wait_for: attrs.wait_for,
+      target: attrs.target,
+      enabled: typeof attrs.enabled === 'boolean' ? attrs.enabled : true,
+    },
+  }
+}
+
+function validateTriggerExpression(expression: string): string {
+  const text = expression.trim()
+  if (!text) return '表达式不能为空'
+  if (/(^|[\s(])manual:/.test(text)) return 'manual 前缀仅用于 emit，不能写入 wait_for'
+  if (/cron:\s*[^"]/.test(text)) return 'cron 表达式必须写成 cron:"分 时 日 月 周"'
+  let depth = 0
+  for (const char of text) {
+    if (char === '(') depth += 1
+    if (char === ')') depth -= 1
+    if (depth < 0) return '括号不匹配'
+  }
+  if (depth !== 0) return '括号不匹配'
+  const cronTokens = text.match(/cron:"[^"]*"/g) ?? []
+  for (const token of cronTokens) {
+    const fields = token.slice(6, -1).trim().split(/\s+/)
+    if (fields.length !== 5) return 'cron 表达式需要 5 个字段'
+  }
+  return ''
+}
+
+function appendExpressionToken(expression: string, token: string): string {
+  const text = expression.trim()
+  return text ? `${text} AND ${token}` : token
+}
+
+function insertExpressionToken(expression: string, token: string, start: number, end: number): string {
+  if (start === end && start === expression.length) return appendExpressionToken(expression, token)
+  return `${expression.slice(0, start)}${token}${expression.slice(end)}`
+}
+
+function cronFromPicker(time: string, repeat: string, date: string, weekdays: string[]): string {
+  const [hour = '9', minute = '0'] = time.split(':')
+  const [_year, month = '*', dayOfMonth = '*'] = date.split('-')
+  if (repeat === 'once') return `${Number(minute)} ${Number(hour)} ${Number(dayOfMonth)} ${Number(month)} *`
+  const day = repeat === 'weekdays'
+    ? '1-5'
+    : repeat === 'weekends'
+      ? '6,0'
+      : repeat === 'custom'
+        ? (weekdays.length > 0 ? weekdays.join(',') : '*')
+        : '*'
+  return `${Number(minute)} ${Number(hour)} * * ${day}`
+}
+
+function eventOptions(nodes: NodeInstance[], node: NodeInstance | null): string[] {
+  const options = new Set<string>([
+    'event:config-changed',
+    'event:entity-changed:*',
+  ])
+  if (node) {
+    for (const event of declaredEvents(node.emits)) options.add(event)
+    const configEmits = Array.isArray(node.config?.emits) ? node.config.emits : []
+    for (const event of declaredEvents(configEmits)) options.add(event)
+  } else {
+    for (const item of nodes) {
+      for (const event of declaredEvents(item.emits)) options.add(event)
+      const configEmits = Array.isArray(item.config?.emits) ? item.config.emits : []
+      for (const event of declaredEvents(configEmits)) options.add(event)
+    }
+  }
+  return Array.from(options)
+}
+
+function declaredEvents(emits: unknown): string[] {
+  if (!Array.isArray(emits)) return []
+  return emits
+    .map((item): string | null => {
+      if (typeof item === 'string') return item
+      if (isRecord(item) && typeof item.event === 'string') return item.event
+      return null
+    })
+    .filter((item): item is string => !!item)
 }
 
 function EntitySelector({

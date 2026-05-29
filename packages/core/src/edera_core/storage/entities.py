@@ -89,6 +89,39 @@ class SourceRecovery(SQLModel, table=True):
         return value
 
 
+class EventGroupBit(SQLModel, table=True):
+    __tablename__ = "event_group_bits"
+
+    id: int | None = Field(default=None, primary_key=True)
+    event: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("event")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("event must not be blank")
+        return value
+
+
+class EmitRecord(SQLModel, table=True):
+    __tablename__ = "emit_records"
+
+    id: int | None = Field(default=None, primary_key=True)
+    event: str = Field(index=True)
+    payload: Any | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    source: str = Field(default="rpc", index=True)
+    depth: int = Field(default=0, index=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("event", "source")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
 class PipelineRun(SQLModel, table=True):
     __tablename__ = "pipeline_runs"
 
@@ -112,8 +145,8 @@ class PipelineRun(SQLModel, table=True):
     @field_validator("trigger")
     @classmethod
     def _valid_trigger(cls, value: str) -> str:
-        if value not in {"startup", "schedule", "manual", "retry"}:
-            raise ValueError("trigger must be startup, schedule, manual, or retry")
+        if value not in {"startup", "schedule", "manual", "trigger", "retry"}:
+            raise ValueError("trigger must be startup, schedule, manual, trigger, or retry")
         return value
 
     @field_validator("status")

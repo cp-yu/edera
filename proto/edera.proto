@@ -86,6 +86,7 @@ service QueryService {
 }
 
 service PipelineService {
+  rpc Emit(EmitRequest) returns (JsonResponse);
   rpc Run(EmptyRequest) returns (JsonResponse);
   rpc Pause(EmptyRequest) returns (JsonResponse);
   rpc Resume(EmptyRequest) returns (JsonResponse);
@@ -182,6 +183,13 @@ message DagRetryRequest {
   repeated string node_ids = 3;
   string mode = 4;
   string payload_json = 5;
+}
+
+message EmitRequest {
+  string event = 1;
+  string payload_json = 2;
+  string source = 3;
+  int32 depth = 4;
 }
 
 message EntityRef {

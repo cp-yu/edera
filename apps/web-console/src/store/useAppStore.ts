@@ -4,13 +4,13 @@ interface AppState {
   selectedDagName: string
   selectedNodeId: string | null
   selectedEdgeId: string | null
-  inspectorTab: 'config' | 'runtime'
+  inspectorTab: 'config' | 'runtime' | 'triggers'
   entityFilter: string[]
   theme: 'light' | 'dark'
   setSelectedDag: (name: string) => void
   setSelectedNode: (id: string | null) => void
   setSelectedEdge: (id: string | null) => void
-  setInspectorTab: (tab: 'config' | 'runtime') => void
+  setInspectorTab: (tab: 'config' | 'runtime' | 'triggers') => void
   setEntityFilter: (entities: string[]) => void
   toggleTheme: () => void
 }

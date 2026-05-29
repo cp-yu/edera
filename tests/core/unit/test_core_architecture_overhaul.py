@@ -398,6 +398,32 @@ async def test_daemon_dag_edit_persists_config(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_daemon_dag_trigger_routes_through_emit(tmp_path: Path) -> None:
+    config_dir = _minimal_config(tmp_path)
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir)
+
+    class Controller:
+        def __init__(self) -> None:
+            self.calls = []
+
+        async def emit(self, event, payload=None, *, source="rpc", depth=0):
+            self.calls.append((event, payload, source, depth))
+            return ["dag:default"]
+
+    controller = Controller()
+    daemon.controller = controller
+    service = _DagService(daemon)
+
+    response = await service.Trigger(
+        daemon.pb2.DagTriggerRequest(name="default", inputs_json='{"symbol":"TEST"}'),
+        _FakeGrpcContext(),
+    )
+
+    assert response.cycle_id == ""
+    assert controller.calls == [("manual:dag:default", {"symbol": "TEST"}, "dag-service", 0)]
+
+
+@pytest.mark.asyncio
 async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text(

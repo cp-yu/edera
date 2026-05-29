@@ -48,6 +48,7 @@ export interface NodeType {
   entity_permissions?: Record<string, Record<string, string>>
   parameters?: Record<string, unknown>
   parameters_schema?: Record<string, unknown>
+  emits?: EmitDeclaration[]
   inspector_schema: InspectorSchema
 }
 
@@ -74,6 +75,18 @@ export interface EntityItem {
   type: string
   display: string
   attributes: Record<string, unknown>
+}
+
+export interface EmitDeclaration {
+  event: string
+  condition?: string | null
+}
+
+export interface TriggerAttributes {
+  name: string
+  wait_for: string
+  target: string
+  enabled?: boolean
 }
 
 export interface EntityRelation {

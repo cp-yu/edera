@@ -37,17 +37,6 @@
 - **WHEN** 指定 DAG 已有运行中任务且用户再次触发手动运行
 - **THEN** 系统 MUST 拒绝并返回当前运行中的 cycle_id
 
-### Requirement: Scheduler pause and resume
-系统 SHALL 支持用户暂停和恢复定时调度。
-
-#### Scenario: Pause scheduler
-- **WHEN** 用户点击暂停调度
-- **THEN** 系统 SHALL 暂停后续定时触发，但不取消当前正在运行的周期
-
-#### Scenario: Resume scheduler
-- **WHEN** 用户点击恢复调度
-- **THEN** 系统 SHALL 恢复后续定时触发
-
 ### Requirement: Stop current run
 
 系统 SHALL 支持用户停止指定 DAG 的当前运行，MUST 支持 soft stop（等当前节点完成）和 hard stop（立即 cancel）两种模式。
@@ -118,4 +107,18 @@
 #### Scenario: 无 inputs 参数时正常运行
 - **WHEN** 客户端 POST `/api/pipeline/dag/my-dag/run` 不携带 `inputs` 参数
 - **THEN** 系统 SHALL 正常启动 DAG，source 节点从 `source_names` 拉取数据
+
+### Requirement: TriggerExecutor 统一调度
+
+系统 SHALL 通过 TriggerExecutor 统一管理所有 DAG/Node 的调度。系统 MUST 不再使用 APScheduler 全局 interval 调度。
+
+#### Scenario: 启动时不注册 interval job
+
+- **WHEN** edera-server 启动
+- **THEN** 系统不创建 APScheduler interval job；调度完全由 trigger entity + cron emitter 驱动
+
+#### Scenario: 手动运行走 emit 路径
+
+- **WHEN** 用户通过 API 或 CLI 手动运行 DAG
+- **THEN** 系统调用 `emit("manual:dag:<name>")` 而非直接调用 `start_run()`
 

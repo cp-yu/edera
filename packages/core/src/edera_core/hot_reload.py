@@ -11,6 +11,7 @@ from edera_core.node.executor import NodeExecutor
 
 
 ReloadCallback = Callable[[AppConfig, BootstrapResult], Awaitable[None]]
+EmitCallback = Callable[[str], Awaitable[object]]
 
 
 class HotReloader:
@@ -19,11 +20,13 @@ class HotReloader:
         config_dir: Path,
         extensions_dirs: list[Path],
         callback: ReloadCallback,
+        emit: EmitCallback | None = None,
         debounce_seconds: float = 0.2,
     ) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs
         self.callback = callback
+        self.emit = emit
         self.debounce_seconds = debounce_seconds
 
     async def reload_once(self) -> None:
@@ -31,6 +34,8 @@ class HotReloader:
         bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
         config.entity_types.update(bootstrap.entity_type_registry.as_dict())
         await self.callback(config, bootstrap)
+        if self.emit is not None:
+            await self.emit("event:config-changed")
 
     async def watch(self) -> None:
         from watchfiles import awatch

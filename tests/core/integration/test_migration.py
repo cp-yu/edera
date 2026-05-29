@@ -3,6 +3,9 @@ import importlib.util
 import json
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, inspect
 import yaml
 
 
@@ -73,3 +76,31 @@ def test_migration_scripts(tmp_path) -> None:
     assert node["type"] == "node"
     assert node["attributes"]["name"] == "reader"
     assert dag["type"] == "dag"
+
+
+def test_alembic_upgrade_head_creates_trigger_event_tables(tmp_path) -> None:
+    db = tmp_path / "alembic.db"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{db}")
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(f"sqlite:///{db}")
+    try:
+        inspector = inspect(engine)
+        assert {"event_group_bits", "emit_records"}.issubset(inspector.get_table_names())
+        assert _column_names(inspector, "event_group_bits") >= {"id", "event", "created_at"}
+        assert _column_names(inspector, "emit_records") >= {
+            "id",
+            "event",
+            "payload",
+            "source",
+            "depth",
+            "created_at",
+        }
+    finally:
+        engine.dispose()
+
+
+def _column_names(inspector, table: str) -> set[str]:
+    return {column["name"] for column in inspector.get_columns(table)}

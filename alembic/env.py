@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
-from edera_core.storage.entities import NodeOutputEntity, NodeRun, PipelineRun
+from edera_core.storage.entities import EmitRecord, EventGroupBit, NodeOutputEntity, NodeRun, PipelineRun
 
 config = context.config
 
@@ -52,4 +52,4 @@ else:
     run_migrations_online()
 
 
-__all__ = ["NodeOutputEntity", "NodeRun", "PipelineRun"]
+__all__ = ["EmitRecord", "EventGroupBit", "NodeOutputEntity", "NodeRun", "PipelineRun"]

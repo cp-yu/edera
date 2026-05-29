@@ -176,6 +176,7 @@ class EntityStore:
         if entity_type not in self.entity_types:
             raise ConfigError(f"unknown entity type: {entity_type}")
         entity = EntityConfig(id=uuid4().hex, type=entity_type, attributes=attributes)
+        _validate_entity_semantics(entity)
         tier = self.entity_types[entity_type].storage_tier
         if tier == "memory":
             self.memory_entities[entity.id] = entity
@@ -206,6 +207,7 @@ class EntityStore:
                 saved = entity.model_copy(
                     update={"attributes": self._writable_attributes(current, entity, permissions)}
                 )
+                _validate_entity_semantics(saved)
                 self._persist_entity_file(saved)
                 return saved
         for index, current in enumerate(self.entities.entities):
@@ -213,6 +215,7 @@ class EntityStore:
                 if current.type != entity.type:
                     raise ConfigError(f"Entity type cannot change: {entity.id}")
                 saved = entity.model_copy(update={"attributes": self._writable_attributes(current, entity, permissions)})
+                _validate_entity_semantics(saved)
                 self.entities.entities[index] = saved
                 try:
                     self._validate()
@@ -228,6 +231,7 @@ class EntityStore:
             saved = entity.model_copy(
                 update={"attributes": self._writable_attributes(current, entity, permissions)}
             )
+            _validate_entity_semantics(saved)
             self.memory_entities[entity.id] = saved
             return saved
         for index, current in enumerate(self.database_entities):
@@ -238,6 +242,7 @@ class EntityStore:
             saved = entity.model_copy(
                 update={"attributes": self._writable_attributes(current, entity, permissions)}
             )
+            _validate_entity_semantics(saved)
             self.database_entities[index] = saved
             return saved
         raise ConfigError(f"Entity not found: {entity.id}")
@@ -482,6 +487,17 @@ def validate_permission_overrides(
             base = field_permission(entity_type, str(field_name))
             if value not in _ALLOWED_PERMISSION_OVERRIDES[base]:
                 raise ConfigError(f"invalid permission downgrade: {entity_type_name}.{field_name}")
+
+
+def _validate_entity_semantics(entity: EntityConfig) -> None:
+    if entity.type != "trigger":
+        return
+    wait_for = entity.attributes.get("wait_for")
+    if not isinstance(wait_for, str):
+        return
+    from edera_core.trigger import parse_trigger_expression
+
+    parse_trigger_expression(wait_for)
 
 
 def _override_permission(overrides: dict[str, Any] | None, field: str) -> FieldPermission | None:

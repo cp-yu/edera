@@ -1,0 +1,68 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.trigger-expression-language
+      type: capability
+      intent: 触发器布尔表达式语言（AND/OR/括号），cron token 引号语义，bit→trigger 反向索引求值
+    - id: cap.core.event-group-engine
+      type: capability
+      intent: FreeRTOS 风格事件组持久化引擎，覆盖 set/clear/consume bit 状态、DB 存储与重启恢复
+    - id: cap.core.cron-emitter
+      type: capability
+      intent: 内置 cron 时钟 emitter，按 trigger 表达式中声明的 cron token 自动 emit 事件，错过即跳过
+    - id: cap.core.trigger-emit-rpc
+      type: capability
+      intent: PipelineService.Emit RPC 与 emit 记录持久化，作为唯一事件注入入口
+    - id: cap.core.trigger-loop-guard
+      type: capability
+      intent: emit 深度计数器与可配阈值（max_trigger_depth），循环触发防护机制
+    - id: cap.core.manual-trigger-prefix
+      type: capability
+      intent: manual:dag:* / manual:node:* 保留前缀的直接 fire 语义，绕过 wait_for 匹配
+    - id: cap.core.node-emits-declaration
+      type: capability
+      intent: Node Type emits 字段声明（含 instance 级覆盖）与 DAG Runner 的条件求值/emit 集成
+    - id: cap.web.trigger-workbench-inspector
+      type: capability
+      intent: Workbench Inspector Triggers tab，覆盖 DAG 级与 node 级 trigger 列表、表达式编辑器、闹钟 picker 与事件 picker
+  relations:
+    - from: cap.core.trigger-expression-language
+      type: contains
+      to: dom.core
+    - from: cap.core.event-group-engine
+      type: contains
+      to: dom.core
+    - from: cap.core.cron-emitter
+      type: contains
+      to: dom.core
+    - from: cap.core.trigger-emit-rpc
+      type: contains
+      to: dom.core
+    - from: cap.core.trigger-loop-guard
+      type: contains
+      to: dom.core
+    - from: cap.core.manual-trigger-prefix
+      type: contains
+      to: dom.core
+    - from: cap.core.node-emits-declaration
+      type: contains
+      to: dom.core
+    - from: cap.web.trigger-workbench-inspector
+      type: contains
+      to: dom.web
+MODIFIED:
+  capabilities:
+    - id: cap.trigger-system
+      intent: Trigger Entity 使用自由布尔表达式 wait_for，支持 enabled 字段、clear:event:* target 与 fire 后自动 consume
+    - id: cap.operations.pipeline-control
+      intent: 管道控制能力，废弃 APScheduler interval 调度，统一由 TriggerExecutor 驱动；DAG 运行 API 通过 emit 路径
+    - id: cap.core.config-hot-reload
+      intent: 全量配置热加载并在变更时 emit event:config-changed，trigger 配置变更后重新扫描 cron 注册表
+    - id: cap.entity-instance-crud-api
+      intent: Entity Instance CRUD API 适配三层存储路由，写操作完成后 emit event:entity-changed:{ref}
+    - id: cap.core.edera-cli
+      intent: edera 控制 CLI 新增 trigger emit 子命令组，作为外部事件注入入口
+    - id: cap.core.node-type-discriminated-union
+      intent: NodeConfig Discriminated Union 模型，新增可选 emits 字段声明事件产出
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI，Inspector 增加 Triggers tab 用于配置 DAG 级与 node 级触发器

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from edera_core.config.schema import NodeConfig
 from edera_core.config.loader import load_entity_type_configs
 
 
@@ -31,3 +32,19 @@ def test_entity_type_capability_detection() -> None:
     assert trigger.is_trigger
     assert run_metadata.storage_tier == "memory"
     assert run_metadata.system_protected is True
+
+
+def test_emits_field() -> None:
+    node = NodeConfig.model_validate(
+        {
+            "name": "sentiment",
+            "type": "function",
+            "handler": "sentiment",
+            "input_type": "Any",
+            "output_type": "Any",
+            "emits": [{"event": "event:negative-news", "condition": "output.sentiment == 'negative'"}],
+        }
+    )
+
+    assert node.emits[0].event == "event:negative-news"
+    assert node.emits[0].condition == "output.sentiment == 'negative'"

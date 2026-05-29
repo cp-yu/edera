@@ -246,6 +246,40 @@ async def test_retry_api_defaults_to_latest_finished_run(tmp_path: Path) -> None
 
 
 @pytest.mark.asyncio
+async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n",
+        encoding="utf-8",
+    )
+
+    class NodeTriggerController(FakeController):
+        calls: list[tuple[str, str, str, object | None]]
+
+        def __init__(self, config_dir: Path) -> None:
+            super().__init__(config_dir)
+            self.calls = []
+
+        async def _run_single_node(self, cycle_id, trigger, dag_name, instance, payload, stop_event):
+            self.calls.append((cycle_id, trigger, dag_name, payload))
+            await asyncio.sleep(60)
+
+    ctrl = NodeTriggerController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_pipeline_run(session, "cycle-original", "manual", dag_name="default")
+            await finish_pipeline_run(session, "cycle-original", "succeeded")
+            await session.commit()
+        cycle_id = await ctrl.run_node_trigger("node-a", {"symbol": "TEST"})
+        await asyncio.sleep(0)
+    finally:
+        await ctrl.shutdown()
+
+    assert ctrl.calls == [(cycle_id, "trigger", "default", {"symbol": "TEST"})]
+
+
+@pytest.mark.asyncio
 async def test_retry_api_missing_cycle_returns_404(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)

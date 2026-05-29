@@ -791,6 +791,191 @@ async def test_sub_dag_depth_and_cycle_rejected() -> None:
     assert depth.node_outputs["child-node"].error == "max DAG depth exceeded: child"
 
 
+@pytest.mark.asyncio
+async def test_node_emits() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig.model_validate(
+        {
+            "name": "sentiment",
+            "type": "function",
+            "handler": "sentiment",
+            "input_type": "Any",
+            "output_type": "Any",
+            "emits": [{"event": "event:negative-news", "condition": "output.sentiment == 'negative'"}],
+        }
+    )
+    dag = config.dags["default"].model_validate(
+        {"name": "emits-test", "nodes": [{"id": "sentiment-1", "type": "sentiment"}], "edges": []}
+    )
+    graph = load_graph(dag, {"sentiment": node})
+    events: list[tuple[str, object]] = []
+    executor = NodeExecutor(
+        {"sentiment": node},
+        config.system,
+        config.runtime,
+        {"sentiment": _handler({"sentiment": "negative"})},
+        graph.instances,
+    )
+
+    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "cycle", {})
+
+    assert events == [("event:negative-news", {"sentiment": "negative"})]
+
+
+@pytest.mark.asyncio
+async def test_node_emits_skip_false_conditions() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig.model_validate(
+        {
+            "name": "sentiment",
+            "type": "function",
+            "handler": "sentiment",
+            "input_type": "Any",
+            "output_type": "Any",
+            "emits": [{"event": "event:negative-news", "condition": "output.sentiment == 'negative'"}],
+        }
+    )
+    dag = config.dags["default"].model_validate(
+        {"name": "emits-test", "nodes": [{"id": "sentiment-1", "type": "sentiment"}], "edges": []}
+    )
+    graph = load_graph(dag, {"sentiment": node})
+    events: list[tuple[str, object]] = []
+    executor = NodeExecutor(
+        {"sentiment": node},
+        config.system,
+        config.runtime,
+        {"sentiment": _handler({"sentiment": "positive"})},
+        graph.instances,
+    )
+
+    result = await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(
+        graph,
+        "cycle",
+        {},
+    )
+
+    assert result.failures == {}
+    assert events == []
+
+
+@pytest.mark.asyncio
+async def test_node_emits_evaluate_each_declaration() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig.model_validate(
+        {
+            "name": "sentiment",
+            "type": "function",
+            "handler": "sentiment",
+            "input_type": "Any",
+            "output_type": "Any",
+            "emits": [
+                {"event": "event:any-news"},
+                {"event": "event:negative-news", "condition": "output.sentiment == 'negative'"},
+                {"event": "event:positive-news", "condition": "output.sentiment == 'positive'"},
+            ],
+        }
+    )
+    dag = config.dags["default"].model_validate(
+        {"name": "emits-test", "nodes": [{"id": "sentiment-1", "type": "sentiment"}], "edges": []}
+    )
+    graph = load_graph(dag, {"sentiment": node})
+    events: list[tuple[str, object]] = []
+    executor = NodeExecutor(
+        {"sentiment": node},
+        config.system,
+        config.runtime,
+        {"sentiment": _handler({"sentiment": "negative"})},
+        graph.instances,
+    )
+
+    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "cycle", {})
+
+    assert events == [
+        ("event:any-news", {"sentiment": "negative"}),
+        ("event:negative-news", {"sentiment": "negative"}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_node_emits_condition_error_does_not_fail_dag() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig.model_validate(
+        {
+            "name": "sentiment",
+            "type": "function",
+            "handler": "sentiment",
+            "input_type": "Any",
+            "output_type": "Any",
+            "emits": [
+                {"event": "event:broken", "condition": "unknown_name == 1"},
+                {"event": "event:valid"},
+            ],
+        }
+    )
+    dag = config.dags["default"].model_validate(
+        {"name": "emits-test", "nodes": [{"id": "sentiment-1", "type": "sentiment"}], "edges": []}
+    )
+    graph = load_graph(dag, {"sentiment": node})
+    events: list[tuple[str, object]] = []
+    executor = NodeExecutor(
+        {"sentiment": node},
+        config.system,
+        config.runtime,
+        {"sentiment": _handler({"sentiment": "negative"})},
+        graph.instances,
+    )
+
+    result = await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(
+        graph,
+        "cycle",
+        {},
+    )
+
+    assert result.failures == {}
+    assert events == [("event:valid", {"sentiment": "negative"})]
+
+
+@pytest.mark.asyncio
+async def test_instance_emits_override_type_emits() -> None:
+    config = load_app_config(Path("config"))
+    node = NodeConfig.model_validate(
+        {
+            "name": "sentiment",
+            "type": "function",
+            "handler": "sentiment",
+            "input_type": "Any",
+            "output_type": "Any",
+            "emits": [{"event": "event:type-default"}],
+        }
+    )
+    dag = config.dags["default"].model_validate(
+        {
+            "name": "emits-test",
+            "nodes": [
+                {
+                    "id": "sentiment-1",
+                    "type": "sentiment",
+                    "config": {"emits": [{"event": "event:instance-override"}]},
+                }
+            ],
+            "edges": [],
+        }
+    )
+    graph = load_graph(dag, {"sentiment": node})
+    events: list[tuple[str, object]] = []
+    executor = NodeExecutor(
+        {"sentiment": node},
+        config.system,
+        config.runtime,
+        {"sentiment": _handler({"sentiment": "negative"})},
+        graph.instances,
+    )
+
+    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "cycle", {})
+
+    assert events == [("event:instance-override", {"sentiment": "negative"})]
+
+
 def test_sub_dag_nesting_validation() -> None:
     config = load_app_config(Path("config"))
     child = config.dags["default"].model_validate(

@@ -28,12 +28,22 @@ class _PipelineService:
         self.daemon = daemon
         self.pb2 = daemon.pb2
 
+    async def Emit(self, request, context):
+        payload = json.loads(request.payload_json) if request.payload_json else None
+        fired = await self.daemon.controller.emit(
+            request.event,
+            payload,
+            source=request.source or "rpc",
+            depth=request.depth,
+        )
+        return json_response(self.pb2, {"event": request.event, "fired": fired})
+
     async def Run(self, request, context):
         try:
-            cycle_id = await self.daemon.controller.start_run("manual")
+            fired = await self.daemon.controller.emit("manual:dag:default", source="pipeline-service", depth=0)
         except RunAlreadyActiveError as exc:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, exc.cycle_id)
-        return json_response(self.pb2, {"cycle_id": cycle_id})
+        return json_response(self.pb2, {"event": "manual:dag:default", "fired": fired})
 
     async def Pause(self, request, context):
         self.daemon.controller.pause_scheduler()
