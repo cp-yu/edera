@@ -620,6 +620,56 @@ async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: 
 
 
 @pytest.mark.asyncio
+async def test_bff_grpc_client_uses_insecure_dev_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    from edera_core.web import __main__ as web_main
+
+    calls: list[dict[str, object]] = []
+
+    class DevGrpcClient:
+        def __init__(
+            self,
+            address: str | None = None,
+            *,
+            identity: str | None = None,
+            client_cert_pem: str | None = None,
+            client_key_pem: str | None = None,
+            ca_cert_pem: str | None = None,
+            allow_insecure: bool = False,
+            force_insecure: bool = False,
+        ) -> None:
+            calls.append(
+                {
+                    "address": address,
+                    "identity": identity,
+                    "client_cert_pem": client_cert_pem,
+                    "client_key_pem": client_key_pem,
+                    "ca_cert_pem": ca_cert_pem,
+                    "allow_insecure": allow_insecure,
+                    "force_insecure": force_insecure,
+                }
+            )
+
+    monkeypatch.setenv("EDERA_DEV", "1")
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr(web_main, "GrpcClient", DevGrpcClient)
+
+    grpc = await web_main._bff_grpc_client()
+
+    assert isinstance(grpc, DevGrpcClient)
+    assert calls == [
+        {
+            "address": "127.0.0.1:9090",
+            "identity": "bff:web-console",
+            "client_cert_pem": None,
+            "client_key_pem": None,
+            "ca_cert_pem": None,
+            "allow_insecure": False,
+            "force_insecure": False,
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

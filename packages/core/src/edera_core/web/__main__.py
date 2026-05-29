@@ -33,6 +33,8 @@ async def _bff_grpc_client() -> GrpcClient:
     server_addr = os.environ.get("EDERA_SERVER_ADDR")
     if not server_addr:
         raise ValueError("EDERA_SERVER_ADDR not set")
+    if os.environ.get("EDERA_DEV") == "1":
+        return GrpcClient(server_addr, identity="bff:web-console")
     bootstrap = GrpcClient("127.0.0.1:9091", force_insecure=True)
     try:
         certs = await bootstrap.init_client("bff:web-console")
