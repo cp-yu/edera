@@ -1,0 +1,191 @@
+{
+  "timestamp": "2026-05-29T16:16:10.790Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "输出型 Entity retention 策略",
+      "task": "Safe output retention policy",
+      "message": "Retention cleanup count/time behavior is implemented, but the focused test file only exercises trigger gating; no direct tests for the retention_count and retention_hours cleanup scenarios were found.",
+      "recommendation": "Add focused tests for the count-based and time-based cleanup paths, or a repository-level cleanup test that proves expired outputs and overflowed runs are removed as specified.",
+      "evidenceCitations": [
+        "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md:5-15",
+        "packages/core/src/edera_core/storage/repository.py:134-158",
+        "tests/core/integration/test_per_dag.py:494-618"
+      ]
+    }
+  ],
+  "tasksFileHash": "fcb744e809b5c76f2eb1ccc6f8913b78464130ee66671ce400820aaf36eda4b0",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "config/system.toml",
+      "openspec/changes/safe-output-retention/design.md",
+      "openspec/changes/safe-output-retention/opsx-delta.yaml",
+      "openspec/changes/safe-output-retention/proposal.md",
+      "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md",
+      "openspec/changes/safe-output-retention/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "tests/core/integration/test_per_dag.py"
+    ],
+    "evidenceFingerprint": "94391636982437780ca18572113147978b02899e25e78af916fe1f07273e8459",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "config/system.toml",
+        "hash": "3a92e04282a08c1c5b73d431bcfe047bac472b7147e925c968abe9c3ded069c8"
+      },
+      {
+        "path": "openspec/changes/safe-output-retention/design.md",
+        "hash": "d68758d5278ef93f958aecfbaaec7e07c799eeeed89b4641c20ee45055bc5765"
+      },
+      {
+        "path": "openspec/changes/safe-output-retention/opsx-delta.yaml",
+        "hash": "2e35d10bd9e636b265445012bb0c90033acb9401ec945f8e9c5d0359c52e1cec"
+      },
+      {
+        "path": "openspec/changes/safe-output-retention/proposal.md",
+        "hash": "675ae3e171defe01ca78451a4b1b4e9e0123c2ab5d7278b1776a6c5a7e9da64a"
+      },
+      {
+        "path": "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md",
+        "hash": "18819675b6200675bc9b82b11640c4877e8afd92654cd040d41888f137a5e8ac"
+      },
+      {
+        "path": "openspec/changes/safe-output-retention/tasks.md",
+        "hash": "fcb744e809b5c76f2eb1ccc6f8913b78464130ee66671ce400820aaf36eda4b0"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "6743fb649a0a84c58d385fbefb95ecadd556289d2b276c82729611be10386d17"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "3d4ab14d20aa7a82b267ae45301b4f687139975c6e88e91c1a02e7a5e8ee6a62"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "7183b93618c331e3763ad8737725732e533e5907d38d164cabb47e78521ef4ca"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "c72ab8c329abe4488f2178d5b3c50c34a540d07217b3e225b48a74399ace4e91"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "12ce8c59e2e1a332d77ece9ca9e2145862adf6e1c2a9cd2b72aa3f0bf8d63af1"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "55ebac6dab6bc5b2e8e8a34cb6dc3408ffcc4b85d727c07dc40d66c3bc3ad061"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "ff589ba43985e5ea02223a385d4918c9497b61d1"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-29T16:17:24.858Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-29T16:16:10.790Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "输出型 Entity retention 策略",
+          "task": "Safe output retention policy",
+          "message": "Retention cleanup count/time behavior is implemented, but the focused test file only exercises trigger gating; no direct tests for the retention_count and retention_hours cleanup scenarios were found.",
+          "recommendation": "Add focused tests for the count-based and time-based cleanup paths, or a repository-level cleanup test that proves expired outputs and overflowed runs are removed as specified.",
+          "evidenceCitations": [
+            "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md:5-15",
+            "packages/core/src/edera_core/storage/repository.py:134-158",
+            "tests/core/integration/test_per_dag.py:494-618"
+          ]
+        }
+      ],
+      "tasksFileHash": "fcb744e809b5c76f2eb1ccc6f8913b78464130ee66671ce400820aaf36eda4b0",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "config/system.toml",
+          "openspec/changes/safe-output-retention/design.md",
+          "openspec/changes/safe-output-retention/opsx-delta.yaml",
+          "openspec/changes/safe-output-retention/proposal.md",
+          "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md",
+          "openspec/changes/safe-output-retention/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "tests/core/integration/test_per_dag.py"
+        ],
+        "evidenceFingerprint": "94391636982437780ca18572113147978b02899e25e78af916fe1f07273e8459",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "config/system.toml",
+            "hash": "3a92e04282a08c1c5b73d431bcfe047bac472b7147e925c968abe9c3ded069c8"
+          },
+          {
+            "path": "openspec/changes/safe-output-retention/design.md",
+            "hash": "d68758d5278ef93f958aecfbaaec7e07c799eeeed89b4641c20ee45055bc5765"
+          },
+          {
+            "path": "openspec/changes/safe-output-retention/opsx-delta.yaml",
+            "hash": "2e35d10bd9e636b265445012bb0c90033acb9401ec945f8e9c5d0359c52e1cec"
+          },
+          {
+            "path": "openspec/changes/safe-output-retention/proposal.md",
+            "hash": "675ae3e171defe01ca78451a4b1b4e9e0123c2ab5d7278b1776a6c5a7e9da64a"
+          },
+          {
+            "path": "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md",
+            "hash": "18819675b6200675bc9b82b11640c4877e8afd92654cd040d41888f137a5e8ac"
+          },
+          {
+            "path": "openspec/changes/safe-output-retention/tasks.md",
+            "hash": "fcb744e809b5c76f2eb1ccc6f8913b78464130ee66671ce400820aaf36eda4b0"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "6743fb649a0a84c58d385fbefb95ecadd556289d2b276c82729611be10386d17"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "3d4ab14d20aa7a82b267ae45301b4f687139975c6e88e91c1a02e7a5e8ee6a62"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "7183b93618c331e3763ad8737725732e533e5907d38d164cabb47e78521ef4ca"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "c72ab8c329abe4488f2178d5b3c50c34a540d07217b3e225b48a74399ace4e91"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "12ce8c59e2e1a332d77ece9ca9e2145862adf6e1c2a9cd2b72aa3f0bf8d63af1"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "55ebac6dab6bc5b2e8e8a34cb6dc3408ffcc4b85d727c07dc40d66c3bc3ad061"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "ff589ba43985e5ea02223a385d4918c9497b61d1"
+      }
+    }
+  }
+}
