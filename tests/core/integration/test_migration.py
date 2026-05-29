@@ -89,6 +89,9 @@ def test_alembic_upgrade_head_creates_trigger_event_tables(tmp_path) -> None:
     try:
         inspector = inspect(engine)
         assert {"event_group_bits", "emit_records"}.issubset(inspector.get_table_names())
+        assert _column_names(inspector, "dag_runs") >= {"run_id", "dag_name", "source", "retry_of"}
+        assert _column_names(inspector, "node_runs") >= {"run_id", "failure_kind", "metadata"}
+        assert _column_names(inspector, "briefings") >= {"run_id"}
         assert _column_names(inspector, "event_group_bits") >= {"id", "event", "created_at"}
         assert _column_names(inspector, "emit_records") >= {
             "id",

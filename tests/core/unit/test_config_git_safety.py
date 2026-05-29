@@ -11,12 +11,12 @@ def test_config_git_safety(tmp_path: Path) -> None:
     _git(tmp_path, "config", "user.name", "Test")
     tmp_path.joinpath("system.toml").write_text("schedule_minutes = 30\n", encoding="utf-8")
 
-    assert commit_config_changes(tmp_path, "cycle-1")
+    assert commit_config_changes(tmp_path, "run-1")
     first = _git(tmp_path, "log", "-1", "--pretty=%B")
-    assert "cycle-1" in first
-    assert not commit_config_changes(tmp_path, "cycle-2")
+    assert "run-1" in first
+    assert not commit_config_changes(tmp_path, "run-2")
     tmp_path.joinpath("system.toml").write_text("schedule_minutes = 31\n", encoding="utf-8")
-    assert not commit_config_changes(tmp_path, "cycle-3", enabled=False)
+    assert not commit_config_changes(tmp_path, "run-3", enabled=False)
 
 
 def test_config_write_lock_blocks_concurrent_writes(tmp_path: Path) -> None:

@@ -189,13 +189,95 @@ def test_cli_dag_status_uses_grpc(
     assert '"dag_name": "default"' in capsys.readouterr().out
 
 
-def test_trigger_emit(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     class FakeClient:
         def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
             assert address == "127.0.0.1:9090"
             assert identity == "human"
 
-        async def pipeline_emit(self, event: str, payload: object | None, *, source: str, depth: int) -> dict[str, object]:
+        async def dag_run(self, dag_name: str, payload: object | None = None) -> dict[str, object]:
+            assert dag_name == "default"
+            assert payload == {"symbol": "AAPL"}
+            return {"run_id": "run-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "run", "default", "--inputs", '{"symbol":"AAPL"}'])
+
+    main()
+
+    assert '"run_id": "run-1"' in capsys.readouterr().out
+
+
+def test_cli_dag_stop(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def dag_stop(self, dag_name: str, force: bool = False) -> dict[str, object]:
+            assert dag_name == "default"
+            assert force is True
+            return {"dag_name": dag_name, "stopped": True}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "stop", "default", "--force"])
+
+    main()
+
+    assert '"stopped": true' in capsys.readouterr().out
+
+
+def test_cli_dag_retry(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def dag_retry(
+            self,
+            dag_name: str,
+            run_id: str = "",
+            node_ids: list[str] | None = None,
+            mode: str = "single",
+            payload: object | None = None,
+        ) -> dict[str, object]:
+            assert dag_name == "default"
+            assert run_id == "run-1"
+            assert node_ids == ["node-a", "node-b"]
+            assert mode == "multi"
+            assert payload == {"reason": "test"}
+            return {"run_id": "retry-run-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "dag", "retry", "default", "--run-id", "run-1", "--nodes", "node-a,node-b", "--mode", "multi", "--payload", '{"reason":"test"}'],
+    )
+
+    main()
+
+    assert '"run_id": "retry-run-1"' in capsys.readouterr().out
+
+
+def test_event_emit(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def event_emit(self, event: str, payload: object | None, *, source: str, depth: int) -> dict[str, object]:
             assert event == "event:price-drop"
             assert payload == {"symbol": "TEST"}
             assert source == "cli"
@@ -209,7 +291,7 @@ def test_trigger_emit(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFix
     monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
     monkeypatch.setattr(
         "sys.argv",
-        ["edera", "trigger", "emit", "event:price-drop", "--payload-json", '{"symbol":"TEST"}'],
+        ["edera", "event", "emit", "event:price-drop", "--payload-json", '{"symbol":"TEST"}'],
     )
 
     main()

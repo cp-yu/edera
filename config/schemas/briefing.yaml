@@ -1,14 +1,14 @@
 display_name: Briefing
-business_id_field: cycle_id
-display_template: "{cycle_id}"
+business_id_field: run_id
+display_template: "{run_id}"
 storage_tier: database
 schema:
   type: object
   required:
-    - cycle_id
+    - run_id
     - content
   properties:
-    cycle_id:
+    run_id:
       type: string
     content:
       type: string

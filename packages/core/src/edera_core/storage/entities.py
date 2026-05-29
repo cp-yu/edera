@@ -20,7 +20,7 @@ class NodeOutputEntity(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     entity_id: str = Field(index=True, unique=True)
     type: str = Field(index=True)
-    cycle_id: str = Field(index=True)
+    run_id: str = Field(index=True)
     node_id: str = Field(index=True)
     payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
@@ -28,7 +28,7 @@ class NodeOutputEntity(SQLModel, table=True):
     url: str | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=utc_now, index=True)
 
-    @field_validator("entity_id", "type", "cycle_id", "node_id")
+    @field_validator("entity_id", "type", "run_id", "node_id")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():
@@ -38,10 +38,10 @@ class NodeOutputEntity(SQLModel, table=True):
 
 class EdgeInput(SQLModel, table=True):
     __tablename__ = "edge_inputs"
-    __table_args__ = (UniqueConstraint("cycle_id", "from_node_id", "to_node_id", name="uq_edge_inputs_cycle_edge"),)
+    __table_args__ = (UniqueConstraint("run_id", "from_node_id", "to_node_id", name="uq_edge_inputs_run_edge"),)
 
     id: int | None = Field(default=None, primary_key=True)
-    cycle_id: str = Field(index=True)
+    run_id: str = Field(index=True)
     from_node_id: str = Field(index=True)
     to_node_id: str = Field(index=True)
     edge_optional: bool = False
@@ -50,7 +50,7 @@ class EdgeInput(SQLModel, table=True):
     error_summary: str | None = None
     created_at: datetime = Field(default_factory=utc_now, index=True)
 
-    @field_validator("cycle_id", "from_node_id", "to_node_id", "status")
+    @field_validator("run_id", "from_node_id", "to_node_id", "status")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():
@@ -67,10 +67,10 @@ class EdgeInput(SQLModel, table=True):
 
 class SourceRecovery(SQLModel, table=True):
     __tablename__ = "source_recoveries"
-    __table_args__ = (UniqueConstraint("cycle_id", "node_id", "source_name", name="uq_source_recoveries_cycle_node_source"),)
+    __table_args__ = (UniqueConstraint("run_id", "node_id", "source_name", name="uq_source_recoveries_run_node_source"),)
 
     id: int | None = Field(default=None, primary_key=True)
-    cycle_id: str = Field(index=True)
+    run_id: str = Field(index=True)
     node_id: str = Field(index=True)
     source_name: str = Field(index=True)
     recovery_status: str = Field(index=True)
@@ -81,7 +81,7 @@ class SourceRecovery(SQLModel, table=True):
     escalation_reason: str | None = None
     created_at: datetime = Field(default_factory=utc_now, index=True)
 
-    @field_validator("cycle_id", "node_id", "source_name", "recovery_status")
+    @field_validator("run_id", "node_id", "source_name", "recovery_status")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():
@@ -122,31 +122,31 @@ class EmitRecord(SQLModel, table=True):
         return value
 
 
-class PipelineRun(SQLModel, table=True):
-    __tablename__ = "pipeline_runs"
+class DagRun(SQLModel, table=True):
+    __tablename__ = "dag_runs"
 
     id: int | None = Field(default=None, primary_key=True)
-    cycle_id: str = Field(index=True, unique=True)
+    run_id: str = Field(index=True, unique=True)
     dag_name: str = Field(default="default", index=True)
-    trigger: str = Field(index=True)
+    source: str = Field(index=True)
     status: str = Field(index=True)
     started_at: datetime = Field(default_factory=utc_now, index=True)
     ended_at: datetime | None = None
     error: str | None = None
     retry_of: str | None = Field(default=None, index=True)
 
-    @field_validator("cycle_id", "trigger", "status")
+    @field_validator("run_id", "source", "status")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("value must not be blank")
         return value
 
-    @field_validator("trigger")
+    @field_validator("source")
     @classmethod
-    def _valid_trigger(cls, value: str) -> str:
-        if value not in {"startup", "schedule", "manual", "trigger", "retry"}:
-            raise ValueError("trigger must be startup, schedule, manual, trigger, or retry")
+    def _valid_source(cls, value: str) -> str:
+        if value not in {"startup", "manual", "retry"} and not value.startswith("trigger:"):
+            raise ValueError("source must be startup, manual, retry, or trigger:<name>")
         return value
 
     @field_validator("status")
@@ -161,15 +161,16 @@ class NodeRun(SQLModel, table=True):
     __tablename__ = "node_runs"
 
     id: int | None = Field(default=None, primary_key=True)
-    cycle_id: str = Field(foreign_key="pipeline_runs.cycle_id", index=True)
+    run_id: str = Field(foreign_key="dag_runs.run_id", index=True)
     node_name: str = Field(index=True)
     status: str = Field(index=True)
     started_at: datetime | None = None
     ended_at: datetime | None = None
     error: str | None = None
     failure_kind: str | None = Field(default=None, index=True)
+    metadata_: dict[str, Any] = Field(default_factory=dict, sa_column=Column("metadata", JSON, nullable=False))
 
-    @field_validator("cycle_id", "node_name", "status")
+    @field_validator("run_id", "node_name", "status")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():

@@ -1,7 +1,7 @@
 # uzi-skill-dag-instance Specification
 
 ## Purpose
-此规约记录变更 uzi-skill-pipeline-instance 引入的行为，请在后续同步或归档前补全正式 Purpose。
+此规约记录 UZI-Skill DAG 实例行为，请在后续同步或归档前补全正式 Purpose。
 ## Requirements
 ### Requirement: DAG 拓扑声明
 
@@ -78,6 +78,5 @@ DAG SHALL 声明 Wave 2 的 18 个 fetcher 节点仅 depends_on `0_basic`，使�
 DAG 运行时 SHALL 通过 `initial_payload: {"ticker": "<code>"}` 接收股票代码。preflight 节点从 payload 提取 ticker。
 
 #### Scenario: 手动触发传入 ticker
-- **WHEN** 用户调用 `POST /api/pipeline/dag/uzi-skill-analysis/run` 并传入 `{"ticker": "300470.SZ"}`
+- **WHEN** 用户调用 `POST /api/dags/uzi-skill-analysis/run` 并传入 `{"ticker": "300470.SZ"}`
 - **THEN** DAG 的 initial_payload MUST 为 `{"ticker": "300470.SZ"}`
-

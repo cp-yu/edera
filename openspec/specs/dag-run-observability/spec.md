@@ -10,12 +10,12 @@
 #### Scenario: 展示节点运行状态
 
 - **WHEN** 用户选中节点且切换到 Runtime tab
-- **THEN** 系统 SHALL 展示该节点在当前/最近 cycle 中的 status、started_at、ended_at、error 信息
+- **THEN** 系统 SHALL 展示该节点在当前/最近 run 中的 status、started_at、ended_at、error 信息
 
 #### Scenario: 展示节点 output entities
 
 - **WHEN** 用户在 Runtime tab 查看已完成节点
-- **THEN** 系统 SHALL 展示该节点在当前 cycle 中产出的所有 `NodeOutputEntity` 列表
+- **THEN** 系统 SHALL 展示该节点在当前 run 中产出的所有 `NodeOutputEntity` 列表
 
 #### Scenario: 右键快捷切换到 Runtime tab
 
@@ -29,7 +29,7 @@
 #### Scenario: 点击 edge 展示上游 entities
 
 - **WHEN** 用户点击 edge（node-A → node-B）
-- **THEN** Inspector MUST 切换为 edge 详情模式，展示 `NodeOutputEntity WHERE node_id = node-A AND cycle_id = current` 的结果列表
+- **THEN** Inspector MUST 切换为 edge 详情模式，展示 `NodeOutputEntity WHERE node_id = node-A AND run_id = current` 的结果列表
 
 #### Scenario: Edge 详情包含历史跳转
 
@@ -38,22 +38,22 @@
 
 ### Requirement: 节点历史页面
 
-系统 SHALL 提供独立 route `/history/dag/{dag_name}/nodes/{node_id}`，展示节点在所有历史 cycle 中的运行记录。
+系统 SHALL 提供独立 route `/history/dag/{dag_name}/nodes/{node_id}`，展示节点在所有历史 run 中的运行记录。
 
 #### Scenario: 展示运行记录列表
 
 - **WHEN** 用户访问 `/history/dag/{dag_name}/nodes/{node_id}`
-- **THEN** 系统 SHALL 展示该节点的所有 `NodeRun` 记录，按 `started_at` 降序排列，每条包含 cycle_id、status、started_at、ended_at、error
+- **THEN** 系统 SHALL 展示该节点的所有 `NodeRun` 记录，按 `started_at` 降序排列，每条包含 run_id、status、started_at、ended_at、error
 
 #### Scenario: 展开查看 output entities
 
 - **WHEN** 用户在历史页面点击某条运行记录
-- **THEN** 系统 SHALL 展示该 cycle 中该节点产出的 `NodeOutputEntity` 列表
+- **THEN** 系统 SHALL 展示该 run 中该节点产出的 `NodeOutputEntity` 列表
 
 #### Scenario: Retry 链标识
 
-- **WHEN** 历史记录中存在 retry run（trigger="retry"）
-- **THEN** 系统 SHALL 标识该记录为 retry 并展示 `retry_of` 关联的原始 cycle_id
+- **WHEN** 历史记录中存在 retry run（source="retry"）
+- **THEN** 系统 SHALL 标识该记录为 retry 并展示 `retry_of` 关联的原始 run_id
 
 ### Requirement: 右键菜单扩展
 

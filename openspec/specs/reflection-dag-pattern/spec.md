@@ -26,7 +26,7 @@
 - **THEN** 系统 SHALL 等待目标节点完成后再启动反思 DAG（wait_for 条件阻塞）
 
 #### Scenario: 手动触发
-- **WHEN** 用户通过 `edera dag trigger reflection-dag` 手动触发
+- **WHEN** 用户通过 `edera dag run reflection-dag` 手动触发
 - **THEN** 系统 SHALL 同样检测目标节点状态，空闲则执行，运行中则等待
 
 ### Requirement: Skill 自优化

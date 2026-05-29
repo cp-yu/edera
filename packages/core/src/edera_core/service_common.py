@@ -110,10 +110,10 @@ def repair_task_payload(
         "created_at": now,
         "source_config": source_config,
         "failure_context": {
-            "cycle_id": health.get("cycle_id"),
+            "run_id": health.get("run_id"),
             "latest_failure_reason": health.get("latest_failure_reason"),
             "node_error": log.get("error"),
-            "pipeline_status": log.get("pipeline_status"),
+            "dag_status": log.get("dag_status"),
         },
         "recovery_summary": {
             "recovery_status": health.get("recovery_status"),
@@ -121,7 +121,7 @@ def repair_task_payload(
             "recoverable_reason": health.get("recoverable_reason"),
             "escalation_reason": health.get("escalation_reason"),
         },
-        "expected_fix": "Update only this source configuration or parser so the next pipeline cycle succeeds.",
+        "expected_fix": "Update only this source configuration or parser so the next DAG run succeeds.",
     }
 
 
@@ -139,7 +139,7 @@ def write_repair_task(task: dict[str, object]) -> None:
 def metadata_bar(briefing: EntityConfig | None, failed_sources: dict[str, object]) -> dict[str, object]:
     if briefing is None:
         return {
-            "cycle_id": "无",
+            "run_id": "无",
             "created_at": "",
             "window": "无数据窗口",
             "failed_count": 0,
@@ -153,7 +153,7 @@ def metadata_bar(briefing: EntityConfig | None, failed_sources: dict[str, object
     start = data_window.get("start", "")
     end = data_window.get("end", "")
     return {
-        "cycle_id": data.get("cycle_id", ""),
+        "run_id": data.get("run_id", ""),
         "created_at": str(data.get("created_at") or ""),
         "window": f"{start} 至 {end}" if start or end else "无数据窗口",
         "failed_count": len(failed_sources),
@@ -194,7 +194,7 @@ def briefing_payload(briefing: EntityConfig) -> dict[str, object]:
     data = model_payload(briefing)
     return {
         "id": str(data.get("id") or briefing.id),
-        "cycle_id": str(data.get("cycle_id") or ""),
+        "run_id": str(data.get("run_id") or ""),
         "content": str(data.get("content") or ""),
         "metadata": briefing_metadata(briefing),
         "created_at": str(data.get("created_at") or ""),

@@ -102,7 +102,7 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
 
       {dagStatus && (
         <span className="text-muted-foreground text-xs">
-          {isRunning ? `运行中: ${dagStatus.current_cycle_id}` : '空闲'}
+          {isRunning ? `运行中: ${dagStatus.current_run_id}` : '空闲'}
         </span>
       )}
 

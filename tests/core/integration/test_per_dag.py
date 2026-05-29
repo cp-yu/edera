@@ -9,20 +9,20 @@ from httpx import ASGITransport, AsyncClient
 
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
-    create_pipeline_run,
-    edge_inputs_for_cycle,
-    finish_pipeline_run,
-    get_pipeline_run,
-    node_runs_for_cycle,
-    recent_pipeline_runs,
+    create_dag_run,
+    edge_inputs_for_run,
+    finish_dag_run,
+    get_dag_run,
+    node_runs_for_run,
+    recent_dag_runs,
     store_node_output_entities,
     upsert_edge_input,
 )
-from edera_core.pipeline import DagRunContext, PipelineController, PipelineRunNotFoundError, RetryRunResult, RunAlreadyActiveError
+from edera_core.dag_controller import DagRunContext, DagController, DagRunNotFoundError, RetryRunResult, RunAlreadyActiveError
 from edera_core.web.app import create_app
 
 
-class FakeController(PipelineController):
+class FakeController(DagController):
     last_payload: object | None = None
 
     async def start(self, run_startup: bool = True) -> None:
@@ -31,50 +31,50 @@ class FakeController(PipelineController):
         self.factory = session_factory(self.engine)
         self.scheduler.start()
 
-    async def start_run(self, trigger: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+    async def start_run(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
         self.last_payload = payload
         async with self._locks[dag_name]:
             ctx = self.active_runs.get(dag_name)
             if ctx is not None and not ctx.task.done():
-                raise RunAlreadyActiveError(ctx.cycle_id)
-            cycle_id = f"cycle-{dag_name}-{trigger}"
-            task = asyncio.create_task(self._fake_run(cycle_id, trigger, dag_name))
-            self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, cycle_id=cycle_id, task=task)
+                raise RunAlreadyActiveError(ctx.run_id)
+            run_id = f"run-{dag_name}-{source}"
+            task = asyncio.create_task(self._fake_run(run_id, source, dag_name))
+            self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, run_id=run_id, task=task)
             task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
-            return cycle_id
+            return run_id
 
-    async def _fake_run(self, cycle_id: str, trigger: str, dag_name: str) -> None:
+    async def _fake_run(self, run_id: str, source: str, dag_name: str) -> None:
         async with self._factory()() as session:
-            await create_pipeline_run(session, cycle_id, trigger, dag_name=dag_name)
+            await create_dag_run(session, run_id, source, dag_name=dag_name)
             await session.commit()
         await asyncio.sleep(60)
 
     async def retry_node(
         self,
         dag_name: str,
-        cycle_id: str | None,
+        run_id: str | None,
         node_ids: list[str],
         mode: str = "single",
         payload: object | None = None,
     ) -> RetryRunResult:
         if not node_ids:
             raise ValueError("node_ids is required")
-        if cycle_id is None:
+        if run_id is None:
             async with self._factory()() as session:
-                recent = await recent_pipeline_runs(session, 10, dag_name)
-            cycle_id = next((run.cycle_id for run in recent if run.status != "running"), None)
-        if cycle_id is None:
-            raise PipelineRunNotFoundError("latest finished run")
-        if cycle_id == "missing-cycle":
-            raise PipelineRunNotFoundError(cycle_id)
-        retry_cycle_id = f"retry-{cycle_id}"
+                recent = await recent_dag_runs(session, 10, dag_name)
+            run_id = next((run.run_id for run in recent if run.status != "running"), None)
+        if run_id is None:
+            raise DagRunNotFoundError("latest finished run")
+        if run_id == "missing-run":
+            raise DagRunNotFoundError(run_id)
+        retry_run_id = f"retry-{run_id}"
         async with self._factory()() as session:
-            await create_pipeline_run(session, retry_cycle_id, "retry", dag_name=dag_name, retry_of=cycle_id)
+            await create_dag_run(session, retry_run_id, "retry", dag_name=dag_name, retry_of=run_id)
             await session.commit()
-        return RetryRunResult(retry_cycle_id, cycle_id, node_ids, mode, node_ids)
+        return RetryRunResult(retry_run_id, run_id, node_ids, mode, node_ids)
 
-    async def resume_node(self, dag_name: str, cycle_id: str, node_id: str, payload: object) -> str:
-        return await super().resume_node(dag_name, cycle_id, node_id, payload)
+    async def resume_node(self, dag_name: str, run_id: str, node_id: str, payload: object) -> str:
+        return await super().resume_node(dag_name, run_id, node_id, payload)
 
 
 class FakeGrpcClient:
@@ -84,15 +84,18 @@ class FakeGrpcClient:
     async def close(self) -> None:
         self.closed = True
 
-    async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
+    async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
         self.last_payload = payload
-        return {"cycle_id": f"cycle-{name}-manual"}
+        return {"run_id": f"run-{name}-manual"}
 
     async def dag_status(self, name: str) -> dict[str, object]:
-        return {"dag_name": name, "current_cycle_id": f"cycle-{name}-manual"}
+        return {"dag_name": name, "current_run_id": f"run-{name}-manual"}
 
-    async def node_resume(self, node_id: str, cycle_id: str | None, prompt: str) -> dict[str, object]:
-        return {"cycle_id": cycle_id or "", "node_id": node_id, "prompt": prompt}
+    async def query_node_history(self, dag_name: str, node_id: str, limit: int = 50) -> dict[str, object]:
+        return {"history": [{"dag_name": dag_name, "node_id": node_id, "run_id": "run-1", "limit": limit}]}
+
+    async def node_resume(self, node_id: str, run_id: str | None, prompt: str) -> dict[str, object]:
+        return {"run_id": run_id or "", "node_id": node_id, "prompt": prompt}
 
     async def subscribe_events(self, node_id: str = "", dag_name: str = ""):
         if node_id:
@@ -160,10 +163,10 @@ async def test_per_dag_concurrent_execution(tmp_path: Path) -> None:
     ctrl = FakeController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
-        cycle_default = await ctrl.start_run("manual", "default")
-        cycle_realtime = await ctrl.start_run("manual", "realtime")
-        assert cycle_default == "cycle-default-manual"
-        assert cycle_realtime == "cycle-realtime-manual"
+        run_default = await ctrl.start_run("manual", "default")
+        run_realtime = await ctrl.start_run("manual", "realtime")
+        assert run_default == "run-default-manual"
+        assert run_realtime == "run-realtime-manual"
         assert "default" in ctrl.active_runs
         assert "realtime" in ctrl.active_runs
         with pytest.raises(RunAlreadyActiveError):
@@ -182,7 +185,7 @@ async def test_per_dag_stop(tmp_path: Path) -> None:
         await ctrl.start_run("manual", "default")
         await ctrl.start_run("manual", "realtime")
         stopped = await ctrl.stop_current("default", force=True)
-        assert stopped == "cycle-default-manual"
+        assert stopped == "run-default-manual"
         assert "default" not in ctrl.active_runs
         assert "realtime" in ctrl.active_runs
         assert not ctrl.active_runs["realtime"].task.done()
@@ -197,10 +200,10 @@ async def test_dag_stop_api_accepts_force(tmp_path: Path) -> None:
     await ctrl.start(run_startup=False)
     try:
         await ctrl.start_run("manual", "default")
-        cycle_id = await ctrl.stop_current("default", force=True)
+        run_id = await ctrl.stop_current("default", force=True)
     finally:
         await ctrl.shutdown()
-    assert cycle_id == "cycle-default-manual"
+    assert run_id == "run-default-manual"
 
 
 @pytest.mark.asyncio
@@ -210,21 +213,21 @@ async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-original", "manual", dag_name="default")
+            await create_dag_run(session, "run-original", "manual", dag_name="default")
             await session.commit()
-        result = await ctrl.retry_node("default", "cycle-original", ["node-a"], "cascade")
+        result = await ctrl.retry_node("default", "run-original", ["node-a"], "cascade")
         async with ctrl._factory()() as session:
-            run = await get_pipeline_run(session, "retry-cycle-original")
+            run = await get_dag_run(session, "retry-run-original")
     finally:
         await ctrl.shutdown()
-    assert result.cycle_id == "retry-cycle-original"
-    assert result.retry_of == "cycle-original"
+    assert result.run_id == "retry-run-original"
+    assert result.retry_of == "run-original"
     assert result.node_ids == ["node-a"]
     assert result.mode == "cascade"
     assert result.retry_nodes == ["node-a"]
     assert run is not None
-    assert run.trigger == "retry"
-    assert run.retry_of == "cycle-original"
+    assert run.source == "retry"
+    assert run.retry_of == "run-original"
 
 
 @pytest.mark.asyncio
@@ -234,15 +237,15 @@ async def test_retry_api_defaults_to_latest_finished_run(tmp_path: Path) -> None
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-old", "manual", dag_name="default")
-            await finish_pipeline_run(session, "cycle-old", "failed")
-            await create_pipeline_run(session, "cycle-new", "manual", dag_name="default")
-            await finish_pipeline_run(session, "cycle-new", "succeeded")
+            await create_dag_run(session, "run-old", "manual", dag_name="default")
+            await finish_dag_run(session, "run-old", "failed")
+            await create_dag_run(session, "run-new", "manual", dag_name="default")
+            await finish_dag_run(session, "run-new", "succeeded")
             await session.commit()
         result = await ctrl.retry_node("default", None, ["node-a"], "single")
     finally:
         await ctrl.shutdown()
-    assert result.retry_of == "cycle-new"
+    assert result.retry_of == "run-new"
 
 
 @pytest.mark.asyncio
@@ -260,33 +263,33 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
             super().__init__(config_dir)
             self.calls = []
 
-        async def _run_single_node(self, cycle_id, trigger, dag_name, instance, payload, stop_event):
-            self.calls.append((cycle_id, trigger, dag_name, payload))
+        async def _run_single_node(self, run_id, source, dag_name, instance, payload, stop_event):
+            self.calls.append((run_id, source, dag_name, payload))
             await asyncio.sleep(60)
 
     ctrl = NodeTriggerController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-original", "manual", dag_name="default")
-            await finish_pipeline_run(session, "cycle-original", "succeeded")
+            await create_dag_run(session, "run-original", "manual", dag_name="default")
+            await finish_dag_run(session, "run-original", "succeeded")
             await session.commit()
-        cycle_id = await ctrl.run_node_trigger("node-a", {"symbol": "TEST"})
+        run_id = await ctrl.run_node_trigger("node-a", {"symbol": "TEST"})
         await asyncio.sleep(0)
     finally:
         await ctrl.shutdown()
 
-    assert ctrl.calls == [(cycle_id, "trigger", "default", {"symbol": "TEST"})]
+    assert ctrl.calls == [(run_id, "manual", "default", {"symbol": "TEST"})]
 
 
 @pytest.mark.asyncio
-async def test_retry_api_missing_cycle_returns_404(tmp_path: Path) -> None:
+async def test_retry_api_missing_run_returns_404(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
-        with pytest.raises(PipelineRunNotFoundError):
-            await ctrl.retry_node("default", "missing-cycle", ["node-a"], "single")
+        with pytest.raises(DagRunNotFoundError):
+            await ctrl.retry_node("default", "missing-run", ["node-a"], "single")
     finally:
         await ctrl.shutdown()
 
@@ -316,15 +319,15 @@ async def test_retry_node_missing_prefilled_upstream_returns_error(tmp_path: Pat
     )
     extensions_dir = tmp_path / "extensions"
     _write_node_b_extension(extensions_dir)
-    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir])
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-original", "manual", ["node-a", "node-b"], dag_name="default")
-            await finish_pipeline_run(session, "cycle-original", "failed")
+            await create_dag_run(session, "run-original", "manual", ["node-a", "node-b"], dag_name="default")
+            await finish_dag_run(session, "run-original", "failed")
             await session.commit()
         with pytest.raises(ValueError, match="missing prefilled outputs: node-a"):
-            await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
+            await ctrl.retry_node("default", "run-original", ["node-b"], "single")
     finally:
         await ctrl.shutdown()
 
@@ -355,18 +358,18 @@ async def test_retry_allows_missing_optional_historical_upstream(tmp_path: Path)
     )
     extensions_dir = tmp_path / "extensions"
     _write_node_b_extension(extensions_dir)
-    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir])
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-original", "manual", ["node-a", "node-b"], dag_name="default")
-            await upsert_edge_input(session, "cycle-original", "node-a", "node-b", True, "failed", False, "old failure")
-            await finish_pipeline_run(session, "cycle-original", "failed")
+            await create_dag_run(session, "run-original", "manual", ["node-a", "node-b"], dag_name="default")
+            await upsert_edge_input(session, "run-original", "node-a", "node-b", True, "failed", False, "old failure")
+            await finish_dag_run(session, "run-original", "failed")
             await session.commit()
-        result = await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
+        result = await ctrl.retry_node("default", "run-original", ["node-b"], "single")
         await ctrl.active_runs["default"].task
         async with ctrl._factory()() as session:
-            facts = await edge_inputs_for_cycle(session, result.cycle_id)
+            facts = await edge_inputs_for_run(session, result.run_id)
     finally:
         await ctrl.shutdown()
 
@@ -399,18 +402,18 @@ async def test_retry_blocks_missing_required_historical_upstream(tmp_path: Path)
         "  to: node-b\n",
         encoding="utf-8",
     )
-    ctrl = PipelineController(tmp_path)
+    ctrl = DagController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-original", "manual", ["node-a", "node-b"], dag_name="default")
-            await upsert_edge_input(session, "cycle-original", "node-a", "node-b", False, "unknown", False, None)
-            await finish_pipeline_run(session, "cycle-original", "failed")
+            await create_dag_run(session, "run-original", "manual", ["node-a", "node-b"], dag_name="default")
+            await upsert_edge_input(session, "run-original", "node-a", "node-b", False, "unknown", False, None)
+            await finish_dag_run(session, "run-original", "failed")
             await session.commit()
-        result = await ctrl.retry_node("default", "cycle-original", ["node-b"], "single")
+        result = await ctrl.retry_node("default", "run-original", ["node-b"], "single")
         await ctrl.active_runs["default"].task
         async with ctrl._factory()() as session:
-            runs = await node_runs_for_cycle(session, result.cycle_id)
+            runs = await node_runs_for_run(session, result.run_id)
     finally:
         await ctrl.shutdown()
 
@@ -420,27 +423,86 @@ async def test_retry_blocks_missing_required_historical_upstream(tmp_path: Path)
 
 
 @pytest.mark.asyncio
+async def test_sub_dag_records_independent_run_and_parent_metadata(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    (tmp_path / "nodes" / "child.yaml").write_text(
+        "name: child\n"
+        "type: dag\n"
+        "dag_ref: child\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "nodes" / "leaf.yaml").write_text(
+        "name: leaf\n"
+        "type: function\n"
+        "handler: leaf\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\n"
+        "nodes:\n"
+        "- id: child-node\n"
+        "  type: child\n"
+        "edges: []\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "dags" / "child.yaml").write_text(
+        "name: child\n"
+        "nodes:\n"
+        "- id: leaf-node\n"
+        "  type: leaf\n"
+        "edges: []\n",
+        encoding="utf-8",
+    )
+    extensions_dir = tmp_path / "extensions"
+    _write_leaf_extension(extensions_dir)
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        parent_run_id = await ctrl.run_now("manual", "default", {"seed": True})
+        async with ctrl._factory()() as session:
+            parent_runs = await node_runs_for_run(session, parent_run_id)
+            parent_node = next(run for run in parent_runs if run.node_name == "child-node")
+            metadata = parent_node.metadata_
+            child_run_id = str(metadata["sub_dag_run_id"])
+            child_dag_run = await get_dag_run(session, child_run_id)
+            child_runs = await node_runs_for_run(session, child_run_id)
+    finally:
+        await ctrl.shutdown()
+
+    assert metadata["parent_run_id"] == parent_run_id
+    assert metadata["parent_node"] == "child-node"
+    assert child_dag_run is not None
+    assert child_dag_run.dag_name == "child"
+    assert child_dag_run.status == "succeeded"
+    assert [(run.run_id, run.node_name, run.status) for run in child_runs] == [(child_run_id, "leaf-node", "succeeded")]
+
+
+@pytest.mark.asyncio
 async def test_per_dag_status_api(tmp_path: Path) -> None:
-    """C3: GET /api/pipeline/dag/{dag_name}/status returns per-DAG status."""
+    """C3: GET /api/dags/{dag_name}/status returns per-DAG status."""
     _write_dag_config(tmp_path)
     app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/pipeline/dag/default/status")
+        response = await client.get("/api/dags/default/status")
     assert response.status_code == 200
     data = response.json()
     assert data["dag_name"] == "default"
-    assert data["current_cycle_id"] == "cycle-default-manual"
+    assert data["current_run_id"] == "run-default-manual"
 
 
 @pytest.mark.asyncio
 async def test_per_dag_run_api(tmp_path: Path) -> None:
-    """C4: POST /api/pipeline/dag/{dag_name}/run returns 200 + cycle_id; nonexistent DAG returns 404."""
+    """C4: POST /api/dags/{dag_name}/run returns 200 + run_id; nonexistent DAG returns 404."""
     _write_dag_config(tmp_path)
     app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        first = await client.post("/api/pipeline/dag/default/run")
+        first = await client.post("/api/dags/default/run")
     assert first.status_code == 200
-    assert first.json()["cycle_id"] == "cycle-default-manual"
+    assert first.json()["run_id"] == "run-default-manual"
 
 
 @pytest.mark.asyncio
@@ -449,7 +511,7 @@ async def test_dag_run_api_uses_direct_body_as_initial_payload(tmp_path: Path) -
     grpc = FakeGrpcClient()
     app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/pipeline/dag/default/run", json={"ticker": "300470.SZ"})
+        response = await client.post("/api/dags/default/run", json={"ticker": "300470.SZ"})
     assert response.status_code == 200
     assert grpc.last_payload == {"ticker": "300470.SZ"}
 
@@ -460,7 +522,7 @@ async def test_dag_run_api_unwraps_inputs_body(tmp_path: Path) -> None:
     grpc = FakeGrpcClient()
     app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
+        response = await client.post("/api/dags/default/run", json={"inputs": {"ticker": "300470.SZ"}})
     assert response.status_code == 200
     assert grpc.last_payload == {"ticker": "300470.SZ"}
 
@@ -471,8 +533,8 @@ async def test_web_token_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     app = create_app(FakeGrpcClient())
     monkeypatch.setenv("EDERA_WEB_TOKEN", "secret")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        denied = await client.get("/api/pipeline/dag/default/status")
-        allowed = await client.get("/api/pipeline/dag/default/status", headers={"Authorization": "Bearer secret"})
+        denied = await client.get("/api/dags/default/status")
+        allowed = await client.get("/api/dags/default/status", headers={"Authorization": "Bearer secret"})
     assert denied.status_code == 401
     assert allowed.status_code == 200
 
@@ -482,18 +544,18 @@ async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
     class RecordingGrpcClient(FakeGrpcClient):
         payload: object | None = None
 
-        async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
+        async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
             assert name == "default"
             self.payload = payload
-            return {"cycle_id": "grpc-cycle"}
+            return {"run_id": "grpc-run"}
 
     _write_dag_config(tmp_path)
     grpc = RecordingGrpcClient()
     app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/pipeline/dag/default/run", json={"inputs": {"ticker": "300470.SZ"}})
+        response = await client.post("/api/dags/default/run", json={"inputs": {"ticker": "300470.SZ"}})
     assert response.status_code == 200
-    assert response.json() == {"cycle_id": "grpc-cycle"}
+    assert response.json() == {"run_id": "grpc-run"}
     assert grpc.payload == {"ticker": "300470.SZ"}
 
 
@@ -644,7 +706,7 @@ async def test_bff_dag_events_streams_from_grpc_client(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_resume_api_reuses_original_cycle(tmp_path: Path) -> None:
+async def test_resume_api_reuses_original_run(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     dag_file = tmp_path / "dags" / "default.yaml"
     dag_file.write_text(
@@ -655,44 +717,44 @@ async def test_resume_api_reuses_original_cycle(tmp_path: Path) -> None:
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-original", "manual", ["node-a"], dag_name="default")
-            await store_node_output_entities(session, "cycle-original", "node-a", "analysis", {"summary": "old"}, "session-1")
+            await create_dag_run(session, "run-original", "manual", ["node-a"], dag_name="default")
+            await store_node_output_entities(session, "run-original", "node-a", "analysis", {"summary": "old"}, "session-1")
             await session.commit()
-        cycle_id = await ctrl.resume_node("default", "cycle-original", "node-a", {"prompt": "adjust"})
+        run_id = await ctrl.resume_node("default", "run-original", "node-a", {"prompt": "adjust"})
         async with ctrl._factory()() as session:
-            run = await get_pipeline_run(session, "cycle-original")
-            recent = await recent_pipeline_runs(session, 5, "default")
+            run = await get_dag_run(session, "run-original")
+            recent = await recent_dag_runs(session, 5, "default")
     finally:
         await ctrl.shutdown()
-    assert cycle_id == "cycle-original"
+    assert run_id == "run-original"
     assert run is not None
-    assert run.cycle_id == "cycle-original"
-    assert all(item.cycle_id != "retry-cycle-original" for item in recent)
+    assert run.run_id == "run-original"
+    assert all(item.run_id != "retry-run-original" for item in recent)
 
 
 @pytest.mark.asyncio
 async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
-    ctrl = PipelineController(tmp_path)
+    ctrl = DagController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
         blocker = asyncio.create_task(asyncio.sleep(0.2))
         default_dag = tmp_path / "dags" / "default.yaml"
         default_dag.write_text("name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n", encoding="utf-8")
-        ctrl.active_runs["default"] = DagRunContext("default", "cycle-default", blocker)
+        ctrl.active_runs["default"] = DagRunContext("default", "run-default", blocker)
         pending = asyncio.create_task(ctrl.start_run("manual", "reflection", {"target": "node-a"}))
         await asyncio.sleep(0.05)
         assert not pending.done()
         await blocker
         ctrl._clear_finished_task(blocker, "default")
-        cycle_id = await pending
-        assert cycle_id
+        run_id = await pending
+        assert run_id
     finally:
         await ctrl.shutdown()
 
 
 @pytest.mark.asyncio
-async def test_pipeline_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_dag_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_dag_config(tmp_path)
     extensions_dir = tmp_path / "extensions"
     _write_run_pi_extension(extensions_dir)
@@ -724,7 +786,7 @@ async def test_pipeline_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: py
         "edges: []\n",
         encoding="utf-8",
     )
-    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir, Path("extensions")])
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir, Path("extensions")])
     await ctrl.start(run_startup=False)
     try:
         await ctrl.run_now("manual", "default")
@@ -792,14 +854,12 @@ async def test_scheduler_reflection_waits_and_edits_skill(tmp_path: Path) -> Non
         "    status: idle\n",
         encoding="utf-8",
     )
-    ctrl = PipelineController(tmp_path, extensions_dirs=[extensions_dir])
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
         blocker = asyncio.create_task(asyncio.sleep(0.2))
-        ctrl.active_runs["default"] = DagRunContext("default", "cycle-default", blocker)
-        job = ctrl.scheduler.get_job("reflection-dag")
-        assert job is not None
-        pending = asyncio.create_task(job.func(*job.args, **job.kwargs))
+        ctrl.active_runs["default"] = DagRunContext("default", "run-default", blocker)
+        pending = asyncio.create_task(ctrl.start_run("manual", "reflection"))
         await asyncio.sleep(0.05)
         assert not pending.done()
         assert skill_path.read_text(encoding="utf-8") == "initial\n"
@@ -827,11 +887,11 @@ async def test_ssr_routes_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         index = await client.get("/")
         results = await client.get("/results")
-        pipeline = await client.get("/pipeline")
+        removed_route = await client.get("/removed")
         config = await client.get("/config")
     assert index.status_code == 200
     assert results.status_code == 404
-    assert pipeline.status_code == 404
+    assert removed_route.status_code == 404
     assert config.status_code == 404
 
 
@@ -856,7 +916,7 @@ async def test_cors_middleware(tmp_path: Path) -> None:
     app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.options(
-            "/api/pipeline/status",
+            "/api/system/scheduler-status",
             headers={
                 "Origin": "http://localhost:5173",
                 "Access-Control-Request-Method": "GET",
@@ -904,20 +964,30 @@ async def test_bff_entity_types_route_uses_grpc(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_pipeline_run_dag_name_field(tmp_path: Path) -> None:
-    """C7: PipelineRun records include dag_name; filtering by dag_name works."""
+async def test_bff_default_node_history_route_returns_history_list(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    app = create_app(FakeGrpcClient())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/nodes/node-a/history?limit=10")
+    assert response.status_code == 200
+    assert response.json() == [{"dag_name": "default", "node_id": "node-a", "run_id": "run-1", "limit": 10}]
+
+
+@pytest.mark.asyncio
+async def test_dag_run_dag_name_field(tmp_path: Path) -> None:
+    """C7: DagRun records include dag_name; filtering by dag_name works."""
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
         async with ctrl._factory()() as session:
-            await create_pipeline_run(session, "cycle-a", "manual", dag_name="default")
-            await create_pipeline_run(session, "cycle-b", "manual", dag_name="realtime")
+            await create_dag_run(session, "run-a", "manual", dag_name="default")
+            await create_dag_run(session, "run-b", "manual", dag_name="realtime")
             await session.commit()
         async with ctrl._factory()() as session:
-            all_runs = await recent_pipeline_runs(session)
-            default_runs = await recent_pipeline_runs(session, dag_name="default")
-            realtime_runs = await recent_pipeline_runs(session, dag_name="realtime")
+            all_runs = await recent_dag_runs(session)
+            default_runs = await recent_dag_runs(session, dag_name="default")
+            realtime_runs = await recent_dag_runs(session, dag_name="realtime")
     finally:
         await ctrl.shutdown()
     assert len(all_runs) == 2
@@ -929,27 +999,47 @@ async def test_pipeline_run_dag_name_field(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_scheduler_per_dag_registration(tmp_path: Path) -> None:
-    """C8: Scheduler registers one job per DAG config file."""
+    """C8: Scheduler exposes cron DAG runs through Trigger Entity records."""
     _write_dag_config(tmp_path)
     _write_full_config(tmp_path)
+    _write_trigger_schema(tmp_path)
     (tmp_path / "dags" / "reflection.yaml").unlink()
-    ctrl = PipelineController(tmp_path)
+    ctrl = DagController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
-        jobs = ctrl.scheduler.get_jobs()
-        job_ids = {job.id for job in jobs}
-        assert "default-dag" in job_ids
-        assert "realtime-dag" in job_ids
-        assert len(jobs) == 2
+        assert (tmp_path / "triggers" / "default-default-cron.yaml").exists()
+        assert (tmp_path / "triggers" / "realtime-default-cron.yaml").exists()
+        assert ctrl.cron_emitter is not None
+        assert ctrl.cron_emitter.cron_tokens() == {'cron:"*/30 * * * *"'}
     finally:
         await ctrl.shutdown()
 
 
 def _write_full_config(path: Path) -> None:
-    """Write minimal entity and nodes config for PipelineController.start()."""
+    """Write minimal entity and nodes config for DagController.start()."""
     _write_entity_schemas(path)
     nodes_dir = path / "nodes"
     nodes_dir.mkdir(exist_ok=True)
+
+
+def _write_trigger_schema(path: Path) -> None:
+    schemas = path.parent / "schemas" / "entity-types"
+    schemas.mkdir(parents=True, exist_ok=True)
+    schemas.joinpath("trigger.yaml").write_text(
+        "display_name: Trigger\n"
+        "business_id_field: name\n"
+        "display_template: '{name}'\n"
+        "storage_tier: filesystem\n"
+        "schema:\n"
+        "  type: object\n"
+        "  required: [name, wait_for, target]\n"
+        "  properties:\n"
+        "    name: {type: string}\n"
+        "    wait_for: {type: string}\n"
+        "    target: {type: string}\n"
+        "    enabled: {type: boolean}\n",
+        encoding="utf-8",
+    )
 
 
 def _write_run_pi_extension(path: Path) -> None:
@@ -971,7 +1061,7 @@ def _write_run_pi_extension(path: Path) -> None:
         "        config,\n"
         "        [],\n"
         "        ctx.input,\n"
-        "        ctx.cycle_id,\n"
+        "        ctx.run_id,\n"
         "        ctx.node_name,\n"
         "        ctx.entity_store.system,\n"
         "        ctx.entity_store.runtime,\n"
@@ -990,7 +1080,7 @@ def _write_reflection_extension(path: Path) -> None:
         "    path = Path(ctx.params['skill_path'])\n"
         "    target = ctx.params['target']\n"
         "    text = path.read_text(encoding='utf-8')\n"
-        "    path.write_text(text + f'reflected:{target}:{ctx.cycle_id}\\n', encoding='utf-8')\n"
+        "    path.write_text(text + f'reflected:{target}:{ctx.run_id}\\n', encoding='utf-8')\n"
         "    return {'target': target, 'edited': str(path)}\n",
         encoding="utf-8",
     )
@@ -1000,6 +1090,12 @@ def _write_node_b_extension(path: Path) -> None:
     extension = path / "node-b"
     extension.mkdir(parents=True)
     extension.joinpath("handler.py").write_text("async def run(ctx):\n    return {'payload': ctx.input.payload}\n", encoding="utf-8")
+
+
+def _write_leaf_extension(path: Path) -> None:
+    extension = path / "leaf"
+    extension.mkdir(parents=True)
+    extension.joinpath("handler.py").write_text("async def run(ctx):\n    return {'leaf': ctx.run_id}\n", encoding="utf-8")
 
 
 def _write_fake_pi(path: Path) -> Path:

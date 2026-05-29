@@ -25,7 +25,7 @@ from edera_core.service_common import (
     valid_dag_name,
     validate_graph_entity_permissions,
 )
-from edera_core.storage.repository import node_runs_for_cycle, recent_pipeline_runs
+from edera_core.storage.repository import node_runs_for_run, recent_dag_runs
 
 
 class _GraphService:
@@ -197,17 +197,17 @@ class _GraphService:
     async def RuntimeStatus(self, request, context):
         factory = self.daemon.controller._factory()
         async with factory() as session:
-            recent = await recent_pipeline_runs(session)
+            recent = await recent_dag_runs(session)
         node_statuses: dict[str, dict[str, object]] = {}
         if recent:
             async with factory() as session:
                 for run in recent[:1]:
-                    for node_run in await node_runs_for_cycle(session, run.cycle_id):
+                    for node_run in await node_runs_for_run(session, run.run_id):
                         node_statuses[node_run.node_name] = {
                             "status": node_run.status,
                             "started_at": node_run.started_at.isoformat() if node_run.started_at else None,
                             "ended_at": node_run.ended_at.isoformat() if node_run.ended_at else None,
                             "error": node_run.error,
-                            "cycle_id": node_run.cycle_id,
+                            "run_id": node_run.run_id,
                         }
         return json_response(self.pb2, {"node_statuses": node_statuses})

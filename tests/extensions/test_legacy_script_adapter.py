@@ -131,11 +131,11 @@ def _ctx(
     metadata: dict[str, object] | None = None,
 ) -> HandlerContext:
     return HandlerContext(
-        input=NodeInput(cycle_id="cycle", payload=payload, metadata=metadata or {}),
+        input=NodeInput(run_id="run", payload=payload, metadata=metadata or {}),
         params={"module_path": str(root / f"{module}.py"), "function": "main", "args_map": args_map},
         node_name="node",
         node_type="legacy-script-adapter",
-        cycle_id="cycle",
+        run_id="run",
         entity_store=_EmptyStore(),
     )
 

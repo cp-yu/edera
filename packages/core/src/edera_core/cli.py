@@ -22,7 +22,8 @@ def main() -> None:
     _entity_parser(subparsers.add_parser("entity"))
     _node_parser(subparsers.add_parser("node"))
     _dag_parser(subparsers.add_parser("dag"))
-    _trigger_parser(subparsers.add_parser("trigger"))
+    _event_parser(subparsers.add_parser("event"))
+    _system_parser(subparsers.add_parser("system"))
     _client_parser(subparsers.add_parser("client"))
     handler_validate = subparsers.add_parser("handler-validate")
     handler_validate.add_argument("path", type=Path)
@@ -70,20 +71,30 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     resume = subparsers.add_parser("resume")
     resume.add_argument("node_id")
     resume.add_argument("--prompt", default="")
-    resume.add_argument("--cycle-id")
+    resume.add_argument("--run-id")
     output = subparsers.add_parser("output")
     output.add_argument("output_args", nargs="*")
-    output.add_argument("--cycle-id")
+    output.add_argument("--run-id")
 
 
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="dag_command", required=True)
-    trigger = subparsers.add_parser("trigger")
-    trigger.add_argument("dag_name")
-    trigger.add_argument("--payload", default="{}")
-    trigger.add_argument("--input", action="append", default=[])
+    run = subparsers.add_parser("run")
+    run.add_argument("dag_name")
+    run.add_argument("--payload", default="{}")
+    run.add_argument("--inputs", default="")
+    run.add_argument("--input", action="append", default=[])
     status = subparsers.add_parser("status")
     status.add_argument("dag_name")
+    stop = subparsers.add_parser("stop")
+    stop.add_argument("dag_name")
+    stop.add_argument("--force", action="store_true")
+    retry = subparsers.add_parser("retry")
+    retry.add_argument("dag_name")
+    retry.add_argument("--run-id", default="")
+    retry.add_argument("--nodes", default="")
+    retry.add_argument("--mode", default="single")
+    retry.add_argument("--payload", default="")
     edit = subparsers.add_parser("edit")
     edit.add_argument("dag_name")
     edit_sub = edit.add_subparsers(dest="edit_command", required=True)
@@ -101,13 +112,20 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     remove_edge.add_argument("--to", required=True)
 
 
-def _trigger_parser(parser: argparse.ArgumentParser) -> None:
-    subparsers = parser.add_subparsers(dest="trigger_command", required=True)
+def _event_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="event_command", required=True)
     emit = subparsers.add_parser("emit")
     emit.add_argument("event")
     emit.add_argument("--payload-json", default="")
     emit.add_argument("--source", default="cli")
     emit.add_argument("--depth", type=int, default=0)
+
+
+def _system_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="system_command", required=True)
+    subparsers.add_parser("pause-scheduler")
+    subparsers.add_parser("resume-scheduler")
+    subparsers.add_parser("scheduler-status")
 
 
 def _client_parser(parser: argparse.ArgumentParser) -> None:
@@ -124,8 +142,10 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _run_grpc(_grpc_node(args))
     if args.command == "dag":
         return _run_grpc(_grpc_dag(args))
-    if args.command == "trigger":
-        return _run_grpc(_grpc_trigger(args))
+    if args.command == "event":
+        return _run_grpc(_grpc_event(args))
+    if args.command == "system":
+        return _run_grpc(_grpc_system(args))
     if args.command == "client":
         return _client(args)
     if args.command == "handler-validate":
@@ -182,13 +202,13 @@ async def _grpc_node(args: argparse.Namespace) -> object:
         if args.node_command == "stop":
             return await client.node_stop(args.node_id)
         if args.node_command == "resume":
-            return await client.node_resume(args.node_id, args.cycle_id, args.prompt)
+            return await client.node_resume(args.node_id, args.run_id, args.prompt)
         if args.node_command == "output":
             node_id = args.output_args[1] if args.output_args[:1] == ["query"] and len(args.output_args) > 1 else None
             node_id = node_id or (args.output_args[0] if args.output_args else None)
             if not node_id:
                 raise ValueError("node_id is required")
-            return await client.node_output(node_id, args.cycle_id)
+            return await client.node_output(node_id, args.run_id)
     finally:
         await client.close()
     raise ValueError(f"unknown node command: {args.node_command}")
@@ -199,25 +219,43 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
     try:
         if args.dag_command == "status":
             return await client.dag_status(args.dag_name)
+        if args.dag_command == "stop":
+            return await client.dag_stop(args.dag_name, args.force)
+        if args.dag_command == "retry":
+            return await client.dag_retry(args.dag_name, args.run_id, _node_ids(args.nodes), args.mode, _optional_json(args.payload))
         if args.dag_command == "edit":
             return await client.dag_edit(args.dag_name, args.edit_command, _dag_edit_payload(args))
-        return await client.dag_trigger(args.dag_name, _dag_trigger_payload(args))
+        return await client.dag_run(args.dag_name, _dag_run_payload(args))
     finally:
         await client.close()
 
 
-async def _grpc_trigger(args: argparse.Namespace) -> object:
+async def _grpc_event(args: argparse.Namespace) -> object:
     client = GrpcClient(args.server, identity=args.identity)
     try:
-        if args.trigger_command == "emit":
+        if args.event_command == "emit":
             payload = json.loads(args.payload_json) if args.payload_json else None
-            return await client.pipeline_emit(args.event, payload, source=args.source, depth=args.depth)
+            return await client.event_emit(args.event, payload, source=args.source, depth=args.depth)
     finally:
         await client.close()
-    raise ValueError(f"unknown trigger command: {args.trigger_command}")
+    raise ValueError(f"unknown event command: {args.event_command}")
 
 
-def _dag_trigger_payload(args: argparse.Namespace) -> object:
+async def _grpc_system(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.system_command == "pause-scheduler":
+            return await client.system_pause_scheduler()
+        if args.system_command == "resume-scheduler":
+            return await client.system_resume_scheduler()
+        if args.system_command == "scheduler-status":
+            return await client.system_scheduler_status()
+    finally:
+        await client.close()
+    raise ValueError(f"unknown system command: {args.system_command}")
+
+
+def _dag_run_payload(args: argparse.Namespace) -> object:
     if args.input:
         payload: dict[str, str] = {}
         for item in args.input:
@@ -226,7 +264,17 @@ def _dag_trigger_payload(args: argparse.Namespace) -> object:
                 raise ValueError("--input must be key=value")
             payload[key] = value
         return payload
+    if args.inputs:
+        return json.loads(args.inputs)
     return json.loads(args.payload)
+
+
+def _node_ids(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _optional_json(value: str) -> object | None:
+    return json.loads(value) if value else None
 
 
 def _dag_edit_payload(args: argparse.Namespace) -> dict[str, object]:

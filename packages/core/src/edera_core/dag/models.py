@@ -23,7 +23,7 @@ class DagGraph:
 
 @dataclass
 class DagRunResult:
-    cycle_id: str
+    run_id: str
     node_outputs: dict[str, NodeOutput]
     failures: dict[str, str]
     payload: Any = None

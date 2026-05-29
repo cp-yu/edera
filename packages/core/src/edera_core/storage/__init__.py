@@ -5,7 +5,7 @@ from edera_core.storage.entities import (
     EventGroupBit,
     NodeOutputEntity,
     NodeRun,
-    PipelineRun,
+    DagRun,
     SourceRecovery,
 )
 
@@ -15,7 +15,7 @@ __all__ = [
     "EventGroupBit",
     "NodeOutputEntity",
     "NodeRun",
-    "PipelineRun",
+    "DagRun",
     "SourceRecovery",
     "create_engine",
     "init_db",

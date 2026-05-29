@@ -7,19 +7,19 @@
 系统 SHALL 使用具体 runtime tables 存储运行事实，并通过 Entity API/CLI 将这些运行事实投影为 runtime entities。系统 MUST NOT 将 `edge_inputs` 或 `source_recoveries` 存入 `node_outputs`。
 
 #### Scenario: Project runtime facts as entities
-- **WHEN** 用户通过 API 或 CLI 查询某个 cycle 的 runtime facts
-- **THEN** 系统 SHALL 将底层 `pipeline_runs`、`node_runs`、`edge_inputs` 和 `source_recoveries` 行投影为 runtime entities
+- **WHEN** 用户通过 API 或 CLI 查询某个 run 的 runtime facts
+- **THEN** 系统 SHALL 将底层 `dag_runs`、`node_runs`、`edge_inputs` 和 `source_recoveries` 行投影为 runtime entities
 
 #### Scenario: Keep business outputs separate
 - **WHEN** 节点产出业务 payload
 - **THEN** 系统 SHALL 继续将业务输出写入 `node_outputs`，并 MUST NOT 将 runtime facts 混入业务输出表
 
 ### Requirement: Edge input facts
-系统 SHALL 定义 `edge_inputs` runtime table，字段 MUST 包含 `cycle_id`、`from_node_id`、`to_node_id`、`edge_optional`、`status`、`has_payload` 和 `error_summary`。`edge_inputs.status` MUST 仅允许 `available`、`empty`、`failed`、`unknown`。`edge_inputs` MUST NOT 存储 alias、node type 或 output refs。
+系统 SHALL 定义 `edge_inputs` runtime table，字段 MUST 包含 `run_id`、`from_node_id`、`to_node_id`、`edge_optional`、`status`、`has_payload` 和 `error_summary`。`edge_inputs.status` MUST 仅允许 `available`、`empty`、`failed`、`unknown`。`edge_inputs` MUST NOT 存储 alias、node type 或 output refs。
 
 #### Scenario: Edge input unique key
-- **WHEN** 系统写入某个 cycle 中同一条 `from_node_id -> to_node_id` 的 edge input fact
-- **THEN** 系统 MUST 使用 `cycle_id + from_node_id + to_node_id` 作为唯一约束，并在 resume 同一 cycle 时 upsert
+- **WHEN** 系统写入某个 run 中同一条 `from_node_id -> to_node_id` 的 edge input fact
+- **THEN** 系统 MUST 使用 `run_id + from_node_id + to_node_id` 作为唯一约束，并在 resume 同一 run 时 upsert
 
 #### Scenario: Available edge input
 - **WHEN** 上游节点成功且存在有效 payload
@@ -72,22 +72,22 @@
 - **THEN** 系统 SHALL 记录目标节点 `status=failed`、`failure_kind=upstream_failed`，并在 error 中说明阻断上游
 
 ### Requirement: Source recovery runtime facts
-系统 SHALL 定义 `source_recoveries` runtime table，用于保存每个 source 在某个 cycle/node 下的最终恢复 summary。表字段 MUST 包含 `cycle_id`、`node_id`、`source_name`、`recovery_status`、`attempt_count`、`recoverable_reason`、`latest_failure_reason`、`escalated`、`escalation_reason` 和 `created_at`。
+系统 SHALL 定义 `source_recoveries` runtime table，用于保存每个 source 在某个 run/node 下的最终恢复 summary。表字段 MUST 包含 `run_id`、`node_id`、`source_name`、`recovery_status`、`attempt_count`、`recoverable_reason`、`latest_failure_reason`、`escalated`、`escalation_reason` 和 `created_at`。
 
 #### Scenario: Record final source recovery summary
 - **WHEN** source fetcher 完成某个 source 的获取和恢复流程
 - **THEN** handler SHALL 通过 `ctx.runtime.record_source_recovery(...)` 写入或更新 `source_recoveries`
 
 #### Scenario: Source recovery unique key
-- **WHEN** 同一 `cycle_id + node_id + source_name` 多次写入 source recovery summary
+- **WHEN** 同一 `run_id + node_id + source_name` 多次写入 source recovery summary
 - **THEN** 系统 MUST upsert 最终 summary，而不是追加 attempt 明细
 
 #### Scenario: Legacy source recovery collection removed
 - **WHEN** source fetcher 写入 source recovery
-- **THEN** 系统 MUST NOT 通过 `NodeOutput.metadata.source_recovery`、`PipelineController._record_source_runs()` 或 `_source_recovery()` 从 output metadata 收集 source recovery
+- **THEN** 系统 MUST NOT 通过 `NodeOutput.metadata.source_recovery`、`DagController._record_source_runs()` 或 `_source_recovery()` 从 output metadata 收集 source recovery
 
 ### Requirement: Agent runtime context
-系统 SHALL 为 agent 节点默认提供简短 runtime context，并在 agent 运行目录写入 `runtime-context.json`。该 context SHALL 包含 cycle、dag、node 和直接上游 edge input 摘要，但 MUST NOT 自动复制上游 payload。
+系统 SHALL 为 agent 节点默认提供简短 runtime context，并在 agent 运行目录写入 `runtime-context.json`。该 context SHALL 包含 run、dag、node 和直接上游 edge input 摘要，但 MUST NOT 自动复制上游 payload。
 
 #### Scenario: Agent receives short context
 - **WHEN** agent 节点启动
@@ -95,7 +95,7 @@
 
 #### Scenario: Agent exports payload explicitly
 - **WHEN** agent 需要查看上游 payload
-- **THEN** agent SHALL 使用 `edera node output export --cycle <cycle_id> --node <node_id> --out <path>` 显式 export payload 到运行目录文件，而不是依赖 prompt 自动携带完整 payload
+- **THEN** agent SHALL 使用 `edera node output export --run-id <run_id> --node <node_id> --out <path>` 显式 export payload 到运行目录文件，而不是依赖 prompt 自动携带完整 payload
 
 ### Requirement: Output metadata boundary
 系统 SHALL 将 `NodeInput.metadata` 视为当前节点输入上下文，将 `NodeOutput.metadata` 视为节点自身输出元信息。系统 MUST NOT 自动将输入侧 metadata 复制到 output metadata。

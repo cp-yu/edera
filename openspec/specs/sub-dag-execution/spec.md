@@ -69,16 +69,16 @@ Executor 执行 dag 节点时，SHALL 递归调用 DagRunner 执行目标 DAG。
 - **WHEN** executor 执行 dag 节点
 - **THEN** 系统 SHALL 创建新的 DagRunner 实例执行目标 DAG
 
-### Requirement: 独立 Cycle ID
-子 DAG 执行 SHALL 生成独立的 `cycle_id`，不复用父 DAG 的 cycle_id。子 DAG 的执行记录 SHALL 包含 `parent_cycle_id` 和 `parent_node` 字段关联父级。
+### Requirement: 独立 run_id
+子 DAG 执行 SHALL 生成独立的 `run_id`，不复用父 DAG 的 run_id。子 DAG 的执行记录 SHALL 包含 `parent_run_id` 和 `parent_node` 字段关联父级。
 
-#### Scenario: 子 DAG 生成独立 cycle_id
+#### Scenario: 子 DAG 生成独立 run_id
 - **WHEN** dag 节点触发子 DAG 执行
-- **THEN** 子 DAG SHALL 生成新的 UUID 作为 cycle_id
+- **THEN** 子 DAG SHALL 生成新的 UUID 作为 run_id
 
 #### Scenario: 父子关联记录
 - **WHEN** 子 DAG 执行记录被创建
-- **THEN** 记录 SHALL 包含 `parent_cycle_id`（父 DAG 的 cycle_id）和 `parent_node`（dag 节点的 instance_id）
+- **THEN** 记录 SHALL 包含 `parent_run_id`（父 DAG 的 run_id）和 `parent_node`（dag 节点的 instance_id）
 
 ### Requirement: Source/Sink 接口映射
 子 DAG 的 source 节点 SHALL 作为外部输入接口，sink 节点 SHALL 作为外部输出接口。Dag 节点的上游输出 SHALL 映射到子 DAG 的 source 节点，子 DAG 的 sink 节点输出 SHALL 作为 dag 节点的输出。
@@ -90,4 +90,3 @@ Executor 执行 dag 节点时，SHALL 递归调用 DagRunner 执行目标 DAG。
 #### Scenario: 子 DAG sink 输出作为节点输出
 - **WHEN** 子 DAG 的 sink 节点执行完成
 - **THEN** 其输出 SHALL 作为 dag 节点的输出传递给下游
-

@@ -125,11 +125,11 @@ export interface SkillDefinition {
   parameters_schema: Record<string, unknown>
 }
 
-export interface PipelineRun {
+export interface DagRun {
   id: number
-  cycle_id: string
+  run_id: string
   dag_name: string
-  trigger: string
+  source: string
   status: string
   started_at: string
   ended_at: string | null
@@ -141,12 +141,12 @@ export interface DagStatus {
   scheduler_running: boolean
   scheduler_paused: boolean
   dag_name: string
-  current_cycle_id: string | null
-  recent_runs: PipelineRun[]
+  current_run_id: string | null
+  recent_runs: DagRun[]
 }
 
 export interface RetryDagResponse {
-  cycle_id: string
+  run_id: string
   retry_of: string
   node_ids: string[]
   mode: 'single' | 'cascade'
@@ -156,7 +156,7 @@ export interface RetryDagResponse {
 export interface NodeStatus {
   status: string
   error: string | null
-  cycle_id: string
+  run_id: string
   started_at?: string | null
   ended_at?: string | null
 }
@@ -172,10 +172,10 @@ export interface NodeOutputEntity {
 }
 
 export interface NodeHistoryItem {
-  run: PipelineRun
+  run: DagRun
   node_run: {
     id: number
-    cycle_id: string
+    run_id: string
     node_name: string
     status: string
     started_at: string | null
@@ -187,7 +187,7 @@ export interface NodeHistoryItem {
 
 export interface Briefing {
   id: string
-  cycle_id: string
+  run_id: string
   content: string
   metadata: Record<string, unknown>
   created_at: string
@@ -245,7 +245,7 @@ export interface ResultsSummary {
 export interface SourceHealth {
   source_name: string
   latest_status: string
-  cycle_id: string | null
+  run_id: string | null
   latest_run_at: string | null
   success_rate: number | null
   window_size: number
@@ -259,10 +259,10 @@ export interface SourceHealth {
 }
 
 export interface SourceLog {
-  cycle_id: string
+  run_id: string
   source_name: string
   status: string
-  pipeline_status: string | null
+  dag_status: string | null
   started_at: string | null
   ended_at: string | null
   error: string | null

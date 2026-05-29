@@ -65,7 +65,7 @@ export function useRuntimeStatus(polling = false) {
 export function useDagStatus(dagName: string, polling = false) {
   return useQuery({
     queryKey: ['dagStatus', dagName],
-    queryFn: () => apiFetch<DagStatus>(`/api/pipeline/dag/${dagName}/status`),
+    queryFn: () => apiFetch<DagStatus>(`/api/dags/${dagName}/status`),
     enabled: !!dagName,
     refetchInterval: polling ? 2000 : false,
   })
@@ -120,13 +120,13 @@ export function useSourceLogs(sourceName?: string) {
   })
 }
 
-export function useNodeOutputs(nodeId: string | null, cycleId?: string | null) {
+export function useNodeOutputs(nodeId: string | null, runId?: string | null) {
   const search = new URLSearchParams()
   if (nodeId) search.set('node_id', nodeId)
-  if (cycleId) search.set('cycle_id', cycleId)
+  if (runId) search.set('run_id', runId)
   const qs = search.toString()
   return useQuery({
-    queryKey: ['nodeOutputs', nodeId, cycleId],
+    queryKey: ['nodeOutputs', nodeId, runId],
     queryFn: () => apiFetch<{ outputs: NodeOutputEntity[] }>(`/api/node-outputs${qs ? `?${qs}` : ''}`),
     enabled: !!nodeId,
   })

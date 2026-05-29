@@ -182,12 +182,12 @@ Node executor SHALL 将节点执行输出存储为输出型 Entity（存储在�
 #### Scenario: 存储 Node 输出为 Entity
 
 - **WHEN** 节点执行成功产出结果
-- **THEN** executor 将输出存储为一个 Entity（type 由节点的 `output_type` 决定），包含 `cycle_id`、`node_id`、`payload` 等 attributes
+- **THEN** executor 将输出存储为一个 Entity（type 由节点的 `output_type` 决定），包含 `run_id`、`node_id`、`payload` 等 attributes
 
 #### Scenario: 输出 Entity 可被后续节点引用
 
 - **WHEN** 下游节点需要引用上游的输出
-- **THEN** 系统通过 Entity Store 查询对应 cycle_id 和 node_id 的输出 Entity
+- **THEN** 系统通过 Entity Store 查询对应 run_id 和 node_id 的输出 Entity
 
 ### Requirement: Session ID 记录
 
@@ -236,7 +236,7 @@ Node executor SHALL 解析 `session_dir` 配置（支持引用格式），将解
 - **WHEN** 实例配置 `session_dir: "sandbox:llm-analyze:latest"`
 - **THEN** executor SHALL 查询 `llm-analyze` 节点最近一次执行的 sandbox 路径，传递给 pi
 
-#### Scenario: 解析指定 cycle 引用
+#### Scenario: 解析指定 run 引用
 - **WHEN** 实例配置 `session_dir: "sandbox:llm-analyze:run-20260524-001"`
 - **THEN** executor SHALL 构造路径 `workspace_root/sandbox/llm-analyze/run-20260524-001/sessions/`，传递给 pi
 
@@ -271,7 +271,7 @@ Node executor SHALL 根据 NodeConfig 的 type 字段分发到不同执行路径
 - **THEN** executor SHALL 递归调用 DagRunner 执行目标 DAG
 
 ### Requirement: Agent 节点 workdir 和 session 分离
-Node executor SHALL 为 agent 节点设置 subprocess cwd 为 `workdir`（用户配置），`--session-dir` 参数指向 server 决定的绝对路径 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{cycle_id}/`。MUST NOT 将 `session_dir` 作为 cwd，MUST NOT 假设路径在客户端家目录下。
+Node executor SHALL 为 agent 节点设置 subprocess cwd 为 `workdir`（用户配置），`--session-dir` 参数指向 server 决定的绝对路径 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{run_id}/`。MUST NOT 将 `session_dir` 作为 cwd，MUST NOT 假设路径在客户端家目录下。
 
 #### Scenario: Workdir 设置为 cwd
 - **WHEN** agent 节点配置 `workdir: /path/to/project`
@@ -279,5 +279,5 @@ Node executor SHALL 为 agent 节点设置 subprocess cwd 为 `workdir`（用户
 
 #### Scenario: Session 路径由 server 管理
 - **WHEN** agent 节点执行
-- **THEN** executor SHALL 使用 server 决定的绝对路径作为 `--session-dir`，路径形如 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{cycle_id}/`
+- **THEN** executor SHALL 使用 server 决定的绝对路径作为 `--session-dir`，路径形如 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{run_id}/`
 - **AND** executor MUST NOT 使用 `~/.rig/sessions/{...}` 或 `~/.edera/sessions/{...}` 路径模板

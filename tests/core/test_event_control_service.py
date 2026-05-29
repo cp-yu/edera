@@ -7,8 +7,8 @@ import pytest
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_app_config
-from edera_core.pipeline import PipelineController, _ensure_default_cron_triggers
-from edera_core.pipeline_service import _PipelineService
+from edera_core.dag_controller import DagController, _ensure_default_cron_triggers
+from edera_core.event_service import _EventService
 from edera_core.proto import edera_pb2 as pb2
 
 
@@ -30,7 +30,7 @@ class _Controller:
 
 @pytest.mark.asyncio
 async def test_emit_rpc() -> None:
-    response = await _PipelineService(_Daemon()).Emit(
+    response = await _EventService(_Daemon()).Emit(
         pb2.EmitRequest(
             event="event:price-drop",
             payload_json='{"symbol":"TEST"}',
@@ -46,7 +46,7 @@ async def test_emit_rpc() -> None:
 @pytest.mark.asyncio
 async def test_no_apscheduler(tmp_path: Path) -> None:
     _write_config(tmp_path)
-    ctrl = PipelineController(tmp_path)
+    ctrl = DagController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
         assert ctrl.scheduler.get_jobs() == []
@@ -57,7 +57,7 @@ async def test_no_apscheduler(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_config_changed_rescans_cron_tokens(tmp_path: Path) -> None:
     _write_config(tmp_path)
-    ctrl = PipelineController(tmp_path)
+    ctrl = DagController(tmp_path)
 
     (tmp_path / "triggers").mkdir()
     trigger_path = tmp_path / "triggers" / "hourly.yaml"

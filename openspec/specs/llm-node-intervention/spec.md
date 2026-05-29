@@ -23,7 +23,7 @@ Resume 执行完成后，系统 SHALL 用新输出替换原节点的输出记录
 
 #### Scenario: 干预后输出更新
 - **WHEN** resume 执行成功产出新结果
-- **THEN** 系统 SHALL 更新该节点在当前 cycle 中的 `NodeOutput`，session_id 指向同一 sandbox
+- **THEN** 系统 SHALL 更新该节点在当前 run 中的 `NodeOutput`，session_id 指向同一 sandbox
 
 #### Scenario: 干预后下游重新执行
 - **WHEN** resume 执行成功且该节点有下游依赖

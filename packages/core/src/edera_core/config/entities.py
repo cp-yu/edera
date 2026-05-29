@@ -70,7 +70,7 @@ class EntityStore:
     def query(
         self,
         entity_type: str | None = None,
-        cycle_id: str | None = None,
+        run_id: str | None = None,
         node_id: str | None = None,
         tags: list[str] | None = None,
     ) -> list[EntityConfig]:
@@ -78,7 +78,7 @@ class EntityStore:
         for entity in self._all_entities():
             if entity_type is not None and entity.type != entity_type:
                 continue
-            if cycle_id is not None and entity.attributes.get("cycle_id") != cycle_id:
+            if run_id is not None and entity.attributes.get("run_id") != run_id:
                 continue
             if node_id is not None and entity.attributes.get("node_id") != node_id:
                 continue
@@ -103,7 +103,7 @@ class EntityStore:
 
         stored = await store_node_output_entities(
             session,
-            str(attributes.get("cycle_id") or ""),
+            str(attributes.get("run_id") or ""),
             str(attributes.get("node_id") or entity_type),
             entity_type,
             attributes.get("payload", attributes),
@@ -116,21 +116,21 @@ class EntityStore:
     async def query_async(
         self,
         entity_type: str | None = None,
-        cycle_id: str | None = None,
+        run_id: str | None = None,
         node_id: str | None = None,
         tags: list[str] | None = None,
         session: Any | None = None,
     ) -> list[EntityConfig]:
         if session is None or not self._needs_database(entity_type):
-            return self.query(entity_type, cycle_id, node_id, tags)
+            return self.query(entity_type, run_id, node_id, tags)
         from edera_core.storage.repository import query_node_output_entities
 
         filesystem_and_memory = [
             entity
-            for entity in self.query(entity_type, cycle_id, node_id, tags)
+            for entity in self.query(entity_type, run_id, node_id, tags)
             if self.entity_types[entity.type].storage_tier != "database"
         ]
-        database = await query_node_output_entities(session, entity_type, cycle_id, node_id, tags)
+        database = await query_node_output_entities(session, entity_type, run_id, node_id, tags)
         return _dedupe_entities(filesystem_and_memory + database)
 
     async def save_async(
@@ -278,11 +278,11 @@ class EntityStore:
             return len(removed_relations)
         raise ConfigError(f"Entity not found: {entity_id}")
 
-    def release_run(self, cycle_id: str) -> None:
+    def release_run(self, run_id: str) -> None:
         self.memory_entities = {
             entity_id: entity
             for entity_id, entity in self.memory_entities.items()
-            if entity.attributes.get("cycle_id") != cycle_id
+            if entity.attributes.get("run_id") != run_id
         }
 
     def create_relation(

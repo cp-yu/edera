@@ -104,5 +104,4 @@
 
 #### Scenario: 查询 runtime status
 - **WHEN** 客户端调用 `GraphService.RuntimeStatus`
-- **THEN** server SHALL 查询最近一次 pipeline run 的各节点执行状态并返回
-
+- **THEN** server SHALL 查询最近一次 DAG run 的各节点执行状态并返回

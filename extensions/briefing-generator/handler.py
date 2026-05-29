@@ -15,7 +15,7 @@ async def run(ctx: HandlerContext) -> dict[str, Any]:
         Advice.model_validate(item)
         for item in (ctx.input.payload if isinstance(ctx.input.payload, list) else [])
     ]
-    lines: list[str] = [f"周期: {ctx.input.cycle_id}", ""]
+    lines: list[str] = [f"运行: {ctx.input.run_id}", ""]
     by_code = {advice.stock_code: advice for advice in advices}
     stocks = ctx.entity_store.query("stock")
     sources = [
@@ -43,5 +43,5 @@ async def run(ctx: HandlerContext) -> dict[str, Any]:
         },
     }
     lines.extend(["", "元数据:", str(metadata), "", DISCLAIMER])
-    briefing = Briefing(cycle_id=ctx.input.cycle_id, content="\n".join(lines), metadata=metadata)
+    briefing = Briefing(run_id=ctx.input.run_id, content="\n".join(lines), metadata=metadata)
     return briefing.model_dump(mode="json", by_alias=True)

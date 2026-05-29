@@ -30,7 +30,7 @@
 #### Scenario: Node 输出作为 Entity
 
 - **WHEN** 一个 Node 执行完成并产出结果
-- **THEN** 系统将输出存储为一个输出型 Entity（如 `type: analysis`），包含 `cycle_id`、`node_id`、`payload` 等字段
+- **THEN** 系统将输出存储为一个输出型 Entity（如 `type: analysis`），包含 `run_id`、`node_id`、`payload` 等字段
 
 ### Requirement: EntityType schema 字段即能力声明
 

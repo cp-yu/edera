@@ -86,7 +86,7 @@ class NodeExecutor:
         context: NodeContext | None = None,
     ) -> NodeOutput:
         instance = self.instances.get(node_name)
-        context = context or NodeContext(node_input.cycle_id, node_name or uuid4().hex)
+        context = context or NodeContext(node_input.run_id, node_name or uuid4().hex)
         type_name = instance.type if instance else context.node_type or node_name
         try:
             config = self._node(type_name)
@@ -102,7 +102,7 @@ class NodeExecutor:
         if handler_name not in self.handler_registry and handler_name not in self._memory_handlers:
             return _failed(node_name, node_input, f"handler not registered: {handler_name}")
         context = NodeContext(
-            cycle_id=context.cycle_id,
+            run_id=context.run_id,
             instance_id=context.instance_id,
             node_type=config.name,
             dag_name=context.dag_name,
@@ -134,7 +134,7 @@ class NodeExecutor:
         if self.output_recorder is None:
             return
         await self.output_recorder(
-            node_input.cycle_id,
+            node_input.run_id,
             node_name,
             _entity_type_from_output(config.output_type),
             payload,
@@ -158,10 +158,10 @@ class NodeExecutor:
             params=config.parameters,
             node_name=context.instance_id,
             node_type=config.name,
-            cycle_id=node_input.cycle_id,
+            run_id=node_input.run_id,
             entity_store=self.entity_store or _EmptyEntityStore(),
             storage=self._handler_storage(handler_name),
-            runtime=_RuntimeContext(node_input.cycle_id, context.instance_id, self.source_recovery_recorder),
+            runtime=_RuntimeContext(node_input.run_id, context.instance_id, self.source_recovery_recorder),
         )
         result = cast(Callable[[HandlerContext], object], handler)(ctx)
         return await _await_handler_result(handler_name, result, timeout)
@@ -175,7 +175,7 @@ class NodeExecutor:
         instance: DagNodeInstance | None,
     ) -> NodeOutput:
         effective = _apply_agent_instance_config(config, instance)
-        session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.cycle_id)
+        session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.run_id)
         session_dir.mkdir(parents=True, exist_ok=True)
         runtime_context = _agent_runtime_context(node_input, context)
         (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
@@ -198,13 +198,13 @@ class NodeExecutor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
-            self._agent_processes[(node_input.cycle_id, node_name)] = process
-            lines = await asyncio.wait_for(self._stream_stdout(process, node_input.cycle_id, node_name), timeout=timeout or None)
+            self._agent_processes[(node_input.run_id, node_name)] = process
+            lines = await asyncio.wait_for(self._stream_stdout(process, node_input.run_id, node_name), timeout=timeout or None)
             code = await process.wait()
         except Exception as exc:
             return _failed(node_name, node_input, str(exc))
         finally:
-            self._agent_processes.pop((node_input.cycle_id, node_name), None)
+            self._agent_processes.pop((node_input.run_id, node_name), None)
         metadata = _output_metadata(node_input)
         metadata["session_id"] = str(session_dir)
         if code != 0:
@@ -213,8 +213,8 @@ class NodeExecutor:
         await self._record_output(node_input, node_name, config, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
 
-    def stop_agent(self, cycle_id: str, node_name: str) -> bool:
-        process = self._agent_processes.get((cycle_id, node_name))
+    def stop_agent(self, run_id: str, node_name: str) -> bool:
+        process = self._agent_processes.get((run_id, node_name))
         if process is None or process.returncode is not None:
             return False
         process.terminate()
@@ -225,7 +225,7 @@ class NodeExecutor:
             return self.daemon_data_dir
         return Path(os.environ.get("EDERA_DATA_DIR", self.system.workspace_root))
 
-    async def _stream_stdout(self, process: asyncio.subprocess.Process, cycle_id: str, node_name: str) -> list[str]:
+    async def _stream_stdout(self, process: asyncio.subprocess.Process, run_id: str, node_name: str) -> list[str]:
         lines: list[str] = []
         if process.stdout is None:
             return lines
@@ -236,7 +236,7 @@ class NodeExecutor:
             text = line.decode(errors="replace").rstrip("\n")
             lines.append(text)
             if self.stdout_recorder is not None:
-                await self.stdout_recorder(cycle_id, node_name, text)
+                await self.stdout_recorder(run_id, node_name, text)
         return lines
 
     def _node(self, node_name: str) -> NodeConfigBase:
@@ -309,18 +309,18 @@ class _ExtensionStorage:
 class _RuntimeContext:
     def __init__(
         self,
-        cycle_id: str,
+        run_id: str,
         node_id: str,
         recorder: RuntimeSourceRecoveryRecorder | None,
     ) -> None:
-        self._cycle_id = cycle_id
+        self._run_id = run_id
         self._node_id = node_id
         self._recorder = recorder
 
     async def record_source_recovery(self, source_name: str, summary: dict[str, Any]) -> None:
         if self._recorder is None:
             return
-        await self._recorder(self._cycle_id, self._node_id, source_name, summary)
+        await self._recorder(self._run_id, self._node_id, source_name, summary)
 
 
 def _failed(node_name: str, node_input: NodeInput, error: str) -> NodeOutput:
@@ -397,7 +397,7 @@ def _apply_instance_input(
         payload["source_names"] = _source_names(entities)
     else:
         payload["source_names"] = source_names
-    return NodeInput(cycle_id=node_input.cycle_id, payload=payload, metadata=node_input.metadata)
+    return NodeInput(run_id=node_input.run_id, payload=payload, metadata=node_input.metadata)
 
 
 def _entity_permissions(instance: DagNodeInstance | None) -> dict[str, object]:
@@ -435,7 +435,7 @@ def _source_names(entities: list[str]) -> list[str]:
 
 
 def _output_metadata(node_input: NodeInput) -> dict[str, object]:
-    return {"cycle_id": node_input.cycle_id}
+    return {"run_id": node_input.run_id}
 
 
 def _node_from_entity(entity: EntityConfig) -> NodeConfig:
@@ -467,8 +467,8 @@ def _uses_pi(config: NodeConfig) -> bool:
     return config.handler in {"run-pi", "pi", "llm"}
 
 
-def _agent_session_dir(root: Path, dag_name: str, instance_id: str, cycle_id: str) -> Path:
-    return root / "sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(cycle_id)
+def _agent_session_dir(root: Path, dag_name: str, instance_id: str, run_id: str) -> Path:
+    return root / "sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(run_id)
 
 
 def _safe_path_token(value: str) -> str:
@@ -490,7 +490,7 @@ def _agent_prompt(payload: object, runtime_context: dict[str, object] | None = N
 
 def _agent_runtime_context(node_input: NodeInput, context: NodeContext) -> dict[str, object]:
     return {
-        "cycle_id": node_input.cycle_id,
+        "run_id": node_input.run_id,
         "dag_name": context.dag_name,
         "node_id": context.instance_id,
         "edge_inputs": node_input.metadata.get("edge_inputs", []),

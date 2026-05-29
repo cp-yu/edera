@@ -17,10 +17,10 @@ export function NodeHistoryPage() {
           <div className="rounded-md border p-4 text-sm text-muted-foreground">暂无历史记录</div>
         )}
         {items.map((item) => (
-          <details key={`${item.node_run.cycle_id}-${item.node_run.id}`} className="rounded-md border bg-card p-4">
+          <details key={`${item.node_run.run_id}-${item.node_run.id}`} className="rounded-md border bg-card p-4">
             <summary className="cursor-pointer text-sm">
               <span className="font-medium">{item.node_run.status}</span>
-              <span className="ml-3 text-muted-foreground">{item.node_run.cycle_id}</span>
+              <span className="ml-3 text-muted-foreground">{item.node_run.run_id}</span>
               {item.run.retry_of && <span className="ml-3 text-muted-foreground">retry of {item.run.retry_of}</span>}
             </summary>
             <div className="mt-3 grid gap-2 text-xs">

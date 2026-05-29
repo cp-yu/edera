@@ -35,7 +35,7 @@
 
 #### Scenario: E2E 验收测试生成完整产物
 - **WHEN** 执行 `pytest tests/e2e`
-- **THEN** 固定信息源 fixture、固定持仓配置、fake LLM 返回驱动一次 MVP pipeline，并生成结构化采集结果、分析摘要、买/卖/持有建议、证据 URL、原文引用、简报、通知 payload、审计记录
+- **THEN** 固定信息源 fixture、固定持仓配置、fake LLM 返回驱动一次 MVP DAG workflow，并生成结构化采集结果、分析摘要、买/卖/持有建议、证据 URL、原文引用、简报、通知 payload、审计记录
 
 ### Requirement: 性能与可靠性门禁
 系统 MUST 在可控 fixture 环境中验证 MVP 关键性能与降级指标。
@@ -66,4 +66,3 @@
 #### Scenario: 任一门禁失败
 - **WHEN** PRD 门禁、测试命令、P1 映射、E2E 产物断言任一失败
 - **THEN** `/goal` 不得标记完成，并输出失败门禁名称与阻塞项
-

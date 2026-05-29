@@ -9,7 +9,7 @@ test('source logs display status and fallback time', async ({ page }) => {
           {
             source_name: 'rss',
             latest_status: 'failed',
-            cycle_id: 'cycle-1',
+            run_id: 'run-1',
             latest_run_at: null,
             success_rate: null,
             window_size: 0,
@@ -31,10 +31,10 @@ test('source logs display status and fallback time', async ({ page }) => {
       json: {
         logs: [
           {
-            cycle_id: 'cycle-1',
+            run_id: 'run-1',
             source_name: 'rss',
             status: 'failed',
-            pipeline_status: 'failed',
+            dag_status: 'failed',
             started_at: null,
             ended_at: '2026-05-02T03:04:05+00:00',
             error: 'timeout',

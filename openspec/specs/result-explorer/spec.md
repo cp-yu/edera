@@ -3,11 +3,11 @@
 定义本机 Web 控制台的结果浏览能力，包括最新简报、建议列表、建议详情证据链、失败源展示，以及外部公开源进入管道后的可追溯证据查看。
 ## Requirements
 ### Requirement: Latest briefing display
-系统 SHALL 展示最近一次生成的简报内容、cycle_id、创建时间和元数据，并提供进入历史简报列表和简报详情的入口。结果浏览首页还 SHALL 展示当前周期 metadata bar，包含 cycle_id、created_at、数据时间窗口、失败源数量和免责声明。结果浏览首页 SHALL 消费 `/api/results` 返回的 `metadata_bar` 和 `briefings` 字段；当存在历史简报但 `briefing` 为空时，页面仍 SHALL 展示可进入历史简报的入口。结果浏览 API SHALL 从统一输出 Entity 的 `attributes` 读取简报字段，并返回包含字符串 `id`、`cycle_id`、`content`、`metadata` 和 `created_at` 的扁平 `Briefing` payload。
+系统 SHALL 展示最近一次生成的简报内容、run_id、创建时间和元数据，并提供进入历史简报列表和简报详情的入口。结果浏览首页还 SHALL 展示当前周期 metadata bar，包含 run_id、created_at、数据时间窗口、失败源数量和免责声明。结果浏览首页 SHALL 消费 `/api/results` 返回的 `metadata_bar` 和 `briefings` 字段；当存在历史简报但 `briefing` 为空时，页面仍 SHALL 展示可进入历史简报的入口。结果浏览 API SHALL 从统一输出 Entity 的 `attributes` 读取简报字段，并返回包含字符串 `id`、`run_id`、`content`、`metadata` 和 `created_at` 的扁平 `Briefing` payload。
 
 #### Scenario: View latest briefing
 - **WHEN** 用户打开结果浏览首页
-- **THEN** 系统 SHALL 显示最新 `Briefing` 的正文、cycle_id、created_at 和 metadata
+- **THEN** 系统 SHALL 显示最新 `Briefing` 的正文、run_id、created_at 和 metadata
 
 #### Scenario: No briefing exists
 - **WHEN** 数据库中没有任何 `Briefing`
@@ -15,7 +15,7 @@
 
 #### Scenario: View current metadata bar
 - **WHEN** 用户打开结果浏览首页且 `/api/results` 返回 `metadata_bar`
-- **THEN** 系统 SHALL 显示 cycle_id、created_at、数据时间窗口、失败源数量和“不构成投资建议”免责声明
+- **THEN** 系统 SHALL 显示 run_id、created_at、数据时间窗口、失败源数量和“不构成投资建议”免责声明
 
 #### Scenario: View briefing history from results summary
 - **WHEN** `/api/results` 返回一个或多个 `briefings`

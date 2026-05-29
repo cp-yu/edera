@@ -44,7 +44,7 @@
 系统 SHALL 在 mutation 操作（运行 DAG、创建节点）失败时向用户展示错误信息。
 
 #### Scenario: Run DAG mutation fails
-- **WHEN** `POST /api/pipeline/dag/{name}/run` 返回错误
+- **WHEN** `POST /api/dags/{name}/run` 返回错误
 - **THEN** 系统 SHALL 向用户展示包含错误原因的提示
 
 #### Scenario: Create node mutation fails

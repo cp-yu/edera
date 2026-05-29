@@ -15,15 +15,33 @@ from edera_core.cert import CertificateAuthority, IssuedCertificate
 from edera_core.config_service import _ConfigService
 from edera_core.config.entities import EntityStore, can_read, can_write, field_permission
 from edera_core.config.loader import load_app_config
+from edera_core.config.loader import load_dag_configs
 from edera_core.config.schema import AppConfig, EntityConfig, entity_ref
 from edera_core.events import event_bus
 from edera_core.graph_service import _GraphService
-from edera_core.pipeline_service import _PipelineService
-from edera_core.pipeline import PipelineController
+from edera_core.event_service import _EventService
+from edera_core.dag_controller import DagController, DagRunNotFoundError, RunAlreadyActiveError
 from edera_core.proto import edera_pb2 as pb2, edera_pb2_grpc as pb2_grpc
 from edera_core.query_service import _QueryService
+from edera_core.service_common import (
+    briefing_metadata,
+    entity_store,
+    json_response,
+    repair_task_dir,
+    repair_task_payload,
+    source_map,
+    write_repair_task,
+)
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import edge_inputs_for_cycle, query_node_output_entities, source_recoveries
+from edera_core.storage.repository import (
+    edge_inputs_for_run,
+    latest_briefing,
+    query_node_output_entities,
+    save_node_output_entity,
+    source_execution_logs,
+    source_health_summary,
+    source_recoveries,
+)
 
 
 class Server:
@@ -32,14 +50,14 @@ class Server:
         data_dir: Path | None = None,
         address: str = "127.0.0.1:9090",
         config_dir: Path = Path("config"),
-        controller: PipelineController | None = None,
+        controller: DagController | None = None,
     ) -> None:
         self.data_dir = resolve_data_dir(data_dir)
         self.address = address
         self.bootstrap_address = "127.0.0.1:9091"
         self.config_dir = config_dir
         self.ca = CertificateAuthority(self.data_dir)
-        self.controller = controller or PipelineController(
+        self.controller = controller or DagController(
             config_dir,
             agent_certificate_issuer=self.issue_agent_certificate,
             daemon_data_dir=self.data_dir,
@@ -98,7 +116,7 @@ class Server:
         self.pb2_grpc.add_GraphServiceServicer_to_server(_GraphService(self), self.server)
         self.pb2_grpc.add_ConfigServiceServicer_to_server(_ConfigService(self), self.server)
         self.pb2_grpc.add_QueryServiceServicer_to_server(_QueryService(self), self.server)
-        self.pb2_grpc.add_PipelineServiceServicer_to_server(_PipelineService(self), self.server)
+        self.pb2_grpc.add_EventServiceServicer_to_server(_EventService(self), self.server)
         self.pb2_grpc.add_SystemServiceServicer_to_server(_SystemService(self, bootstrap=True), self.bootstrap_server)
 
 
@@ -175,11 +193,14 @@ class _DagService:
         self.daemon = daemon
         self.pb2 = daemon.pb2
 
-    async def Trigger(self, request, context):
+    async def Run(self, request, context):
         await _identity(context)
         payload = json.loads(request.inputs_json) if request.inputs_json else None
-        await self.daemon.controller.emit(f"manual:dag:{request.name}", payload, source="dag-service", depth=0)
-        return self.pb2.DagRunRef(cycle_id="")
+        try:
+            run_id = await self.daemon.controller.start_run("manual", request.name, payload)
+        except RunAlreadyActiveError as exc:
+            await context.abort(grpc.StatusCode.ALREADY_EXISTS, exc.run_id)
+        return self.pb2.DagRunRef(run_id=run_id)
 
     async def Status(self, request, context):
         await _identity(context)
@@ -191,6 +212,45 @@ class _DagService:
         payload = json.loads(request.json or "{}")
         result = _edit_dag_config(self.daemon.config_dir, request.name, request.operation, payload)
         return self.pb2.DagStatus(name=request.name, json=json.dumps(result, ensure_ascii=False, default=str))
+
+    async def Stop(self, request, context):
+        await _identity(context)
+        if request.dag_name not in load_dag_configs(self.daemon.config_dir / "dags"):
+            await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
+        run_id = await self.daemon.controller.stop_current(request.dag_name, force=request.force)
+        return json_response(self.pb2, {"stopped": run_id is not None, "run_id": run_id})
+
+    async def Retry(self, request, context):
+        await _identity(context)
+        if request.dag_name not in load_dag_configs(self.daemon.config_dir / "dags"):
+            await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
+        if not request.node_ids:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "node_ids is required")
+        payload = json.loads(request.payload_json) if request.payload_json else None
+        try:
+            result = await self.daemon.controller.retry_node(
+                request.dag_name,
+                request.run_id or None,
+                list(request.node_ids),
+                request.mode or "single",
+                payload,
+            )
+        except RunAlreadyActiveError as exc:
+            await context.abort(grpc.StatusCode.ALREADY_EXISTS, exc.run_id)
+        except DagRunNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except ValueError as exc:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
+        return json_response(
+            self.pb2,
+            {
+                "run_id": result.run_id,
+                "retry_of": result.retry_of,
+                "node_ids": result.node_ids,
+                "mode": result.mode,
+                "retry_nodes": result.retry_nodes,
+            },
+        )
 
 
 class _NodeService:
@@ -207,28 +267,28 @@ class _NodeService:
         dag_name = _dag_for_node(self.daemon.config_dir, request.id)
         if dag_name is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node '{request.id}' not found")
-        cycle_id = await self.daemon.controller.stop_current(dag_name, node_id=request.id)
-        return self.pb2.NodeStatus(id=request.id, status="stopped" if cycle_id is not None else "idle")
+        run_id = await self.daemon.controller.stop_current(dag_name, node_id=request.id)
+        return self.pb2.NodeStatus(id=request.id, status="stopped" if run_id is not None else "idle")
 
     async def Resume(self, request, context):
         await _identity(context)
         dag_name = _dag_for_node(self.daemon.config_dir, request.id)
         if dag_name is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node '{request.id}' not found")
-        if not request.cycle_id:
-            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "cycle_id is required")
-        payload: dict[str, object] = {"resume_session": f"sandbox:{request.id}:{request.cycle_id}"}
+        if not request.run_id:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "run_id is required")
+        payload: dict[str, object] = {"resume_session": f"sandbox:{request.id}:{request.run_id}"}
         if request.prompt:
             payload["prompt"] = request.prompt
-        cycle_id = await self.daemon.controller.resume_node(dag_name, request.cycle_id, request.id, payload)
-        return self.pb2.DagRunRef(cycle_id=cycle_id)
+        run_id = await self.daemon.controller.resume_node(dag_name, request.run_id, request.id, payload)
+        return self.pb2.DagRunRef(run_id=run_id)
 
     async def Output(self, request, context):
         await _identity(context)
         store, app = _entity_store(self.daemon.config_dir)
         expression = f"type=node-output AND node_id={request.id}"
-        if request.cycle_id:
-            expression = f"{expression} AND cycle_id={request.cycle_id}"
+        if request.run_id:
+            expression = f"{expression} AND run_id={request.run_id}"
         payload = [_entity_payload(store, entity) for entity in await _query(app, store, "human", None, expression)]
         return self.pb2.NodeOutputList(json=json.dumps(payload, ensure_ascii=False, default=str))
 
@@ -273,6 +333,57 @@ class _SystemService:
                 type=event.type,
                 json=json.dumps(event.payload, ensure_ascii=False, default=str),
             )
+
+    async def PauseScheduler(self, request, context):
+        await _identity(context)
+        self.daemon.controller.pause_scheduler()
+        return json_response(self.pb2, await self.daemon.controller.status())
+
+    async def ResumeScheduler(self, request, context):
+        await _identity(context)
+        self.daemon.controller.resume_scheduler()
+        return json_response(self.pb2, await self.daemon.controller.status())
+
+    async def SchedulerStatus(self, request, context):
+        await _identity(context)
+        return json_response(self.pb2, await self.daemon.controller.status())
+
+    async def CreateRepairTask(self, request, context):
+        await _identity(context)
+        source = source_map(entity_store(self.daemon.config_dir)).get(request.name)
+        if source is None:
+            await context.abort(grpc.StatusCode.NOT_FOUND, "source not found")
+        async with self.daemon.controller._factory()() as session:
+            health = await source_health_summary(session, [request.name])
+            logs = await source_execution_logs(session, request.name, 1)
+            briefing = await latest_briefing(session)
+            if not health or not health[0].get("escalated") or briefing is None:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, "source is not escalated")
+            task = repair_task_payload(
+                repair_task_dir(self.daemon.config_dir),
+                source.model_dump(mode="json"),
+                health[0],
+                logs[0] if logs else {},
+            )
+            write_repair_task(task)
+            metadata = dict(briefing_metadata(briefing))
+            repair_tasks = dict(metadata.get("repair_tasks", {}))
+            repair_tasks[request.name] = {"task_id": task["task_id"], "task_path": task["task_path"], "created_at": task["created_at"]}
+            metadata["repair_tasks"] = repair_tasks
+            payload = briefing.attributes.get("payload")
+            attributes = dict(payload) if isinstance(payload, dict) else dict(briefing.attributes)
+            attributes["metadata"] = metadata
+            await save_node_output_entity(session, briefing.model_copy(update={"attributes": attributes}))
+            await session.commit()
+        return json_response(
+            self.pb2,
+            {
+                "task_id": task["task_id"],
+                "task_path": task["task_path"],
+                "source_name": request.name,
+                "created_at": task["created_at"],
+            },
+        )
 
 
 def _entity_store(config_dir: Path) -> tuple[EntityStore, object]:
@@ -452,9 +563,9 @@ def _node_output_filters(parts: list[str]) -> dict[str, str] | None:
         key, value = [item.strip() for item in part.split("=", 1)]
         if key == "type":
             filters["type"] = value
-        elif key in {"cycle_id", "node_id"}:
+        elif key in {"run_id", "node_id"}:
             filters[key] = value
-    return filters if filters.get("type") == "node-output" or "node_id" in filters or "cycle_id" in filters else None
+    return filters if filters.get("type") == "node-output" or "node_id" in filters or "run_id" in filters else None
 
 
 def _runtime_filters(parts: list[str]) -> dict[str, str] | None:
@@ -466,7 +577,7 @@ def _runtime_filters(parts: list[str]) -> dict[str, str] | None:
         if "=" not in part:
             continue
         key, value = [item.strip() for item in part.split("=", 1)]
-        if key in {"type", "cycle_id", "source_name"}:
+        if key in {"type", "run_id", "source_name"}:
             filters[key] = value
     return filters if filters.get("type") in {"runtime.edge-input", "runtime.source-recovery"} else None
 
@@ -480,7 +591,7 @@ async def _query_node_outputs(app: AppConfig, filters: dict[str, str]) -> list[E
             return await query_node_output_entities(
                 session,
                 None if filters.get("type") == "node-output" else filters.get("type"),
-                filters.get("cycle_id"),
+                filters.get("run_id"),
                 filters.get("node_id"),
                 None,
                 100,
@@ -496,10 +607,10 @@ async def _query_runtime_facts(app: AppConfig, filters: dict[str, str]) -> list[
         factory = session_factory(engine)
         async with factory() as session:
             if filters["type"] == "runtime.edge-input":
-                cycle_id = filters.get("cycle_id")
-                if cycle_id is None:
+                run_id = filters.get("run_id")
+                if run_id is None:
                     return []
-                return [_edge_input_entity(item) for item in await edge_inputs_for_cycle(session, cycle_id)]
+                return [_edge_input_entity(item) for item in await edge_inputs_for_run(session, run_id)]
             return [
                 _source_recovery_entity(item)
                 for item in await source_recoveries(session, filters.get("source_name"), 100)
@@ -510,10 +621,10 @@ async def _query_runtime_facts(app: AppConfig, filters: dict[str, str]) -> list[
 
 def _edge_input_entity(item) -> EntityConfig:
     return EntityConfig(
-        id=f"{item.cycle_id}:{item.from_node_id}->{item.to_node_id}",
+        id=f"{item.run_id}:{item.from_node_id}->{item.to_node_id}",
         type="runtime.edge-input",
         attributes={
-            "cycle_id": item.cycle_id,
+            "run_id": item.run_id,
             "from_node_id": item.from_node_id,
             "to_node_id": item.to_node_id,
             "edge_optional": item.edge_optional,
@@ -527,10 +638,10 @@ def _edge_input_entity(item) -> EntityConfig:
 
 def _source_recovery_entity(item) -> EntityConfig:
     return EntityConfig(
-        id=f"{item.cycle_id}:{item.node_id}:{item.source_name}",
+        id=f"{item.run_id}:{item.node_id}:{item.source_name}",
         type="runtime.source-recovery",
         attributes={
-            "cycle_id": item.cycle_id,
+            "run_id": item.run_id,
             "node_id": item.node_id,
             "source_name": item.source_name,
             "recovery_status": item.recovery_status,
@@ -555,7 +666,7 @@ def _entity_payload(store: EntityStore, entity: EntityConfig) -> dict[str, objec
 def _supported_query_message() -> str:
     return (
         "unsupported query expression; supported fields: type, relation_type, from, to, "
-        "node_id, cycle_id, runtime.edge-input, runtime.source-recovery"
+        "node_id, run_id, runtime.edge-input, runtime.source-recovery"
     )
 
 

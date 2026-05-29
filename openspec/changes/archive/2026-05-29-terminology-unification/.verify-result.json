@@ -1,0 +1,451 @@
+{
+  "timestamp": "2026-05-29T12:02:48.324Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "a9888e70c33c035f832346016c92ece75deb1490c49c202f4f3118276407238e",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-openspec-reviewer",
+    "evidenceFiles": [
+      ".github/workflows/terminology.yml",
+      "GLOSSARY.md",
+      "alembic/versions/0008_terminology_unification.py",
+      "apps/web-console/src/api/types.ts",
+      "openspec/changes/terminology-unification/design.md",
+      "openspec/changes/terminology-unification/opsx-delta.yaml",
+      "openspec/changes/terminology-unification/proposal.md",
+      "openspec/changes/terminology-unification/specs/dag-event-driven-executor/spec.md",
+      "openspec/changes/terminology-unification/specs/dag-run-control/spec.md",
+      "openspec/changes/terminology-unification/specs/data-models/spec.md",
+      "openspec/changes/terminology-unification/specs/edera-cli/spec.md",
+      "openspec/changes/terminology-unification/specs/edera-server-grpc/spec.md",
+      "openspec/changes/terminology-unification/specs/edera-web-bff/spec.md",
+      "openspec/changes/terminology-unification/specs/terminology-glossary/spec.md",
+      "openspec/changes/terminology-unification/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/event_service.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/database.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/src/edera_core/trigger.py",
+      "packages/core/src/edera_core/web/__main__.py",
+      "packages/core/src/edera_core/web/app.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "packages/core/tests/test_grpc_control_services.py",
+      "proto/edera.proto",
+      "scripts/check_terms.py",
+      "tests/core/integration/test_dag_runner.py",
+      "tests/core/integration/test_migration.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/test_event_control_service.py",
+      "tests/core/unit/test_cli.py"
+    ],
+    "evidenceFingerprint": "02ef5d47c6ab344c6809c1d73a56e0e2ff436884a7470d11d676b506411f49c0",
+    "evidenceFingerprintEntries": [
+      {
+        "path": ".github/workflows/terminology.yml",
+        "hash": "da465c1dd5e5d1e6f6a2d595b617e54aea523c9478221e6a611ee2abb08b8b51"
+      },
+      {
+        "path": "alembic/versions/0008_terminology_unification.py",
+        "hash": "42df6ef5719a130c96f3face24a69ee7c58a3b78501384a2b65e0d02cf4597f5"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "6d8b7f3cb42c466edb416c15e083f362d56569e5af2f90bd0108c3531610aab2"
+      },
+      {
+        "path": "GLOSSARY.md",
+        "hash": "5c8622f1e6a7cad325d2e21fc6028a51268f75687d2fcdef9b9404de26460aa0"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/design.md",
+        "hash": "20f07e7b6982d3f57424c41887d342c99e7e7bdc76d5fb10a3e97c3c98020155"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/opsx-delta.yaml",
+        "hash": "6cd9c4554a629b22647c9a542fa614a578c78a6da65549716e0a65f2fce20585"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/proposal.md",
+        "hash": "e46daca273b8443beb16a79c4aa514b4ef42301f3841fd83b02a8f38e44df96c"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/dag-event-driven-executor/spec.md",
+        "hash": "1f8bab648faab7bf3a763e795e3971877fd831f5f1660a53148c69c251e65c2a"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/dag-run-control/spec.md",
+        "hash": "315f692f8e9208bd2d6dde0de8e888071d17ea7f1a5254985a02eaab83eebbe3"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/data-models/spec.md",
+        "hash": "0e27143a0896041db1614f2d853e628edd8e5480c7fbcca747f86746890a1ac2"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/edera-cli/spec.md",
+        "hash": "2d5aaeb44002144bb3d6a24e1c53cb8b596e0457bc4c1fdea3ee6d6869f78f85"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/edera-server-grpc/spec.md",
+        "hash": "7b1d266463848e1f3f9f593ec9ca5eff24f75e22c50f0a439f689380f2ac802e"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/edera-web-bff/spec.md",
+        "hash": "6e8657a8bf6e18712fdbc27bc24ded338664d65857a170f5a9270c1cbd16fe5c"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/specs/terminology-glossary/spec.md",
+        "hash": "7082332819e910a518420ec983144294fa84f30da73c8a4762c4c794f086c9c6"
+      },
+      {
+        "path": "openspec/changes/terminology-unification/tasks.md",
+        "hash": "a9888e70c33c035f832346016c92ece75deb1490c49c202f4f3118276407238e"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "6743fb649a0a84c58d385fbefb95ecadd556289d2b276c82729611be10386d17"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "3d4ab14d20aa7a82b267ae45301b4f687139975c6e88e91c1a02e7a5e8ee6a62"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "21b89a97ed30cf30ca2e7dc6f9407a0b7a815fec515522815df5d8549136155f"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "1884a9bde40c8c8ac67bfe7d385cfaaa934b7dc9ed07514e88c6bef9cdeddc73"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "841b55b93cbe24377ca21871a4d23df2a9f900f7d32f15e084c03072f7ad1dc3"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "d5f0640b7dfb061f4cedc0193911ce2264d4a13ec2ac3c1f5b70c0425bae1bb0"
+      },
+      {
+        "path": "packages/core/src/edera_core/event_service.py",
+        "hash": "3eeb54a2061dfc0b6f4291cc5456b92f3a118cd8fd66a5948d655e644f620e72"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "ef6bd51c33ab4b5a2f7cd2722458806d15b9a013b37e035b7547759a0040099d"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "2bc0e3d6026edaa7c8ff19170b8bc87737b2b6af237f528a776c2c79ea52a0bd"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/database.py",
+        "hash": "a6e8a03fd0825b7a0addda8348e8108dfc8af8b6117fc1381c847183fb39aab7"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "d0ee18a56097001e45e8c5adc1b0163beebed7cbf57f23870f09456551a53b64"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "12ce8c59e2e1a332d77ece9ca9e2145862adf6e1c2a9cd2b72aa3f0bf8d63af1"
+      },
+      {
+        "path": "packages/core/src/edera_core/trigger.py",
+        "hash": "273717cc8feb289531ef5fdad1ae90c4cc142d1f67a5e0bfd8fab14114c104e2"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/__main__.py",
+        "hash": "431b0b61736035bb6c6371a48daaa5b8e4e05374685226690d7c3799d9d97281"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/app.py",
+        "hash": "a915d89b64285f22fe0b5acf24861e617ef0c8fc62dc5ad24363cf6e9a795d5c"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "7422c5b240ece83d6f34544d690d97b67494dba5b63072923eff70fdc0d3be81"
+      },
+      {
+        "path": "packages/core/tests/test_grpc_control_services.py",
+        "hash": "e7658877cb5b59596165c0e8ca758e60968d20aa9728cb514fcc76160259a9d4"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "8cb006e2dabb9124a905461411324a9a89737a5c7d1ed822491c0d7daeb2cd92"
+      },
+      {
+        "path": "scripts/check_terms.py",
+        "hash": "ca61110b50da11d8e02740ae07e53867525dea8ca693bad446e9bb5b96c8a31a"
+      },
+      {
+        "path": "tests/core/integration/test_dag_runner.py",
+        "hash": "838db6075406ac4246c51e1c16fc1e4e9e221351bddab05defdb2d14b0b2155b"
+      },
+      {
+        "path": "tests/core/integration/test_migration.py",
+        "hash": "2cc3625c63e560ece82bf5a22d0b58c477711f20e61fd84c7f457ff0514e4784"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "795794559003425afb5ed204ec8a373139b78553b7b8e63d00e6e46cebcfbc7a"
+      },
+      {
+        "path": "tests/core/test_event_control_service.py",
+        "hash": "f821f5e219a6bef58d74c557da0bec78c732a34315551919335b65992e36d393"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "02aa2ee90376552845cd85bbcc548e38e50fbf41c43d6ffa5a2f3cc355b5fbb5"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "daa4c092ad003047181eb1425063eda5c05cc650"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-29T12:05:51.324Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Extract duplicated DAG failure finalization into a shared _finish_failed helper.",
+        "files": [
+          "packages/core/src/edera_core/dag_controller.py"
+        ]
+      },
+      {
+        "timestamp": "2026-05-29T12:07:36.957Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/dag_controller.py": "b93ff12465d4c9b84bfd6689f8bb2b86bc3c9c6737b7c0500768283c2ce12a2f"
+    },
+    "baseline": {
+      "timestamp": "2026-05-29T12:02:48.324Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "a9888e70c33c035f832346016c92ece75deb1490c49c202f4f3118276407238e",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-openspec-reviewer",
+        "evidenceFiles": [
+          ".github/workflows/terminology.yml",
+          "GLOSSARY.md",
+          "alembic/versions/0008_terminology_unification.py",
+          "apps/web-console/src/api/types.ts",
+          "openspec/changes/terminology-unification/design.md",
+          "openspec/changes/terminology-unification/opsx-delta.yaml",
+          "openspec/changes/terminology-unification/proposal.md",
+          "openspec/changes/terminology-unification/specs/dag-event-driven-executor/spec.md",
+          "openspec/changes/terminology-unification/specs/dag-run-control/spec.md",
+          "openspec/changes/terminology-unification/specs/data-models/spec.md",
+          "openspec/changes/terminology-unification/specs/edera-cli/spec.md",
+          "openspec/changes/terminology-unification/specs/edera-server-grpc/spec.md",
+          "openspec/changes/terminology-unification/specs/edera-web-bff/spec.md",
+          "openspec/changes/terminology-unification/specs/terminology-glossary/spec.md",
+          "openspec/changes/terminology-unification/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/event_service.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/database.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/src/edera_core/trigger.py",
+          "packages/core/src/edera_core/web/__main__.py",
+          "packages/core/src/edera_core/web/app.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "packages/core/tests/test_grpc_control_services.py",
+          "proto/edera.proto",
+          "scripts/check_terms.py",
+          "tests/core/integration/test_dag_runner.py",
+          "tests/core/integration/test_migration.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/test_event_control_service.py",
+          "tests/core/unit/test_cli.py"
+        ],
+        "evidenceFingerprint": "ab7fd35ae3761288c40d1270d41b832c5748f4ac23d434753b3928c2677360e1",
+        "evidenceFingerprintEntries": [
+          {
+            "path": ".github/workflows/terminology.yml",
+            "hash": "da465c1dd5e5d1e6f6a2d595b617e54aea523c9478221e6a611ee2abb08b8b51"
+          },
+          {
+            "path": "alembic/versions/0008_terminology_unification.py",
+            "hash": "42df6ef5719a130c96f3face24a69ee7c58a3b78501384a2b65e0d02cf4597f5"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "6d8b7f3cb42c466edb416c15e083f362d56569e5af2f90bd0108c3531610aab2"
+          },
+          {
+            "path": "GLOSSARY.md",
+            "hash": "5c8622f1e6a7cad325d2e21fc6028a51268f75687d2fcdef9b9404de26460aa0"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/design.md",
+            "hash": "20f07e7b6982d3f57424c41887d342c99e7e7bdc76d5fb10a3e97c3c98020155"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/opsx-delta.yaml",
+            "hash": "6cd9c4554a629b22647c9a542fa614a578c78a6da65549716e0a65f2fce20585"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/proposal.md",
+            "hash": "e46daca273b8443beb16a79c4aa514b4ef42301f3841fd83b02a8f38e44df96c"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/dag-event-driven-executor/spec.md",
+            "hash": "1f8bab648faab7bf3a763e795e3971877fd831f5f1660a53148c69c251e65c2a"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/dag-run-control/spec.md",
+            "hash": "315f692f8e9208bd2d6dde0de8e888071d17ea7f1a5254985a02eaab83eebbe3"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/data-models/spec.md",
+            "hash": "0e27143a0896041db1614f2d853e628edd8e5480c7fbcca747f86746890a1ac2"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/edera-cli/spec.md",
+            "hash": "2d5aaeb44002144bb3d6a24e1c53cb8b596e0457bc4c1fdea3ee6d6869f78f85"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/edera-server-grpc/spec.md",
+            "hash": "7b1d266463848e1f3f9f593ec9ca5eff24f75e22c50f0a439f689380f2ac802e"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/edera-web-bff/spec.md",
+            "hash": "6e8657a8bf6e18712fdbc27bc24ded338664d65857a170f5a9270c1cbd16fe5c"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/specs/terminology-glossary/spec.md",
+            "hash": "7082332819e910a518420ec983144294fa84f30da73c8a4762c4c794f086c9c6"
+          },
+          {
+            "path": "openspec/changes/terminology-unification/tasks.md",
+            "hash": "a9888e70c33c035f832346016c92ece75deb1490c49c202f4f3118276407238e"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "05422392ab97bbfc927f382c840d8d382d09cc3605f7d4e6cc164d22673725ea"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "e603ded5882cc30f96f16eedfe1f009bfe69b77eff869476566116d2af61417b"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "21b89a97ed30cf30ca2e7dc6f9407a0b7a815fec515522815df5d8549136155f"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "1884a9bde40c8c8ac67bfe7d385cfaaa934b7dc9ed07514e88c6bef9cdeddc73"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "b93ff12465d4c9b84bfd6689f8bb2b86bc3c9c6737b7c0500768283c2ce12a2f"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "d5f0640b7dfb061f4cedc0193911ce2264d4a13ec2ac3c1f5b70c0425bae1bb0"
+          },
+          {
+            "path": "packages/core/src/edera_core/event_service.py",
+            "hash": "3eeb54a2061dfc0b6f4291cc5456b92f3a118cd8fd66a5948d655e644f620e72"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "ef6bd51c33ab4b5a2f7cd2722458806d15b9a013b37e035b7547759a0040099d"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "2bc0e3d6026edaa7c8ff19170b8bc87737b2b6af237f528a776c2c79ea52a0bd"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/database.py",
+            "hash": "a6e8a03fd0825b7a0addda8348e8108dfc8af8b6117fc1381c847183fb39aab7"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "d0ee18a56097001e45e8c5adc1b0163beebed7cbf57f23870f09456551a53b64"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "12ce8c59e2e1a332d77ece9ca9e2145862adf6e1c2a9cd2b72aa3f0bf8d63af1"
+          },
+          {
+            "path": "packages/core/src/edera_core/trigger.py",
+            "hash": "273717cc8feb289531ef5fdad1ae90c4cc142d1f67a5e0bfd8fab14114c104e2"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/__main__.py",
+            "hash": "431b0b61736035bb6c6371a48daaa5b8e4e05374685226690d7c3799d9d97281"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/app.py",
+            "hash": "a915d89b64285f22fe0b5acf24861e617ef0c8fc62dc5ad24363cf6e9a795d5c"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "7422c5b240ece83d6f34544d690d97b67494dba5b63072923eff70fdc0d3be81"
+          },
+          {
+            "path": "packages/core/tests/test_grpc_control_services.py",
+            "hash": "e7658877cb5b59596165c0e8ca758e60968d20aa9728cb514fcc76160259a9d4"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "8cb006e2dabb9124a905461411324a9a89737a5c7d1ed822491c0d7daeb2cd92"
+          },
+          {
+            "path": "scripts/check_terms.py",
+            "hash": "ca61110b50da11d8e02740ae07e53867525dea8ca693bad446e9bb5b96c8a31a"
+          },
+          {
+            "path": "tests/core/integration/test_dag_runner.py",
+            "hash": "838db6075406ac4246c51e1c16fc1e4e9e221351bddab05defdb2d14b0b2155b"
+          },
+          {
+            "path": "tests/core/integration/test_migration.py",
+            "hash": "2cc3625c63e560ece82bf5a22d0b58c477711f20e61fd84c7f457ff0514e4784"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "795794559003425afb5ed204ec8a373139b78553b7b8e63d00e6e46cebcfbc7a"
+          },
+          {
+            "path": "tests/core/test_event_control_service.py",
+            "hash": "f821f5e219a6bef58d74c557da0bec78c732a34315551919335b65992e36d393"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "02aa2ee90376552845cd85bbcc548e38e50fbf41c43d6ffa5a2f3cc355b5fbb5"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "daa4c092ad003047181eb1425063eda5c05cc650"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

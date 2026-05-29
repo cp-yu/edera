@@ -26,8 +26,9 @@ def create_engine(database_url: str) -> AsyncEngine:
 async def init_db(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-        await _ensure_pipeline_retry_of(conn)
+        await _ensure_dag_retry_of(conn)
         await _ensure_node_run_failure_kind(conn)
+        await _ensure_node_run_metadata(conn)
         result = await conn.execute(text("PRAGMA journal_mode"))
         mode = result.scalar_one()
         if str(mode).lower() != "wal":
@@ -56,15 +57,24 @@ def sqlite_url(path: str | Path) -> str:
     return f"sqlite+aiosqlite:///{db_path}"
 
 
-async def _ensure_pipeline_retry_of(conn) -> None:
-    result = await conn.execute(text("PRAGMA table_info(pipeline_runs)"))
-    if "retry_of" in {row[1] for row in result.fetchall()}:
+async def _has_column(conn, table_name: str, column_name: str) -> bool:
+    result = await conn.execute(text(f"PRAGMA table_info({table_name})"))
+    return column_name in {row[1] for row in result.fetchall()}
+
+
+async def _ensure_dag_retry_of(conn) -> None:
+    if await _has_column(conn, "dag_runs", "retry_of"):
         return
-    await conn.execute(text("ALTER TABLE pipeline_runs ADD COLUMN retry_of VARCHAR"))
+    await conn.execute(text("ALTER TABLE dag_runs ADD COLUMN retry_of VARCHAR"))
 
 
 async def _ensure_node_run_failure_kind(conn) -> None:
-    result = await conn.execute(text("PRAGMA table_info(node_runs)"))
-    if "failure_kind" in {row[1] for row in result.fetchall()}:
+    if await _has_column(conn, "node_runs", "failure_kind"):
         return
     await conn.execute(text("ALTER TABLE node_runs ADD COLUMN failure_kind VARCHAR"))
+
+
+async def _ensure_node_run_metadata(conn) -> None:
+    if await _has_column(conn, "node_runs", "metadata"):
+        return
+    await conn.execute(text("ALTER TABLE node_runs ADD COLUMN metadata JSON NOT NULL DEFAULT '{}'"))

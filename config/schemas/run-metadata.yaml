@@ -1,14 +1,14 @@
 display_name: Run Metadata
-business_id_field: cycle_id
-display_template: "{cycle_id}"
+business_id_field: run_id
+display_template: "{run_id}"
 storage_tier: memory
 system_protected: true
 schema:
   type: object
   required:
-    - cycle_id
+    - run_id
   properties:
-    cycle_id:
+    run_id:
       type: string
     warnings:
       type: array

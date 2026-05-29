@@ -132,7 +132,7 @@ relations:
   - from: cap.core.grpc-query-service
     type: contains
     to: dom.data
-  - from: cap.core.grpc-pipeline-service
+  - from: cap.core.grpc-control-services
     type: contains
     to: dom.operations
   - from: cap.core.trigger-expression-language
@@ -144,7 +144,7 @@ relations:
   - from: cap.core.cron-emitter
     type: contains
     to: dom.core
-  - from: cap.core.trigger-emit-rpc
+  - from: cap.core.event-emit-rpc
     type: contains
     to: dom.core
   - from: cap.core.trigger-loop-guard
@@ -159,3 +159,6 @@ relations:
   - from: cap.web.trigger-workbench-inspector
     type: contains
     to: dom.web
+  - from: cap.core.terminology-glossary
+    type: contains
+    to: dom.core

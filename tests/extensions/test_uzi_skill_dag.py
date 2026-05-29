@@ -122,7 +122,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
 
     executor.execute = execute_with_failure
 
-    result = await DagRunner(executor).run(graph, "cycle", {"ticker": "00100.HK"})
+    result = await DagRunner(executor).run(graph, "run", {"ticker": "00100.HK"})
 
     assert result.failures["1_financials"] == "fetch failed"
     assert result.node_outputs["score_dimensions"].ok is True
@@ -146,7 +146,7 @@ async def test_full_dag_mock() -> None:
         extension_tables=bootstrap.table_names,
     )
 
-    result = await DagRunner(executor).run(graph, "cycle", {"ticker": "00100.HK"})
+    result = await DagRunner(executor).run(graph, "run", {"ticker": "00100.HK"})
 
     assert result.failures == {}
     assert result.node_outputs["assemble_report"].ok is True

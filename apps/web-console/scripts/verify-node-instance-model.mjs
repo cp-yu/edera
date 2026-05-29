@@ -66,7 +66,7 @@ fixtures.dag = {
 
 fixtures.runtimeStatus = {
   node_statuses: {
-    [readerId]: { status: 'running', error: null, cycle_id: 'cycle-browser' },
+    [readerId]: { status: 'running', error: null, run_id: 'run-browser' },
   },
 }
 
@@ -520,12 +520,12 @@ function installFetchMock(data) {
       window.__lastDagPut = JSON.parse(init.body ?? '{}')
       return json({ dag: data.dag })
     }
-    if (url.pathname === '/api/pipeline/dag/default/status') {
+    if (url.pathname === '/api/dags/default/status') {
       return json({
         scheduler_running: true,
         scheduler_paused: false,
         dag_name: 'default',
-        current_cycle_id: 'cycle-browser',
+        current_run_id: 'run-browser',
         recent_runs: [],
       })
     }

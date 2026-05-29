@@ -72,7 +72,7 @@ async def test_node_executor_calls_handler_context(tmp_path: Path) -> None:
         RuntimeSettings(),
         registry.seal(),
     )
-    output = await executor.execute("demo", NodeInput(cycle_id="cycle", payload={"ok": True}))
+    output = await executor.execute("demo", NodeInput(run_id="run", payload={"ok": True}))
     assert output.ok
     assert output.payload == {"payload": {"ok": True}, "node": "demo", "param": 1}
 
@@ -101,7 +101,7 @@ async def test_node_executor_exposes_declared_extension_table(tmp_path: Path) ->
         extension_tables={"demo-extension": {"raw_items": "ext_demo_extension_raw_items"}},
     )
 
-    output = await executor.execute("demo", NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute("demo", NodeInput(run_id="run", payload={}))
 
     assert output.ok
     assert output.payload == "ext_demo_extension_raw_items"
@@ -114,21 +114,21 @@ async def test_engine_provides_start_run_shutdown(monkeypatch: pytest.MonkeyPatc
     async def start(self, run_startup: bool = True) -> None:
         calls.append(("start", run_startup, None))
 
-    async def run_now(self, trigger: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
-        calls.append(("run", trigger, dag_name))
-        return "cycle"
+    async def run_now(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+        calls.append(("run", source, dag_name))
+        return "run"
 
     async def shutdown(self) -> None:
         calls.append(("shutdown", None, None))
 
-    monkeypatch.setattr("edera_core.pipeline.PipelineController.start", start)
-    monkeypatch.setattr("edera_core.pipeline.PipelineController.run_now", run_now)
-    monkeypatch.setattr("edera_core.pipeline.PipelineController.shutdown", shutdown)
+    monkeypatch.setattr("edera_core.dag_controller.DagController.start", start)
+    monkeypatch.setattr("edera_core.dag_controller.DagController.run_now", run_now)
+    monkeypatch.setattr("edera_core.dag_controller.DagController.shutdown", shutdown)
 
     engine = Engine(Path("config"), [Path("extensions")])
     await engine.start()
-    cycle_id = await engine.run("manual", "default")
+    run_id = await engine.run("manual", "default")
     await engine.shutdown()
 
-    assert cycle_id == "cycle"
+    assert run_id == "run"
     assert calls == [("start", False, None), ("run", "manual", "default"), ("shutdown", None, None)]

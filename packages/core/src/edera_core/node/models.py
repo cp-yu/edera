@@ -34,7 +34,7 @@ class SkillDefinition(BaseModel):
 
 @dataclass
 class NodeContext:
-    cycle_id: str
+    run_id: str
     instance_id: str
     node_type: str = ""
     dag_name: str = "default"

@@ -4,11 +4,11 @@
 定义 `edera` 控制 CLI 的 binary 入口、子命令集合、身份声明、纯 gRPC 客户端契约和 mTLS 加载边界。
 ## Requirements
 ### Requirement: CLI binary 入口
-系统 SHALL 提供名为 `edera` 的 CLI binary，作为 agent 和人类访问 Edera 控制面能力的统一入口。`edera` 是控制 CLI 的命令名，与 `edera-server`（后端引擎）、`edera-web`（网页 BFF）三个 console scripts 一同构成完整入口集合。本 capability 接替原 `rig-cli` + `rig-cli-full-crud`。
+系统 SHALL 提供名为 `edera` 的 CLI binary，作为 agent 和人类访问 Edera 控制面能力的统一入口。`edera` 是控制 CLI 的命令名，与 `edera-server`（后端引擎）、`edera-web`（网页 BFF）三个 console scripts 一同构成完整入口集合。
 
 #### Scenario: CLI 可执行
 - **WHEN** 用户或 agent 在终端执行 `edera --help`
-- **THEN** 系统 SHALL 输出可用子命令列表（entity、node、dag、client、handler-validate）
+- **THEN** 系统 SHALL 输出可用子命令列表（entity、node、dag、event、system、client、handler-validate）
 
 #### Scenario: 版本查询
 - **WHEN** 用户执行 `edera --version`
@@ -77,35 +77,27 @@
 - **THEN** 系统 SHALL 找到该节点最近的 sandbox，以 `--continue` 模式启动 pi 并传入 prompt
 
 #### Scenario: 查看节点输出
-- **WHEN** 用户执行 `edera node output llm-analyzer --cycle-id abc123`
-- **THEN** 系统 SHALL 通过 `NodeService.Output` rpc 返回该节点在指定 cycle 中的输出内容
+- **WHEN** 用户执行 `edera node output llm-analyzer --run-id abc123`
+- **THEN** 系统 SHALL 通过 `NodeService.Output` rpc 返回该节点在指定 run 中的输出内容
 
 ### Requirement: DAG 子命令
-`edera dag` SHALL 提供 DAG 触发、状态查询和拓扑编辑能力。
+`edera dag` SHALL 提供 DAG 运行、停止、重试和状态查询能力。`edera dag trigger` 命令已废弃，改为 `edera dag run`。
 
-#### Scenario: 触发 DAG 运行
-- **WHEN** 用户执行 `edera dag trigger reflection-dag --payload '{"target":"llm-analyze"}'`
-- **THEN** 系统 SHALL 创建新的 DAG run 并返回 cycle_id
+#### Scenario: DAG 手动运行
+- **WHEN** 用户执行 `edera dag run my-dag --inputs '{"symbol": "AAPL"}'`
+- **THEN** 系统 SHALL 调用 `DagService.Run` 启动 DAG 并返回 run_id
 
-#### Scenario: 触发 DAG 运行带 inputs
-- **WHEN** 用户执行 `edera dag trigger my-dag --input ticker=00100.HK`
-- **THEN** 系统 SHALL 通过 `DagService.Trigger` rpc 启动 DAG 并将 inputs 传递给运行时
+#### Scenario: DAG 停止
+- **WHEN** 用户执行 `edera dag stop my-dag`
+- **THEN** 系统 SHALL 调用 `DagService.Stop` 停止当前运行的 DAG
 
-#### Scenario: 查询 DAG 运行历史
+#### Scenario: DAG 重试
+- **WHEN** 用户执行 `edera dag retry my-dag --run-id abc123 --nodes node1,node2`
+- **THEN** 系统 SHALL 调用 `DagService.Retry` 从指定节点重新执行
+
+#### Scenario: DAG 状态查询
 - **WHEN** 用户执行 `edera dag status my-dag`
-- **THEN** 系统 SHALL 返回该 DAG 的最近 10 次运行记录（cycle_id、状态、时间）
-
-#### Scenario: 添加节点到 DAG
-- **WHEN** 用户执行 `edera dag edit my-dag add-node --type fetch --alias fetcher-1`
-- **THEN** 系统 SHALL 在 DAG 配置中添加该节点实例
-
-#### Scenario: 添加边
-- **WHEN** 用户执行 `edera dag edit my-dag add-edge --from node-a --to node-b`
-- **THEN** 系统 SHALL 在 DAG 配置中添加该边
-
-#### Scenario: 删除边
-- **WHEN** 用户执行 `edera dag edit my-dag remove-edge --from node-a --to node-b`
-- **THEN** 系统 SHALL 从 DAG 配置中删除该边
+- **THEN** 系统 SHALL 输出当前 run_id、状态和节点执行情况
 
 ### Requirement: Client 一键初始化
 `edera client init` SHALL 一键完成客户端配置，包括连接 bootstrap 端口、请求签发 client cert、保存到 `~/.edera/`。
@@ -139,7 +131,7 @@
 `edera` CLI SHALL 作为纯 gRPC client 连接 `edera-server`。所有 entity / node / dag 子命令 MUST 通过 gRPC 调用 server，MUST NOT 直接读取 `EntityStore` 或 config 目录。
 
 #### Scenario: 所有数据操作走 gRPC
-- **WHEN** 用户执行 `edera entity get`、`edera node status`、`edera dag trigger` 等任意数据子命令
+- **WHEN** 用户执行 `edera entity get`、`edera node status`、`edera dag run` 等任意数据子命令
 - **THEN** CLI SHALL 通过 `GrpcClient` 调用 `edera-server`，不实例化 `EntityStore`、不调用 `load_app_config`
 
 #### Scenario: handler-validate 离线特例
@@ -204,17 +196,54 @@
 - **WHEN** 用户执行 `edera handler-validate <path>`，文件 schema 不合法
 - **THEN** 系统 SHALL 输出错误信息列表并以非零状态退出
 
-### Requirement: trigger emit 子命令
+### Requirement: event emit 子命令
 
-`edera` CLI SHALL 新增 `trigger` 子命令组，包含 `emit` 子命令用于外部事件注入。
+`edera` CLI SHALL 新增 `event` 子命令组，包含 `emit` 子命令用于外部事件注入。
 
-#### Scenario: edera trigger emit 命令
+#### Scenario: edera event emit 命令
 
-- **WHEN** 用户执行 `edera trigger emit "event:website-updated" --payload-json '{"url":"https://..."}'`
-- **THEN** CLI 通过 mTLS 连接 edera-server，调用 `PipelineService.Emit` 注入事件
+- **WHEN** 用户执行 `edera event emit "event:website-updated" --payload-json '{"url":"https://..."}'`
+- **THEN** CLI 通过 mTLS 连接 edera-server，调用 `EventService.Emit` 注入事件
 
-#### Scenario: edera trigger emit clear 事件
+#### Scenario: edera event emit clear 事件
 
-- **WHEN** 用户执行 `edera trigger emit "clear:event:market-open"`
-- **THEN** CLI 调用 `PipelineService.Emit` 复位 bit
+- **WHEN** 用户执行 `edera event emit "clear:event:market-open"`
+- **THEN** CLI 调用 `EventService.Emit` 复位 bit
+
+### Requirement: Event 子命令
+`edera event` SHALL 提供事件注入能力。`edera trigger emit` 命令已废弃，改为 `edera event emit`。
+
+#### Scenario: 事件注入
+- **WHEN** 用户执行 `edera event emit market-open --payload '{"time": "09:30"}'`
+- **THEN** 系统 SHALL 调用 `EventService.Emit` 注入事件到 EventGroup
+
+#### Scenario: 带 source 的事件注入
+- **WHEN** 用户执行 `edera event emit breaking-news --source external-api`
+- **THEN** 系统 SHALL 在 emit 记录中标注 source 为 `external-api`
+
+### Requirement: System 子命令
+`edera system` SHALL 提供全局系统控制能力，包括 scheduler 暂停、恢复和状态查询。
+
+#### Scenario: 暂停 scheduler
+- **WHEN** 用户执行 `edera system pause-scheduler`
+- **THEN** 系统 SHALL 调用 `SystemService.PauseScheduler` 暂停 TriggerExecutor
+
+#### Scenario: 恢复 scheduler
+- **WHEN** 用户执行 `edera system resume-scheduler`
+- **THEN** 系统 SHALL 调用 `SystemService.ResumeScheduler` 恢复 TriggerExecutor
+
+#### Scenario: Scheduler 状态查询
+- **WHEN** 用户执行 `edera system scheduler-status`
+- **THEN** 系统 SHALL 输出 scheduler 当前状态（running/paused）
+
+### Requirement: Node 子命令使用 run_id
+`edera node` 子命令中所有涉及 cycle_id 的参数 SHALL 改为 run_id。
+
+#### Scenario: 查看节点输出使用 run_id
+- **WHEN** 用户执行 `edera node output llm-analyzer --run-id abc123`
+- **THEN** 系统 SHALL 查询该 run_id 下的节点输出
+
+#### Scenario: 恢复节点使用 run_id
+- **WHEN** 用户执行 `edera node resume llm-analyze --run-id abc123 --prompt "关注宏观经济因素"`
+- **THEN** 系统 SHALL 找到该 run_id 的 sandbox 并恢复执行
 

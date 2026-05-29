@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 class NodeInput(BaseModel):
-    cycle_id: str
+    run_id: str
     payload: Any
     metadata: dict[str, Any] = {}
 
@@ -27,7 +27,7 @@ class HandlerContext:
     params: dict[str, Any]
     node_name: str
     node_type: str
-    cycle_id: str
+    run_id: str
     entity_store: EntityStoreProtocol
     storage: StorageProtocol | None = None
     runtime: RuntimeContextProtocol | None = None

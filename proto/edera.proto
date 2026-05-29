@@ -14,9 +14,11 @@ service EntityService {
 }
 
 service DagService {
-  rpc Trigger(DagTriggerRequest) returns (DagRunRef);
+  rpc Run(DagRunRequest) returns (DagRunRef);
   rpc Status(DagRef) returns (DagStatus);
   rpc Edit(DagEditRequest) returns (DagStatus);
+  rpc Stop(DagStopRequest) returns (JsonResponse);
+  rpc Retry(DagRetryRequest) returns (JsonResponse);
 }
 
 service NodeService {
@@ -31,6 +33,10 @@ service SystemService {
   rpc Reload(ReloadRequest) returns (ReloadResponse);
   rpc InitClient(ClientInitRequest) returns (ClientInitResponse);
   rpc SubscribeEvents(EventSubscribeRequest) returns (stream EventMessage);
+  rpc PauseScheduler(EmptyRequest) returns (JsonResponse);
+  rpc ResumeScheduler(EmptyRequest) returns (JsonResponse);
+  rpc SchedulerStatus(EmptyRequest) returns (JsonResponse);
+  rpc CreateRepairTask(NameRequest) returns (JsonResponse);
 }
 
 service GraphService {
@@ -85,16 +91,8 @@ service QueryService {
   rpc NodeHistory(NodeHistoryRequest) returns (JsonResponse);
 }
 
-service PipelineService {
+service EventService {
   rpc Emit(EmitRequest) returns (JsonResponse);
-  rpc Run(EmptyRequest) returns (JsonResponse);
-  rpc Pause(EmptyRequest) returns (JsonResponse);
-  rpc Resume(EmptyRequest) returns (JsonResponse);
-  rpc Stop(EmptyRequest) returns (JsonResponse);
-  rpc Status(EmptyRequest) returns (JsonResponse);
-  rpc DagStop(DagStopRequest) returns (JsonResponse);
-  rpc DagRetry(DagRetryRequest) returns (JsonResponse);
-  rpc CreateRepairTask(NameRequest) returns (JsonResponse);
 }
 
 message EmptyRequest {}
@@ -162,7 +160,7 @@ message SourceLogsRequest {
 
 message NodeOutputsRequest {
   string node_id = 1;
-  string cycle_id = 2;
+  string run_id = 2;
   int32 limit = 3;
 }
 
@@ -179,7 +177,7 @@ message DagStopRequest {
 
 message DagRetryRequest {
   string dag_name = 1;
-  string cycle_id = 2;
+  string run_id = 2;
   repeated string node_ids = 3;
   string mode = 4;
   string payload_json = 5;
@@ -223,13 +221,13 @@ message DagRef {
   string name = 1;
 }
 
-message DagTriggerRequest {
+message DagRunRequest {
   string name = 1;
   string inputs_json = 2;
 }
 
 message DagRunRef {
-  string cycle_id = 1;
+  string run_id = 1;
 }
 
 message DagStatus {
@@ -254,13 +252,13 @@ message NodeStatus {
 
 message NodeResumeRequest {
   string id = 1;
-  string cycle_id = 2;
+  string run_id = 2;
   string prompt = 3;
 }
 
 message NodeOutputRequest {
   string id = 1;
-  string cycle_id = 2;
+  string run_id = 2;
 }
 
 message NodeOutputList {

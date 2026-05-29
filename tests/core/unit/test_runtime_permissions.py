@@ -20,7 +20,7 @@ def _context() -> NodeContext:
         {"entities": [{"id": "stock-1", "type": "stock", "attributes": {"code": "00700.HK", "secret": "x"}}]}
     )
     store = EntityStore(entities, entity_types, EntityRelationsConfig())
-    return NodeContext("cycle", "node", entity_store=store)
+    return NodeContext("run", "node", entity_store=store)
 
 
 def test_read_protected_field(caplog) -> None:

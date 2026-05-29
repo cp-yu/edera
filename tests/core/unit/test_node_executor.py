@@ -21,7 +21,7 @@ async def test_node_executor_function_handler_returns_json_payload() -> None:
     config = load_app_config(Path("config"))
 
     async def handler(node_input: NodeInput) -> dict[str, object]:
-        return {"cycle": node_input.cycle_id, "value": node_input.payload}
+        return {"run": node_input.run_id, "value": node_input.payload}
 
     instance = DagNodeInstance(
         id="0194f7a6-7b17-7c01-b601-100000000001",
@@ -38,10 +38,10 @@ async def test_node_executor_function_handler_returns_json_payload() -> None:
     )
     output = await executor.execute(
         instance.id,
-        NodeInput(cycle_id="cycle", payload={"source_names": []}),
+        NodeInput(run_id="run", payload={"source_names": []}),
     )
     assert output.ok
-    assert output.payload == {"cycle": "cycle", "value": {"source_names": []}}
+    assert output.payload == {"run": "run", "value": {"source_names": []}}
 
 
 @pytest.mark.asyncio
@@ -53,13 +53,13 @@ async def test_node_executor_records_handler_node_output() -> None:
         return NodeOutput(node_name="report", ok=True, payload={"report_path": "/tmp/report.html"})
 
     async def recorder(
-        cycle_id: str,
+        run_id: str,
         node_id: str,
         entity_type: str,
         payload: object,
         session_id: str | None,
     ) -> None:
-        recorded.append((cycle_id, node_id, entity_type, payload, session_id))
+        recorded.append((run_id, node_id, entity_type, payload, session_id))
 
     node = NodeConfig(
         name="report-node",
@@ -76,11 +76,11 @@ async def test_node_executor_records_handler_node_output() -> None:
         output_recorder=recorder,
     )
 
-    output = await executor.execute("report-node", NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute("report-node", NodeInput(run_id="run", payload={}))
 
     assert output.ok
     assert output.payload == {"report_path": "/tmp/report.html"}
-    assert recorded == [("cycle", "report-node", "any", {"report_path": "/tmp/report.html"}, None)]
+    assert recorded == [("run", "report-node", "any", {"report_path": "/tmp/report.html"}, None)]
 
 
 @pytest.mark.asyncio
@@ -103,7 +103,7 @@ async def test_node_executor_missing_skill_reports_name(tmp_path: Path) -> None:
     )
     output = await executor.execute(
         instance.id,
-        NodeInput(cycle_id="cycle", payload={"source_names": []}),
+        NodeInput(run_id="run", payload={"source_names": []}),
     )
     assert not output.ok
     assert "fetch-rss" in (output.error or "")
@@ -121,9 +121,9 @@ async def test_node_entity_execution_uses_registry_module_cache(tmp_path: Path) 
     registry.register("dynamic", handler)
     executor = NodeExecutor({"rss-fetcher": node}, config.system, config.runtime, registry.seal())
 
-    first = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+    first = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
     handler.write_text("async def run(ctx):\n    return {'version': 2}\n", encoding="utf-8")
-    second = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+    second = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
 
     assert first.payload == {"version": 1}
     assert second.payload == {"version": 1}
@@ -168,7 +168,7 @@ async def test_node_executor_prefers_node_entity() -> None:
         entity_store=store,
     )
 
-    output = await executor.execute("reader", NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute("reader", NodeInput(run_id="run", payload={}))
 
     assert output.payload == {"source": "entity"}
 
@@ -217,7 +217,7 @@ async def test_node_executor_reports_non_executable_entity() -> None:
     )
     executor = NodeExecutor({}, config.system, config.runtime, entity_store=store)
 
-    output = await executor.execute("metadata", NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute("metadata", NodeInput(run_id="run", payload={}))
 
     assert not output.ok
     assert output.error == "handler not registered: metadata"
@@ -239,7 +239,7 @@ async def test_system_zero_timeout_disables_wait_for() -> None:
         handlers={"fetch-rss": handler},
     )
 
-    output = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
 
     assert output.ok
     assert output.payload == {"ok": True}
@@ -261,7 +261,7 @@ async def test_context_handler_receives_full_input_and_params(tmp_path: Path) ->
     registry = HandlerRegistry()
     registry.register("fetch-rss", handler)
     executor = NodeExecutor({"rss-fetcher": node}, config.system, config.runtime, registry.seal())
-    node_input = NodeInput(cycle_id="cycle", payload={"source_names": ["hn-rss"]}, metadata={})
+    node_input = NodeInput(run_id="run", payload={"source_names": ["hn-rss"]}, metadata={})
 
     output = await executor.execute("rss-fetcher", node_input)
 
@@ -281,8 +281,8 @@ async def test_context_handler_records_source_recovery(tmp_path: Path) -> None:
     )
     recorded: list[tuple[str, str, str, dict[str, object]]] = []
 
-    async def recorder(cycle_id: str, node_id: str, source_name: str, summary: dict[str, object]) -> None:
-        recorded.append((cycle_id, node_id, source_name, summary))
+    async def recorder(run_id: str, node_id: str, source_name: str, summary: dict[str, object]) -> None:
+        recorded.append((run_id, node_id, source_name, summary))
 
     from edera_core.registry import HandlerRegistry
 
@@ -296,10 +296,10 @@ async def test_context_handler_records_source_recovery(tmp_path: Path) -> None:
         source_recovery_recorder=recorder,
     )
 
-    output = await executor.execute("rss-fetcher", NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
 
     assert output.ok
-    assert recorded == [("cycle", "rss-fetcher", "hn-rss", {"recovery_status": "escalated"})]
+    assert recorded == [("run", "rss-fetcher", "hn-rss", {"recovery_status": "escalated"})]
 
 
 @pytest.mark.asyncio
@@ -321,7 +321,7 @@ async def test_pi_node_requires_instance_model() -> None:
         instances={instance.id: instance},
     )
 
-    output = await executor.execute(instance.id, NodeInput(cycle_id="cycle", payload={}))
+    output = await executor.execute(instance.id, NodeInput(run_id="run", payload={}))
 
     assert not output.ok
     assert output.error == "model not configured for instance"

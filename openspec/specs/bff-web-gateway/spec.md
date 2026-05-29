@@ -20,8 +20,8 @@ BFF SHALL 作为 gRPC client 连接 `edera-server`，持有自己的 client cert
 BFF SHALL 保持现有 HTTP REST API 路由兼容，将 HTTP 请求转换为 gRPC 调用。
 
 #### Scenario: HTTP 请求转 gRPC
-- **WHEN** 浏览器 POST `/api/pipeline/dag/my-dag/run`
-- **THEN** BFF SHALL 调用 `edera-server` 的 `DagService.Trigger` gRPC 方法
+- **WHEN** 浏览器 POST `/api/dags/my-dag/run`
+- **THEN** BFF SHALL 调用 `edera-server` 的 `DagService.Run` gRPC 方法
 
 ### Requirement: SSE 实时推送
 BFF SHALL 提供 SSE endpoint，订阅 `edera-server` 的 event bus，实时推送 DAG 和 node 的状态变更到浏览器。

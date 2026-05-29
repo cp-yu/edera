@@ -26,10 +26,10 @@ from edera_core.storage.repository import (
     list_advices,
     list_briefings,
     list_event_records,
-    node_runs_for_cycle,
+    node_runs_for_run,
     query_node_output_entities,
     raw_items_for_analyses,
-    recent_pipeline_runs,
+    recent_dag_runs,
     source_execution_logs,
     source_health_summary,
 )
@@ -137,7 +137,7 @@ class _QueryService:
         async with self.daemon.controller._factory()() as session:
             outputs = await query_node_output_entities(
                 session,
-                cycle_id=request.cycle_id or None,
+                run_id=request.run_id or None,
                 node_id=request.node_id or None,
                 limit=limit(request.limit, 100),
             )
@@ -147,11 +147,11 @@ class _QueryService:
         if request.dag_name not in load_dag_configs(self.daemon.config_dir / "dags"):
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
         async with self.daemon.controller._factory()() as session:
-            recent = await recent_pipeline_runs(session, limit(request.limit), request.dag_name)
+            recent = await recent_dag_runs(session, limit(request.limit), request.dag_name)
             history = []
             for run in recent:
-                runs = [item for item in await node_runs_for_cycle(session, run.cycle_id) if item.node_name == request.node_id]
-                outputs = await query_node_output_entities(session, cycle_id=run.cycle_id, node_id=request.node_id, limit=100)
+                runs = [item for item in await node_runs_for_run(session, run.run_id) if item.node_name == request.node_id]
+                outputs = await query_node_output_entities(session, run_id=run.run_id, node_id=request.node_id, limit=100)
                 for node_run in runs:
                     history.append(
                         {

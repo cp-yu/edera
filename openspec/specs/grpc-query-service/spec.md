@@ -63,14 +63,13 @@
 `edera-server` SHALL 通过 `QueryService` 提供节点输出和执行历史查询。
 
 #### Scenario: 查询 node outputs
-- **WHEN** 客户端调用 `QueryService.NodeOutputs(node_id, cycle_id, limit)`
+- **WHEN** 客户端调用 `QueryService.NodeOutputs(node_id, run_id, limit)`
 - **THEN** server SHALL 返回匹配条件的 node output entity 列表
 
 #### Scenario: 查询 node history
 - **WHEN** 客户端调用 `QueryService.NodeHistory(dag_name, node_id, limit)`
-- **THEN** server SHALL 返回该节点的历史执行记录（pipeline run + node run + outputs）
+- **THEN** server SHALL 返回该节点的历史执行记录（DAG run + node run + outputs）
 
 #### Scenario: DAG 不存在时查询 history
 - **WHEN** 客户端调用 `QueryService.NodeHistory` 且 dag_name 不存在
 - **THEN** server SHALL 返回 gRPC NOT_FOUND 错误
-

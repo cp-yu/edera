@@ -101,8 +101,9 @@ def load_node_configs(path: Path) -> dict[str, NodeConfig]:
     entities = store.query("node") if store is not None else [_entity_from_file(file, "node") for file in sorted(path.glob("*.yaml"))]
     for entity in entities:
         node = NodeConfig.model_validate(entity.attributes)
-        if node.system_prompt_file:
-            prompt_path = root / node.system_prompt_file
+        system_prompt_file = getattr(node, "system_prompt_file", None)
+        if system_prompt_file:
+            prompt_path = root / system_prompt_file
             if prompt_path.exists():
                 node.system_prompt = prompt_path.read_text(encoding="utf-8")
         configs[node.name] = node

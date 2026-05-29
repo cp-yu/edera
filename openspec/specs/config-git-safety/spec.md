@@ -10,7 +10,7 @@
 #### Scenario: DAG run 结束后自动 commit
 
 - **WHEN** DAG run 结束，且 `config/` 目录有文件变更
-- **THEN** 系统自动执行 git add + commit，commit message 包含 cycle_id 和变更摘要
+- **THEN** 系统自动执行 git add + commit，commit message 包含 run_id 和变更摘要
 
 #### Scenario: DAG run 结束无变更
 

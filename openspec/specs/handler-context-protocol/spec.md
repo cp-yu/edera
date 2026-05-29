@@ -4,7 +4,7 @@
 此规约记录变更 core-extension-separation 引入的行为，请在后续同步或归档前补全正式 Purpose。
 ## Requirements
 ### Requirement: HandlerContext 数据结构
-核心 SHALL 定义 `HandlerContext` dataclass 作为 handler 调用的唯一参数，MUST 包含以下字段：`input: NodeInput`、`params: dict[str, Any]`、`node_name: str`、`node_type: str`、`cycle_id: str`、`entity_store: EntityStoreProtocol`、`runtime: RuntimeContextProtocol`。
+核心 SHALL 定义 `HandlerContext` dataclass 作为 handler 调用的唯一参数，MUST 包含以下字段：`input: NodeInput`、`params: dict[str, Any]`、`node_name: str`、`node_type: str`、`run_id: str`、`entity_store: EntityStoreProtocol`、`runtime: RuntimeContextProtocol`。
 
 #### Scenario: HandlerContext 字段完整性
 - **WHEN** 核心构造 `HandlerContext` 传递给 handler
@@ -45,11 +45,11 @@
 - **THEN** import path SHALL 为 `edera_types`
 
 ### Requirement: NodeInput 和 NodeOutput 数据模型
-`edera-types` 包 SHALL 定义 `NodeInput`（`cycle_id: str`、`payload: Any`、`metadata: dict`）和 `NodeOutput`（`node_name: str`、`ok: bool`、`payload: Any`、`metadata: dict`、`error: str | None`）。
+`edera-types` 包 SHALL 定义 `NodeInput`（`run_id: str`、`payload: Any`、`metadata: dict`）和 `NodeOutput`（`node_name: str`、`ok: bool`、`payload: Any`、`metadata: dict`、`error: str | None`）。
 
 #### Scenario: NodeInput 构造
 - **WHEN** DAG runner 调度一个节点
-- **THEN** 核心 SHALL 构造 `NodeInput(cycle_id=..., payload=上游输出, metadata=上下文信息)`
+- **THEN** 核心 SHALL 构造 `NodeInput(run_id=..., payload=上游输出, metadata=上下文信息)`
 
 #### Scenario: NodeOutput 成功
 - **WHEN** handler 返回成功结果
@@ -76,7 +76,7 @@
 
 #### Scenario: Runtime context supplies current node identity
 - **WHEN** handler 调用 `ctx.runtime.record_source_recovery(...)`
-- **THEN** core SHALL 自动补齐当前 `cycle_id` 和 `node_id`
+- **THEN** core SHALL 自动补齐当前 `run_id` 和 `node_id`
 
 ### Requirement: NodeInput runtime context references
 `NodeInput.metadata` SHALL 仅保存当前节点输入上下文的轻量引用和直接上游摘要，MUST NOT 承载完整 payload 或向 output metadata 自动传播。

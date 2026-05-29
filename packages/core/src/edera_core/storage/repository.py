@@ -7,12 +7,12 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from edera_core.config.schema import EntityConfig
-from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, PipelineRun, SourceRecovery, utc_now
+from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
 
 
 async def store_node_output_entities(
     session: AsyncSession,
-    cycle_id: str,
+    run_id: str,
     node_id: str,
     entity_type: str,
     payload: object,
@@ -36,7 +36,7 @@ async def store_node_output_entities(
         entity = NodeOutputEntity(
             entity_id=uuid4().hex,
             type=entity_type,
-            cycle_id=str(value.get("cycle_id") or cycle_id or ""),
+            run_id=str(value.get("run_id") or run_id or ""),
             node_id=node_id,
             payload=dict(value),
             tags=[str(tag) for tag in value.get("tags", [])] if isinstance(value.get("tags"), list) else [],
@@ -52,7 +52,7 @@ async def store_node_output_entities(
 async def query_node_output_entities(
     session: AsyncSession,
     entity_type: str | None = None,
-    cycle_id: str | None = None,
+    run_id: str | None = None,
     node_id: str | None = None,
     tags: list[str] | None = None,
     limit: int = 100,
@@ -60,8 +60,8 @@ async def query_node_output_entities(
     statement = select(NodeOutputEntity).order_by(col(NodeOutputEntity.created_at).desc()).limit(limit)
     if entity_type is not None:
         statement = statement.where(NodeOutputEntity.type == entity_type)
-    if cycle_id is not None:
-        statement = statement.where(NodeOutputEntity.cycle_id == cycle_id)
+    if run_id is not None:
+        statement = statement.where(NodeOutputEntity.run_id == run_id)
     if node_id is not None:
         statement = statement.where(NodeOutputEntity.node_id == node_id)
     result = await session.exec(statement)
@@ -79,7 +79,7 @@ async def save_node_output_entity(session: AsyncSession, entity: EntityConfig) -
         raise ValueError(f"node output entity not found: {entity.id}")
     if current.type != entity.type:
         raise ValueError(f"node output entity type cannot change: {entity.id}")
-    current.cycle_id = str(entity.attributes.get("cycle_id") or current.cycle_id)
+    current.run_id = str(entity.attributes.get("run_id") or current.run_id)
     current.node_id = str(entity.attributes.get("node_id") or current.node_id)
     current.session_id = str(entity.attributes["session_id"]) if entity.attributes.get("session_id") is not None else None
     current.url = str(entity.attributes["url"]) if entity.attributes.get("url") is not None else None
@@ -102,12 +102,12 @@ async def delete_node_output_entity(session: AsyncSession, entity_id: str) -> bo
     return True
 
 
-async def delete_node_outputs_for_nodes(session: AsyncSession, cycle_id: str, node_ids: set[str]) -> None:
+async def delete_node_outputs_for_nodes(session: AsyncSession, run_id: str, node_ids: set[str]) -> None:
     if not node_ids:
         return
     result = await session.exec(
         select(NodeOutputEntity).where(
-            NodeOutputEntity.cycle_id == cycle_id,
+            NodeOutputEntity.run_id == run_id,
             col(NodeOutputEntity.node_id).in_(node_ids),
         )
     )
@@ -121,7 +121,7 @@ def node_output_to_entity(output: NodeOutputEntity) -> EntityConfig:
     attributes.setdefault("id", output.entity_id)
     attributes.update(
         {
-            "cycle_id": output.cycle_id,
+            "run_id": output.run_id,
             "node_id": output.node_id,
             "payload": output.payload,
         }
@@ -145,43 +145,43 @@ async def cleanup_node_output_entities(
             if output.created_at.timestamp() < cutoff:
                 await session.delete(output)
     if retention_count > 0:
-        result = await session.exec(select(NodeOutputEntity.cycle_id).order_by(col(NodeOutputEntity.created_at).desc()))
-        cycles: list[str] = []
-        for cycle in result.all():
-            if cycle not in cycles:
-                cycles.append(cycle)
-        expired = cycles[retention_count:]
+        result = await session.exec(select(NodeOutputEntity.run_id).order_by(col(NodeOutputEntity.created_at).desc()))
+        run_ids: list[str] = []
+        for run_id in result.all():
+            if run_id not in run_ids:
+                run_ids.append(run_id)
+        expired = run_ids[retention_count:]
         if expired:
-            result = await session.exec(select(NodeOutputEntity).where(col(NodeOutputEntity.cycle_id).in_(expired)))
+            result = await session.exec(select(NodeOutputEntity).where(col(NodeOutputEntity.run_id).in_(expired)))
             for output in result.all():
                 await session.delete(output)
     await session.flush()
 
 
-async def create_pipeline_run(
+async def create_dag_run(
     session: AsyncSession,
-    cycle_id: str,
-    trigger: str,
+    run_id: str,
+    source: str,
     node_names: list[str] | None = None,
     dag_name: str = "default",
     retry_of: str | None = None,
-) -> PipelineRun:
-    run = PipelineRun(cycle_id=cycle_id, trigger=trigger, status="running", dag_name=dag_name, retry_of=retry_of)
+) -> DagRun:
+    run = DagRun(run_id=run_id, source=source, status="running", dag_name=dag_name, retry_of=retry_of)
     session.add(run)
     for node_name in node_names or []:
-        session.add(NodeRun(cycle_id=cycle_id, node_name=node_name, status="pending"))
+        session.add(NodeRun(run_id=run_id, node_name=node_name, status="pending"))
     await session.flush()
     return run
 
 
-async def finish_pipeline_run(
+async def finish_dag_run(
     session: AsyncSession,
-    cycle_id: str,
+    run_id: str,
     status: str,
     error: str | None = None,
     ended_at: datetime | None = None,
-) -> PipelineRun | None:
-    run = await get_pipeline_run(session, cycle_id)
+) -> DagRun | None:
+    run = await get_dag_run(session, run_id)
     if run is None:
         return None
     run.status = status
@@ -192,8 +192,8 @@ async def finish_pipeline_run(
     return run
 
 
-async def restart_pipeline_run(session: AsyncSession, cycle_id: str) -> PipelineRun | None:
-    run = await get_pipeline_run(session, cycle_id)
+async def restart_dag_run(session: AsyncSession, run_id: str) -> DagRun | None:
+    run = await get_dag_run(session, run_id)
     if run is None:
         return None
     run.status = "running"
@@ -206,20 +206,23 @@ async def restart_pipeline_run(session: AsyncSession, cycle_id: str) -> Pipeline
 
 async def mark_node_run(
     session: AsyncSession,
-    cycle_id: str,
+    run_id: str,
     node_name: str,
     status: str,
     error: str | None = None,
     failure_kind: str | None = None,
+    metadata: dict[str, object] | None = None,
 ) -> NodeRun:
-    result = await session.exec(select(NodeRun).where(NodeRun.cycle_id == cycle_id, NodeRun.node_name == node_name))
+    result = await session.exec(select(NodeRun).where(NodeRun.run_id == run_id, NodeRun.node_name == node_name))
     node_run = result.first()
     now = utc_now()
     if node_run is None:
-        node_run = NodeRun(cycle_id=cycle_id, node_name=node_name, status=status)
+        node_run = NodeRun(run_id=run_id, node_name=node_name, status=status)
     node_run.status = status
     node_run.error = error
     node_run.failure_kind = failure_kind if status == "failed" else None
+    if metadata:
+        node_run.metadata_ = {**node_run.metadata_, **metadata}
     if status == "running" and node_run.started_at is None:
         node_run.started_at = now
     if status in {"succeeded", "failed", "skipped", "cancelled"}:
@@ -231,7 +234,7 @@ async def mark_node_run(
 
 async def upsert_edge_input(
     session: AsyncSession,
-    cycle_id: str,
+    run_id: str,
     from_node_id: str,
     to_node_id: str,
     edge_optional: bool,
@@ -241,7 +244,7 @@ async def upsert_edge_input(
 ) -> EdgeInput:
     result = await session.exec(
         select(EdgeInput).where(
-            EdgeInput.cycle_id == cycle_id,
+            EdgeInput.run_id == run_id,
             EdgeInput.from_node_id == from_node_id,
             EdgeInput.to_node_id == to_node_id,
         )
@@ -249,7 +252,7 @@ async def upsert_edge_input(
     edge_input = result.first()
     if edge_input is None:
         edge_input = EdgeInput(
-            cycle_id=cycle_id,
+            run_id=run_id,
             from_node_id=from_node_id,
             to_node_id=to_node_id,
             edge_optional=edge_optional,
@@ -267,23 +270,23 @@ async def upsert_edge_input(
     return edge_input
 
 
-async def edge_inputs_for_cycle(session: AsyncSession, cycle_id: str) -> list[EdgeInput]:
+async def edge_inputs_for_run(session: AsyncSession, run_id: str) -> list[EdgeInput]:
     result = await session.exec(
-        select(EdgeInput).where(EdgeInput.cycle_id == cycle_id).order_by(col(EdgeInput.id))
+        select(EdgeInput).where(EdgeInput.run_id == run_id).order_by(col(EdgeInput.id))
     )
     return list(result.all())
 
 
 async def upsert_source_recovery(
     session: AsyncSession,
-    cycle_id: str,
+    run_id: str,
     node_id: str,
     source_name: str,
     summary: dict[str, object],
 ) -> SourceRecovery:
     result = await session.exec(
         select(SourceRecovery).where(
-            SourceRecovery.cycle_id == cycle_id,
+            SourceRecovery.run_id == run_id,
             SourceRecovery.node_id == node_id,
             SourceRecovery.source_name == source_name,
         )
@@ -291,7 +294,7 @@ async def upsert_source_recovery(
     recovery = result.first()
     if recovery is None:
         recovery = SourceRecovery(
-            cycle_id=cycle_id,
+            run_id=run_id,
             node_id=node_id,
             source_name=source_name,
             recovery_status=str(summary.get("recovery_status") or "none"),
@@ -322,48 +325,48 @@ async def source_recoveries(
     return list(result.all())
 
 
-async def get_pipeline_run(session: AsyncSession, cycle_id: str) -> PipelineRun | None:
-    result = await session.exec(select(PipelineRun).where(PipelineRun.cycle_id == cycle_id))
+async def get_dag_run(session: AsyncSession, run_id: str) -> DagRun | None:
+    result = await session.exec(select(DagRun).where(DagRun.run_id == run_id))
     return result.first()
 
 
-async def current_pipeline_run(session: AsyncSession, dag_name: str | None = None) -> PipelineRun | None:
+async def current_dag_run(session: AsyncSession, dag_name: str | None = None) -> DagRun | None:
     statement = (
-        select(PipelineRun)
-        .where(PipelineRun.status == "running")
-        .order_by(col(PipelineRun.started_at).desc())
+        select(DagRun)
+        .where(DagRun.status == "running")
+        .order_by(col(DagRun.started_at).desc())
         .limit(1)
     )
     if dag_name is not None:
-        statement = statement.where(PipelineRun.dag_name == dag_name)
+        statement = statement.where(DagRun.dag_name == dag_name)
     result = await session.exec(statement)
     return result.first()
 
 
-async def recent_pipeline_runs(
+async def recent_dag_runs(
     session: AsyncSession,
     limit: int = 20,
     dag_name: str | None = None,
-) -> list[PipelineRun]:
-    statement = select(PipelineRun).order_by(col(PipelineRun.started_at).desc()).limit(limit)
+) -> list[DagRun]:
+    statement = select(DagRun).order_by(col(DagRun.started_at).desc()).limit(limit)
     if dag_name is not None:
-        statement = statement.where(PipelineRun.dag_name == dag_name)
+        statement = statement.where(DagRun.dag_name == dag_name)
     result = await session.exec(statement)
     return list(result.all())
 
 
-async def latest_finished_pipeline_run(session: AsyncSession, dag_name: str) -> PipelineRun | None:
+async def latest_finished_dag_run(session: AsyncSession, dag_name: str) -> DagRun | None:
     result = await session.exec(
-        select(PipelineRun)
-        .where(PipelineRun.dag_name == dag_name, PipelineRun.status != "running")
-        .order_by(col(PipelineRun.started_at).desc())
+        select(DagRun)
+        .where(DagRun.dag_name == dag_name, DagRun.status != "running")
+        .order_by(col(DagRun.started_at).desc())
         .limit(1)
     )
     return result.first()
 
 
-async def node_runs_for_cycle(session: AsyncSession, cycle_id: str) -> list[NodeRun]:
-    result = await session.exec(select(NodeRun).where(NodeRun.cycle_id == cycle_id).order_by(col(NodeRun.id)))
+async def node_runs_for_run(session: AsyncSession, run_id: str) -> list[NodeRun]:
+    result = await session.exec(select(NodeRun).where(NodeRun.run_id == run_id).order_by(col(NodeRun.id)))
     return list(result.all())
 
 
@@ -381,8 +384,8 @@ async def source_execution_logs(
     if source_name is None and not allowed_sources:
         return logs[:limit]
     statement = (
-        select(NodeRun, PipelineRun)
-        .join(PipelineRun, col(NodeRun.cycle_id) == col(PipelineRun.cycle_id))
+        select(NodeRun, DagRun)
+        .join(DagRun, col(NodeRun.run_id) == col(DagRun.run_id))
         .order_by(col(NodeRun.started_at).desc(), col(NodeRun.id).desc())
         .limit(limit)
     )
@@ -423,7 +426,7 @@ async def source_health_summary(
             {
                 "source_name": source_name,
                 "latest_status": latest.status if latest else "unknown",
-                "cycle_id": latest.cycle_id if latest else None,
+                "run_id": latest.run_id if latest else None,
                 "latest_run_at": latest.started_at.isoformat() if latest and latest.started_at else None,
                 "success_rate": success_count / len(finished) if finished else None,
                 "window_size": len(finished),
@@ -507,14 +510,14 @@ def _entity_tags(entity: EntityConfig) -> list[str]:
     return [str(tag) for tag in tags] if isinstance(tags, list) else []
 
 
-def _source_log_dict(node: NodeRun, run: PipelineRun) -> dict[str, object]:
+def _source_log_dict(node: NodeRun, run: DagRun) -> dict[str, object]:
     return {
         "source_name": node.node_name,
-        "cycle_id": node.cycle_id,
+        "run_id": node.run_id,
         "dag_name": run.dag_name,
         "node_id": node.node_name,
         "status": node.status,
-        "pipeline_status": run.status,
+        "dag_status": run.status,
         "started_at": node.started_at.isoformat() if node.started_at else None,
         "ended_at": node.ended_at.isoformat() if node.ended_at else None,
         "error": node.error,
@@ -524,11 +527,11 @@ def _source_log_dict(node: NodeRun, run: PipelineRun) -> dict[str, object]:
 def _source_recovery_log_dict(recovery: SourceRecovery) -> dict[str, object]:
     return {
         "source_name": recovery.source_name,
-        "cycle_id": recovery.cycle_id,
+        "run_id": recovery.run_id,
         "dag_name": None,
         "node_id": recovery.node_id,
         "status": "failed" if recovery.escalated else "succeeded",
-        "pipeline_status": None,
+        "dag_status": None,
         "started_at": recovery.created_at.isoformat(),
         "ended_at": recovery.created_at.isoformat(),
         "error": recovery.latest_failure_reason,
@@ -544,7 +547,7 @@ def _source_recovery_dict(recovery: SourceRecovery | None) -> dict[str, object] 
     if recovery is None:
         return None
     return {
-        "cycle_id": recovery.cycle_id,
+        "run_id": recovery.run_id,
         "node_id": recovery.node_id,
         "source_name": recovery.source_name,
         "recovery_status": recovery.recovery_status,

@@ -42,7 +42,7 @@
 - **WHEN** 用户提交合法配置
 - **THEN** 系统 SHALL 写入目标配置文件，并保证写入过程中不会留下部分内容
 
-### Requirement: Running cycle uses config snapshot
+### Requirement: Running run uses config snapshot
 系统 SHALL 保证已经开始的管道周期使用启动时加载的配置快照。
 
 #### Scenario: Edit config during active run

@@ -1,0 +1,7 @@
+id: aa6cf971000244e696c6591d3961bf56
+type: trigger
+attributes:
+  name: default-default-cron
+  wait_for: cron:"*/30 * * * *"
+  target: dag:default
+  enabled: true

@@ -37,7 +37,7 @@ class GrpcClient:
         self.graph = pb2_grpc.GraphServiceStub(self._channel)
         self.config = pb2_grpc.ConfigServiceStub(self._channel)
         self.query = pb2_grpc.QueryServiceStub(self._channel)
-        self.pipeline = pb2_grpc.PipelineServiceStub(self._channel)
+        self.event = pb2_grpc.EventServiceStub(self._channel)
 
     async def close(self) -> None:
         await self._channel.close()
@@ -88,10 +88,11 @@ class GrpcClient:
         response = await self.entities.Query(pb2.QueryRequest(expression=expression, identity=identity), metadata=_identity_metadata(identity))
         return [_entity_response(item) for item in response.entities]
 
-    async def dag_trigger(self, name: str, payload: object | None = None) -> dict[str, object]:
-        return await self.pipeline_emit(f"manual:dag:{name}", payload, source="dag_trigger")
+    async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
+        response = await self.dags.Run(pb2.DagRunRequest(name=name, inputs_json=json.dumps(payload) if payload is not None else ""))
+        return {"run_id": response.run_id}
 
-    async def pipeline_emit(
+    async def event_emit(
         self,
         event: str,
         payload: object | None = None,
@@ -100,7 +101,7 @@ class GrpcClient:
         depth: int = 0,
     ) -> dict[str, object]:
         return _json_response(
-            await self.pipeline.Emit(
+            await self.event.Emit(
                 pb2.EmitRequest(
                     event=event,
                     payload_json=json.dumps(payload) if payload is not None else "",
@@ -126,12 +127,12 @@ class GrpcClient:
         response = await self.nodes.Stop(pb2.NodeRef(id=node_id))
         return {"node_id": response.id, "status": response.status}
 
-    async def node_resume(self, node_id: str, cycle_id: str | None, prompt: str) -> dict[str, object]:
-        response = await self.nodes.Resume(pb2.NodeResumeRequest(id=node_id, cycle_id=cycle_id or "", prompt=prompt))
-        return {"cycle_id": response.cycle_id}
+    async def node_resume(self, node_id: str, run_id: str | None, prompt: str) -> dict[str, object]:
+        response = await self.nodes.Resume(pb2.NodeResumeRequest(id=node_id, run_id=run_id or "", prompt=prompt))
+        return {"run_id": response.run_id}
 
-    async def node_output(self, node_id: str, cycle_id: str | None = None) -> list[dict[str, object]]:
-        response = await self.nodes.Output(pb2.NodeOutputRequest(id=node_id, cycle_id=cycle_id or ""))
+    async def node_output(self, node_id: str, run_id: str | None = None) -> list[dict[str, object]]:
+        response = await self.nodes.Output(pb2.NodeOutputRequest(id=node_id, run_id=run_id or ""))
         return json.loads(response.json or "[]")
 
     async def query_latest_briefing(self) -> dict[str, object]:
@@ -158,36 +159,30 @@ class GrpcClient:
     async def query_source_logs(self, source_name: str = "", limit: int = 50) -> dict[str, object]:
         return _json_response(await self.query.SourceLogs(pb2.SourceLogsRequest(source_name=source_name, limit=limit)))
 
-    async def query_node_outputs(self, node_id: str = "", cycle_id: str = "", limit: int = 100) -> dict[str, object]:
-        return _json_response(await self.query.NodeOutputs(pb2.NodeOutputsRequest(node_id=node_id, cycle_id=cycle_id, limit=limit)))
+    async def query_node_outputs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+        return _json_response(await self.query.NodeOutputs(pb2.NodeOutputsRequest(node_id=node_id, run_id=run_id, limit=limit)))
 
     async def query_node_history(self, dag_name: str, node_id: str, limit: int = 50) -> dict[str, object]:
         return _json_response(await self.query.NodeHistory(pb2.NodeHistoryRequest(dag_name=dag_name, node_id=node_id, limit=limit)))
 
-    async def pipeline_run(self) -> dict[str, object]:
-        return _json_response(await self.pipeline.Run(pb2.EmptyRequest()))
+    async def system_pause_scheduler(self) -> dict[str, object]:
+        return _json_response(await self.system.PauseScheduler(pb2.EmptyRequest()))
 
-    async def pipeline_pause(self) -> dict[str, object]:
-        return _json_response(await self.pipeline.Pause(pb2.EmptyRequest()))
+    async def system_resume_scheduler(self) -> dict[str, object]:
+        return _json_response(await self.system.ResumeScheduler(pb2.EmptyRequest()))
 
-    async def pipeline_resume(self) -> dict[str, object]:
-        return _json_response(await self.pipeline.Resume(pb2.EmptyRequest()))
+    async def system_scheduler_status(self) -> dict[str, object]:
+        return _json_response(await self.system.SchedulerStatus(pb2.EmptyRequest()))
 
-    async def pipeline_stop(self) -> dict[str, object]:
-        return _json_response(await self.pipeline.Stop(pb2.EmptyRequest()))
+    async def dag_stop(self, dag_name: str, force: bool = False) -> dict[str, object]:
+        return _json_response(await self.dags.Stop(pb2.DagStopRequest(dag_name=dag_name, force=force)))
 
-    async def pipeline_status(self) -> dict[str, object]:
-        return _json_response(await self.pipeline.Status(pb2.EmptyRequest()))
-
-    async def pipeline_dag_stop(self, dag_name: str, force: bool = False) -> dict[str, object]:
-        return _json_response(await self.pipeline.DagStop(pb2.DagStopRequest(dag_name=dag_name, force=force)))
-
-    async def pipeline_dag_retry(self, dag_name: str, cycle_id: str = "", node_ids: list[str] | None = None, mode: str = "single", payload: object | None = None) -> dict[str, object]:
+    async def dag_retry(self, dag_name: str, run_id: str = "", node_ids: list[str] | None = None, mode: str = "single", payload: object | None = None) -> dict[str, object]:
         return _json_response(
-            await self.pipeline.DagRetry(
+            await self.dags.Retry(
                 pb2.DagRetryRequest(
                     dag_name=dag_name,
-                    cycle_id=cycle_id,
+                    run_id=run_id,
                     node_ids=node_ids or [],
                     mode=mode,
                     payload_json=json.dumps(payload) if payload is not None else "",
@@ -195,8 +190,8 @@ class GrpcClient:
             )
         )
 
-    async def pipeline_create_repair_task(self, source_name: str) -> dict[str, object]:
-        return _json_response(await self.pipeline.CreateRepairTask(pb2.NameRequest(name=source_name)))
+    async def system_create_repair_task(self, source_name: str) -> dict[str, object]:
+        return _json_response(await self.system.CreateRepairTask(pb2.NameRequest(name=source_name)))
 
     async def graph_list_dags(self) -> dict[str, object]:
         return _json_response(await self.graph.ListDags(pb2.EmptyRequest()))

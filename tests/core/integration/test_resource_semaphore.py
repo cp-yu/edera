@@ -92,7 +92,7 @@ async def test_release_on_failure() -> None:
         store,
     )
 
-    result = await DagRunner(executor).run(graph, "cycle", {})
+    result = await DagRunner(executor).run(graph, "run", {})
 
     assert result.failures == {"first": "boom"}
     assert result.node_outputs["second"].ok
@@ -123,9 +123,9 @@ async def test_cross_dag_sharing() -> None:
     runner_a = DagRunner(NodeExecutor(nodes, config.system, config.runtime, {"fetch-rss": first}, graph_a.instances, store))
     runner_b = DagRunner(NodeExecutor(nodes, config.system, config.runtime, {"fetch-web": second}, graph_b.instances, store))
 
-    task_a = asyncio.create_task(runner_a.run(graph_a, "cycle-a", {}))
+    task_a = asyncio.create_task(runner_a.run(graph_a, "run-a", {}))
     await started.wait()
-    task_b = asyncio.create_task(runner_b.run(graph_b, "cycle-b", {}))
+    task_b = asyncio.create_task(runner_b.run(graph_b, "run-b", {}))
     await asyncio.sleep(0.01)
 
     assert events == ["dag-a-start"]
@@ -223,7 +223,7 @@ async def test_accumulate_resource_nodes_are_limited() -> None:
         graph.instances,
         _resource_store(1),
     )
-    result = await DagRunner(executor).run(graph, "cycle", {})
+    result = await DagRunner(executor).run(graph, "run", {})
 
     assert result.node_outputs["sink"].ok
     assert max_active == 1
@@ -279,7 +279,7 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
         graph.instances,
         _resource_store(1),
     )
-    result = await DagRunner(executor).run(graph, "cycle", {})
+    result = await DagRunner(executor).run(graph, "run", {})
 
     assert result.node_outputs["sink"].ok
     assert events == ["holder-start", "source-done", "holder-end", "sink-start"]
@@ -349,7 +349,7 @@ async def _run_resource_dag(resources: list[str | None], permits: int) -> tuple[
         graph.instances,
         _resource_store(permits, resource_ids),
     )
-    await DagRunner(executor).run(graph, "cycle", {})
+    await DagRunner(executor).run(graph, "run", {})
     return events, max_active
 
 

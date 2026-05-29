@@ -564,7 +564,7 @@ ReviewPanel + Skill 编辑器（复用 shadcn Card + 表单组件）
 - 预览内渐进 — Collapsible 折叠区域，层级缩进
 
 深链支持：
-- URL 格式：/summary/{cycle_id}/{stock_code}
+- URL 格式：/summary/{run_id}/{stock_code}
 - 通知推送携带深链，打开后自动定位到对应条目并选中
 
 ### Loading & Empty States

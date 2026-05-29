@@ -29,11 +29,11 @@ Source 节点实例配置 SHALL 支持 `input_binding` 字段，绑定到 DAG �
 DAG 触发 API SHALL 支持 `inputs` 参数，允许外部传入 DAG 声明的输入参数。
 
 #### Scenario: CLI 传递输入参数
-- **WHEN** 用户执行 `edera dag trigger my-dag --input ticker=00100.HK`
+- **WHEN** 用户执行 `edera dag run my-dag --input ticker=00100.HK`
 - **THEN** 系统 SHALL 将 `{ticker: "00100.HK"}` 传递给 DAG 运行时
 
 #### Scenario: HTTP API 传递输入参数
-- **WHEN** 客户端 POST `/api/pipeline/dag/my-dag/run` 并携带 `{"inputs": {"ticker": "00100.HK"}}`
+- **WHEN** 客户端 POST `/api/dags/my-dag/run` 并携带 `{"inputs": {"ticker": "00100.HK"}}`
 - **THEN** 系统 SHALL 将 inputs 传递给 DAG 运行时
 
 ### Requirement: Web Console 输入表单

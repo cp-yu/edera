@@ -77,7 +77,7 @@ class Advice(BaseModel):
 
 
 class Briefing(BaseModel):
-    cycle_id: str
+    run_id: str
     content: str
     metadata_: dict[str, Any] = Field(default_factory=dict, alias="metadata")
     created_at: datetime = Field(default_factory=utc_now)

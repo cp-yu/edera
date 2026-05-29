@@ -1,0 +1,29 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.terminology-glossary
+      type: capability
+      intent: 项目术语表文档，定义所有核心概念的 canonical term、同义词和使用约定
+      domain: dom.core
+  relations:
+    - from: cap.core.terminology-glossary
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.edera-server-grpc
+      intent: edera-server 后端引擎 gRPC 服务，覆盖 8 个 service 定义（EntityService、DagService、NodeService、SystemService、GraphService、ConfigService、QueryService、EventService），PipelineService 已废弃职责分散，DagRunRef 使用 run_id，mTLS 传输、bootstrap 端口、agent/BFF 短期证书签发与 dev 模式
+    - id: cap.core.edera-cli
+      intent: edera 控制 CLI 作为纯 gRPC 客户端的 binary 入口、子命令集合（entity、node、dag、event、system、client、handler-validate）、身份声明、mTLS 加载与服务端连接环境变量边界
+    - id: cap.web.edera-web-bff
+      intent: edera-web 网页 BFF，所有 HTTP route handler 纯 gRPC 调用，不 import config/storage/dag_controller 模块，deps.py 仅暴露 grpc_client 和 error_response，适配 DagService/EventService/SystemService
+    - id: cap.data.data-models
+      intent: 共享数据模型，覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本，统一使用 run_id 标识执行实例
+    - id: cap.operations.dag-event-driven-executor
+      intent: DAG dispatcher 在目标节点调度决策点生成所有直接入边 facts，并用 node failure_kind 区分执行失败和上游失败，统一使用 run_id
+    - id: cap.operations.dag-run-control
+      intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断，统一使用 run_id
+
+REMOVED:
+  capabilities: []

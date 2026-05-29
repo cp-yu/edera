@@ -73,7 +73,7 @@ uzi项目可以借鉴提示词，搜索。
 fincept可以大部分都借鉴。
 
 ----
-重试优化，然后可以进阶的选择使用哪一个cycle_id对应的prefilled。
+重试优化，然后可以进阶的选择使用哪一个 run_id 对应的 prefilled。
 
 
 
@@ -161,4 +161,3 @@ https://github.com/Kaka-cheaper/codeSee  codesee将项目可视化， 这里的�
 
   换句话说：核心功能已验收；未完全确认的是 edera node output export ... 这条包装命令在当前运行环境下是否和 rig node output export ... 一样稳定。这个可以单独补一个小测试，直接 monkeypatch sys.argv=["edera", "node", ...]
   验证委托，或者修正 CLI local-mode 后跑真实 console-script。
-

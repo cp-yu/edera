@@ -323,9 +323,9 @@ class DagServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Trigger = channel.unary_unary(
-                '/edera.v1.DagService/Trigger',
-                request_serializer=edera__pb2.DagTriggerRequest.SerializeToString,
+        self.Run = channel.unary_unary(
+                '/edera.v1.DagService/Run',
+                request_serializer=edera__pb2.DagRunRequest.SerializeToString,
                 response_deserializer=edera__pb2.DagRunRef.FromString,
                 _registered_method=True)
         self.Status = channel.unary_unary(
@@ -338,12 +338,22 @@ class DagServiceStub(object):
                 request_serializer=edera__pb2.DagEditRequest.SerializeToString,
                 response_deserializer=edera__pb2.DagStatus.FromString,
                 _registered_method=True)
+        self.Stop = channel.unary_unary(
+                '/edera.v1.DagService/Stop',
+                request_serializer=edera__pb2.DagStopRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.Retry = channel.unary_unary(
+                '/edera.v1.DagService/Retry',
+                request_serializer=edera__pb2.DagRetryRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
 
 
 class DagServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Trigger(self, request, context):
+    def Run(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -361,12 +371,24 @@ class DagServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Stop(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Retry(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_DagServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Trigger': grpc.unary_unary_rpc_method_handler(
-                    servicer.Trigger,
-                    request_deserializer=edera__pb2.DagTriggerRequest.FromString,
+            'Run': grpc.unary_unary_rpc_method_handler(
+                    servicer.Run,
+                    request_deserializer=edera__pb2.DagRunRequest.FromString,
                     response_serializer=edera__pb2.DagRunRef.SerializeToString,
             ),
             'Status': grpc.unary_unary_rpc_method_handler(
@@ -378,6 +400,16 @@ def add_DagServiceServicer_to_server(servicer, server):
                     servicer.Edit,
                     request_deserializer=edera__pb2.DagEditRequest.FromString,
                     response_serializer=edera__pb2.DagStatus.SerializeToString,
+            ),
+            'Stop': grpc.unary_unary_rpc_method_handler(
+                    servicer.Stop,
+                    request_deserializer=edera__pb2.DagStopRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'Retry': grpc.unary_unary_rpc_method_handler(
+                    servicer.Retry,
+                    request_deserializer=edera__pb2.DagRetryRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -391,7 +423,7 @@ class DagService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Trigger(request,
+    def Run(request,
             target,
             options=(),
             channel_credentials=None,
@@ -404,8 +436,8 @@ class DagService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/edera.v1.DagService/Trigger',
-            edera__pb2.DagTriggerRequest.SerializeToString,
+            '/edera.v1.DagService/Run',
+            edera__pb2.DagRunRequest.SerializeToString,
             edera__pb2.DagRunRef.FromString,
             options,
             channel_credentials,
@@ -461,6 +493,60 @@ class DagService(object):
             '/edera.v1.DagService/Edit',
             edera__pb2.DagEditRequest.SerializeToString,
             edera__pb2.DagStatus.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Stop(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.DagService/Stop',
+            edera__pb2.DagStopRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Retry(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.DagService/Retry',
+            edera__pb2.DagRetryRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -702,6 +788,26 @@ class SystemServiceStub(object):
                 request_serializer=edera__pb2.EventSubscribeRequest.SerializeToString,
                 response_deserializer=edera__pb2.EventMessage.FromString,
                 _registered_method=True)
+        self.PauseScheduler = channel.unary_unary(
+                '/edera.v1.SystemService/PauseScheduler',
+                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.ResumeScheduler = channel.unary_unary(
+                '/edera.v1.SystemService/ResumeScheduler',
+                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.SchedulerStatus = channel.unary_unary(
+                '/edera.v1.SystemService/SchedulerStatus',
+                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.CreateRepairTask = channel.unary_unary(
+                '/edera.v1.SystemService/CreateRepairTask',
+                request_serializer=edera__pb2.NameRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
 
 
 class SystemServiceServicer(object):
@@ -731,6 +837,30 @@ class SystemServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def PauseScheduler(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ResumeScheduler(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SchedulerStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateRepairTask(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SystemServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -753,6 +883,26 @@ def add_SystemServiceServicer_to_server(servicer, server):
                     servicer.SubscribeEvents,
                     request_deserializer=edera__pb2.EventSubscribeRequest.FromString,
                     response_serializer=edera__pb2.EventMessage.SerializeToString,
+            ),
+            'PauseScheduler': grpc.unary_unary_rpc_method_handler(
+                    servicer.PauseScheduler,
+                    request_deserializer=edera__pb2.EmptyRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'ResumeScheduler': grpc.unary_unary_rpc_method_handler(
+                    servicer.ResumeScheduler,
+                    request_deserializer=edera__pb2.EmptyRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'SchedulerStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.SchedulerStatus,
+                    request_deserializer=edera__pb2.EmptyRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'CreateRepairTask': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateRepairTask,
+                    request_deserializer=edera__pb2.NameRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -863,6 +1013,114 @@ class SystemService(object):
             '/edera.v1.SystemService/SubscribeEvents',
             edera__pb2.EventSubscribeRequest.SerializeToString,
             edera__pb2.EventMessage.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def PauseScheduler(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.SystemService/PauseScheduler',
+            edera__pb2.EmptyRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ResumeScheduler(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.SystemService/ResumeScheduler',
+            edera__pb2.EmptyRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SchedulerStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.SystemService/SchedulerStatus',
+            edera__pb2.EmptyRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateRepairTask(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.SystemService/CreateRepairTask',
+            edera__pb2.NameRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -2810,7 +3068,7 @@ class QueryService(object):
             _registered_method=True)
 
 
-class PipelineServiceStub(object):
+class EventServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -2820,53 +3078,13 @@ class PipelineServiceStub(object):
             channel: A grpc.Channel.
         """
         self.Emit = channel.unary_unary(
-                '/edera.v1.PipelineService/Emit',
+                '/edera.v1.EventService/Emit',
                 request_serializer=edera__pb2.EmitRequest.SerializeToString,
                 response_deserializer=edera__pb2.JsonResponse.FromString,
                 _registered_method=True)
-        self.Run = channel.unary_unary(
-                '/edera.v1.PipelineService/Run',
-                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.Pause = channel.unary_unary(
-                '/edera.v1.PipelineService/Pause',
-                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.Resume = channel.unary_unary(
-                '/edera.v1.PipelineService/Resume',
-                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.Stop = channel.unary_unary(
-                '/edera.v1.PipelineService/Stop',
-                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.Status = channel.unary_unary(
-                '/edera.v1.PipelineService/Status',
-                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.DagStop = channel.unary_unary(
-                '/edera.v1.PipelineService/DagStop',
-                request_serializer=edera__pb2.DagStopRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.DagRetry = channel.unary_unary(
-                '/edera.v1.PipelineService/DagRetry',
-                request_serializer=edera__pb2.DagRetryRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
-        self.CreateRepairTask = channel.unary_unary(
-                '/edera.v1.PipelineService/CreateRepairTask',
-                request_serializer=edera__pb2.NameRequest.SerializeToString,
-                response_deserializer=edera__pb2.JsonResponse.FromString,
-                _registered_method=True)
 
 
-class PipelineServiceServicer(object):
+class EventServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Emit(self, request, context):
@@ -2875,111 +3093,23 @@ class PipelineServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Run(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
 
-    def Pause(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Resume(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Stop(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Status(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DagStop(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DagRetry(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def CreateRepairTask(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-
-def add_PipelineServiceServicer_to_server(servicer, server):
+def add_EventServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Emit': grpc.unary_unary_rpc_method_handler(
                     servicer.Emit,
                     request_deserializer=edera__pb2.EmitRequest.FromString,
                     response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
-            'Run': grpc.unary_unary_rpc_method_handler(
-                    servicer.Run,
-                    request_deserializer=edera__pb2.EmptyRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'Pause': grpc.unary_unary_rpc_method_handler(
-                    servicer.Pause,
-                    request_deserializer=edera__pb2.EmptyRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'Resume': grpc.unary_unary_rpc_method_handler(
-                    servicer.Resume,
-                    request_deserializer=edera__pb2.EmptyRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'Stop': grpc.unary_unary_rpc_method_handler(
-                    servicer.Stop,
-                    request_deserializer=edera__pb2.EmptyRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'Status': grpc.unary_unary_rpc_method_handler(
-                    servicer.Status,
-                    request_deserializer=edera__pb2.EmptyRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'DagStop': grpc.unary_unary_rpc_method_handler(
-                    servicer.DagStop,
-                    request_deserializer=edera__pb2.DagStopRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'DagRetry': grpc.unary_unary_rpc_method_handler(
-                    servicer.DagRetry,
-                    request_deserializer=edera__pb2.DagRetryRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
-            'CreateRepairTask': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateRepairTask,
-                    request_deserializer=edera__pb2.NameRequest.FromString,
-                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
-            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'edera.v1.PipelineService', rpc_method_handlers)
+            'edera.v1.EventService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('edera.v1.PipelineService', rpc_method_handlers)
+    server.add_registered_method_handlers('edera.v1.EventService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class PipelineService(object):
+class EventService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -2996,224 +3126,8 @@ class PipelineService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/edera.v1.PipelineService/Emit',
+            '/edera.v1.EventService/Emit',
             edera__pb2.EmitRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Run(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/Run',
-            edera__pb2.EmptyRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Pause(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/Pause',
-            edera__pb2.EmptyRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Resume(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/Resume',
-            edera__pb2.EmptyRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Stop(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/Stop',
-            edera__pb2.EmptyRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Status(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/Status',
-            edera__pb2.EmptyRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def DagStop(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/DagStop',
-            edera__pb2.DagStopRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def DagRetry(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/DagRetry',
-            edera__pb2.DagRetryRequest.SerializeToString,
-            edera__pb2.JsonResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def CreateRepairTask(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/edera.v1.PipelineService/CreateRepairTask',
-            edera__pb2.NameRequest.SerializeToString,
             edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,

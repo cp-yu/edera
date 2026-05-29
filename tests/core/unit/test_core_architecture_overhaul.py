@@ -97,7 +97,7 @@ async def test_dag_input_binding_and_optional_barrier() -> None:
         return node_input.payload
 
     executor = NodeExecutor(nodes, system=_system(), runtime=_runtime(), handlers={"source": source, "optional": optional, "sink": sink}, instances=graph.instances)
-    result = await DagRunner(executor).run(graph, "cycle", {"ticker": "AAPL"})
+    result = await DagRunner(executor).run(graph, "run", {"ticker": "AAPL"})
 
     assert result.node_outputs["source"].payload == "AAPL"
     assert result.node_outputs["sink"].ok
@@ -135,11 +135,11 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
         nodes,
         system=_system().model_copy(update={"workspace_root": tmp_path / "runs"}),
         runtime=_runtime().model_copy(update={"pi_bin": str(fake_pi)}),
-        stdout_recorder=lambda _cycle, _node, line: _append(events, line),
+        stdout_recorder=lambda _run, _node, line: _append(events, line),
         daemon_data_dir=tmp_path / "edera",
     )
 
-    output = await executor.execute("agent", NodeInput(cycle_id="cycle", payload={"prompt": "do it"}))
+    output = await executor.execute("agent", NodeInput(run_id="run", payload={"prompt": "do it"}))
 
     assert output.ok
     assert events == ["hello"]
@@ -249,7 +249,7 @@ def test_agent_cert_env_injects_pem_content() -> None:
 
 
 def test_agent_session_dir_uses_daemon_data_dir(tmp_path: Path) -> None:
-    assert _agent_session_dir(tmp_path, "dag", "agent", "cycle") == tmp_path / "sessions" / "dag" / "agent" / "cycle"
+    assert _agent_session_dir(tmp_path, "dag", "agent", "run") == tmp_path / "sessions" / "dag" / "agent" / "run"
 
 
 @pytest.mark.asyncio
@@ -318,23 +318,23 @@ async def test_daemon_streams_events_over_grpc(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_pipeline_publishes_dag_status_events(tmp_path: Path) -> None:
+async def test_dag_controller_publishes_dag_status_events(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
-    from edera_core.pipeline import PipelineController
+    from edera_core.dag_controller import DagController
 
-    controller = PipelineController(config_dir)
+    controller = DagController(config_dir)
     await controller.start(run_startup=False)
     events = event_bus.subscribe()
     pending = asyncio.create_task(events.__anext__())
     try:
-        cycle_id = await controller.run_now("manual", "default")
+        run_id = await controller.run_now("manual", "default")
         first = await asyncio.wait_for(pending, timeout=1)
         assert first.type == "dag.status"
-        assert first.payload == {"cycle_id": cycle_id, "dag_name": "default", "status": "started"}
+        assert first.payload == {"run_id": run_id, "dag_name": "default", "status": "started"}
         second = await asyncio.wait_for(events.__anext__(), timeout=1)
         assert second.type == "dag.status"
-        assert second.payload["cycle_id"] == cycle_id
+        assert second.payload["run_id"] == run_id
         assert second.payload["dag_name"] == "default"
         assert second.payload["status"] == "failed"
     finally:
@@ -398,7 +398,7 @@ async def test_daemon_dag_edit_persists_config(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_daemon_dag_trigger_routes_through_emit(tmp_path: Path) -> None:
+async def test_daemon_dag_run_routes_through_emit(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir)
 
@@ -406,21 +406,21 @@ async def test_daemon_dag_trigger_routes_through_emit(tmp_path: Path) -> None:
         def __init__(self) -> None:
             self.calls = []
 
-        async def emit(self, event, payload=None, *, source="rpc", depth=0):
-            self.calls.append((event, payload, source, depth))
-            return ["dag:default"]
+        async def start_run(self, source, dag_name, payload=None):
+            self.calls.append((source, dag_name, payload))
+            return "run-1"
 
     controller = Controller()
     daemon.controller = controller
     service = _DagService(daemon)
 
-    response = await service.Trigger(
-        daemon.pb2.DagTriggerRequest(name="default", inputs_json='{"symbol":"TEST"}'),
+    response = await service.Run(
+        daemon.pb2.DagRunRequest(name="default", inputs_json='{"symbol":"TEST"}'),
         _FakeGrpcContext(),
     )
 
-    assert response.cycle_id == ""
-    assert controller.calls == [("manual:dag:default", {"symbol": "TEST"}, "dag-service", 0)]
+    assert response.run_id == "run-1"
+    assert controller.calls == [("manual", "default", {"symbol": "TEST"})]
 
 
 @pytest.mark.asyncio
@@ -438,26 +438,26 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
         async def stop_current(self, dag_name: str, force: bool = False, node_id: str | None = None) -> str:
             assert dag_name == "default"
             assert node_id == "reader-1"
-            return "cycle-1"
+            return "run-1"
 
-        async def resume_node(self, dag_name: str, cycle_id: str, node_id: str, payload: object) -> str:
+        async def resume_node(self, dag_name: str, run_id: str, node_id: str, payload: object) -> str:
             assert dag_name == "default"
-            assert cycle_id == "cycle-1"
+            assert run_id == "run-1"
             assert node_id == "reader-1"
-            assert payload == {"resume_session": "sandbox:reader-1:cycle-1", "prompt": "adjust"}
-            return cycle_id
+            assert payload == {"resume_session": "sandbox:reader-1:run-1", "prompt": "adjust"}
+            return run_id
 
     daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir, controller=Controller())  # type: ignore[arg-type]
     service = _NodeService(daemon)
 
     stopped = await service.Stop(daemon.pb2.NodeRef(id="reader-1"), _FakeGrpcContext())
     resumed = await service.Resume(
-        daemon.pb2.NodeResumeRequest(id="reader-1", cycle_id="cycle-1", prompt="adjust"),
+        daemon.pb2.NodeResumeRequest(id="reader-1", run_id="run-1", prompt="adjust"),
         _FakeGrpcContext(),
     )
 
     assert stopped.status == "stopped"
-    assert resumed.cycle_id == "cycle-1"
+    assert resumed.run_id == "run-1"
     assert daemon.controller.daemon_data_dir == tmp_path / "edera"
 
 

@@ -20,7 +20,7 @@ test('shows explicit empty state after successful empty results', async ({ page 
       json: {
         briefing: null,
         metadata_bar: {
-          cycle_id: '无',
+          run_id: '无',
           created_at: '',
           window: '无数据窗口',
           failed_count: 0,
@@ -49,7 +49,7 @@ test('renders returned result summary fields', async ({ page }) => {
       json: {
         briefing: null,
         metadata_bar: {
-          cycle_id: 'cycle-1',
+          run_id: 'run-1',
           created_at: '2026-05-02T03:04:05+00:00',
           window: '2026-05-01 至 2026-05-02',
           failed_count: 1,
@@ -59,7 +59,7 @@ test('renders returned result summary fields', async ({ page }) => {
         briefings: [
           {
             id: 'briefing-1',
-            cycle_id: 'cycle-1',
+            run_id: 'run-1',
             content: 'briefing content',
             metadata: {},
             created_at: '2026-05-02T03:04:05+00:00',
@@ -94,7 +94,7 @@ test('renders returned result summary fields', async ({ page }) => {
 
   await page.goto('/results')
 
-  await expect(page.getByText('cycle-1')).toBeVisible()
+  await expect(page.getByText('run-1')).toBeVisible()
   await expect(page.getByText('2026-05-01 至 2026-05-02')).toBeVisible()
   await expect(page.getByText('本系统产出仅供学习参考，不构成投资建议。')).toBeVisible()
   await expect(page.getByRole('heading', { name: '历史简报' })).toBeVisible()

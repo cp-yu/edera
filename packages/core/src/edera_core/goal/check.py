@@ -37,7 +37,7 @@ FR_REQUIREMENTS = {
     "FR19": ("notification-delivery", "test_priority_mapping"),
     "FR20": ("notification-delivery", "test_notification_summary_format"),
     "FR21": ("notification-delivery", "test_high_priority_contains_action"),
-    "FR22": ("notification-delivery", "test_empty_cycle_status_notification"),
+    "FR22": ("notification-delivery", "test_empty_run_status_notification"),
     "FR26": ("briefing-generation", "test_briefing_groups_targets"),
     "FR27": ("briefing-generation", "test_briefing_metadata_sources"),
     "FR29": ("config-management", "test_load_portfolio_holdings"),

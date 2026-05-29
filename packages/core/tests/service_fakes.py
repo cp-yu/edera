@@ -15,6 +15,12 @@ class AbortError(Exception):
 
 
 class FakeContext:
+    def invocation_metadata(self) -> tuple[tuple[str, str], ...]:
+        return (("x-edera-identity", "human:test"),)
+
+    def auth_context(self) -> dict[str, list[bytes]]:
+        return {}
+
     async def abort(self, code: grpc.StatusCode, details: str) -> None:
         raise AbortError(code, details)
 

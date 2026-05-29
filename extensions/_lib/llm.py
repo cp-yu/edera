@@ -19,15 +19,15 @@ async def run_pi(
     config: NodeConfig,
     skills: list[str],
     node_input: NodeInput,
-    cycle_id: str,
+    run_id: str,
     instance_id: str,
     system: SystemConfig,
     runtime: RuntimeSettings,
     skills_dir: Path = Path("skills"),
 ) -> tuple[object, str]:
     session_ref = _session_ref(config, node_input)
-    session_dir = resolve_session_dir(session_ref, system.workspace_root, instance_id, cycle_id)
-    workspace = _workspace_for_session(session_dir, system.workspace_root, instance_id, cycle_id)
+    session_dir = resolve_session_dir(session_ref, system.workspace_root, instance_id, run_id)
+    workspace = _workspace_for_session(session_dir, system.workspace_root, instance_id, run_id)
     workspace = prepare_workspace(config, workspace, session_dir)
     skill_paths = [str(skills_dir / skill) for skill in skills]
     args = [runtime.pi_bin, "-p", "--no-skills"]
@@ -78,18 +78,18 @@ def prepare_workspace(
     return workspace
 
 
-def resolve_session_dir(ref: str | None, workspace_root: Path, instance_id: str, cycle_id: str) -> Path:
+def resolve_session_dir(ref: str | None, workspace_root: Path, instance_id: str, run_id: str) -> Path:
     if ref is None:
-        return workspace_root / "sandbox" / instance_id / cycle_id / "sessions"
+        return workspace_root / "sandbox" / instance_id / run_id / "sessions"
     if ref.startswith("/"):
         return Path(ref)
     parts = ref.split(":")
     if len(parts) != 3 or parts[0] != "sandbox":
         raise NodeExecutionError(f"invalid session_dir: {ref}")
-    node_id, origin_cycle = parts[1], parts[2]
-    if origin_cycle == "latest":
-        origin_cycle = _latest_cycle(workspace_root / "sandbox" / node_id)
-    sandbox = workspace_root / "sandbox" / node_id / origin_cycle
+    node_id, origin_run = parts[1], parts[2]
+    if origin_run == "latest":
+        origin_run = _latest_run(workspace_root / "sandbox" / node_id)
+    sandbox = workspace_root / "sandbox" / node_id / origin_run
     if not sandbox.exists():
         raise NodeExecutionError(f"session sandbox not found: {sandbox}")
     return sandbox / "sessions"
@@ -133,7 +133,7 @@ def _has_session(session_dir: Path) -> bool:
     return session_dir.exists() and any(session_dir.glob("*.jsonl"))
 
 
-def _latest_cycle(node_dir: Path) -> str:
+def _latest_run(node_dir: Path) -> str:
     if not node_dir.exists():
         raise NodeExecutionError(f"session sandbox not found: {node_dir}")
     candidates = [item for item in node_dir.iterdir() if item.is_dir()]
@@ -146,8 +146,8 @@ def _dir_size(path: Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
-def _workspace_for_session(session_dir: Path, workspace_root: Path, instance_id: str, cycle_id: str) -> Path:
-    default_workspace = workspace_root / "sandbox" / instance_id / cycle_id
+def _workspace_for_session(session_dir: Path, workspace_root: Path, instance_id: str, run_id: str) -> Path:
+    default_workspace = workspace_root / "sandbox" / instance_id / run_id
     return session_dir.parent if session_dir.name == "sessions" else default_workspace
 
 

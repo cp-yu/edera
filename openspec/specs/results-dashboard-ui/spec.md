@@ -15,7 +15,7 @@
 
 #### Scenario: View latest briefing
 - **WHEN** 用户进入结果页面
-- **THEN** 系统 SHALL 展示最新简报的 cycle_id、创建时间和内容
+- **THEN** 系统 SHALL 展示最新简报的 run_id、创建时间和内容
 
 #### Scenario: Navigate to briefing detail
 - **WHEN** 用户点击历史简报列表中的某条记录

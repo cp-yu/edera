@@ -64,7 +64,7 @@ capabilities:
     intent: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置（含 session_dir、tools、model）和多实例支持
     type: capability
     domain: dom.web
-  - id: cap.operations.pipeline-control
+  - id: cap.operations.dag-control
     intent: 管道控制能力，废弃 APScheduler interval 调度，统一由 TriggerExecutor 驱动；DAG 运行 API 通过 emit 路径
     type: capability
     domain: dom.operations
@@ -81,7 +81,7 @@ capabilities:
     type: capability
     domain: dom.config
   - id: cap.data.data-models
-    intent: 共享数据模型，覆盖 RawItem、AnalysisResult、Advice、Briefing 和迁移脚本
+    intent: 共享数据模型，覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本，统一使用 run_id 标识执行实例
     type: capability
     domain: dom.data
   - id: cap.entity-management-page
@@ -137,10 +137,10 @@ capabilities:
     intent: 扩展通过 manifest 声明自定义数据库表，核心自动建表并提供命名空间隔离
     type: capability
   - id: cap.operations.dag-event-driven-executor
-    intent: DAG dispatcher 在目标节点调度决策点生成所有直接入边 facts，并用 node failure_kind 区分执行失败和上游失败
+    intent: DAG dispatcher 在目标节点调度决策点生成所有直接入边 facts，并用 node failure_kind 区分执行失败和上游失败，统一使用 run_id
     type: capability
   - id: cap.operations.dag-run-control
-    intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断
+    intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断，统一使用 run_id
     type: capability
   - id: cap.web.dag-run-observability
     intent: Web/CLI 运行观察能力消费 runtime tables 投影出的 edge input 与 source recovery facts
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera 控制 CLI 新增 trigger emit 子命令组，作为外部事件注入入口
+    intent: edera 控制 CLI 作为纯 gRPC 客户端的 binary 入口、子命令集合（entity、node、dag、event、system、client、handler-validate）、身份声明、mTLS 加载与服务端连接环境变量边界
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -164,7 +164,7 @@ capabilities:
     type: capability
     domain: dom.operations
   - id: cap.operations.reflection-dag-pattern
-    intent: 反思 DAG 模式，cron + idle 触发，通过 edera dag trigger 与 edera entity query 命令交互目标节点
+    intent: 反思 DAG 模式，cron + idle 触发，通过 edera dag run 与 edera entity query 命令交互目标节点
     type: capability
     domain: dom.operations
   - id: cap.operations.multi-node-retry
@@ -186,7 +186,7 @@ capabilities:
     intent: Agent 节点默认获得简短 runtime context，并通过 CLI export 按需获取 payload 文件
     type: capability
   - id: cap.core.sub-dag-execution
-    intent: 子 DAG 作为节点嵌套执行，覆盖独立 cycle_id、parent_cycle_id 关联、source/sink 接口映射和递归上限
+    intent: 子 DAG 作为节点嵌套执行，覆盖独立 run_id、parent_run_id 关联、source/sink 接口映射和递归上限
     type: capability
   - id: cap.core.dag-input-parameters
     intent: DAG 输入参数声明，覆盖 inputs schema 定义、source 节点 input_binding、运行时参数注入和 CLI/API/Web 触发
@@ -198,11 +198,11 @@ capabilities:
     intent: 全量配置热加载并在变更时 emit event:config-changed，trigger 配置变更后重新扫描 cron 注册表
     type: capability
   - id: cap.core.edera-server-grpc
-    intent: edera-server 后端引擎 gRPC 服务，覆盖 8 个 service 定义（EntityService、DagService、NodeService、SystemService、GraphService、ConfigService、QueryService、PipelineService）、mTLS 传输、bootstrap 端口、agent/BFF 短期证书签发与 dev 模式
+    intent: edera-server 后端引擎 gRPC 服务，覆盖 8 个 service 定义（EntityService、DagService、NodeService、SystemService、GraphService、ConfigService、QueryService、EventService），PipelineService 已废弃职责分散，DagRunRef 使用 run_id，mTLS 传输、bootstrap 端口、agent/BFF 短期证书签发与 dev 模式
     type: capability
     domain: dom.core
   - id: cap.web.edera-web-bff
-    intent: edera-web 网页 BFF，所有 HTTP route handler 纯 gRPC 调用，不 import config/storage/pipeline 模块，deps.py 仅暴露 grpc_client 和 error_response
+    intent: edera-web 网页 BFF，所有 HTTP route handler 纯 gRPC 调用，不 import config/storage/dag_controller 模块，deps.py 仅暴露 grpc_client 和 error_response，适配 DagService/EventService/SystemService
     type: capability
     domain: dom.web
   - id: cap.core.bff-web-gateway
@@ -235,8 +235,8 @@ capabilities:
   - id: cap.core.grpc-query-service
     intent: gRPC QueryService，覆盖 briefings/advices/results/sources health/source logs/node-outputs/history 等 DB 查询
     type: capability
-  - id: cap.core.grpc-pipeline-service
-    intent: gRPC PipelineService，覆盖 pipeline run/pause/resume/stop、dag stop/retry 和 source repair task 等控制面操作
+  - id: cap.core.grpc-control-services
+    intent: gRPC 控制面服务，覆盖 DagService run/stop/retry、SystemService scheduler/source repair task 和 EventService emit
     type: capability
   - id: cap.core.trigger-expression-language
     intent: 触发器布尔表达式语言（AND/OR/括号），cron token 引号语义，bit→trigger 反向索引求值
@@ -247,8 +247,8 @@ capabilities:
   - id: cap.core.cron-emitter
     intent: 内置 cron 时钟 emitter，按 trigger 表达式中声明的 cron token 自动 emit 事件，错过即跳过
     type: capability
-  - id: cap.core.trigger-emit-rpc
-    intent: PipelineService.Emit RPC 与 emit 记录持久化，作为唯一事件注入入口
+  - id: cap.core.event-emit-rpc
+    intent: EventService.Emit RPC 与 emit 记录持久化，作为唯一事件注入入口
     type: capability
   - id: cap.core.trigger-loop-guard
     intent: emit 深度计数器与可配阈值（max_trigger_depth），循环触发防护机制
@@ -262,3 +262,7 @@ capabilities:
   - id: cap.web.trigger-workbench-inspector
     intent: Workbench Inspector Triggers tab，覆盖 DAG 级与 node 级 trigger 列表、表达式编辑器、闹钟 picker 与事件 picker
     type: capability
+  - id: cap.core.terminology-glossary
+    intent: 项目术语表文档，定义所有核心概念的 canonical term、同义词和使用约定
+    type: capability
+    domain: dom.core

@@ -29,7 +29,7 @@ export function Inspector() {
   const edge = dag?.edges.find((item, index) => `e-${item.from}-${item.to}-${index}` === selectedEdgeId)
   const runtimeNodeId = edge?.from ?? node?.id ?? null
   const runtimeStatus = runtimeNodeId ? runtime.data?.node_statuses?.[runtimeNodeId] : undefined
-  const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.cycle_id)
+  const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.run_id)
   const stdout = useNodeStdout(runtimeNodeId)
   const [alias, setAlias] = useState('')
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
@@ -522,7 +522,7 @@ function RuntimeStatusView({ status, outputs, stdout }: { status?: NodeStatus; o
     <div className="space-y-3">
       <div className="space-y-2 rounded-md border p-3 text-xs">
         <RuntimeRow label="status" value={status?.status ?? 'unknown'} />
-        <RuntimeRow label="cycle" value={status?.cycle_id ?? '-'} />
+        <RuntimeRow label="run" value={status?.run_id ?? '-'} />
         <RuntimeRow label="started" value={status?.started_at ?? '-'} />
         <RuntimeRow label="ended" value={status?.ended_at ?? '-'} />
         {status?.error && <RuntimeRow label="error" value={status.error} />}

@@ -80,7 +80,7 @@ MVP（P1）聚焦于「采集→分析→建议→推送」核心价值链的端
 |-----|------|------|
 | 模型接口 | LiteLLM 统一代理 + per-Agent 模型路由 | 100+ provider 支持，零成本切换模型 |
 | 并发模型 | asyncio 异步并发，Agent 间通过共享数据模型协作 | 多标的/多源并行采集与分析；单进程内 asyncio 避免多进程通信复杂度 |
-| 管道编排 | Pipeline Runner 支持并发 fan-out / fan-in | 采集阶段多源并行 fan-out，汇聚后进入验证/分析阶段；降级处理在汇聚点统一执行 |
+| DAG 编排 | DAG Runner 支持并发 fan-out / fan-in | 采集阶段多源并行 fan-out，汇聚后进入验证/分析阶段；降级处理在汇聚点统一执行 |
 | 数据契约 | Pydantic 模型定义 Agent I/O schema | 并发环境下明确的类型约束保证数据安全 |
 | 调度 | APScheduler 进程内调度 | 支持多节奏（定时+实时+随机），避免迁移成本 |
 | 存储 | SQLite + SQLModel | MVP 零运维，审计需求可满足；SQLite 支持 WAL 模式应对并发读写 |
@@ -88,8 +88,8 @@ MVP（P1）聚焦于「采集→分析→建议→推送」核心价值链的端
 
 ### First Principles Insights
 
-**MVP 管道简化：**
-实际 MVP 管道为 4 级（采集→研读→建议→推送），验证和事件引擎作为可插入模块 P2 激活。Pipeline Runner 按配置决定激活哪些阶段。
+**MVP DAG 简化：**
+实际 MVP DAG 为 4 级（采集→研读→建议→推送），验证和事件引擎作为可插入模块 P2 激活。DAG Runner 按配置决定激活哪些阶段。
 
 **模块按数据域划分：**
 4 个核心模块：Source（源）、Analysis（析）、Advisory（判）、Delivery（达）。Agent 是模块内的执行单元，不是模块本身。P2 新增能力通过向已有模块添加 Agent 实现，不改变顶层结构。
@@ -257,7 +257,7 @@ Docker 容器化部署，MVP 阶段单容器。
 **Deferred Decisions (Post-MVP):**
 - 前端状态管理方案（P2 启动时决定）
 - Redis 缓存升级（如进程内缓存不足时）
-- CI/CD pipeline 具体方案
+- CI/CD workflow 具体方案
 
 ### Data Architecture
 

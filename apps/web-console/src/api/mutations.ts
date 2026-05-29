@@ -29,13 +29,9 @@ export function useRunDag() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ dagName, inputs }: { dagName: string; inputs?: Record<string, unknown> }) =>
-      apiFetch<{ fired: string[] }>('/api/pipeline/emit', {
+      apiFetch<{ run_id: string }>(`/api/dags/${dagName}/run`, {
         method: 'POST',
-        body: JSON.stringify({
-          event: `manual:dag:${dagName}`,
-          payload: inputs && Object.keys(inputs).length > 0 ? inputs : undefined,
-          source: 'web',
-        }),
+        body: JSON.stringify(inputs && Object.keys(inputs).length > 0 ? { inputs } : {}),
       }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,
@@ -46,7 +42,7 @@ export function useStopDag() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ dagName, force = false }: { dagName: string; force?: boolean }) =>
-      apiFetch(`/api/pipeline/dag/${dagName}/stop`, { method: 'POST', body: JSON.stringify({ force }) }),
+      apiFetch(`/api/dags/${dagName}/stop`, { method: 'POST', body: JSON.stringify({ force }) }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,
   })
@@ -55,10 +51,10 @@ export function useStopDag() {
 export function useRetryDagNode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ dagName, cycleId, nodeIds, mode }: { dagName: string; cycleId?: string; nodeIds: string[]; mode: 'single' | 'cascade' }) =>
-      apiFetch<RetryDagResponse>(`/api/pipeline/dag/${dagName}/retry`, {
+    mutationFn: ({ dagName, runId, nodeIds, mode }: { dagName: string; runId?: string; nodeIds: string[]; mode: 'single' | 'cascade' }) =>
+      apiFetch<RetryDagResponse>(`/api/dags/${dagName}/retry`, {
         method: 'POST',
-        body: JSON.stringify({ cycle_id: cycleId, node_ids: nodeIds, mode }),
+        body: JSON.stringify({ run_id: runId, node_ids: nodeIds, mode }),
       }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,

@@ -5,35 +5,35 @@
 ## Requirements
 ### Requirement: 多节点 retry API
 
-系统 SHALL 在 `POST /api/pipeline/dag/{dag_name}/retry` 接受 `node_ids: string[]` 参数，替代原 `node_id` 单值参数。
+系统 SHALL 在 `POST /api/dags/{dag_name}/retry` 接受 `node_ids: string[]` 参数，替代原 `node_id` 单值参数。
 
 #### Scenario: 多节点 single mode 重试
 
-- **WHEN** 用户调用 `POST /api/pipeline/dag/{name}/retry` body `{ "node_ids": ["node-3", "node-4"], "mode": "single" }`
-- **THEN** 系统 MUST 创建新 PipelineRun（trigger="retry"），`retry_nodes = set(node_ids)`，从 DB 加载原 cycle 中非 retry_nodes 的 output 作为 prefilled，按拓扑序执行选中节点集合
+- **WHEN** 用户调用 `POST /api/dags/{name}/retry` body `{ "node_ids": ["node-3", "node-4"], "mode": "single" }`
+- **THEN** 系统 MUST 创建新 DagRun（source="retry"），`retry_nodes = set(node_ids)`，从 DB 加载原 run 中非 retry_nodes 的 output 作为 prefilled，按拓扑序执行选中节点集合
 
 #### Scenario: 多节点 cascade mode 重试
 
-- **WHEN** 用户调用 `POST /api/pipeline/dag/{name}/retry` body `{ "node_ids": ["node-3", "node-5"], "mode": "cascade" }`
-- **THEN** 系统 MUST 计算 `retry_nodes = ∪ downstream(node_i)`，创建新 PipelineRun 并执行
+- **WHEN** 用户调用 `POST /api/dags/{name}/retry` body `{ "node_ids": ["node-3", "node-5"], "mode": "cascade" }`
+- **THEN** 系统 MUST 计算 `retry_nodes = ∪ downstream(node_i)`，创建新 DagRun 并执行
 
 #### Scenario: node_ids 中包含无效节点
 
 - **WHEN** 用户提供的 `node_ids` 中包含不存在于 DAG 中的节点 ID
 - **THEN** 系统 MUST 返回 400 错误，指明无效的节点 ID
 
-### Requirement: cycle_id 可选化
+### Requirement: run_id 可选化
 
-系统 SHALL 将 `cycle_id` 参数设为可选，不传时默认取该 DAG 最近一次非 running 状态的 PipelineRun。
+系统 SHALL 将 `run_id` 参数设为可选，不传时默认取该 DAG 最近一次非 running 状态的 DagRun。
 
-#### Scenario: 不传 cycle_id 使用默认值
+#### Scenario: 不传 run_id 使用默认值
 
-- **WHEN** 用户调用 retry API 未提供 `cycle_id`
-- **THEN** 系统 MUST 查询该 DAG 最近一次 `status != 'running'` 的 PipelineRun 作为数据来源
+- **WHEN** 用户调用 retry API 未提供 `run_id`
+- **THEN** 系统 MUST 查询该 DAG 最近一次 `status != 'running'` 的 DagRun 作为数据来源
 
 #### Scenario: 无可用历史 run
 
-- **WHEN** 用户调用 retry API 未提供 `cycle_id` 且该 DAG 无任何已结束的 run
+- **WHEN** 用户调用 retry API 未提供 `run_id` 且该 DAG 无任何已结束的 run
 - **THEN** 系统 MUST 返回 404 错误
 
 ### Requirement: 响应包含实际执行节点集合
@@ -43,7 +43,7 @@
 #### Scenario: 响应结构
 
 - **WHEN** retry 请求成功
-- **THEN** 响应 MUST 包含 `{ "cycle_id", "retry_of", "node_ids", "mode", "retry_nodes" }`，其中 `retry_nodes` 为实际执行的节点集合
+- **THEN** 响应 MUST 包含 `{ "run_id", "retry_of", "node_ids", "mode", "retry_nodes" }`，其中 `retry_nodes` 为实际执行的节点集合
 
 ### Requirement: single 模式内部拓扑传播
 
@@ -65,7 +65,7 @@
 
 #### Scenario: 上游节点无可用 output
 
-- **WHEN** 选中节点的上游（不在选中集合中）在指定 cycle 中没有成功的 output 记录
+- **WHEN** 选中节点的上游（不在选中集合中）在指定 run 中没有成功的 output 记录
 - **THEN** 系统 MUST 返回 400 错误，说明缺失的上游节点
 
 ### Requirement: 前端多选重试交互
@@ -82,7 +82,7 @@
 - **WHEN** 用户多选了节点后在选中集合外的节点上右键
 - **THEN** 系统 MUST 清除多选状态，切换为该节点的单节点上下文菜单
 
-#### Scenario: 无可用 cycle 时菜单置灰
+#### Scenario: 无可用 run 时菜单置灰
 
 - **WHEN** 用户多选节点后右键，但该 DAG 无可用的已结束 run
 - **THEN** 重试菜单项 MUST 置灰（disabled），hover 时显示 tooltip："找不到可用的 prefill 的 node"

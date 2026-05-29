@@ -35,7 +35,7 @@ export function ResultsPage() {
       <section className="rounded-lg border p-4 space-y-3">
         <h2 className="text-sm font-medium">当前周期</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
-          <MetadataItem label="Cycle" value={String(data.metadata_bar.cycle_id ?? '无')} />
+          <MetadataItem label="Run" value={String(data.metadata_bar.run_id ?? '无')} />
           <MetadataItem label="创建时间" value={String(data.metadata_bar.created_at ?? '') || '无'} />
           <MetadataItem label="数据窗口" value={String(data.metadata_bar.window ?? '无数据窗口')} />
           <MetadataItem label="失败源" value={String(data.metadata_bar.failed_count ?? 0)} />

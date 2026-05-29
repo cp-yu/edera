@@ -1,7 +1,7 @@
 # legacy-script-adapter Specification
 
 ## Purpose
-此规约记录变更 uzi-skill-pipeline-instance 引入的行为，请在后续同步或归档前补全正式 Purpose。
+此规约记录 LegacyScriptAdapter 行为，请在后续同步或归档前补全正式 Purpose。
 ## Requirements
 ### Requirement: 通用脚本适配
 
@@ -50,4 +50,3 @@ LegacyScriptAdapter MUST 通过 `extensions/uzi-skill/manifest.yaml` 注册为 h
 #### Scenario: 业务 node type 复用 handler
 - **WHEN** UZI-Skill DAG 声明 `0_basic`、`score_dimensions` 或 renderer 实例
 - **THEN** 实例 `type` MUST 分别引用具体 `uzi-*` node type，且这些 node type 的 `handler` 均为 `legacy-script-adapter`
-

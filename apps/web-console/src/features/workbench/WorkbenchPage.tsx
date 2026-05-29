@@ -10,7 +10,7 @@ export function WorkbenchPage() {
   const { selectedDagName } = useAppStore()
   const dag = useDag(selectedDagName)
   const dagStatus = useDagStatus(selectedDagName, !!dag.data)
-  const isRunning = !!dagStatus.data?.current_cycle_id
+  const isRunning = !!dagStatus.data?.current_run_id
   const runtime = useRuntimeStatus(isRunning)
 
   return (

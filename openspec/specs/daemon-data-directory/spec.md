@@ -52,5 +52,5 @@ Agent session 存储路径 SHALL 位于 `edera-server` data dir 下，绝对路�
 
 #### Scenario: Session 路径
 - **WHEN** server 为 agent 节点分配 session 路径
-- **THEN** session 路径 SHALL 为 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{cycle_id}/`
+- **THEN** session 路径 SHALL 为 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{run_id}/`
 - **AND** server SHALL 通过 agent subprocess 的 `--session-dir` 参数传递该绝对路径

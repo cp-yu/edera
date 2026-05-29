@@ -342,7 +342,7 @@ class DagNodeInstance(BaseModel):
         checked = {key: item for key, item in value.items() if key != "entity_permissions"}
         _validate_parameter_mapping(checked)
         if "session_dir" in value and not _valid_session_dir(value["session_dir"]):
-            raise ValueError("config.session_dir must be an absolute path or sandbox:<node_id>:<cycle|latest>")
+            raise ValueError("config.session_dir must be an absolute path or sandbox:<node_id>:<run|latest>")
         if "tools" in value:
             tools = value["tools"]
             if not isinstance(tools, list):
@@ -415,8 +415,8 @@ def _valid_session_dir(value: object) -> bool:
     parts = value.split(":")
     if len(parts) != 3:
         return False
-    node_id, cycle = parts[1], parts[2]
-    return _safe_token(node_id) and (cycle == "latest" or _safe_token(cycle))
+    node_id, run_ref = parts[1], parts[2]
+    return _safe_token(node_id) and (run_ref == "latest" or _safe_token(run_ref))
 
 
 def _safe_token(value: str) -> bool:

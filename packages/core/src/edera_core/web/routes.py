@@ -92,9 +92,9 @@ async def api_results(
     return await _call(request, lambda client: client.query_results_summary(stock_code or "", direction or "", _dt(created_from), _dt(created_to)))
 
 
-@router.get("/api/pipeline/status")
-async def api_pipeline_status(request: Request) -> Any:
-    return await _call(request, lambda client: client.pipeline_status())
+@router.get("/api/system/scheduler-status")
+async def api_scheduler_status(request: Request) -> Any:
+    return await _call(request, lambda client: client.system_scheduler_status())
 
 
 @router.get("/api/sources/health")
@@ -109,18 +109,18 @@ async def api_source_logs(request: Request, source_name: str | None = None, limi
 
 @router.post("/api/sources/{source_name}/repair-task", response_model=None)
 async def api_source_repair_task(request: Request, source_name: str) -> Any:
-    return await _call(request, lambda client: client.pipeline_create_repair_task(source_name))
+    return await _call(request, lambda client: client.system_create_repair_task(source_name))
 
 
-@router.post("/api/pipeline/dag/{dag_name}/run", response_model=None)
+@router.post("/api/dags/{dag_name}/run", response_model=None)
 async def api_dag_run(request: Request, dag_name: str) -> Any:
     body = await _body(request)
     payload = body["inputs"] if "inputs" in body else body.get("payload") if "payload" in body else body
-    return await _call(request, lambda client: client.dag_trigger(dag_name, payload if payload != {} else None))
+    return await _call(request, lambda client: client.dag_run(dag_name, payload if payload != {} else None))
 
 
-@router.post("/api/pipeline/emit", response_model=None)
-async def api_pipeline_emit(request: Request, body: dict[str, object]) -> Any:
+@router.post("/api/events/emit", response_model=None)
+async def api_event_emit(request: Request, body: dict[str, object]) -> Any:
     event = body.get("event")
     if not isinstance(event, str) or not event:
         return error_response(400, "invalid_request", "event is required")
@@ -128,7 +128,7 @@ async def api_pipeline_emit(request: Request, body: dict[str, object]) -> Any:
     depth = body.get("depth")
     return await _call(
         request,
-        lambda client: client.pipeline_emit(
+        lambda client: client.event_emit(
             event,
             body.get("payload"),
             source=source if isinstance(source, str) and source else "web",
@@ -137,23 +137,23 @@ async def api_pipeline_emit(request: Request, body: dict[str, object]) -> Any:
     )
 
 
-@router.post("/api/pipeline/dag/{dag_name}/stop", response_model=None)
+@router.post("/api/dags/{dag_name}/stop", response_model=None)
 async def api_dag_stop(request: Request, dag_name: str) -> Any:
     body = await _body(request)
-    return await _call(request, lambda client: client.pipeline_dag_stop(dag_name, bool(body.get("force"))))
+    return await _call(request, lambda client: client.dag_stop(dag_name, bool(body.get("force"))))
 
 
-@router.post("/api/pipeline/dag/{dag_name}/retry", response_model=None)
+@router.post("/api/dags/{dag_name}/retry", response_model=None)
 async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]) -> Any:
-    cycle_id = body.get("cycle_id")
+    run_id = body.get("run_id")
     node_ids = body.get("node_ids")
     mode = body.get("mode")
     payload = body.get("payload")
     return await _call(
         request,
-        lambda client: client.pipeline_dag_retry(
+        lambda client: client.dag_retry(
             dag_name,
-            cycle_id if isinstance(cycle_id, str) else "",
+            run_id if isinstance(run_id, str) else "",
             [node_id for node_id in node_ids if isinstance(node_id, str)] if isinstance(node_ids, list) else [],
             mode if isinstance(mode, str) else "single",
             payload,
@@ -168,12 +168,12 @@ async def api_node_stop(request: Request, node_id: str) -> Any:
 
 @router.post("/api/node/{node_id}/resume", response_model=None)
 async def api_node_resume(request: Request, node_id: str, body: dict[str, object]) -> Any:
-    cycle_id = body.get("cycle_id")
+    run_id = body.get("run_id")
     prompt = body.get("prompt")
-    return await _call(request, lambda client: client.node_resume(node_id, cycle_id if isinstance(cycle_id, str) else None, prompt if isinstance(prompt, str) else ""))
+    return await _call(request, lambda client: client.node_resume(node_id, run_id if isinstance(run_id, str) else None, prompt if isinstance(prompt, str) else ""))
 
 
-@router.get("/api/pipeline/dag/{dag_name}/status", response_model=None)
+@router.get("/api/dags/{dag_name}/status", response_model=None)
 async def api_dag_status(request: Request, dag_name: str) -> Any:
     return await _call(request, lambda client: client.dag_status(dag_name))
 
@@ -206,24 +206,24 @@ def _event_stream(request: Request, node_id: str = "", dag_name: str = "") -> St
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-@router.post("/api/pipeline/run", response_model=None)
-async def api_pipeline_run(request: Request) -> Any:
-    return await _call(request, lambda client: client.pipeline_run())
+@router.post("/api/dags/default/run", response_model=None)
+async def api_default_dag_run(request: Request) -> Any:
+    return await _call(request, lambda client: client.dag_run("default"))
 
 
-@router.post("/api/pipeline/pause")
-async def api_pipeline_pause(request: Request) -> Any:
-    return await _call(request, lambda client: client.pipeline_pause())
+@router.post("/api/system/pause-scheduler")
+async def api_system_pause_scheduler(request: Request) -> Any:
+    return await _call(request, lambda client: client.system_pause_scheduler())
 
 
-@router.post("/api/pipeline/resume")
-async def api_pipeline_resume(request: Request) -> Any:
-    return await _call(request, lambda client: client.pipeline_resume())
+@router.post("/api/system/resume-scheduler")
+async def api_system_resume_scheduler(request: Request) -> Any:
+    return await _call(request, lambda client: client.system_resume_scheduler())
 
 
-@router.post("/api/pipeline/stop")
-async def api_pipeline_stop(request: Request) -> Any:
-    return await _call(request, lambda client: client.pipeline_stop())
+@router.post("/api/dags/default/stop")
+async def api_default_dag_stop(request: Request) -> Any:
+    return await _call(request, lambda client: client.dag_stop("default"))
 
 
 @router.get("/api/config")
@@ -458,8 +458,16 @@ async def api_graph_runtime_status(request: Request) -> Any:
 
 
 @router.get("/api/node-outputs")
-async def api_node_outputs(request: Request, node_id: str | None = None, cycle_id: str | None = None, limit: int = 100) -> Any:
-    return await _call(request, lambda client: client.query_node_outputs(node_id or "", cycle_id or "", limit))
+async def api_node_outputs(request: Request, node_id: str | None = None, run_id: str | None = None, limit: int = 100) -> Any:
+    return await _call(request, lambda client: client.query_node_outputs(node_id or "", run_id or "", limit))
+
+
+@router.get("/api/nodes/{node_id}/history", response_model=None)
+async def api_default_node_history(request: Request, node_id: str, limit: int = 50) -> Any:
+    result = await _call(request, lambda client: client.query_node_history("default", node_id, limit))
+    if isinstance(result, dict) and isinstance(result.get("history"), list):
+        return result["history"]
+    return result
 
 
 @router.get("/api/history/dag/{dag_name}/nodes/{node_id}", response_model=None)

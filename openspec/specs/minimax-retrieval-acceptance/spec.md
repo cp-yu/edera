@@ -17,10 +17,10 @@
 - **WHEN** `parse_web` 使用 `minimax-docs` 的 regex 解析 MiniMax 文档 fixture
 - **THEN** 系统 SHALL 生成 `RawItem`，其 title 或 content 包含 MiniMax API 关键信息，source_url 保持为官方文档 URL
 
-### Requirement: MiniMax retrieval pipeline evidence
+### Requirement: MiniMax retrieval evidence
 系统 SHALL 通过默认 DAG 验证 MiniMax 来源内容可进入分析、建议、简报和通知产物。
 
-#### Scenario: MiniMax fixture completes pipeline
+#### Scenario: MiniMax fixture completes DAG workflow
 - **WHEN** 默认 DAG 使用 MiniMax fixture 作为 `web-scraper` 输出
 - **THEN** 系统 SHALL 生成包含 MiniMax 来源 URL 的 `AnalysisResult` 和 `Advice`
 

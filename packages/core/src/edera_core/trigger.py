@@ -17,7 +17,7 @@ from edera_core.storage.entities import EmitRecord, EventGroupBit
 
 
 logger = logging.getLogger(__name__)
-TriggerTarget = Callable[[str, object | None], Awaitable[object]]
+TriggerTarget = Callable[[str, object | None, str], Awaitable[object]]
 
 
 @dataclass(frozen=True)
@@ -155,12 +155,12 @@ class TriggerExecutor:
         depth: int = 0,
     ) -> list[str]:
         if depth >= self.max_depth:
-            logger.warning("trigger emit depth exceeded: event=%s depth=%s", event, depth)
+            logger.warning("event emit depth exceeded: event=%s depth=%s", event, depth)
             raise ConfigError("max trigger depth exceeded")
         await self._record_emit(event, payload, source, depth)
         if event.startswith("manual:"):
             target = _manual_target(event)
-            await self.fire(target, payload, depth + 1)
+            await self.fire(target, payload, depth + 1, "manual")
             return [target]
         if event.startswith("clear:"):
             await self.events.clear(event.removeprefix("clear:"))
@@ -174,22 +174,22 @@ class TriggerExecutor:
             if expr is None or not expr.evaluate(self.events.events):
                 continue
             target = str(trigger.attributes.get("target", ""))
-            await self.fire(target, payload, depth + 1)
+            await self.fire(target, payload, depth + 1, f"trigger:{trigger.id}")
             fired.append(target)
             await self.events.consume(expr.matched_tokens(self.events.events))
             if _is_oneshot(expr.tokens):
                 self._disable_trigger(trigger)
         return fired
 
-    async def fire(self, target: str, payload: object | None = None, depth: int = 0) -> None:
+    async def fire(self, target: str, payload: object | None = None, depth: int = 0, source: str = "manual") -> None:
         if target.startswith("clear:"):
             await self.events.clear(target.removeprefix("clear:"))
             return
         if target.startswith("dag:") and self.run_dag is not None:
-            await self.run_dag(target.removeprefix("dag:"), payload)
+            await self.run_dag(target.removeprefix("dag:"), payload, source)
             return
         if target.startswith("node:") and self.run_node is not None:
-            await self.run_node(target.removeprefix("node:"), payload)
+            await self.run_node(target.removeprefix("node:"), payload, source)
             return
         raise ConfigError(f"unsupported trigger target: {target}")
 
@@ -242,11 +242,14 @@ def parse_trigger_expression(text: str) -> TriggerExpression:
 
 
 def _payload_adapter(target):
-    async def wrapped(name: str, payload: object | None) -> object:
+    async def wrapped(name: str, payload: object | None, source: str) -> object:
         try:
-            return await target(name, payload)
+            return await target(name, payload, source)
         except TypeError:
-            return await target(name)
+            try:
+                return await target(name, payload)
+            except TypeError:
+                return await target(name)
 
     return wrapped
 

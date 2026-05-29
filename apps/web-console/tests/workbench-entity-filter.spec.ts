@@ -37,13 +37,13 @@ test('groups workbench entity filter items in a compact selector', async ({ page
       },
     })
   })
-  await page.route(/\/api\/pipeline\/dag\/default\/status$/, async (route) => {
+  await page.route(/\/api\/dags\/default\/status$/, async (route) => {
     await route.fulfill({
       json: {
         scheduler_running: false,
         scheduler_paused: false,
         dag_name: 'default',
-        current_cycle_id: null,
+        current_run_id: null,
         recent_runs: [],
       },
     })

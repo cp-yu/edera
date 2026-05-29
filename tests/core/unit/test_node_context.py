@@ -7,7 +7,7 @@ from edera_core.config.entities import EntityStore
 from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
 from edera_core.errors import ConfigError
 from edera_core.storage.database import create_engine, init_db, session_factory, sqlite_url
-from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, PipelineRun, SourceRecovery
+from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, DagRun, SourceRecovery
 from edera_core.storage.repository import source_execution_logs, source_health_summary, upsert_edge_input, upsert_source_recovery
 from edera_core.node.models import NodeContext
 
@@ -21,7 +21,7 @@ def _context() -> NodeContext:
     entities = EntitiesConfig.model_validate(
         {"entities": [{"id": "stock-1", "type": "stock", "attributes": {"code": "00700.HK"}}]}
     )
-    return NodeContext("cycle", "node", entity_store=EntityStore(entities, entity_types, EntityRelationsConfig()))
+    return NodeContext("run", "node", entity_store=EntityStore(entities, entity_types, EntityRelationsConfig()))
 
 
 def test_get_entity() -> None:
@@ -55,7 +55,7 @@ def test_create_entity_validates_attributes() -> None:
             }
         )
     }
-    context = NodeContext("cycle", "node", entity_store=EntityStore(EntitiesConfig(), entity_types, EntityRelationsConfig()))
+    context = NodeContext("run", "node", entity_store=EntityStore(EntitiesConfig(), entity_types, EntityRelationsConfig()))
     with pytest.raises(ConfigError):
         context.create_entity("stock", {"code": "600519.SH"})
 
@@ -92,7 +92,7 @@ def test_save_entity_persists_config(tmp_path) -> None:
         {"entities": [{"id": "stock-1", "type": "stock", "attributes": {"code": "00700.HK"}}]}
     )
     context = NodeContext(
-        "cycle",
+        "run",
         "node",
         entity_store=EntityStore(entities, entity_types, EntityRelationsConfig(), path),
     )
@@ -133,10 +133,10 @@ def test_entity_store_three_tiers(tmp_path) -> None:
         "run-metadata": EntityTypeConfig.model_validate(
             {
                 "display_name": "Run",
-                "business_id_field": "cycle_id",
-                "display_template": "{cycle_id}",
+                "business_id_field": "run_id",
+                "display_template": "{run_id}",
                 "storage_tier": "memory",
-                "schema": {"required": ["cycle_id"], "properties": {"cycle_id": {"type": "string"}}},
+                "schema": {"required": ["run_id"], "properties": {"run_id": {"type": "string"}}},
             }
         ),
     }
@@ -148,14 +148,14 @@ def test_entity_store_three_tiers(tmp_path) -> None:
     store = EntityStore(EntitiesConfig(), entity_types, EntityRelationsConfig(), path)
 
     store.create("stock", {"code": "00700.HK"})
-    analysis = store.create("analysis", {"id": "analysis-1", "cycle_id": "cycle-1", "node_id": "reader", "tags": ["stock:00700.HK"]})
-    run = store.create("run-metadata", {"cycle_id": "cycle-1"})
+    analysis = store.create("analysis", {"id": "analysis-1", "run_id": "run-1", "node_id": "reader", "tags": ["stock:00700.HK"]})
+    run = store.create("run-metadata", {"run_id": "run-1"})
 
     assert (config_dir / "entities" / "00700.HK.yaml").exists()
     assert store.resolve(f"analysis:{analysis.attributes['id']}").id == analysis.id
-    assert store.query("analysis", cycle_id="cycle-1", node_id="reader", tags=["stock:00700.HK"])[0].id == analysis.id
-    assert store.resolve(f"run-metadata:{run.attributes['cycle_id']}").id == run.id
-    store.release_run("cycle-1")
+    assert store.query("analysis", run_id="run-1", node_id="reader", tags=["stock:00700.HK"])[0].id == analysis.id
+    assert store.resolve(f"run-metadata:{run.attributes['run_id']}").id == run.id
+    store.release_run("run-1")
     assert store.query("run-metadata") == []
 
 
@@ -182,7 +182,7 @@ async def test_entity_store_three_tiers_uses_database_layer(tmp_path) -> None:
             "analysis",
             {
                 "id": "analysis-1",
-                "cycle_id": "cycle-1",
+                "run_id": "run-1",
                 "node_id": "reader",
                 "payload": {"summary": "ok", "tags": ["stock:00700.HK"]},
             },
@@ -190,7 +190,7 @@ async def test_entity_store_three_tiers_uses_database_layer(tmp_path) -> None:
         )
         await session.commit()
         result = await session.exec(select(NodeOutputEntity))
-        queried = await store.query_async("analysis", cycle_id="cycle-1", session=session)
+        queried = await store.query_async("analysis", run_id="run-1", session=session)
 
     assert len(result.all()) == 1
     assert queried[0].id == created.id
@@ -204,18 +204,18 @@ async def test_runtime_fact_tables_and_upserts(tmp_path) -> None:
     factory = session_factory(engine)
 
     async with factory() as session:
-        await upsert_edge_input(session, "cycle-1", "source", "sink", True, "failed", False, "node failed")
-        await upsert_edge_input(session, "cycle-1", "source", "sink", True, "unknown", False, None)
+        await upsert_edge_input(session, "run-1", "source", "sink", True, "failed", False, "node failed")
+        await upsert_edge_input(session, "run-1", "source", "sink", True, "unknown", False, None)
         await upsert_source_recovery(
             session,
-            "cycle-1",
+            "run-1",
             "fetcher",
             "hn-rss",
             {"recovery_status": "retrying", "attempt_count": 1, "latest_failure_reason": "timeout"},
         )
         await upsert_source_recovery(
             session,
-            "cycle-1",
+            "run-1",
             "fetcher",
             "hn-rss",
             {"recovery_status": "escalated", "attempt_count": 2, "latest_failure_reason": "still failing"},
@@ -240,7 +240,7 @@ async def test_source_health_reads_source_recoveries(tmp_path) -> None:
     async with factory() as session:
         await upsert_source_recovery(
             session,
-            "cycle-1",
+            "run-1",
             "fetcher",
             "hn-rss",
             {"recovery_status": "escalated", "latest_failure_reason": "timeout", "escalated": True},
@@ -263,12 +263,12 @@ async def test_source_execution_logs_exclude_unconfigured_node_runs(tmp_path) ->
     factory = session_factory(engine)
 
     async with factory() as session:
-        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="failed", dag_name="default"))
-        session.add(NodeRun(cycle_id="cycle-1", node_name="hn-rss", status="failed", error="timeout"))
-        session.add(NodeRun(cycle_id="cycle-1", node_name="ordinary-node", status="succeeded"))
+        session.add(DagRun(run_id="run-1", source="manual", status="failed", dag_name="default"))
+        session.add(NodeRun(run_id="run-1", node_name="hn-rss", status="failed", error="timeout"))
+        session.add(NodeRun(run_id="run-1", node_name="ordinary-node", status="succeeded"))
         await upsert_source_recovery(
             session,
-            "cycle-1",
+            "run-1",
             "fetcher",
             "unconfigured-source",
             {"recovery_status": "escalated", "latest_failure_reason": "stale"},
@@ -278,7 +278,7 @@ async def test_source_execution_logs_exclude_unconfigured_node_runs(tmp_path) ->
 
     assert [log["source_name"] for log in logs] == ["hn-rss"]
     assert logs[0]["status"] == "failed"
-    assert logs[0]["pipeline_status"] == "failed"
+    assert logs[0]["dag_status"] == "failed"
 
 
 @pytest.mark.asyncio
@@ -288,11 +288,11 @@ async def test_source_execution_logs_without_source_set_only_returns_recovery_lo
     factory = session_factory(engine)
 
     async with factory() as session:
-        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="succeeded", dag_name="default"))
-        session.add(NodeRun(cycle_id="cycle-1", node_name="ordinary-node", status="succeeded"))
+        session.add(DagRun(run_id="run-1", source="manual", status="succeeded", dag_name="default"))
+        session.add(NodeRun(run_id="run-1", node_name="ordinary-node", status="succeeded"))
         await upsert_source_recovery(
             session,
-            "cycle-1",
+            "run-1",
             "fetcher",
             "hn-rss",
             {"recovery_status": "none"},
@@ -310,8 +310,8 @@ async def test_source_execution_logs_rejects_unconfigured_explicit_source(tmp_pa
     factory = session_factory(engine)
 
     async with factory() as session:
-        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="succeeded", dag_name="default"))
-        session.add(NodeRun(cycle_id="cycle-1", node_name="ordinary-node", status="succeeded"))
+        session.add(DagRun(run_id="run-1", source="manual", status="succeeded", dag_name="default"))
+        session.add(NodeRun(run_id="run-1", node_name="ordinary-node", status="succeeded"))
         await session.commit()
         logs = await source_execution_logs(session, source_name="ordinary-node", source_names=["hn-rss"])
 
@@ -325,10 +325,10 @@ async def test_source_execution_logs_sorts_merged_logs_before_limiting(tmp_path)
     factory = session_factory(engine)
 
     async with factory() as session:
-        session.add(PipelineRun(cycle_id="cycle-1", trigger="manual", status="failed", dag_name="default"))
+        session.add(DagRun(run_id="run-1", source="manual", status="failed", dag_name="default"))
         session.add(
             NodeRun(
-                cycle_id="cycle-1",
+                run_id="run-1",
                 node_name="hn-rss",
                 status="failed",
                 started_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
@@ -336,7 +336,7 @@ async def test_source_execution_logs_sorts_merged_logs_before_limiting(tmp_path)
         )
         recovery = await upsert_source_recovery(
             session,
-            "cycle-1",
+            "run-1",
             "fetcher",
             "hn-rss",
             {"recovery_status": "escalated", "latest_failure_reason": "older"},

@@ -4,7 +4,7 @@
 定义 `edera-web` 网页 BFF 的纯 gRPC client 角色、启动配置、BFF cert 内存模式和服务端部署拓扑。
 ## Requirements
 ### Requirement: edera-web 纯 BFF 角色
-`edera-web` SHALL 作为纯 BFF（Backend for Frontend）运行，进程内 MUST NOT 实例化 `PipelineController`，所有数据操作 MUST 通过 gRPC 调用 `edera-server`。
+`edera-web` SHALL 作为纯 BFF（Backend for Frontend）运行，进程内 MUST NOT 实例化 `DagController`，所有数据操作 MUST 通过 gRPC 调用 `edera-server`。`PipelineController` 类名已废弃，改为 `DagController`。
 
 #### Scenario: create_app 单一签名
 - **WHEN** 检查 `web/app.py` 的 `create_app` 函数签名
@@ -12,7 +12,7 @@
 
 #### Scenario: 不实例化 controller
 - **WHEN** `edera-web` 启动
-- **THEN** 进程 MUST NOT 实例化 `PipelineController`，MUST NOT 调用 `load_app_config`
+- **THEN** 进程 MUST NOT 实例化 `DagController`，MUST NOT 调用 `load_app_config`
 
 #### Scenario: 必须依赖 edera-server
 - **WHEN** `edera-web` 启动但 `EDERA_SERVER_ADDR` 未设置
@@ -71,7 +71,7 @@
 - **AND** `edera-web` SHALL 通过 `EDERA_SERVER_ADDR`（通常 `127.0.0.1:9090`）连 `edera-server` 主端口
 
 ### Requirement: BFF route handler 纯 gRPC 调用
-`edera-web` 的所有 HTTP route handler MUST 通过 `GrpcClient` 调用 `edera-server`，MUST NOT 调用本地配置加载器、本地存储 repository 或本地 PipelineController。
+`edera-web` 的所有 HTTP route handler MUST 通过 `GrpcClient` 调用 `edera-server`，MUST NOT 调用本地配置加载器、本地存储 repository 或本地 DagController。
 
 #### Scenario: Graph 编辑 route 通过 gRPC
 - **WHEN** 浏览器请求 `GET /api/graph/dag/{name}`
@@ -85,12 +85,12 @@
 - **WHEN** 浏览器请求 `GET /api/results`
 - **THEN** BFF SHALL 通过 `GrpcClient.query_results_summary(...)` 调用 QueryService，将返回结果透传
 
-#### Scenario: Pipeline 控制 route 通过 gRPC
-- **WHEN** 浏览器请求 `POST /api/pipeline/dag/{name}/retry`
-- **THEN** BFF SHALL 通过 `GrpcClient.pipeline_dag_retry(...)` 调用 PipelineService，将返回结果透传
+#### Scenario: DAG 控制 route 通过 gRPC
+- **WHEN** 浏览器请求 `POST /api/dags/{name}/retry`
+- **THEN** BFF SHALL 通过 `GrpcClient.dag_retry(...)` 调用 DagService，将返回结果透传
 
 ### Requirement: BFF 不再 import 业务模块
-`edera-web` 的 route handler 模块 MUST NOT import `edera_core.config.*`、`edera_core.storage.*`、`edera_core.pipeline.*` 中的任何符号。
+`edera-web` 的 route handler 模块 MUST NOT import `edera_core.config.*`、`edera_core.storage.*`、`edera_core.dag_controller` 中的任何符号。
 
 #### Scenario: routes.py 不 import config 模块
 - **WHEN** 检查 `packages/core/src/edera_core/web/routes.py` 的 import 列表
@@ -100,9 +100,9 @@
 - **WHEN** 检查 `packages/core/src/edera_core/web/routes.py` 的 import 列表
 - **THEN** 文件 MUST NOT import `edera_core.storage.repository`
 
-#### Scenario: routes.py 不 import pipeline 模块
+#### Scenario: routes.py 不 import DAG controller 模块
 - **WHEN** 检查 `packages/core/src/edera_core/web/routes.py` 的 import 列表
-- **THEN** 文件 MUST NOT import `edera_core.pipeline`
+- **THEN** 文件 MUST NOT import `edera_core.dag_controller`
 
 ### Requirement: BFF deps.py 仅暴露 gRPC client
 `edera-web` 的 `deps.py` MUST 只提供 `grpc_client()` 和 `error_response()` 两个 helper，MUST NOT 包含 `controller()`、`config_dir()`、`handler_registry()` 等本地资源访问函数。
@@ -115,4 +115,41 @@
 #### Scenario: 无 501 fail-closed stub
 - **WHEN** 检查 deps.py 函数实现
 - **THEN** 文件 MUST NOT 包含返回 HTTP 501 的占位函数
+
+### Requirement: gRPC client 适配新 service
+`edera-web` 的 gRPC client SHALL 适配重组后的 service 结构，使用 `DagService`、`EventService`、`SystemService` 替代 `PipelineService`。
+
+#### Scenario: 调用 DagService.Run
+- **WHEN** 前端请求运行 DAG
+- **THEN** BFF SHALL 调用 `DagService.Run` 并返回 `DagRunRef{run_id: "..."}`
+
+#### Scenario: 调用 EventService.Emit
+- **WHEN** 前端请求注入事件
+- **THEN** BFF SHALL 调用 `EventService.Emit`
+
+#### Scenario: 调用 SystemService scheduler 控制
+- **WHEN** 前端请求暂停或恢复 scheduler
+- **THEN** BFF SHALL 调用 `SystemService.PauseScheduler` 或 `SystemService.ResumeScheduler`
+
+### Requirement: HTTP API 路径保持稳定
+BFF 的 HTTP API 路径 SHALL 保持稳定，前端无需修改路由。内部 gRPC 调用的变更对前端透明。
+
+#### Scenario: DAG 运行 API 路径
+- **WHEN** 前端 POST `/api/dags/{name}/run`
+- **THEN** BFF SHALL 调用 `DagService.Run` 并返回 `{run_id: "..."}`
+
+#### Scenario: 事件注入 API 路径
+- **WHEN** 前端 POST `/api/events/emit`
+- **THEN** BFF SHALL 调用 `EventService.Emit`
+
+### Requirement: 响应中使用 run_id
+BFF 返回给前端的 JSON 响应 SHALL 使用 `run_id` 字段，不再使用 `cycle_id`。
+
+#### Scenario: DAG 状态响应
+- **WHEN** 前端 GET `/api/dags/{name}/status`
+- **THEN** BFF SHALL 返回 `{current_run_id: "...", status: "running", ...}`
+
+#### Scenario: 节点历史响应
+- **WHEN** 前端 GET `/api/nodes/{id}/history`
+- **THEN** BFF SHALL 返回 `[{run_id: "...", status: "succeeded", ...}, ...]`
 

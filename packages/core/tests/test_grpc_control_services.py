@@ -3,19 +3,20 @@ from __future__ import annotations
 import grpc
 import pytest
 
-from edera_core.pipeline import PipelineRunNotFoundError, RunAlreadyActiveError
-from edera_core.pipeline_service import _PipelineService
+from edera_core.dag_controller import DagRunNotFoundError, RunAlreadyActiveError
+from edera_core.event_service import _EventService
 from edera_core.proto import edera_pb2 as pb2
+from edera_core.server import _DagService, _SystemService
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
 
 class Controller:
-    async def emit(self, event: str, payload: object | None = None, *, source: str, depth: int):
-        raise RunAlreadyActiveError("active-cycle")
+    async def start_run(self, source: str, dag_name: str, payload: object | None = None):
+        raise RunAlreadyActiveError("active-run")
 
-    async def retry_node(self, dag_name: str, cycle_id: str | None, node_ids: list[str], mode: str, payload: object):
-        raise PipelineRunNotFoundError(cycle_id or "missing")
+    async def retry_node(self, dag_name: str, run_id: str | None, node_ids: list[str], mode: str, payload: object):
+        raise DagRunNotFoundError(run_id or "missing")
 
 
 class EmitController:
@@ -29,7 +30,7 @@ class EmitController:
 
 @pytest.mark.asyncio
 async def test_emit_rpc(tmp_path):
-    service = _PipelineService(FakeDaemon(tmp_path, EmitController()))
+    service = _EventService(FakeDaemon(tmp_path, EmitController()))
 
     response = await service.Emit(
         pb2.EmitRequest(
@@ -46,33 +47,33 @@ async def test_emit_rpc(tmp_path):
 
 @pytest.mark.asyncio
 async def test_run_already_active(tmp_path):
-    service = _PipelineService(FakeDaemon(tmp_path, Controller()))
+    service = _DagService(FakeDaemon(tmp_path, Controller()))
 
     with pytest.raises(AbortError) as exc:
-        await service.Run(pb2.EmptyRequest(), FakeContext())
+        await service.Run(pb2.DagRunRequest(name="default"), FakeContext())
 
     assert exc.value.code == grpc.StatusCode.ALREADY_EXISTS
-    assert exc.value.details == "active-cycle"
+    assert exc.value.details == "active-run"
 
 
 @pytest.mark.asyncio
 async def test_run_uses_manual_emit(tmp_path):
-    service = _PipelineService(FakeDaemon(tmp_path, RunController()))
+    service = _DagService(FakeDaemon(tmp_path, RunController()))
 
-    response = await service.Run(pb2.EmptyRequest(), FakeContext())
+    response = await service.Run(pb2.DagRunRequest(name="default"), FakeContext())
 
-    assert response.json == '{"event": "manual:dag:default", "fired": ["dag:default"]}'
+    assert response.run_id == "run-1"
 
 
 @pytest.mark.asyncio
-async def test_retry_cycle_not_found(tmp_path):
+async def test_retry_run_not_found(tmp_path):
     dag_dir = tmp_path / "dags"
     dag_dir.mkdir()
     (dag_dir / "demo.yaml").write_text("name: demo\nnodes: []\nedges: []\n", encoding="utf-8")
-    service = _PipelineService(FakeDaemon(tmp_path, Controller()))
+    service = _DagService(FakeDaemon(tmp_path, Controller()))
 
     with pytest.raises(AbortError) as exc:
-        await service.DagRetry(pb2.DagRetryRequest(dag_name="demo", cycle_id="missing", node_ids=["n1"]), FakeContext())
+        await service.Retry(pb2.DagRetryRequest(dag_name="demo", run_id="missing", node_ids=["n1"]), FakeContext())
 
     assert exc.value.code == grpc.StatusCode.NOT_FOUND
 
@@ -80,10 +81,10 @@ async def test_retry_cycle_not_found(tmp_path):
 @pytest.mark.asyncio
 async def test_repair_task_not_escalated(monkeypatch, tmp_path):
     _write_minimal_config(tmp_path)
-    monkeypatch.setattr("edera_core.pipeline_service.source_health_summary", _health)
-    monkeypatch.setattr("edera_core.pipeline_service.source_execution_logs", _logs)
-    monkeypatch.setattr("edera_core.pipeline_service.latest_briefing", _briefing)
-    service = _PipelineService(FakeDaemon(tmp_path, FactoryController()))
+    monkeypatch.setattr("edera_core.server.source_health_summary", _health)
+    monkeypatch.setattr("edera_core.server.source_execution_logs", _logs)
+    monkeypatch.setattr("edera_core.server.latest_briefing", _briefing)
+    service = _SystemService(FakeDaemon(tmp_path, FactoryController()), bootstrap=False)
 
     with pytest.raises(AbortError) as exc:
         await service.CreateRepairTask(pb2.NameRequest(name="rss"), FakeContext())
@@ -97,12 +98,11 @@ class FactoryController:
 
 
 class RunController:
-    async def emit(self, event: str, payload: object | None = None, *, source: str, depth: int) -> list[str]:
-        assert event == "manual:dag:default"
+    async def start_run(self, source: str, dag_name: str, payload: object | None = None) -> str:
+        assert source == "manual"
+        assert dag_name == "default"
         assert payload is None
-        assert source == "pipeline-service"
-        assert depth == 0
-        return ["dag:default"]
+        return "run-1"
 
 
 class Session:

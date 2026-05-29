@@ -28,7 +28,7 @@ def config_write_lock(config_dir: Path, timeout_seconds: float = 30.0) -> Iterat
         lock.unlink(missing_ok=True)
 
 
-def commit_config_changes(config_dir: Path, cycle_id: str, enabled: bool = True) -> bool:
+def commit_config_changes(config_dir: Path, run_id: str, enabled: bool = True) -> bool:
     if not enabled or not (config_dir / ".git").exists():
         return False
     try:
@@ -37,7 +37,7 @@ def commit_config_changes(config_dir: Path, cycle_id: str, enabled: bool = True)
             return False
         _git(config_dir, "add", ".")
         summary = ", ".join(line[3:] for line in changed.splitlines()[:5])
-        _git(config_dir, "commit", "-m", f"config run {cycle_id}: {summary}")
+        _git(config_dir, "commit", "-m", f"config run {run_id}: {summary}")
         return True
     except subprocess.CalledProcessError:
         return False

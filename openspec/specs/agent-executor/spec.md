@@ -34,7 +34,7 @@ Agent 节点 SHALL 支持 `workdir` 字段（用户配置的工作目录）和 s
 
 #### Scenario: Session 路径由 daemon data dir 管理
 - **WHEN** agent 节点执行
-- **THEN** `--session-dir` 参数 SHALL 指向 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{cycle_id}/`
+- **THEN** `--session-dir` 参数 SHALL 指向 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{run_id}/`
 
 ### Requirement: 实时 Stdout Streaming
 Agent 节点执行时，系统 SHALL 实时读取 subprocess 的 stdout，逐行转发到 event bus。
