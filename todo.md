@@ -161,3 +161,5 @@ https://github.com/Kaka-cheaper/codeSee  codesee将项目可视化， 这里的�
 
   换句话说：核心功能已验收；未完全确认的是 edera node output export ... 这条包装命令在当前运行环境下是否和 rig node output export ... 一样稳定。这个可以单独补一个小测试，直接 monkeypatch sys.argv=["edera", "node", ...]
   验证委托，或者修正 CLI local-mode 后跑真实 console-script。
+---
+输出型 Entity 的保留/清理策略 这个可以修改为自举DAG

@@ -107,3 +107,69 @@ test('renders returned result summary fields', async ({ page }) => {
   await expect(page.getByText('rss')).toBeVisible()
   await expect(page.getByText('timeout')).toBeVisible()
 })
+
+test('does not link advice cards when result id is invalid', async ({ page }) => {
+  await page.route(/\/api\/results$/, async (route) => {
+    await route.fulfill({
+      json: {
+        briefing: null,
+        metadata_bar: {
+          run_id: 'run-1',
+          created_at: '2026-05-02T03:04:05+00:00',
+          window: '2026-05-01 至 2026-05-02',
+          failed_count: 0,
+          degraded: false,
+          disclaimer: '本系统产出仅供学习参考，不构成投资建议。',
+        },
+        briefings: [],
+        advices: [
+          {
+            id: 'null',
+            stock_code: '00020.HK',
+            stock_name: 'SenseTime',
+            direction: 'buy',
+            confidence: 0.7,
+            reason: 'table reason',
+            evidence: [],
+            source_quotes: [],
+            source_urls: [],
+            portfolio_snapshot: {},
+            low_confidence: false,
+            created_at: '2026-05-02T03:06:05+00:00',
+            data_window_start: '2026-05-01T00:00:00+00:00',
+            data_window_end: '2026-05-02T00:00:00+00:00',
+            comparison: { verdict: 'unknown' },
+          },
+        ],
+        events: [],
+        event_details: {},
+        summary_items: [
+          {
+            id: null,
+            stock_code: '00700.HK',
+            stock_name: 'Tencent',
+            direction: 'buy',
+            confidence: 0.8,
+            reason: 'summary reason',
+            evidence: [],
+            source_quotes: [],
+            source_urls: [],
+            portfolio_snapshot: {},
+            low_confidence: false,
+            created_at: '2026-05-02T03:05:05+00:00',
+            data_window_start: '2026-05-01T00:00:00+00:00',
+            data_window_end: '2026-05-02T00:00:00+00:00',
+            comparison: { verdict: 'unknown' },
+          },
+        ],
+        failed_sources: {},
+      },
+    })
+  })
+
+  await page.goto('/results')
+
+  await expect(page.getByText('summary reason')).toBeVisible()
+  await expect(page.getByText('详情不可用')).toBeVisible()
+  await expect(page.locator('a[href="/results/advices/null"]')).toHaveCount(0)
+})

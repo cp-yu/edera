@@ -78,23 +78,27 @@ export function ResultsPage() {
         <section className="space-y-2">
           <h2 className="text-sm font-medium">当前摘要</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {summaryItems.slice(0, 6).map((item) => (
-              <Link
-                key={item.id}
-                to={`/results/advices/${item.id}`}
-                className="rounded-lg border p-3 space-y-1 text-sm hover:bg-muted/30"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">{item.stock_code}</span>
-                  <span className="text-xs text-muted-foreground">{summaryStateLabel(item)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">{item.reason}</p>
-                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>置信度 {(item.confidence * 100).toFixed(0)}%</span>
-                  <span>{item.created_at.slice(0, 10)}</span>
-                </div>
-              </Link>
-            ))}
+            {summaryItems.slice(0, 6).map((item, index) => {
+              const adviceId = validResultId(item.id)
+              const content = <SummaryCardContent item={item} />
+              if (!adviceId) {
+                return (
+                  <div key={summaryItemKey(item, index)} className="rounded-lg border p-3 space-y-1 text-sm">
+                    {content}
+                    <div className="text-xs text-muted-foreground">详情不可用</div>
+                  </div>
+                )
+              }
+              return (
+                <Link
+                  key={adviceId}
+                  to={`/results/advices/${adviceId}`}
+                  className="rounded-lg border p-3 space-y-1 text-sm hover:bg-muted/30"
+                >
+                  {content}
+                </Link>
+              )
+            })}
           </div>
         </section>
       )}
@@ -127,18 +131,25 @@ export function ResultsPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.advices.map((advice) => (
-                  <tr key={advice.id} className="border-t hover:bg-muted/30">
-                    <td className="px-4 py-2">
-                      <Link to={`/results/advices/${advice.id}`} className="text-blue-500 hover:underline">
-                        {advice.stock_code}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2">{advice.direction}</td>
-                    <td className="px-4 py-2">{(advice.confidence * 100).toFixed(0)}%</td>
-                    <td className="px-4 py-2 text-muted-foreground">{advice.created_at.slice(0, 10)}</td>
-                  </tr>
-                ))}
+                {data.advices.map((advice, index) => {
+                  const adviceId = validResultId(advice.id)
+                  return (
+                    <tr key={adviceId ?? summaryItemKey(advice, index)} className="border-t hover:bg-muted/30">
+                      <td className="px-4 py-2">
+                        {adviceId ? (
+                          <Link to={`/results/advices/${adviceId}`} className="text-blue-500 hover:underline">
+                            {advice.stock_code}
+                          </Link>
+                        ) : (
+                          <span>{advice.stock_code}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">{advice.direction}</td>
+                      <td className="px-4 py-2">{(advice.confidence * 100).toFixed(0)}%</td>
+                      <td className="px-4 py-2 text-muted-foreground">{advice.created_at.slice(0, 10)}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -185,8 +196,34 @@ function MetadataItem({ label, value }: { label: string; value: string }) {
   )
 }
 
+function SummaryCardContent({ item }: { item: SummaryItem }) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium">{item.stock_code}</span>
+        <span className="text-xs text-muted-foreground">{summaryStateLabel(item)}</span>
+      </div>
+      <p className="text-xs text-muted-foreground line-clamp-2">{item.reason}</p>
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>置信度 {(item.confidence * 100).toFixed(0)}%</span>
+        <span>{item.created_at.slice(0, 10)}</span>
+      </div>
+    </>
+  )
+}
+
 function summaryStateLabel(item: SummaryItem) {
   if (item.low_confidence) return '低置信度'
   if (item.degraded) return '采集降级'
   return String(item.direction_label ?? directionLabels[item.direction] ?? item.direction)
+}
+
+function validResultId(value: unknown) {
+  if (typeof value !== 'string') return null
+  const id = value.trim()
+  return id && id !== 'null' && id !== 'undefined' ? id : null
+}
+
+function summaryItemKey(item: SummaryItem, index: number) {
+  return `${item.stock_code}-${item.created_at}-${index}`
 }
