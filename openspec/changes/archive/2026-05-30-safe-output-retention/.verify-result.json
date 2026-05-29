@@ -1,17 +1,17 @@
 {
-  "timestamp": "2026-05-29T16:16:10.790Z",
+  "timestamp": "2026-05-29T16:26:43.936Z",
   "result": "PASS_WITH_WARNINGS",
   "issues": [
     {
       "severity": "WARNING",
       "requirement": "输出型 Entity retention 策略",
       "task": "Safe output retention policy",
-      "message": "Retention cleanup count/time behavior is implemented, but the focused test file only exercises trigger gating; no direct tests for the retention_count and retention_hours cleanup scenarios were found.",
-      "recommendation": "Add focused tests for the count-based and time-based cleanup paths, or a repository-level cleanup test that proves expired outputs and overflowed runs are removed as specified.",
+      "message": "Retention cleanup behavior is implemented, but the focused test file still only exercises trigger gating; there are no direct tests for the retention_count and retention_hours cleanup scenarios.",
+      "recommendation": "Add a focused repository or integration test that proves expired outputs are deleted by retention_hours and overflowed runs are deleted by retention_count.",
       "evidenceCitations": [
-        "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md:5-15",
         "packages/core/src/edera_core/storage/repository.py:134-158",
-        "tests/core/integration/test_per_dag.py:494-618"
+        "tests/core/integration/test_per_dag.py:494-618",
+        "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md:3-30"
       ]
     }
   ],
@@ -33,7 +33,7 @@
       "packages/core/src/edera_core/storage/repository.py",
       "tests/core/integration/test_per_dag.py"
     ],
-    "evidenceFingerprint": "94391636982437780ca18572113147978b02899e25e78af916fe1f07273e8459",
+    "evidenceFingerprint": "e8de2bf2bdac5b0c6438008e260b298d7b7dca00e133fd973a1ce10f3b5b9d3b",
     "evidenceFingerprintEntries": [
       {
         "path": "config/system.toml",
@@ -61,11 +61,11 @@
       },
       {
         "path": "openspec/project.opsx.code-map.yaml",
-        "hash": "6743fb649a0a84c58d385fbefb95ecadd556289d2b276c82729611be10386d17"
+        "hash": "2675654be5ae6869c1d66e17ec7092722fee07ff049e4a856555ae8e7938c668"
       },
       {
         "path": "openspec/project.opsx.yaml",
-        "hash": "3d4ab14d20aa7a82b267ae45301b4f687139975c6e88e91c1a02e7a5e8ee6a62"
+        "hash": "9d9e39cda5a85c706546a8e194845853fd542b9486afbca2999723fc26895638"
       },
       {
         "path": "packages/core/src/edera_core/config/schema.py",
@@ -85,32 +85,32 @@
       }
     ],
     "skippedEvidenceFiles": [],
-    "gitHeadCommit": "ff589ba43985e5ea02223a385d4918c9497b61d1"
+    "gitHeadCommit": "54c278a055254b90fb39fda9857d2f2aaf030173"
   },
   "optimization": {
     "status": "NOT_NEEDED",
     "attempts": [
       {
-        "timestamp": "2026-05-29T16:17:24.858Z",
+        "timestamp": "2026-05-29T16:28:46.411Z",
         "type": "optimization",
         "status": "NO_OPTIMIZATION_NEEDED",
         "summary": "No optimization opportunities found"
       }
     ],
     "baseline": {
-      "timestamp": "2026-05-29T16:16:10.790Z",
+      "timestamp": "2026-05-29T16:26:43.936Z",
       "result": "PASS_WITH_WARNINGS",
       "issues": [
         {
           "severity": "WARNING",
           "requirement": "输出型 Entity retention 策略",
           "task": "Safe output retention policy",
-          "message": "Retention cleanup count/time behavior is implemented, but the focused test file only exercises trigger gating; no direct tests for the retention_count and retention_hours cleanup scenarios were found.",
-          "recommendation": "Add focused tests for the count-based and time-based cleanup paths, or a repository-level cleanup test that proves expired outputs and overflowed runs are removed as specified.",
+          "message": "Retention cleanup behavior is implemented, but the focused test file still only exercises trigger gating; there are no direct tests for the retention_count and retention_hours cleanup scenarios.",
+          "recommendation": "Add a focused repository or integration test that proves expired outputs are deleted by retention_hours and overflowed runs are deleted by retention_count.",
           "evidenceCitations": [
-            "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md:5-15",
             "packages/core/src/edera_core/storage/repository.py:134-158",
-            "tests/core/integration/test_per_dag.py:494-618"
+            "tests/core/integration/test_per_dag.py:494-618",
+            "openspec/changes/safe-output-retention/specs/entity-storage-tiers/spec.md:3-30"
           ]
         }
       ],
@@ -184,7 +184,7 @@
           }
         ],
         "skippedEvidenceFiles": [],
-        "gitHeadCommit": "ff589ba43985e5ea02223a385d4918c9497b61d1"
+        "gitHeadCommit": "54c278a055254b90fb39fda9857d2f2aaf030173"
       }
     }
   }

@@ -104,7 +104,7 @@ capabilities:
     intent: 统一 Entity 原语，EntityType 注册来源扩展为 manifest 声明 + 用户配置覆盖的双层优先级
     type: capability
   - id: cap.entity-storage-tiers
-    intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理
+    intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理；输出型 Entity retention 默认保留 720 小时，且只在完整 DAG 成功完成后触发
     type: capability
   - id: cap.trigger-system
     intent: Trigger Entity 使用自由布尔表达式 wait_for，支持 enabled 字段、clear:event:* target 与 fire 后自动 consume
