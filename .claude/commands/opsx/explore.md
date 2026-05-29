@@ -9,7 +9,7 @@ Enter explore mode. Think deeply. Visualize freely. Follow the conversation wher
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
-**This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
+**Explore has a mandatory brainstorming flow.** Stay conversational, but complete the checklist below before proposal readiness.
 
 **Input**: The argument after `/opsx:explore` is whatever the user wants to think about. Could be:
 - A vague idea: "real-time collaboration"
@@ -115,6 +115,39 @@ Call the sweeper once per concept with `projectRoot`, `concept`, optional `optio
 
 If the report contains questions that affect scope or proposal readiness, ask the user instead of choosing silently. Do not claim proposal readiness until those scope-affecting questions are resolved or explicitly deferred by the user.
 
+## Brainstorming Checklist
+
+Explore MUST run this sequence before saying a proposal is ready:
+
+1. **Explore project context**
+   - Run `openspec list --json`.
+   - Read relevant change artifacts when a change name is present.
+   - Search or read relevant project files and git evidence when the idea maps to code.
+   - If the request spans multiple independent subsystems, say so immediately, identify the subsystems, and recommend an implementation order.
+
+2. **Visual companion when useful**
+   - Use ASCII diagrams, flow charts, or comparison tables when the topic benefits from visual structure.
+   - Skip this step for non-visual work such as backend APIs, data processing, CLI behavior, or narrow fixes.
+
+3. **Clarify one question at a time**
+   - Ask exactly one question, then wait for the answer.
+   - Prefer a multiple-choice question when the choice set is clear.
+   - Do not bundle unrelated questions.
+
+4. **Compare 2-3 options**
+   - Present 2-3 viable approaches.
+   - For each option include description, strengths, weaknesses, and best fit.
+   - Recommend one option and explain why.
+
+5. **Confirm design in sections**
+   - Present and confirm these sections one at a time: architecture, core components, data flow, technology stack, testing strategy, risks and trade-offs.
+   - If the user asks for a change, revise that section and reconfirm it before continuing.
+
+6. **Generate Design Summary**
+   - Produce a `Design Summary` in the conversation, not in a file.
+   - Include: architecture, core components, data flow, technology stack, testing strategy, risks and trade-offs.
+   - End with: "设计总结已完成。请审查上述设计。如果确认无误，请调用 `/opsx:propose <change-name>` 生成制品。"
+
 If the user mentioned a specific change name, read its artifacts for context.
 
 ### When no change exists
@@ -160,10 +193,10 @@ If the user mentions a change or you detect one is relevant:
 
 ## What You Don't Have To Do
 
-- Follow a script
+- Implement application code
 - Ask the same questions every time
-- Produce a specific artifact
-- Reach a conclusion
+- Write the Design Summary to disk
+- Ask multiple clarification questions at once
 - Stay on topic if a tangent is valuable
 - Be brief (this is thinking time)
 
@@ -187,7 +220,7 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 - **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
-- **Don't force structure** - Let patterns emerge naturally
+- **Do follow the brainstorming checklist** - Complete the six steps before proposal readiness
 - **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality

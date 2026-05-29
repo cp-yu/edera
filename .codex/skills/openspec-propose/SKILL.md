@@ -34,6 +34,32 @@ When ready to implement, run $openspec-apply-change
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
+## Smart Explore Routing
+
+Before creating artifacts, inspect the current conversation for an explore-generated `Design Summary`.
+
+- If a Design Summary exists, extract architecture, core components, data flow, technology stack, testing strategy, and risks/trade-offs. Use those sections as primary input for proposal.md, design.md, specs, and coarse tasks.
+- If no Design Summary exists, read `openspec/config.yaml` through the compiled config projection. When `propose.smartRouting: false` or `propose.requireExplore: false` is configured, keep legacy behavior and proceed directly.
+- Otherwise, score the user's input across 5 dimensions: technology stack/library, data model/interface, API endpoint/function signature, test strategy, boundary conditions/error handling.
+- Treat input as detailed only when length is greater than 100 characters and score is at least 3/5.
+- Detect multi-subsystem scope when the input uses broad platform/system wording or lists more than 3 parallel modules joined by terms like "包含", "以及", "和", commas, or enumeration.
+
+Routing outcomes:
+- Design Summary found: proceed and show that Design Summary is being used.
+- Detailed input: proceed and show "输入足够详细，跳过 explore，直接生成制品。"
+- Multi-subsystem input: stop and show "这个需求涉及多个独立子系统，建议先运行 `$openspec-explore` 进行拆解。"
+- Simple input: stop and show "输入过于简单，建议先运行 `$openspec-explore` 澄清需求和设计方案。"
+
+Decision transparency:
+- Show input length, detail score, multi-subsystem result, and final decision.
+- If proceeding, add a proposal.md HTML comment recording the same decision.
+- If recommending explore, allow the user to explicitly override by saying the input is sufficient and they want direct artifact generation.
+
+Tasks output:
+- Generate coarse `tasks.md` with `### Task N:`, `Goal`, `Files`, `Requirements`, and nested `Checks`.
+- Use one task per core component when using a Design Summary.
+- Keep each task to 5 or fewer Requirements and split larger components.
+
 2. **Create the change directory**
    ```bash
    openspec new change "<name>"
@@ -132,8 +158,11 @@ Before reading other context files, check whether `openspec/project.opsx.yaml` e
 - Run lightweight structure checks for `proposal.md`, `design.md`, and `tasks.md` against the current schema templates, not scattered examples:
   - Read `openspec instructions proposal --change "<name>" --json`, `openspec instructions design --change "<name>" --json`, and `openspec instructions tasks --change "<name>" --json`
   - Check only key required headings and checkbox structure
-  - For `tasks.md`, run a deterministic Actions/Checks structure check equivalent to `validateTaskStructure` in `src/core/parsers/task-structure.ts`
-  - Programmatically verify `Actions` and `Checks` sections, `A`-prefixed action checkboxes, `C`-prefixed check checkboxes, required `Covers:` fields, valid `Covers:` references, every action covered by at least one check, required non-empty `Verifies:` fields, change-local `Verifies:` spec paths plus Requirement/Scenario references when local change specs exist, and at least one `Command:`, `Evidence:`, or `Expect:` field on every check
+  - For `tasks.md`, run a deterministic task structure check equivalent to `validateTaskStructure` in `src/core/parsers/task-structure.ts`
+  - Programmatically verify either legacy `Actions`/`Checks` sections or coarse `### Task N:` sections with `Goal`, `Files`, `Requirements`, and nested `Checks`
+  - For legacy tasks, verify `A`-prefixed action checkboxes, `C`-prefixed check checkboxes, required `Covers:` fields, valid `Covers:` references, and every action covered by at least one check
+  - For coarse tasks, verify each task has no more than 5 requirements and at least one nested `C`-prefixed check
+  - For every check, verify required non-empty `Verifies:` fields, change-local `Verifies:` spec paths plus Requirement/Scenario references when local change specs exist, and at least one `Command:`, `Evidence:`, or `Expect:` field
   - Do NOT invent semantic lint rules beyond the current templates
   - Do NOT judge whether a check is semantically sufficient; defer semantic suitability to verify/reviewer
 - If warnings are found, do exactly one repair pass on the generated artifacts, then re-check once

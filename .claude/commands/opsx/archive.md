@@ -176,7 +176,28 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    ```
 
-7. **Display summary**
+7. **Handle apply isolation cleanup**
+
+   Read `openspec/changes/archive/YYYY-MM-DD-<name>/.apply-isolation.json` after the change directory moves.
+
+   **If no isolation file exists**: continue to summary.
+
+   **If `method === "worktree"` and `worktreePath` exists**:
+   - Ask: "Delete worktree directory <path>?"
+   - If confirmed, run `git worktree remove <path>`
+   - If declined, leave the worktree untouched and mention it in the summary
+
+   **If `originalBranch` exists**:
+   - Ask: "Switch back to original branch <originalBranch>?"
+   - If confirmed, run `git checkout <originalBranch>`
+   - If declined, leave the current branch unchanged and mention it in the summary
+
+   **Important**:
+   - Do not silently delete worktrees.
+   - Do not silently switch branches.
+   - Build paths with `path.join()`, `path.resolve()`, and `path.normalize()`; display platform-native paths.
+
+8. **Display summary**
 
    Show archive completion summary including:
    - Change name
@@ -184,6 +205,7 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
    - Archive location
    - Whether specs / OPSX were synced (if applicable)
    - Whether a fresh verify result was reused or archive had to execute full verify
+   - Whether apply isolation cleanup was skipped, declined, or completed
    - Any warnings about incomplete artifacts or tasks
 
 **Output On Success**

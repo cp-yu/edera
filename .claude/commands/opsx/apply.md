@@ -89,15 +89,66 @@ Implement tasks from an OpenSpec change.
 
 6. **Phase 0: Implement tasks (loop until done or blocked)**
 
+### Branch Isolation Preflight
+
+Before Phase 0 implementation:
+- Run `git branch --show-current`.
+- If the branch is `main` or `master`, warn that apply will create frequent commits and ask for one isolation choice:
+  1. Create branch `<change-name>`
+  2. Create worktree at `.worktrees/<change-name>`
+  3. Continue on current branch after explicit confirmation
+- If `openspec/config.yaml` sets `apply.defaultIsolation` to `branch`, `worktree`, or `none`, use that as the default choice; `ask` means prompt.
+- Persist the result in `path.join(changeDir, '.apply-isolation.json')`:
+  ```json
+  {
+    "method": "branch | worktree | none",
+    "branchName": "<branch-name>",
+    "worktreePath": "<path when worktree>",
+    "originalBranch": "<original-branch-name>"
+  }
+  ```
+- For worktrees, first check `.claude/skills/using-git-worktrees/` and `skills/using-git-worktrees/`. Use that skill when present; otherwise use `git worktree add` with paths built through `path.join()`.
+
+### Master Agent TDD Decomposition
+
+For each pending coarse task:
+- Read Goal, Files, Requirements, and Checks from `tasks.md`.
+- Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
+- Decompose the task into 1-5 TDD Cycles. If more than 5 cycles are needed, pause and recommend splitting the task.
+- Write a detailed step file under `path.join(changeDir, '.apply-steps')` named `task-N-<kebab-case-name>.md`.
+- The file MUST use LF line endings and include:
+  - Title: `Task N: <name> - Detailed TDD Steps`
+  - Context: Goal, Files, Requirements, Related Spec
+  - One or more TDD Cycle sections
+  - Summary: total cycles, modified files, commit count
+- Each cycle MUST contain exactly:
+  1. Step 1: Write Failing Test with complete test code
+  2. Step 2: Run Test (Verify Fails) with command, expected failure, and "Test MUST fail"
+  3. Step 3: Implement Minimal Code with complete implementation code
+  4. Step 4: Run Test (Verify Passes) with command, expected pass, and "Test MUST pass"
+  5. Step 5: Commit with `git add` and Conventional Commit `git commit -m`
+- Generated commands and file paths must be cross-platform; use Node.js path handling when constructing paths.
+
+### Implementer Subagent Dispatch
+
+After writing a detailed step file:
+- Spawn an implementer subagent and instruct it to invoke `openspec-implementer`.
+- Pass only `stepFile` and `projectRoot`.
+- Request the cheapest available subagent model for implementer dispatch, such as Haiku, fast, mini, or an equivalent low-cost model. Use a capable model only when the user or project configuration explicitly overrides the default.
+- The implementer owns mechanical TDD execution and reports `DONE`, `BLOCKED`, `NEEDS_CONTEXT`, or `DONE_WITH_CONCERNS`.
+- On `DONE`, mark the task's nested Checks complete in `tasks.md`.
+- On `BLOCKED` or `NEEDS_CONTEXT`, inspect the reported cycle/step, revise the step file or artifacts if needed, and retry or pause with the blocker.
+
    For each pending task:
-   - Show which task is being worked on
+   - Show which task is being decomposed and dispatched
    - If the task was unmarked by verify, inject the matching CRITICAL issue and remediation item into the working context before editing files
    - Prioritize unchecked remediation entries before unrelated polish work
-   - Make the code changes required
+   - Generate or update the detailed step file
+   - Dispatch the implementer subagent
    - For `[code_fix]` remediation items, update code/tests until the missing behavior is implemented
    - For `[artifact_fix]` remediation items, update the affected spec/design/tasks artifact instead of forcing code changes
    - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
+   - Mark task nested checks complete in the tasks file after implementation evidence passes
    - Mark resolved remediation items complete in the `## Remediation` section
    - Continue to next task
 
