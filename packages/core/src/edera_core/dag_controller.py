@@ -447,18 +447,19 @@ class DagController:
                 retry_nodes=retry_nodes,
                 prefilled_outputs=prefilled_outputs,
             )
-            await _persist_outputs(
-                factory,
-                config.system.retention_count,
-                config.system.retention_hours,
-            )
-            _cleanup_sandboxes(config)
             active_outputs = {
                 node: output
                 for node, output in result.node_outputs.items()
                 if retry_nodes is None or node in retry_nodes
             }
             status = "cancelled" if stop_event is not None and stop_event.is_set() else _result_status(active_outputs)
+            if retry_nodes is None and status == "succeeded":
+                await _persist_outputs(
+                    factory,
+                    config.system.retention_count,
+                    config.system.retention_hours,
+                )
+            _cleanup_sandboxes(config)
             error = "; ".join(
                 f"{node}: {message}"
                 for node, message in result.failures.items()
@@ -525,7 +526,6 @@ class DagController:
                 payload if payload is not None else {"entities": _source_entity_refs(config)},
                 stop_event=stop_event,
             )
-            await _persist_outputs(factory, config.system.retention_count, config.system.retention_hours)
             status = "cancelled" if stop_event.is_set() else _result_status(result.node_outputs)
             error = "; ".join(result.failures.values()) or None
             async with factory() as session:

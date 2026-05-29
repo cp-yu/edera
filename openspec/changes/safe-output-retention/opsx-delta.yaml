@@ -1,0 +1,10 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+MODIFIED:
+  capabilities:
+    - id: cap.entity-storage-tiers
+      intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理；输出型 Entity retention 默认保留 720 小时，且只在完整 DAG 成功完成后触发
+REMOVED:
+  capabilities: []

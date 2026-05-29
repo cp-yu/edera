@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import edera_core.dag_controller as dag_controller_module
+from edera_core.errors import DagError
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
     create_dag_run,
@@ -119,7 +121,7 @@ def _write_dag_config(path: Path) -> None:
         f'schedule_minutes = 30\n'
         f'log_level = "INFO"\nllm_timeout_seconds = 60\n'
         f'workspace_root = "{path / "workspace"}"\n'
-        f'retention_count = 20\nretention_hours = 24\n'
+        f'retention_count = 20\nretention_hours = 720\n'
     )
     dags_dir = path / "dags"
     dags_dir.mkdir(exist_ok=True)
@@ -154,6 +156,73 @@ def _write_entity_schemas(path: Path) -> None:
     )
     path.joinpath("entities.yaml").write_text("entities: []\n")
     path.joinpath("entity-relations.yaml").write_text("relations: []\n")
+
+
+def _write_retention_extension(path: Path) -> None:
+    source = path / "retention-source"
+    source.mkdir(parents=True)
+    source.joinpath("handler.py").write_text(
+        "import asyncio\n"
+        "async def run(ctx):\n"
+        "    if ctx.params.get('slow'):\n"
+        "        await asyncio.sleep(1)\n"
+        "    if ctx.params.get('fail'):\n"
+        "        raise ValueError('source failed')\n"
+        "    return {'manual': True, 'source': ctx.run_id}\n",
+        encoding="utf-8",
+    )
+    sink = path / "retention-sink"
+    sink.mkdir(parents=True)
+    sink.joinpath("handler.py").write_text(
+        "async def run(ctx):\n"
+        "    if ctx.params.get('fail'):\n"
+        "        raise ValueError('sink failed')\n"
+        "    return {'sink': ctx.input.payload}\n",
+        encoding="utf-8",
+    )
+
+
+def _write_retention_policy_dag(path: Path, *, fail_source: bool = False, slow_source: bool = False) -> Path:
+    extensions_dir = path / "extensions"
+    _write_retention_extension(extensions_dir)
+    (path / "nodes" / "retention-source.yaml").write_text(
+        "name: retention-source\n"
+        "type: function\n"
+        "handler: retention-source\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    (path / "nodes" / "retention-sink.yaml").write_text(
+        "name: retention-sink\n"
+        "type: function\n"
+        "handler: retention-sink\n"
+        "input_type: Any\n"
+        "output_type: Any\n",
+        encoding="utf-8",
+    )
+    source_config = ""
+    if fail_source or slow_source:
+        source_config = (
+            "  config:\n"
+            "    parameters:\n"
+            f"      fail: {str(fail_source).lower()}\n"
+            f"      slow: {str(slow_source).lower()}\n"
+        )
+    (path / "dags" / "default.yaml").write_text(
+        "name: default\n"
+        "nodes:\n"
+        "- id: source\n"
+        "  type: retention-source\n"
+        f"{source_config}"
+        "- id: sink\n"
+        "  type: retention-sink\n"
+        "edges:\n"
+        "- from: source\n"
+        "  to: sink\n",
+        encoding="utf-8",
+    )
+    return extensions_dir
 
 
 @pytest.mark.asyncio
@@ -420,6 +489,133 @@ async def test_retry_blocks_missing_required_historical_upstream(tmp_path: Path)
     node_b = next(run for run in runs if run.node_name == "node-b")
     assert node_b.status == "failed"
     assert node_b.failure_kind == "upstream_failed"
+
+
+@pytest.mark.asyncio
+async def test_full_successful_dag_run_triggers_retention_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = _write_retention_policy_dag(tmp_path, slow_source=True)
+    calls: list[tuple[int, int]] = []
+
+    async def fake_persist_outputs(factory, retention_count: int, retention_hours: int) -> None:
+        calls.append((retention_count, retention_hours))
+
+    monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        await ctrl.run_now("manual", "default")
+    finally:
+        await ctrl.shutdown()
+
+    assert calls == [(20, 720)]
+
+
+@pytest.mark.asyncio
+async def test_failed_dag_run_skips_retention_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = _write_retention_policy_dag(tmp_path, fail_source=True)
+    calls: list[tuple[int, int]] = []
+
+    async def fake_persist_outputs(factory, retention_count: int, retention_hours: int) -> None:
+        calls.append((retention_count, retention_hours))
+
+    monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        with pytest.raises(DagError, match="all source nodes failed"):
+            await ctrl.run_now("manual", "default")
+    finally:
+        await ctrl.shutdown()
+
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_cancelled_dag_run_skips_retention_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = _write_retention_policy_dag(tmp_path)
+    calls: list[tuple[int, int]] = []
+
+    async def fake_persist_outputs(factory, retention_count: int, retention_hours: int) -> None:
+        calls.append((retention_count, retention_hours))
+
+    monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        run_id = await ctrl.start_run("manual", "default")
+        assert run_id
+        await asyncio.sleep(0)
+        await ctrl.stop_current("default")
+    finally:
+        await ctrl.shutdown()
+
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_single_node_run_skips_retention_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = _write_retention_policy_dag(tmp_path)
+    calls: list[tuple[int, int]] = []
+
+    async def fake_persist_outputs(factory, retention_count: int, retention_hours: int) -> None:
+        calls.append((retention_count, retention_hours))
+
+    monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        await ctrl.run_node_trigger("source", {"manual": True})
+        await ctrl.active_runs["default"].task
+    finally:
+        await ctrl.shutdown()
+
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_partial_retry_skips_retention_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _write_dag_config(tmp_path)
+    extensions_dir = _write_retention_policy_dag(tmp_path)
+    calls: list[tuple[int, int]] = []
+
+    async def fake_persist_outputs(factory, retention_count: int, retention_hours: int) -> None:
+        calls.append((retention_count, retention_hours))
+
+    monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    await ctrl.start(run_startup=False)
+    try:
+        await ctrl.run_now("manual", "default")
+        async with ctrl._factory()() as session:
+            await store_node_output_entities(session, "original", "source", "analysis", {"summary": "old"}, None)
+            await session.commit()
+        calls.clear()
+        result = await ctrl.retry_node("default", None, ["sink"], "single")
+        await ctrl.active_runs["default"].task
+    finally:
+        await ctrl.shutdown()
+
+    assert result.retry_nodes == ["sink"]
+    assert calls == []
 
 
 @pytest.mark.asyncio

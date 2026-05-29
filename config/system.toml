@@ -4,4 +4,4 @@ log_level = "INFO"
 llm_timeout_seconds = 0
 workspace_root = "/tmp/edera/runs"
 retention_count = 20
-retention_hours = 24
+retention_hours = 720
