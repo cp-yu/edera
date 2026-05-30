@@ -17,6 +17,12 @@ const fixtures = {
       handler: 'fetch-rss',
       source_names: ['sample-rss'],
     }),
+    nodeType('uzi-fetch-price', 'function', 'source', 'Any', 'PriceTick', {
+      handler: 'fetch-price',
+    }),
+    nodeType('uzi-render-chart', 'function', 'source', 'Any', 'ChartSpec', {
+      handler: 'render-chart',
+    }),
     nodeType('reader', 'function', 'processor', 'list[RawItem]', 'AnalysisResult', {
       skills: ['summarize'],
       model: 'hf-share/deepseek-v4-flash',
@@ -51,7 +57,10 @@ fixtures.dag = {
     }),
     instance(sinkId, 'notifier', 'alert-sink', {}),
   ],
-  edges: [{ from: sourceId, to: readerId, fan_in: true, fan_out: false }],
+  edges: [
+    { from: sourceId, to: readerId, fan_in: true, fan_out: false },
+    { from: readerId, to: sinkId, fan_in: false, fan_out: false },
+  ],
   ui: {
     nodes: {
       [sourceId]: { x: 0, y: 40 },
@@ -60,6 +69,7 @@ fixtures.dag = {
     },
     edges: {
       [`e-${sourceId}-${readerId}-0`]: { sourceHandle: 'output-0', targetHandle: 'input-0' },
+      [`e-${readerId}-${sinkId}-1`]: { sourceHandle: 'output-0', targetHandle: 'input-0' },
     },
   },
 }
@@ -95,7 +105,9 @@ async function main() {
 
   await verifyGraphLogic(cdp)
   await verifyWorkbenchDom(cdp)
+  await verifyCanvasSelectionHighlight(cdp)
   await verifyQuickAddAndMultiInstance(cdp)
+  await verifyPaletteGrouping(cdp)
   await verifyInspector(cdp)
   await verifyNodesPage(cdp, baseUrl)
   cdp.close()
@@ -203,11 +215,16 @@ async function verifyWorkbenchDom(cdp) {
       const handles = (id, side) =>
         document.querySelectorAll('.react-flow__node[data-id="' + id + '"] .react-flow__handle-' + side).length
       const readerNode = document.querySelector('.react-flow__node[data-id="${readerId}"]')
+      const titleText = readerNode?.querySelector('[data-node-title]')?.textContent?.trim()
+      const typeContext = readerNode?.querySelector('[data-node-type-context]')?.textContent?.trim()
       return {
         sourceHandleHidden: handles('${sourceId}', 'left') === 0 && handles('${sourceId}', 'right') === 1,
         sinkHandleHidden: handles('${sinkId}', 'left') === 1 && handles('${sinkId}', 'right') === 0,
         processorHandles: handles('${readerId}', 'left') === 1 && handles('${readerId}', 'right') === 1,
         runtimeBadge: Boolean(readerNode?.querySelector('.animate-pulse')),
+        aliasPrimaryTitle: titleText === 'market-reader',
+        typeContextPreserved: typeContext === 'reader',
+        identityTextNotPrimaryTitle: titleText !== '${readerId}',
       }
     })()
   `)
@@ -261,6 +278,60 @@ async function verifyQuickAddAndMultiInstance(cdp) {
   assert(multiInstance, 'same node type can be added more than once with distinct ids')
 }
 
+async function verifyPaletteGrouping(cdp) {
+  const checks = await evaluate(cdp, `
+    (() => {
+      const palette = document.querySelector('aside')
+      const text = palette?.textContent ?? ''
+      const prefixLabels = [...(palette?.querySelectorAll('[data-palette-prefix]') ?? [])]
+        .map((item) => item.textContent.trim())
+      const sourceRole = text.includes('Source 节点')
+      const processorRole = text.includes('Processor 节点')
+      const sinkRole = text.includes('Sink 节点')
+      const uziFetchGroup = prefixLabels.includes('uzi-fetch')
+      const uziRenderGroup = prefixLabels.includes('uzi-render')
+      const dragNode = [...(palette?.querySelectorAll('[draggable="true"]') ?? [])]
+        .find((item) => item.textContent.includes('uzi-fetch-price'))
+      const event = new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() })
+      dragNode?.dispatchEvent(event)
+      return {
+        sourceRole,
+        processorRole,
+        sinkRole,
+        uziFetchGroup,
+        uziRenderGroup,
+        dragPayloadUnchanged: event.dataTransfer.getData('application/reactflow') === 'uzi-fetch-price',
+      }
+    })()
+  `)
+  assertAll(checks, 'palette grouping')
+}
+
+async function verifyCanvasSelectionHighlight(cdp) {
+  const checks = await evaluate(cdp, `
+    (async () => {
+      const sourceNode = document.querySelector('.react-flow__node[data-id="${sourceId}"]')
+      sourceNode?.dispatchEvent(clickEvent())
+      await tick()
+      const connected = document.querySelector('.react-flow__edge[data-id="e-${sourceId}-${readerId}-0"]')
+      const unrelated = document.querySelector('.react-flow__edge[data-id="e-${readerId}-${sinkId}-1"]')
+      const connectedPath = connected?.querySelector('.react-flow__edge-path')
+      const connectedStyle = connectedPath ? getComputedStyle(connectedPath) : null
+      const connectedWidth = Number.parseFloat(connectedStyle?.strokeWidth ?? '0')
+      const unrelatedPath = unrelated?.querySelector('.react-flow__edge-path')
+      const unrelatedWidth = Number.parseFloat(unrelatedPath ? getComputedStyle(unrelatedPath).strokeWidth : '0')
+      return {
+        connectedEdgeHighlighted: connected?.classList.contains('selected-neighborhood-edge'),
+        unrelatedEdgeNotHighlighted: !unrelated?.classList.contains('selected-neighborhood-edge'),
+        runtimeStrokePreserved: connectedStyle?.stroke === 'rgb(37, 99, 235)',
+        selectedWidthIncreased: connectedWidth > unrelatedWidth,
+        selectedNodeStillHighlighted: sourceNode?.classList.contains('selected'),
+      }
+    })()
+  `)
+  assertAll(checks, 'canvas selection highlight')
+}
+
 async function verifyInspector(cdp) {
   await evaluate(cdp, `
     (async () => {
@@ -286,6 +357,7 @@ async function verifyInspector(cdp) {
       const hasModelSelect = Boolean(aside?.querySelector('select'))
       const inputs = aside ? [...aside.querySelectorAll('input')] : []
       const buttons = aside ? [...aside.querySelectorAll('button')] : []
+      const readonly = (name) => aside?.querySelector('[data-inspector-readonly="' + name + '"]')?.textContent ?? ''
       const hasNumberInput = Boolean(inputs.find((input) => input.type === 'number'))
       const hasJsonTextarea = Boolean(aside?.querySelector('textarea'))
       const hasSkillChip = buttons.some((button) => button.textContent.includes('summarize'))
@@ -294,10 +366,29 @@ async function verifyInspector(cdp) {
         hasSkillChip,
         hasNumberInput,
         hasJsonTextarea,
+        readonlyName: readonly('name').includes('reader'),
+        readonlyType: readonly('类型').includes('reader'),
+        readonlyInput: readonly('输入').includes('list[RawItem]'),
+        readonlyOutput: readonly('输出').includes('AnalysisResult'),
       }
     })()
   `)
   assertAll(nodeInspector, 'inspector shows schema-driven fields')
+
+  const configFooter = await evaluate(cdp, `
+    (() => {
+      const aside = [...document.querySelectorAll('aside')].at(-1)
+      const footer = aside?.querySelector('[data-inspector-config-footer]')
+      const saveButton = footer?.querySelector('button')
+      const footerStyle = footer ? getComputedStyle(footer) : null
+      return {
+        footerExists: Boolean(footer),
+        footerSticky: footerStyle?.position === 'sticky',
+        saveButtonVisible: saveButton?.textContent.includes('保存实例'),
+      }
+    })()
+  `)
+  assertAll(configFooter, 'inspector config footer')
 
   await evaluate(cdp, `
     (async () => {
@@ -308,16 +399,44 @@ async function verifyInspector(cdp) {
       select.value = ''
       select.dispatchEvent(new Event('change', { bubbles: true }))
       await tick()
+      window.__lastDagPut = undefined
       ;[...aside.querySelectorAll('button')]
         .find((button) => button.textContent.includes('保存实例'))
         ?.click()
       await tick()
     })()
   `)
-  await waitFor(cdp, `window.__lastDagPut`)
+  await waitFor(cdp, `(() => {
+    const payload = window.__lastDagPut
+    const savedReader = payload?.nodes?.find((node) => node.type === 'reader')
+    return savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model')
+  })()`)
   const savePayload = await evaluate(cdp, `(() => window.__lastDagPut)()`)
   const savedReader = savePayload.nodes.find((node) => node.type === 'reader')
-  assert(savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model'), 'inspector diff save drops cleared model')
+  assert(
+    savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model'),
+    `inspector diff save drops cleared model: ${JSON.stringify(savedReader)}`,
+  )
+
+  const nonConfigFooter = await evaluate(cdp, `
+    (async () => {
+      const aside = [...document.querySelectorAll('aside')].at(-1)
+      const clickTab = async (label) => {
+        ;[...aside.querySelectorAll('button')].find((button) => button.textContent.includes(label))?.click()
+        await tick()
+        return Boolean(aside.querySelector('[data-inspector-config-footer]'))
+      }
+      const runtimeHasFooter = await clickTab('Runtime')
+      const triggersHasFooter = await clickTab('Triggers')
+      ;[...aside.querySelectorAll('button')].find((button) => button.textContent.includes('Config'))?.click()
+      await tick()
+      return {
+        runtimeFooterAbsent: runtimeHasFooter === false,
+        triggersFooterAbsent: triggersHasFooter === false,
+      }
+    })()
+  `)
+  assertAll(nonConfigFooter, 'inspector non-config footer')
 
   const edgeInspector = await evaluate(cdp, `
     (async () => {
@@ -447,7 +566,8 @@ async function evaluate(cdp, expression) {
     userGesture: true,
   })
   if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.text)
+    const detail = response.exceptionDetails.exception?.description ?? response.exceptionDetails.text
+    throw new Error(detail)
   }
   return response.result.value
 }

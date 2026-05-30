@@ -1,7 +1,7 @@
 bootstrap server 地址固定，但是端口需要退避
 ---
 
-缺少一个配置dag 触发源的web console位置。
+[x] 缺少一个配置dag 触发源的web console位置。
 
 ---
 

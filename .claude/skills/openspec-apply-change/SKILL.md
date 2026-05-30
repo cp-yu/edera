@@ -101,7 +101,7 @@ Before Phase 0 implementation:
   1. Create branch `<change-name>`
   2. Create worktree at `.worktrees/<change-name>`
   3. Continue on current branch after explicit confirmation
-- If `openspec/config.yaml` sets `apply.defaultIsolation` to `branch`, `worktree`, or `none`, use that as the default choice; `ask` means prompt.
+- If `openspec/config.yaml` sets `apply.defaultIsolation` to `branch`, `worktree`, or `none`, use that as the default choice without prompting; only `ask` is interactive and means prompt.
 - Persist the result in `path.join(changeDir, '.apply-isolation.json')`:
   ```json
   {
@@ -118,7 +118,7 @@ Before Phase 0 implementation:
 For each pending coarse task:
 - Read Goal, Files, Requirements, and Checks from `tasks.md`.
 - Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
-- Decompose the task into 1-5 TDD Cycles. If more than 5 cycles are needed, pause and recommend splitting the task.
+- Decompose the task into 1-5 TDD Cycles. If more than 5 cycles are needed, split the task automatically into multiple bounded step files or bounded batches. Each step file or batch MUST contain 1-5 TDD Cycles. Do not pause solely because a task needs more than 5 TDD Cycles.
 - Write a detailed step file under `path.join(changeDir, '.apply-steps')` named `task-N-<kebab-case-name>.md`.
 - The file MUST use LF line endings and include:
   - Title: `Task N: <name> - Detailed TDD Steps`
@@ -141,7 +141,20 @@ After writing a detailed step file:
 - Request the cheapest available subagent model for implementer dispatch, such as Haiku, fast, mini, or an equivalent low-cost model. Use a capable model only when the user or project configuration explicitly overrides the default.
 - The implementer owns mechanical TDD execution and reports `DONE`, `BLOCKED`, `NEEDS_CONTEXT`, or `DONE_WITH_CONCERNS`.
 - On `DONE`, mark the task's nested Checks complete in `tasks.md`.
-- On `BLOCKED` or `NEEDS_CONTEXT`, inspect the reported cycle/step, revise the step file or artifacts if needed, and retry or pause with the blocker.
+- On `BLOCKED` or `NEEDS_CONTEXT`, treat the result as recovery feedback to the master agent. Inspect the structured fields, revise the step file, artifact, tests, or implementation direction, then retry under the Continuous Recovery Protocol.
+
+### Continuous Recovery Protocol
+
+- BLOCKED and NEEDS_CONTEXT are recovery feedback, not immediate user-visible pause conditions.
+- Normalize each failure as `task + cycle + step + command + failure kind`; do not compare full natural-language output.
+- Track retries per same task and same normalized error signature after master remediation.
+- Pause only when the same task and same normalized error signature produces two consecutive failures after master remediation.
+- A changed normalized error signature is progress: reset the previous signature's consecutive failure count and continue the recovery loop.
+- If a task Goal or Requirements is ambiguous, enrich context from proposal, design, change-local specs, tasks.md, OPSX code-map, related specs, and project search; update the .apply-steps file and continue dispatch before asking the user.
+- If project context is missing, convert the gap into verifiable exploration or check steps in the step file and continue execution.
+- Phase 1 failures enter the same recovery loop: write CRITICAL issues to `tasks.md`, add typed remediation, map the remediation to affected tasks, and continue Phase 0.
+- Seal failures enter the same recovery loop: preserve diagnostics, convert them into remediation context, map the remediation to affected tasks, and continue Phase 0.
+- User interrupt remains an immediate stop condition.
 
    For each pending task:
    - Show which task is being decomposed and dispatched
@@ -157,9 +170,9 @@ After writing a detailed step file:
    - Continue to next task
 
    **Pause if:**
-   - Task is unclear → ask for clarification
-   - Implementation reveals a design issue → suggest updating artifacts
-   - Error or blocker encountered → report and wait for guidance
+   - Task remains unclear after reading proposal, design, change-local specs, tasks, OPSX code-map, related specs, and nearby project files
+   - Implementation reveals a requirements scope change that cannot be represented as a local artifact or step-file remediation
+   - The same task and same normalized error signature reaches the Continuous Recovery Protocol pause threshold
    - User interrupts
 
 7. **Phase 1: Run canonical verification**
@@ -245,7 +258,7 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
    openspec verify seal "<change-name>" --json
    ```
 
-   If seal passes, report apply as complete with verified and optimized status. If seal fails, preserve diagnostics and pause for remediation.
+   If seal passes, report apply as complete with verified and optimized status. If seal fails, preserve diagnostics, convert them into remediation context, map the remediation to the affected task, and return to Phase 0 recovery. Do not pause on the first seal failure.
 
 10. **On completion or pause, show status**
 
@@ -310,11 +323,11 @@ What would you like to do?
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
-- If task is ambiguous, pause and ask before implementing
-- If implementation reveals issues, pause and suggest artifact updates
+- If task is ambiguous, enrich context and rewrite the step file before asking
+- If implementation reveals issues, first attempt scoped step-file, artifact, test, or implementation remediation
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
-- Pause on errors, blockers, or unclear requirements - don't guess
+- Pause on user interrupt, requirements scope changes, or repeated identical task error signatures after remediation
 - Use contextFiles from CLI output, don't assume specific file names
 
 **Fluid Workflow Integration**

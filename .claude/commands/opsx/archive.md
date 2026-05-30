@@ -9,7 +9,7 @@ Archive a completed change in the experimental workflow.
 
 **Input**: Optionally specify a change name after `/opsx:archive` (e.g., `/opsx:archive add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-When archive guidance discusses embedded sync or artifact write-back, treat `openspec/config.yaml` as the compact source of truth and follow the shared prompt/runtime projection contract rather than reinterpreting raw config keys inside the template body.
+When archive guidance discusses embedded sync, artifact write-back, or git archive policy, treat `openspec/config.yaml` as the compact source of truth and follow the shared prompt/runtime projection contract rather than reinterpreting raw config keys inside the template body. Archive consumes `git.merge.strategy`, `git.merge.messageFrom`, and `git.branch.deleteAfterArchive` from the compiled prompt projection; do not parse raw YAML inside the skill.
 
 **Steps**
 
@@ -176,11 +176,66 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    ```
 
-7. **Handle apply isolation cleanup**
+7. **Create archive commit**
+
+   After moving the change directory, create an archive commit on the current feature branch.
+
+   Use the fixed docs-style archive commit message. Artifact-generated messages apply only to later merge commits, not to this archive commit.
+
+   ```bash
+   git add -- <archive-dir> <synced-spec-paths> <synced-opsx-paths>
+   git commit -F -
+   ```
+
+   Record the archive commit SHA with `git rev-parse HEAD`.
+
+   If `git.merge.messageFrom: manual`, write the generated message to `.merge-message.draft`, skip automatic merge, and report that manual merge is required.
+
+8. **Merge archived branch**
+
+   Read merge behavior from the compiled prompt projection:
+   - `git.merge.strategy`: `no-ff`, `ff-only`, or `squash`
+   - `git.merge.messageFrom`: `artifacts` or `manual`
+   - `git.branch.deleteAfterArchive`: `true` or `false`
+
+   Do not parse raw YAML inside the skill.
+
+   Merge only after Step 7 has an archive commit and automatic merge is not skipped.
+
+   For `git.merge.strategy: no-ff`:
+   ```bash
+   git checkout <original-branch>
+   git merge --no-ff --no-commit <feature-branch>
+   git commit -F -
+   ```
+
+   For `git.merge.strategy: ff-only`:
+   ```bash
+   git checkout <original-branch>
+   git merge --ff-only <feature-branch>
+   ```
+
+   For `git.merge.strategy: squash`:
+   ```bash
+   git checkout <original-branch>
+   git merge --squash <feature-branch>
+   git commit -F -
+   ```
+
+   If merge conflicts occur, run:
+   ```bash
+   git merge --abort
+   ```
+
+   Preserve the archive commit on the feature branch and report the recovery command. Record the merge SHA with `git rev-parse HEAD` when merge succeeds, or record the abort status when it fails.
+
+9. **Cleanup feature branch and worktree**
 
    Read `openspec/changes/archive/YYYY-MM-DD-<name>/.apply-isolation.json` after the change directory moves.
 
-   **If no isolation file exists**: continue to summary.
+   **If no isolation file exists or `originalBranch` is empty**: resolve the original branch using `git symbolic-ref refs/remotes/origin/HEAD --short`; if that fails, ask for the original branch name and persist it in `.apply-isolation.json`.
+
+   **If originalBranch cannot be resolved**: skip merge and branch cleanup, leave the current branch unchanged, and continue to summary.
 
    **If `method === "worktree"` and `worktreePath` exists**:
    - Ask: "Delete worktree directory <path>?"
@@ -192,17 +247,28 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
    - If confirmed, run `git checkout <originalBranch>`
    - If declined, leave the current branch unchanged and mention it in the summary
 
+   **If `git.branch.deleteAfterArchive: true` and the merge strategy is not `squash`**:
+   - Confirm the branch is merged with `git branch --merged`
+   - If confirmed, run `git branch -d <feature-branch>`
+   - If not merged, keep the branch and mention it in the summary
+
+   **If `git.branch.deleteAfterArchive: false` or merge strategy is `squash`**: keep the feature branch and mention it in the summary.
+
    **Important**:
    - Do not silently delete worktrees.
    - Do not silently switch branches.
    - Build paths with `path.join()`, `path.resolve()`, and `path.normalize()`; display platform-native paths.
 
-8. **Display summary**
+10. **Display summary**
 
    Show archive completion summary including:
    - Change name
    - Schema that was used
    - Archive location
+   - Archive Commit SHA
+   - Merge Strategy
+   - Merge SHA / Status
+   - Feature Branch
    - Whether specs / OPSX were synced (if applicable)
    - Whether a fresh verify result was reused or archive had to execute full verify
    - Whether apply isolation cleanup was skipped, declined, or completed
@@ -218,6 +284,10 @@ Archive gate rejects: PENDING_VERIFICATION | ABORTED_UNSAFE
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
 **Verify Gate:** Fresh PASS or PASS_WITH_WARNINGS result confirmed
 **Specs / OPSX:** ✓ Synced to main specs and project OPSX (or "No deltas" or "Skipped all archive-time sync writes")
+**Archive Commit SHA:** <sha>
+**Merge Strategy:** <git.merge.strategy>
+**Merge SHA / Status:** <sha or skipped/manual/aborted>
+**Feature Branch:** <deleted/kept/worktree kept/manual cleanup required>
 
 Archive completed after satisfying the unified full verify gate.
 ```
