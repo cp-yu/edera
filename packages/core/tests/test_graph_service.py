@@ -69,6 +69,61 @@ async def test_get_dag_detail(tmp_path):
     assert {"nodes", "edges", "ui", "entity_types", "entities", "entity_relations"}.issubset(payload)
 
 
+@pytest.mark.asyncio
+async def test_optional_save_response(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(FakeDaemon(root))
+
+    result = await service.SaveDag(
+        pb2.NamedJsonRequest(
+            name="demo",
+            json=json.dumps(
+                {
+                    "nodes": [{"id": "n1", "type": "reader", "optional": True}, {"id": "n2", "type": "reader"}],
+                    "edges": [{"from": "n1", "to": "n2", "optional": True, "fan_in": True, "fan_in_mode": "collect"}],
+                    "ui": {},
+                }
+            ),
+        ),
+        FakeContext(),
+    )
+    payload = json.loads(result.json)["dag"]
+
+    assert payload["nodes"][0]["optional"] is True
+    assert payload["edges"][0]["optional"] is True
+    assert payload["edges"][0]["fan_in"] is True
+    assert payload["edges"][0]["fan_in_mode"] == "collect"
+
+
+@pytest.mark.asyncio
+async def test_optional_round_trip(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(FakeDaemon(root))
+
+    first = await service.SaveDag(
+        pb2.NamedJsonRequest(
+            name="demo",
+            json=json.dumps(
+                {
+                    "nodes": [{"id": "n1", "type": "reader", "optional": True}, {"id": "n2", "type": "reader"}],
+                    "edges": [{"from": "n1", "to": "n2", "optional": True}],
+                    "ui": {},
+                }
+            ),
+        ),
+        FakeContext(),
+    )
+    saved = json.loads(first.json)["dag"]
+    second = await service.SaveDag(pb2.NamedJsonRequest(name="demo", json=json.dumps(saved)), FakeContext())
+    payload = json.loads(second.json)["dag"]
+
+    assert payload["nodes"][0]["optional"] is True
+    assert payload["edges"][0]["optional"] is True
+    assert "optional: true" in (root / "dags" / "demo.yaml").read_text(encoding="utf-8")
+
+
 def _write_graph_config(root):
     (root / "dags").mkdir(parents=True)
     (root / "nodes").mkdir()
@@ -83,7 +138,7 @@ def _write_graph_config(root):
         encoding="utf-8",
     )
     (root / "dags" / "demo.yaml").write_text(
-        "name: demo\nnodes:\n- id: n1\n  type: reader\nedges: []\nui: {}\n",
+        "name: demo\nnodes:\n- id: n1\n  type: reader\n- id: n2\n  type: reader\nedges: []\nui: {}\n",
         encoding="utf-8",
     )
     (root / "entities.yaml").write_text("entities: []\n", encoding="utf-8")

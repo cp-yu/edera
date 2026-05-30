@@ -26,7 +26,7 @@ export type WorkbenchEdgeData = {
   visualState?: RuntimeNodeState
   warning?: boolean
 }
-export type WorkbenchEdge = Edge<WorkbenchEdgeData>
+export type WorkbenchEdge = Edge<WorkbenchEdgeData> & Pick<DagEdge, 'fan_out' | 'fan_in' | 'optional' | 'fan_in_mode'>
 
 export interface GuideLine {
   axis: 'x' | 'y'
@@ -227,6 +227,10 @@ export function createWorkbenchEdge(
     target: edge.to,
     sourceHandle: edge.sourceHandle,
     targetHandle: edge.targetHandle,
+    fan_out: edge.fan_out,
+    fan_in: edge.fan_in,
+    optional: edge.optional,
+    fan_in_mode: edge.fan_in_mode,
     type: 'default',
     markerEnd: { type: 'arrowclosed', color },
     style: {
@@ -292,6 +296,7 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
       type: rest.type_name,
       alias: rest.alias,
       config: rest.config ?? {},
+      optional: Boolean(rest.optional),
     }
   })
 
@@ -306,6 +311,7 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
       to: edge.target,
       fan_out: Boolean((edge as { fan_out?: boolean }).fan_out),
       fan_in: Boolean((edge as { fan_in?: boolean }).fan_in),
+      optional: Boolean(edge.optional),
       fan_in_mode: (edge as { fan_in_mode?: DagEdge['fan_in_mode'] }).fan_in_mode,
       sourceHandle: edge.sourceHandle ?? undefined,
       targetHandle: edge.targetHandle ?? undefined,

@@ -9,6 +9,7 @@ from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_app_config
 from edera_core.dag_controller import DagController, _ensure_default_cron_triggers
 from edera_core.event_service import _EventService
+from edera_core.hot_reload import HotReloader
 from edera_core.proto import edera_pb2 as pb2
 
 
@@ -97,6 +98,54 @@ async def test_config_changed_rescans_cron_tokens(tmp_path: Path) -> None:
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == set()
+
+
+@pytest.mark.asyncio
+async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Path) -> None:
+    _write_config(tmp_path)
+    ctrl = DagController(tmp_path)
+
+    (tmp_path / "triggers").mkdir()
+    trigger_path = tmp_path / "triggers" / "hourly.yaml"
+    trigger_path.write_text(
+        "id: hourly\n"
+        "type: trigger\n"
+        "attributes:\n"
+        "  name: hourly\n"
+        "  wait_for: 'cron:\"0 * * * *\"'\n"
+        "  target: dag:default\n"
+        "  enabled: true\n",
+        encoding="utf-8",
+    )
+    await ctrl.emit("event:bootstrap")
+
+    assert ctrl.cron_emitter is not None
+    assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
+
+    trigger_path.write_text(
+        "id: hourly\n"
+        "type: trigger\n"
+        "attributes:\n"
+        "  name: hourly\n"
+        "  wait_for: 'cron:\"15 * * * *\"'\n"
+        "  target: dag:default\n"
+        "  enabled: true\n",
+        encoding="utf-8",
+    )
+
+    async def fail_reload(_config, _bootstrap) -> None:
+        raise RuntimeError("reload failed")
+
+    async def emit_config_changed(event: str) -> object:
+        return await ctrl.emit(event, source="hot-reload")
+
+    reloader = HotReloader(tmp_path, [], fail_reload, emit=emit_config_changed)
+
+    with pytest.raises(RuntimeError, match="reload failed"):
+        await reloader.reload_once()
+
+    assert ctrl.cron_emitter is not None
+    assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
 
 
 def test_migration_trigger_entity_generated(tmp_path: Path) -> None:

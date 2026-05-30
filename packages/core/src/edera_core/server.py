@@ -4,6 +4,7 @@ import asyncio
 import argparse
 import json
 import os
+import socket
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ from edera_core.config.schema import AppConfig, EntityConfig, entity_ref
 from edera_core.events import event_bus
 from edera_core.graph_service import _GraphService
 from edera_core.event_service import _EventService
+from edera_core.hot_reload import HotReloader
 from edera_core.dag_controller import DagController, DagRunNotFoundError, RunAlreadyActiveError
 from edera_core.proto import edera_pb2 as pb2, edera_pb2_grpc as pb2_grpc
 from edera_core.query_service import _QueryService
@@ -44,6 +46,11 @@ from edera_core.storage.repository import (
 )
 
 
+BOOTSTRAP_HOST = "127.0.0.1"
+BOOTSTRAP_PORT_START = 9091
+BOOTSTRAP_PORT_END = 9190
+
+
 class Server:
     def __init__(
         self,
@@ -54,7 +61,7 @@ class Server:
     ) -> None:
         self.data_dir = resolve_data_dir(data_dir)
         self.address = address
-        self.bootstrap_address = "127.0.0.1:9091"
+        self.bootstrap_address = f"{BOOTSTRAP_HOST}:{BOOTSTRAP_PORT_START}"
         self.config_dir = config_dir
         self.ca = CertificateAuthority(self.data_dir)
         self.controller = controller or DagController(
@@ -73,6 +80,7 @@ class Server:
         self.pb2_grpc = pb2_grpc
         self.bound_port: int | None = None
         self.bootstrap_bound_port: int | None = None
+        self._hot_reload_task: asyncio.Task[None] | None = None
         self._add_services()
 
     async def start(self) -> None:
@@ -91,15 +99,19 @@ class Server:
                 require_client_auth=True,
             )
             self.bound_port = self.server.add_secure_port(self.address, credentials)
-            self.bootstrap_bound_port = self.bootstrap_server.add_insecure_port(self.bootstrap_address)
+            self.bootstrap_bound_port = self._add_bootstrap_port()
+            self.bootstrap_address = f"{BOOTSTRAP_HOST}:{self.bootstrap_bound_port}"
+            write_bootstrap_status(self.data_dir, BOOTSTRAP_HOST, self.bootstrap_bound_port)
         await self.server.start()
         if self.bootstrap_bound_port is not None:
             await self.bootstrap_server.start()
+        self._start_hot_reload()
 
     async def wait_closed(self) -> None:
         await self.server.wait_for_termination()
 
     async def stop(self, grace: float = 0.0) -> None:
+        await self._stop_hot_reload()
         await self.server.stop(grace)
         await self.bootstrap_server.stop(grace)
         if self._owns_controller:
@@ -107,6 +119,32 @@ class Server:
 
     def issue_agent_certificate(self, instance_id: str, ttl_seconds: int) -> IssuedCertificate:
         return self.ca.issue_client(f"node:{instance_id}", ttl_seconds)
+
+    def _start_hot_reload(self) -> None:
+        extensions_dirs = getattr(self.controller, "extensions_dirs", [Path("extensions")])
+        reloader = HotReloader(
+            self.config_dir,
+            list(extensions_dirs),
+            self._reload_config,
+            emit=self._emit_config_changed,
+        )
+        self._hot_reload_task = asyncio.create_task(reloader.watch())
+
+    async def _stop_hot_reload(self) -> None:
+        if self._hot_reload_task is None:
+            return
+        self._hot_reload_task.cancel()
+        try:
+            await self._hot_reload_task
+        except asyncio.CancelledError:
+            pass
+        self._hot_reload_task = None
+
+    async def _reload_config(self, _config: AppConfig, _bootstrap: Any) -> None:
+        return None
+
+    async def _emit_config_changed(self, event: str) -> object:
+        return await self.controller.emit(event, source="hot-reload")
 
     def _add_services(self) -> None:
         self.pb2_grpc.add_EntityServiceServicer_to_server(_EntityService(self), self.server)
@@ -118,6 +156,15 @@ class Server:
         self.pb2_grpc.add_QueryServiceServicer_to_server(_QueryService(self), self.server)
         self.pb2_grpc.add_EventServiceServicer_to_server(_EventService(self), self.server)
         self.pb2_grpc.add_SystemServiceServicer_to_server(_SystemService(self, bootstrap=True), self.bootstrap_server)
+
+    def _add_bootstrap_port(self) -> int:
+        for port in range(BOOTSTRAP_PORT_START, BOOTSTRAP_PORT_END + 1):
+            if not _tcp_port_available(BOOTSTRAP_HOST, port):
+                continue
+            bound = self.bootstrap_server.add_insecure_port(f"{BOOTSTRAP_HOST}:{port}")
+            if bound == port:
+                return port
+        raise RuntimeError(f"no available bootstrap port in {BOOTSTRAP_HOST}:{BOOTSTRAP_PORT_START}-{BOOTSTRAP_PORT_END}")
 
 
 class _EntityService:
@@ -729,6 +776,24 @@ def ensure_ca(data_dir: Path) -> CertificateAuthority:
 
 def ensure_server_cert(data_dir: Path, listen_address: str) -> None:
     CertificateAuthority(data_dir).issue_server(_server_cert_address(listen_address))
+
+
+def write_bootstrap_status(data_dir: Path, host: str, port: int) -> None:
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "bootstrap.json").write_text(
+        json.dumps({"host": host, "port": port}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _tcp_port_available(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            return False
+    return True
 
 
 def _server_cert_address(listen_address: str) -> str:
