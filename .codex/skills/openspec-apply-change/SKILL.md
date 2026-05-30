@@ -113,55 +113,33 @@ Before Phase 0 implementation:
   ```
 - For worktrees, first check `.claude/skills/using-git-worktrees/` and `skills/using-git-worktrees/`. Use that skill when present; otherwise use `git worktree add` with paths built through `path.join()`.
 
-### Master Agent TDD Decomposition
+### Master Agent Direct Implementation
 
 For each pending coarse task:
 - Read Goal, Files, Requirements, and Checks from `tasks.md`.
 - Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
-- Decompose the task into 1-5 TDD Cycles. If more than 5 cycles are needed, split the task automatically into multiple bounded step files or bounded batches. Each step file or batch MUST contain 1-5 TDD Cycles. Do not pause solely because a task needs more than 5 TDD Cycles.
-- Write a detailed step file under `path.join(changeDir, '.apply-steps')` named `task-N-<kebab-case-name>.md`.
-- The file MUST use LF line endings and include:
-  - Title: `Task N: <name> - Detailed TDD Steps`
-  - Context: Goal, Files, Requirements, Related Spec
-  - One or more TDD Cycle sections
-  - Summary: total cycles, modified files, commit count
-- Each cycle MUST contain exactly:
-  1. Step 1: Write Failing Test with complete test code
-  2. Step 2: Run Test (Verify Fails) with command, expected failure, and "Test MUST fail"
-  3. Step 3: Implement Minimal Code with complete implementation code
-  4. Step 4: Run Test (Verify Passes) with command, expected pass, and "Test MUST pass"
-  5. Step 5: Commit with `git add` and Conventional Commit `git commit -m`
-- Generated commands and file paths must be cross-platform; use Node.js path handling when constructing paths.
-
-### Implementer Subagent Dispatch
-
-After writing a detailed step file:
-- Spawn an implementer subagent and instruct it to invoke `openspec-implementer`.
-- Pass only `stepFile` and `projectRoot`.
-- Request the cheapest available subagent model for implementer dispatch, such as Haiku, fast, mini, or an equivalent low-cost model. Use a capable model only when the user or project configuration explicitly overrides the default.
-- The implementer owns mechanical TDD execution and reports `DONE`, `BLOCKED`, `NEEDS_CONTEXT`, or `DONE_WITH_CONCERNS`.
-- On `DONE`, mark the task's nested Checks complete in `tasks.md`.
-- On `BLOCKED` or `NEEDS_CONTEXT`, treat the result as recovery feedback to the master agent. Inspect the structured fields, revise the step file, artifact, tests, or implementation direction, then retry under the Continuous Recovery Protocol.
+- Implement the task directly in the current agent context using the smallest useful test/code loop.
+- Use existing project test commands from task Checks when available; add or update targeted tests before code when behavior changes.
+- Keep generated commands and file paths cross-platform; use Node.js path handling when constructing paths.
+- Mark the task's nested Checks complete in `tasks.md` only after implementation evidence passes.
 
 ### Continuous Recovery Protocol
 
-- BLOCKED and NEEDS_CONTEXT are recovery feedback, not immediate user-visible pause conditions.
-- Normalize each failure as `task + cycle + step + command + failure kind`; do not compare full natural-language output.
+- Failures are recovery feedback, not immediate user-visible pause conditions.
+- Normalize each failure as `task + check + command + failure kind`; do not compare full natural-language output.
 - Track retries per same task and same normalized error signature after master remediation.
 - Pause only when the same task and same normalized error signature produces two consecutive failures after master remediation.
 - A changed normalized error signature is progress: reset the previous signature's consecutive failure count and continue the recovery loop.
-- If a task Goal or Requirements is ambiguous, enrich context from proposal, design, change-local specs, tasks.md, OPSX code-map, related specs, and project search; update the .apply-steps file and continue dispatch before asking the user.
-- If project context is missing, convert the gap into verifiable exploration or check steps in the step file and continue execution.
+- If a task Goal or Requirements is ambiguous, enrich context from proposal, design, change-local specs, tasks.md, OPSX code-map, related specs, and project search before asking the user.
+- If project context is missing, convert the gap into verifiable exploration or check steps in the current task and continue execution.
 - Phase 1 failures enter the same recovery loop: write CRITICAL issues to `tasks.md`, add typed remediation, map the remediation to affected tasks, and continue Phase 0.
 - Seal failures enter the same recovery loop: preserve diagnostics, convert them into remediation context, map the remediation to affected tasks, and continue Phase 0.
 - User interrupt remains an immediate stop condition.
 
    For each pending task:
-   - Show which task is being decomposed and dispatched
+   - Show which task is being implemented
    - If the task was unmarked by verify, inject the matching CRITICAL issue and remediation item into the working context before editing files
    - Prioritize unchecked remediation entries before unrelated polish work
-   - Generate or update the detailed step file
-   - Dispatch the implementer subagent
    - For `[code_fix]` remediation items, update code/tests until the missing behavior is implemented
    - For `[artifact_fix]` remediation items, update the affected spec/design/tasks artifact instead of forcing code changes
    - Keep changes minimal and focused
@@ -171,7 +149,7 @@ After writing a detailed step file:
 
    **Pause if:**
    - Task remains unclear after reading proposal, design, change-local specs, tasks, OPSX code-map, related specs, and nearby project files
-   - Implementation reveals a requirements scope change that cannot be represented as a local artifact or step-file remediation
+   - Implementation reveals a requirements scope change that cannot be represented as local artifact or task remediation
    - The same task and same normalized error signature reaches the Continuous Recovery Protocol pause threshold
    - User interrupts
 
@@ -323,8 +301,8 @@ What would you like to do?
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
-- If task is ambiguous, enrich context and rewrite the step file before asking
-- If implementation reveals issues, first attempt scoped step-file, artifact, test, or implementation remediation
+- If task is ambiguous, enrich context before asking
+- If implementation reveals issues, first attempt scoped artifact, test, or implementation remediation
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
 - Pause on user interrupt, requirements scope changes, or repeated identical task error signatures after remediation

@@ -6,6 +6,15 @@ schema: spec-driven
 # Example:
 #   docLanguage: zh-CN
 docLanguage: 中文
+optimization:
+  enabled: true
+  optRetries: 2
+git:
+  merge:
+    strategy: no-ff
+    messageFrom: artifacts
+  branch:
+    deleteAfterArchive: true
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
