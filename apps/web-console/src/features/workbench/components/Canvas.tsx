@@ -112,7 +112,7 @@ interface Props {
 }
 
 export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }: Props) {
-  const { setInspectorTab, setSelectedEdge, setSelectedNode, entityFilter, selectedDagName } = useAppStore()
+  const { setInspectorTab, setSelectedEdge, setSelectedNode, entityFilter, selectedDagName, selectedNodeId } = useAppStore()
   const { data: prototypesData } = useNodePrototypes()
   const saveDag = useSaveDag(selectedDagName)
   const retryNode = useRetryDagNode()
@@ -420,6 +420,25 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
       }
     })
   }, [connectionSourceId, nodes, entityFilter])
+
+  const styledEdges = useMemo(() => {
+    if (!selectedNodeId) return edges
+    return edges.map((edge) => {
+      const connected = edge.source === selectedNodeId || edge.target === selectedNodeId
+      if (!connected) return edge
+      const width = Number(edge.style?.strokeWidth ?? 2)
+      return {
+        ...edge,
+        className: ['selected-neighborhood-edge', edge.className].filter(Boolean).join(' '),
+        style: {
+          ...(edge.style ?? {}),
+          strokeWidth: Math.max(Number.isFinite(width) ? width : 2, 4),
+          opacity: 1,
+          filter: 'drop-shadow(0 0 5px rgba(103, 232, 249, 0.55))',
+        },
+      }
+    })
+  }, [edges, selectedNodeId])
 
   const searchItems = useMemo(
     () => filterSearchItems(buildSearchItems(prototypes, nodes.map((node) => node.data)), searchQuery),
@@ -752,7 +771,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
       />
       <ReactFlow
         nodes={styledNodes}
-        edges={edges}
+        edges={styledEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

@@ -57,7 +57,10 @@ fixtures.dag = {
     }),
     instance(sinkId, 'notifier', 'alert-sink', {}),
   ],
-  edges: [{ from: sourceId, to: readerId, fan_in: true, fan_out: false }],
+  edges: [
+    { from: sourceId, to: readerId, fan_in: true, fan_out: false },
+    { from: readerId, to: sinkId, fan_in: false, fan_out: false },
+  ],
   ui: {
     nodes: {
       [sourceId]: { x: 0, y: 40 },
@@ -66,6 +69,7 @@ fixtures.dag = {
     },
     edges: {
       [`e-${sourceId}-${readerId}-0`]: { sourceHandle: 'output-0', targetHandle: 'input-0' },
+      [`e-${readerId}-${sinkId}-1`]: { sourceHandle: 'output-0', targetHandle: 'input-0' },
     },
   },
 }
@@ -101,6 +105,7 @@ async function main() {
 
   await verifyGraphLogic(cdp)
   await verifyWorkbenchDom(cdp)
+  await verifyCanvasSelectionHighlight(cdp)
   await verifyQuickAddAndMultiInstance(cdp)
   await verifyPaletteGrouping(cdp)
   await verifyInspector(cdp)
@@ -300,6 +305,31 @@ async function verifyPaletteGrouping(cdp) {
     })()
   `)
   assertAll(checks, 'palette grouping')
+}
+
+async function verifyCanvasSelectionHighlight(cdp) {
+  const checks = await evaluate(cdp, `
+    (async () => {
+      const sourceNode = document.querySelector('.react-flow__node[data-id="${sourceId}"]')
+      sourceNode?.dispatchEvent(clickEvent())
+      await tick()
+      const connected = document.querySelector('.react-flow__edge[data-id="e-${sourceId}-${readerId}-0"]')
+      const unrelated = document.querySelector('.react-flow__edge[data-id="e-${readerId}-${sinkId}-1"]')
+      const connectedPath = connected?.querySelector('.react-flow__edge-path')
+      const connectedStyle = connectedPath ? getComputedStyle(connectedPath) : null
+      const connectedWidth = Number.parseFloat(connectedStyle?.strokeWidth ?? '0')
+      const unrelatedPath = unrelated?.querySelector('.react-flow__edge-path')
+      const unrelatedWidth = Number.parseFloat(unrelatedPath ? getComputedStyle(unrelatedPath).strokeWidth : '0')
+      return {
+        connectedEdgeHighlighted: connected?.classList.contains('selected-neighborhood-edge'),
+        unrelatedEdgeNotHighlighted: !unrelated?.classList.contains('selected-neighborhood-edge'),
+        runtimeStrokePreserved: connectedStyle?.stroke === 'rgb(37, 99, 235)',
+        selectedWidthIncreased: connectedWidth > unrelatedWidth,
+        selectedNodeStillHighlighted: sourceNode?.classList.contains('selected'),
+      }
+    })()
+  `)
+  assertAll(checks, 'canvas selection highlight')
 }
 
 async function verifyInspector(cdp) {
