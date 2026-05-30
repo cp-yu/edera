@@ -41,15 +41,15 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.dag-workbench-ui
-    intent: DAG 工作台 UI，Inspector 增加 Triggers tab 用于配置 DAG 级与 node 级触发器
+    intent: DAG 工作台 UI，覆盖三栏布局、按 role + 前缀分组的节点面板、Inspector 固定 Config 保存动作、Triggers tab 和 React Flow 图编辑主交互
     type: capability
     domain: dom.web
   - id: cap.web.canvas-interaction-enhancement
-    intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附和撤销重做
+    intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附、撤销重做和选中节点一跳连线高亮
     type: capability
     domain: dom.web
   - id: cap.web.node-visual-system
-    intent: 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和分组可视化
+    intent: 节点视觉系统，覆盖 alias 优先的 Canvas 节点标题、类型差异化外观、动态 Handle、运行状态 badge 和分组可视化
     type: capability
     domain: dom.web
   - id: cap.web.graph-layout-engine

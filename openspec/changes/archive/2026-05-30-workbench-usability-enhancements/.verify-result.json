@@ -1,0 +1,215 @@
+{
+  "timestamp": "2026-05-30T05:14:03.858Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "35e6d1e5117ad77660eb87001eb48a379de052db5444438f0b3c00576201f2f9",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "archive-subagent-review",
+    "evidenceFiles": [
+      "apps/web-console/scripts/verify-node-instance-model.mjs",
+      "apps/web-console/src/features/workbench/components/Canvas.tsx",
+      "apps/web-console/src/features/workbench/components/Inspector.tsx",
+      "apps/web-console/src/features/workbench/components/Palette.tsx",
+      "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+      "apps/web-console/src/features/workbench/lib/graph.ts",
+      "apps/web-console/src/store/useAppStore.ts",
+      "openspec/changes/workbench-usability-enhancements/.apply-isolation.json",
+      "openspec/changes/workbench-usability-enhancements/design.md",
+      "openspec/changes/workbench-usability-enhancements/opsx-delta.yaml",
+      "openspec/changes/workbench-usability-enhancements/proposal.md",
+      "openspec/changes/workbench-usability-enhancements/specs/canvas-interaction-enhancement/spec.md",
+      "openspec/changes/workbench-usability-enhancements/specs/dag-workbench-ui/spec.md",
+      "openspec/changes/workbench-usability-enhancements/specs/node-visual-system/spec.md",
+      "openspec/changes/workbench-usability-enhancements/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml"
+    ],
+    "evidenceFingerprint": "80de79a8b4753c1a902a1e95dc0a71a1e6a076b5d01163351a5fc88575319511",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+        "hash": "7d0915de2a463e89696fa73036ab6ca011b413cc478ca319f9007ebbf6339672"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+        "hash": "dfc6e02f723c0b220a724fea572ff392adc661f05edeb1181f7c5d8d4c81b0a2"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+        "hash": "bd4a9f7df5546b7a265ff996bf036f0460ed368291179a530693737fe3876001"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+        "hash": "cf7792676d9fbf7e1398f744f69fd95ed3e3f13137fabc2151cf7cc936e91021"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Palette.tsx",
+        "hash": "b077325f2898b620ad4d36a6286a7e1494e96bb1540f5fa8b3ad86ff410f2662"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+        "hash": "831ff8f9a70e5a327b79c9c6bee5a4f96e080c2aae87bb0131e8868a035f443a"
+      },
+      {
+        "path": "apps/web-console/src/store/useAppStore.ts",
+        "hash": "50be39753336737b3380f1c856698205236f5c1fe3c9e25f857c40978e8af702"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/.apply-isolation.json",
+        "hash": "0daeb3e28edb88640269a145f01fe56ebf871af4f406ff81063cc44d93839172"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/design.md",
+        "hash": "a876e0fb996f79a1a00076b32c31e7afa60ebefa5c8dd6b3f231370488bb59e1"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/opsx-delta.yaml",
+        "hash": "13d9916c4e5551d14461188092dbe1144c4cfc166a10584de653eea94700b1b2"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/proposal.md",
+        "hash": "c09fa05538652b6b1b495557f74d5a65514828574e39449ddfc7bb677cb224dc"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/specs/canvas-interaction-enhancement/spec.md",
+        "hash": "6f54db10dc655df14d6a02c3f575aa1defa1c3eba357b35e9699a74c6f958d4c"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/specs/dag-workbench-ui/spec.md",
+        "hash": "f0f3276683f511e2e6f51ae64289bcea3ba4d9b86b716d7a4109d9c2856cdc26"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/specs/node-visual-system/spec.md",
+        "hash": "5f568ac6f68640d9e9fa89b887d7c394facb09797611045f9b01aa6af67aad23"
+      },
+      {
+        "path": "openspec/changes/workbench-usability-enhancements/tasks.md",
+        "hash": "35e6d1e5117ad77660eb87001eb48a379de052db5444438f0b3c00576201f2f9"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "e6dc82ef49711787f6fee43434e4557661004bdcf7f84ce59971d91d2b58d09d"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "8c9fd114b4a7b40aa5a55ec4fbdc1d4fe53d07b346f36851b075b11a1ab30ab6"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "8c3c7223f9bf85190c0deaaba9b46f95bb74c763"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-30T05:19:16.237Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-30T05:14:03.858Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "35e6d1e5117ad77660eb87001eb48a379de052db5444438f0b3c00576201f2f9",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "archive-subagent-review",
+        "evidenceFiles": [
+          "apps/web-console/scripts/verify-node-instance-model.mjs",
+          "apps/web-console/src/features/workbench/components/Canvas.tsx",
+          "apps/web-console/src/features/workbench/components/Inspector.tsx",
+          "apps/web-console/src/features/workbench/components/Palette.tsx",
+          "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+          "apps/web-console/src/features/workbench/lib/graph.ts",
+          "apps/web-console/src/store/useAppStore.ts",
+          "openspec/changes/workbench-usability-enhancements/.apply-isolation.json",
+          "openspec/changes/workbench-usability-enhancements/design.md",
+          "openspec/changes/workbench-usability-enhancements/opsx-delta.yaml",
+          "openspec/changes/workbench-usability-enhancements/proposal.md",
+          "openspec/changes/workbench-usability-enhancements/specs/canvas-interaction-enhancement/spec.md",
+          "openspec/changes/workbench-usability-enhancements/specs/dag-workbench-ui/spec.md",
+          "openspec/changes/workbench-usability-enhancements/specs/node-visual-system/spec.md",
+          "openspec/changes/workbench-usability-enhancements/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml"
+        ],
+        "evidenceFingerprint": "3f16031a75a7e5decfe67b4b4accaf0221af566a3caf0bdafea661be60e5af19",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+            "hash": "7d0915de2a463e89696fa73036ab6ca011b413cc478ca319f9007ebbf6339672"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+            "hash": "dfc6e02f723c0b220a724fea572ff392adc661f05edeb1181f7c5d8d4c81b0a2"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+            "hash": "bd4a9f7df5546b7a265ff996bf036f0460ed368291179a530693737fe3876001"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+            "hash": "cf7792676d9fbf7e1398f744f69fd95ed3e3f13137fabc2151cf7cc936e91021"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Palette.tsx",
+            "hash": "b077325f2898b620ad4d36a6286a7e1494e96bb1540f5fa8b3ad86ff410f2662"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+            "hash": "831ff8f9a70e5a327b79c9c6bee5a4f96e080c2aae87bb0131e8868a035f443a"
+          },
+          {
+            "path": "apps/web-console/src/store/useAppStore.ts",
+            "hash": "50be39753336737b3380f1c856698205236f5c1fe3c9e25f857c40978e8af702"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/.apply-isolation.json",
+            "hash": "0daeb3e28edb88640269a145f01fe56ebf871af4f406ff81063cc44d93839172"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/design.md",
+            "hash": "a876e0fb996f79a1a00076b32c31e7afa60ebefa5c8dd6b3f231370488bb59e1"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/opsx-delta.yaml",
+            "hash": "13d9916c4e5551d14461188092dbe1144c4cfc166a10584de653eea94700b1b2"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/proposal.md",
+            "hash": "c09fa05538652b6b1b495557f74d5a65514828574e39449ddfc7bb677cb224dc"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/specs/canvas-interaction-enhancement/spec.md",
+            "hash": "6f54db10dc655df14d6a02c3f575aa1defa1c3eba357b35e9699a74c6f958d4c"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/specs/dag-workbench-ui/spec.md",
+            "hash": "f0f3276683f511e2e6f51ae64289bcea3ba4d9b86b716d7a4109d9c2856cdc26"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/specs/node-visual-system/spec.md",
+            "hash": "5f568ac6f68640d9e9fa89b887d7c394facb09797611045f9b01aa6af67aad23"
+          },
+          {
+            "path": "openspec/changes/workbench-usability-enhancements/tasks.md",
+            "hash": "35e6d1e5117ad77660eb87001eb48a379de052db5444438f0b3c00576201f2f9"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "2675654be5ae6869c1d66e17ec7092722fee07ff049e4a856555ae8e7938c668"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "9d9e39cda5a85c706546a8e194845853fd542b9486afbca2999723fc26895638"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "8c3c7223f9bf85190c0deaaba9b46f95bb74c763"
+      }
+    }
+  }
+}
