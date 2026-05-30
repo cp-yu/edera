@@ -203,11 +203,16 @@ async function verifyWorkbenchDom(cdp) {
       const handles = (id, side) =>
         document.querySelectorAll('.react-flow__node[data-id="' + id + '"] .react-flow__handle-' + side).length
       const readerNode = document.querySelector('.react-flow__node[data-id="${readerId}"]')
+      const titleText = readerNode?.querySelector('[data-node-title]')?.textContent?.trim()
+      const typeContext = readerNode?.querySelector('[data-node-type-context]')?.textContent?.trim()
       return {
         sourceHandleHidden: handles('${sourceId}', 'left') === 0 && handles('${sourceId}', 'right') === 1,
         sinkHandleHidden: handles('${sinkId}', 'left') === 1 && handles('${sinkId}', 'right') === 0,
         processorHandles: handles('${readerId}', 'left') === 1 && handles('${readerId}', 'right') === 1,
         runtimeBadge: Boolean(readerNode?.querySelector('.animate-pulse')),
+        aliasPrimaryTitle: titleText === 'market-reader',
+        typeContextPreserved: typeContext === 'reader',
+        identityTextNotPrimaryTitle: titleText !== '${readerId}',
       }
     })()
   `)
@@ -447,7 +452,8 @@ async function evaluate(cdp, expression) {
     userGesture: true,
   })
   if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.text)
+    const detail = response.exceptionDetails.exception?.description ?? response.exceptionDetails.text
+    throw new Error(detail)
   }
   return response.result.value
 }

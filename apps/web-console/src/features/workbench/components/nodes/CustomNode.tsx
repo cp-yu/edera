@@ -126,6 +126,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
   const Icon = KIND_ICONS[node.visualKind]
   const edgeColor = getNodeEdgeColor(node.visualKind)
   const entityBorderColor = node.entities?.length ? blendEntityColors(node.entities) : undefined
+  const title = node.alias || node.type_name
 
   useEffect(() => {
     updateNodeInternals(id)
@@ -155,11 +156,15 @@ export function CustomNode({ id, data, selected }: NodeProps) {
       <div className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em]', kindStyle.header)}>
         <div className="flex items-center gap-2">
           <Icon size={14} strokeWidth={2.2} />
-          <span className="min-w-0 flex-1 truncate">{node.type_name}</span>
+          <span data-node-type-context className="min-w-0 flex-1 truncate">
+            {node.type_name}
+          </span>
         </div>
       </div>
       <div className="space-y-3 px-4 py-3">
-        <div className="pr-4 text-sm font-semibold">{node.name}</div>
+        <div data-node-title className="pr-4 text-sm font-semibold">
+          {title}
+        </div>
         <div className={cn('text-[11px] uppercase tracking-[0.14em]', kindStyle.accent)}>
           {node.input_type || 'none'} {'->'} {node.output_type || 'none'}
         </div>
