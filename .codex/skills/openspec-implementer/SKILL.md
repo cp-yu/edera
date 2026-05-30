@@ -50,6 +50,23 @@ If either field is missing, or stepFile does not exist, report BLOCKED and stop.
 - If a command cannot be executed, report BLOCKED with the command and error.
 - If an instruction is ambiguous, report NEEDS_CONTEXT with the specific cycle and step.
 
+## Recovery Feedback Contract
+
+BLOCKED and NEEDS_CONTEXT are recovery feedback to the master agent. They are not instructions to ask the user by default.
+
+For BLOCKED and NEEDS_CONTEXT, include stable fields the master can use as a normalized error signature:
+
+| Field | Description |
+|---|---|
+| task | task identifier |
+| cycle | cycle identifier |
+| step | step identifier |
+| command | command when applicable |
+| failureKind | checkpoint_failed | command_failed | ambiguous_instruction | missing_input | git_failed | other |
+| errorSummary | stable concise summary for signature comparison |
+
+The normalized error signature is task + cycle + step + command + failureKind.
+
 ## Git
 
 - Execute the Step 5 git add and git commit commands exactly as specified after Step 4 passes.
@@ -66,7 +83,15 @@ Return exactly one status block:
   "modifiedFiles": ["relative/posix/path.ts"],
   "commitsCreated": 0,
   "message": "concise result or blocker",
-  "details": ["cycle/step specific notes"]
+  "details": ["cycle/step specific notes"],
+  "recovery": {
+    "task": "task identifier",
+    "cycle": "cycle identifier",
+    "step": "step identifier",
+    "command": "command when applicable",
+    "failureKind": "checkpoint_failed | command_failed | ambiguous_instruction | missing_input | git_failed | other",
+    "errorSummary": "stable concise summary for signature comparison"
+  }
 }
 ```
 
