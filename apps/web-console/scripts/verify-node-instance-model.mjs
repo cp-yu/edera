@@ -17,6 +17,12 @@ const fixtures = {
       handler: 'fetch-rss',
       source_names: ['sample-rss'],
     }),
+    nodeType('uzi-fetch-price', 'function', 'source', 'Any', 'PriceTick', {
+      handler: 'fetch-price',
+    }),
+    nodeType('uzi-render-chart', 'function', 'source', 'Any', 'ChartSpec', {
+      handler: 'render-chart',
+    }),
     nodeType('reader', 'function', 'processor', 'list[RawItem]', 'AnalysisResult', {
       skills: ['summarize'],
       model: 'hf-share/deepseek-v4-flash',
@@ -96,6 +102,7 @@ async function main() {
   await verifyGraphLogic(cdp)
   await verifyWorkbenchDom(cdp)
   await verifyQuickAddAndMultiInstance(cdp)
+  await verifyPaletteGrouping(cdp)
   await verifyInspector(cdp)
   await verifyNodesPage(cdp, baseUrl)
   cdp.close()
@@ -264,6 +271,35 @@ async function verifyQuickAddAndMultiInstance(cdp) {
     })()
   `)
   assert(multiInstance, 'same node type can be added more than once with distinct ids')
+}
+
+async function verifyPaletteGrouping(cdp) {
+  const checks = await evaluate(cdp, `
+    (() => {
+      const palette = document.querySelector('aside')
+      const text = palette?.textContent ?? ''
+      const prefixLabels = [...(palette?.querySelectorAll('[data-palette-prefix]') ?? [])]
+        .map((item) => item.textContent.trim())
+      const sourceRole = text.includes('Source 节点')
+      const processorRole = text.includes('Processor 节点')
+      const sinkRole = text.includes('Sink 节点')
+      const uziFetchGroup = prefixLabels.includes('uzi-fetch')
+      const uziRenderGroup = prefixLabels.includes('uzi-render')
+      const dragNode = [...(palette?.querySelectorAll('[draggable="true"]') ?? [])]
+        .find((item) => item.textContent.includes('uzi-fetch-price'))
+      const event = new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() })
+      dragNode?.dispatchEvent(event)
+      return {
+        sourceRole,
+        processorRole,
+        sinkRole,
+        uziFetchGroup,
+        uziRenderGroup,
+        dragPayloadUnchanged: event.dataTransfer.getData('application/reactflow') === 'uzi-fetch-price',
+      }
+    })()
+  `)
+  assertAll(checks, 'palette grouping')
 }
 
 async function verifyInspector(cdp) {
