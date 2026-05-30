@@ -122,6 +122,7 @@ class TriggerExecutor:
     max_depth: int = 3
     events: EventGroup = field(init=False)
     records: list[dict[str, object]] = field(default_factory=list)
+    _triggers: list[EntityConfig] | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         self.events = EventGroup(self.factory)
@@ -131,10 +132,12 @@ class TriggerExecutor:
             self.run_node = _payload_adapter(self.run_node)
 
     async def load(self) -> None:
+        self._triggers = self.store.query("trigger")
         await self.events.load()
 
     def triggers(self) -> list[EntityConfig]:
-        return self.store.query("trigger")
+        triggers = self._triggers if self._triggers is not None else self.store.query("trigger")
+        return [trigger.model_copy(deep=True) for trigger in triggers]
 
     def reverse_index(self) -> dict[str, list[EntityConfig]]:
         index: dict[str, list[EntityConfig]] = {}
@@ -234,6 +237,8 @@ class TriggerExecutor:
 
     def _disable_trigger(self, trigger: EntityConfig) -> None:
         updated = trigger.model_copy(update={"attributes": {**trigger.attributes, "enabled": False}})
+        if self._triggers is not None:
+            self._triggers = [updated if item.id == updated.id else item for item in self._triggers]
         self.store.save(updated)
 
 

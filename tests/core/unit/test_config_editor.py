@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from edera_core.config.schema import DagConfig, EntitiesConfig, EntityTypeConfig, NodeConfig, SkillConfig
+from edera_core.dag.loader import load_graph
 from edera_core.config.editor import RuntimeConfigEditor
 from edera_core.errors import ConfigEditError
 from edera_core.service_common import build_inspector_schema, graph_dag_payload, graph_node_payload
@@ -277,3 +278,36 @@ def test_graph_node_payload_rejects_credentials() -> None:
                 "parameters": {"api_secret": "secret123"},
             },
         )
+
+
+def test_optional_effective_edge_semantics() -> None:
+    nodes = {
+        "edge-source": NodeConfig(name="edge-source", handler="edge", input_type="Any", output_type="Any"),
+        "instance-source": NodeConfig(name="instance-source", handler="instance", input_type="Any", output_type="Any"),
+        "type-source": NodeConfig(name="type-source", handler="type", input_type="Any", output_type="Any", optional=True),
+        "sink": NodeConfig(name="sink", handler="sink", input_type="Any", output_type="Any"),
+    }
+    dag = DagConfig.model_validate(
+        {
+            "name": "optional-demo",
+            "nodes": [
+                {"id": "edge-source", "type": "edge-source"},
+                {"id": "instance-source", "type": "instance-source", "optional": True},
+                {"id": "type-source", "type": "type-source"},
+                {"id": "sink", "type": "sink"},
+            ],
+            "edges": [
+                {"from": "edge-source", "to": "sink", "optional": True},
+                {"from": "instance-source", "to": "sink"},
+                {"from": "type-source", "to": "sink"},
+            ],
+        }
+    )
+
+    graph = load_graph(dag, nodes)
+
+    assert graph.optional_edges == {
+        ("edge-source", "sink"),
+        ("instance-source", "sink"),
+        ("type-source", "sink"),
+    }

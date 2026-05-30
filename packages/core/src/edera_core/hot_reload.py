@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from edera_core.node.executor import NodeExecutor
 
 ReloadCallback = Callable[[AppConfig, BootstrapResult], Awaitable[None]]
 EmitCallback = Callable[[str], Awaitable[object]]
+LOGGER = logging.getLogger(__name__)
 
 
 class HotReloader:
@@ -40,9 +42,15 @@ class HotReloader:
     async def watch(self) -> None:
         from watchfiles import awatch
 
-        roots = [self.config_dir, *self.extensions_dirs]
+        roots = [root for root in [self.config_dir, *self.extensions_dirs] if root.exists()]
+        if not roots:
+            await asyncio.Event().wait()
+            return
         async for _changes in awatch(*roots, debounce=int(self.debounce_seconds * 1000)):
-            await self.reload_once()
+            try:
+                await self.reload_once()
+            except Exception:
+                LOGGER.exception("hot reload failed")
 
 
 def clear_handler_cache(executor: NodeExecutor) -> None:

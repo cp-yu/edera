@@ -68,7 +68,7 @@ class _GraphService:
                 "dag": {
                     "name": dag_config.name,
                     "nodes": [node.model_dump(mode="json") for node in dag_config.nodes],
-                    "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag_config.edges],
+                    "edges": [edge.model_dump(mode="json", by_alias=True) for edge in dag_config.edges],
                     "ui": dag_config.ui,
                 },
             },

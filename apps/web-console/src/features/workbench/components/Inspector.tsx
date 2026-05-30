@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useDag, useEntities, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
 import { useCreateEntity, useDeleteEntity, useSaveDag, useUpdateEntity } from '@/api/mutations'
-import type { EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance, NodeOutputEntity, NodeStatus, TriggerAttributes } from '@/api/types'
+import type { DagEdge, DagNodeRecord, EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance, NodeOutputEntity, NodeStatus, TriggerAttributes } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
 import { SchemaForm } from './SchemaForm'
 
@@ -32,11 +32,13 @@ export function Inspector() {
   const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.run_id)
   const stdout = useNodeStdout(runtimeNodeId)
   const [alias, setAlias] = useState('')
+  const [instanceOptional, setInstanceOptional] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     if (!node) return
     setAlias(node.alias ?? '')
+    setInstanceOptional(Boolean(node.optional))
     setFormValues(flattenConfig(node.config))
   }, [node])
 
@@ -53,15 +55,16 @@ export function Inspector() {
   )
 
   if (edge && dag) {
-    const saveEdge = (patch: { fan_in?: boolean; fan_out?: boolean }) => {
+    const saveEdge = (patch: Partial<Pick<DagEdge, 'fan_in' | 'fan_out' | 'optional'>>) => {
       const edges = dag.edges.map((item, index) =>
         `e-${item.from}-${item.to}-${index}` === selectedEdgeId ? { ...item, ...patch } : item,
       )
-      const nodes = dag.nodes.map((item) => ({
+      const nodes: DagNodeRecord[] = dag.nodes.map((item) => ({
         id: item.id,
         type: item.type_name,
         alias: item.alias,
         config: item.config ?? {},
+        optional: Boolean(item.optional),
       }))
       saveDag.mutate({ nodes, edges, ui: dag.ui })
     }
@@ -94,6 +97,14 @@ export function Inspector() {
           />
           fan_out
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(edge.optional)}
+            onChange={(event) => saveEdge({ optional: event.target.checked })}
+          />
+          optional
+        </label>
       </aside>
     )
   }
@@ -124,12 +135,12 @@ export function Inspector() {
   }
 
   const save = () => {
-    const nodes = dag.nodes.map((item) => {
+    const nodes: DagNodeRecord[] = dag.nodes.map((item) => {
       if (item.id !== node.id) {
-        return { id: item.id, type: item.type_name, alias: item.alias, config: item.config ?? {} }
+        return { id: item.id, type: item.type_name, alias: item.alias, config: item.config ?? {}, optional: Boolean(item.optional) }
       }
       const config = buildConfig(item, formValues, typeDefaults)
-      return { id: item.id, type: item.type_name, alias: alias || item.type_name, config }
+      return { id: item.id, type: item.type_name, alias: alias || item.type_name, config, optional: instanceOptional }
     })
     saveDag.mutate({ nodes, edges: dag.edges, ui: dag.ui })
   }
@@ -155,6 +166,17 @@ export function Inspector() {
               <Readonly label="角色" value={node.role} />
               <Readonly label="输入" value={node.input_type} />
               <Readonly label="输出" value={node.output_type} />
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={instanceOptional}
+                  onChange={(event) => setInstanceOptional(event.target.checked)}
+                />
+                <span>
+                  当前 DAG 当前实例 optional
+                  <span className="block text-xs text-muted-foreground">仅影响此节点实例的出边</span>
+                </span>
+              </label>
               <SchemaForm
                 key={node.id}
                 schema={formSchema}

@@ -57,6 +57,7 @@ export interface NodeInstance extends NodeType {
   type_name: string
   alias?: string | null
   config?: Record<string, unknown>
+  optional?: boolean
 }
 
 export interface EntityTypeDefinition {
@@ -100,6 +101,7 @@ export interface DagNodeRecord {
   type: string
   alias?: string | null
   config?: Record<string, unknown>
+  optional?: boolean
 }
 
 export interface DagUi {

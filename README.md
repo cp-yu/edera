@@ -17,10 +17,10 @@ EDERA_SERVER_ADDR=127.0.0.1:9090 edera-web
 EDERA_SERVER_ADDR=server.lan:9090 edera entity list
 ```
 
-首次初始化客户端证书时，bootstrap 端口只监听服务端本机 `127.0.0.1:9091`。远程客户端先建立 SSH 隧道：
+首次初始化客户端证书时，bootstrap 端口只监听服务端本机 `127.0.0.1:{实际端口}`。实际端口从 `9091` 起退避，服务端本机进程可读取 `EDERA_DATA_DIR/bootstrap.json`。远程客户端先按实际端口建立 SSH 隧道：
 
 ```bash
-ssh -L 9091:localhost:9091 server.lan
+ssh -L 9091:localhost:<实际端口> server.lan
 edera client init --server 127.0.0.1:9091
 ```
 

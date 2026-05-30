@@ -71,6 +71,7 @@ function createInstance(prototype: NodeType): NodeInstance {
     type_name: prototype.name,
     alias: prototype.name,
     config: {},
+    optional: false,
   }
 }
 
@@ -93,6 +94,7 @@ function hydrateInstance(
     output_type: prototype.output_type,
     handler: prototype.handler,
     system_prompt_file: prototype.system_prompt_file,
+    optional: Boolean(instance.optional),
     config,
     skills: Array.isArray(config.skills) ? config.skills.map(String) : prototype.skills,
     model: typeof config.model === 'string' ? config.model : prototype.model,
@@ -355,6 +357,9 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
           type: 'default',
           markerEnd: { type: MarkerType.ArrowClosed, color },
           style: { stroke: color, strokeWidth: 2, strokeDasharray: warning ? '6 4' : undefined },
+          fan_out: false,
+          fan_in: false,
+          optional: false,
           data: { warning },
         },
         edgesRef.current,

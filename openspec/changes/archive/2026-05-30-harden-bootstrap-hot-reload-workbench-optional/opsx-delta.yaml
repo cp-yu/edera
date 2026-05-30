@@ -1,0 +1,20 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+MODIFIED:
+  capabilities:
+    - id: cap.core.edera-server-grpc
+      intent: edera-server 后端引擎 gRPC 服务，bootstrap bind 固定 127.0.0.1，端口从 9091 有界退避并写入本机 bootstrap.json，继续覆盖 mTLS、agent/BFF 短期证书签发与 dev 模式
+    - id: cap.web.edera-web-bff
+      intent: edera-web 网页 BFF，作为服务端本机进程从 EDERA_DATA_DIR/bootstrap.json 发现 bootstrap 端口获取 BFF cert，所有 HTTP route handler 纯 gRPC 调用
+    - id: cap.core.config-hot-reload
+      intent: 配置热加载由 edera-server 生命周期管理 HotReloader.watch，成功 reload 后 emit event:config-changed，失败 reload 隔离且不终止 watcher
+    - id: cap.core.edge-optional
+      intent: 边级 optional 是唯一执行语义；DagNodeInstance.optional 与 NodeConfig.optional 作为不同作用域的出边 optional 语法糖
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI 支持 Inspector 编辑边级 optional 与当前 DAG 节点实例 optional，并保留既有三栏、节点面板、Triggers tab 和 React Flow 图编辑交互
+    - id: cap.core.grpc-graph-service
+      intent: GraphService DAG CRUD 在 GET/SAVE/response round-trip 中保留 DagNodeInstance.optional 与 DagEdge.optional，并继续提供 graph、node type、skill、handler 和 runtime-status 能力
+REMOVED:
+  capabilities: []
