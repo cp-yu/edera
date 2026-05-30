@@ -340,6 +340,21 @@ async function verifyInspector(cdp) {
   `)
   assertAll(nodeInspector, 'inspector shows schema-driven fields')
 
+  const configFooter = await evaluate(cdp, `
+    (() => {
+      const aside = [...document.querySelectorAll('aside')].at(-1)
+      const footer = aside?.querySelector('[data-inspector-config-footer]')
+      const saveButton = footer?.querySelector('button')
+      const footerStyle = footer ? getComputedStyle(footer) : null
+      return {
+        footerExists: Boolean(footer),
+        footerSticky: footerStyle?.position === 'sticky',
+        saveButtonVisible: saveButton?.textContent.includes('保存实例'),
+      }
+    })()
+  `)
+  assertAll(configFooter, 'inspector config footer')
+
   await evaluate(cdp, `
     (async () => {
       const asides = [...document.querySelectorAll('aside')]
@@ -349,16 +364,44 @@ async function verifyInspector(cdp) {
       select.value = ''
       select.dispatchEvent(new Event('change', { bubbles: true }))
       await tick()
+      window.__lastDagPut = undefined
       ;[...aside.querySelectorAll('button')]
         .find((button) => button.textContent.includes('保存实例'))
         ?.click()
       await tick()
     })()
   `)
-  await waitFor(cdp, `window.__lastDagPut`)
+  await waitFor(cdp, `(() => {
+    const payload = window.__lastDagPut
+    const savedReader = payload?.nodes?.find((node) => node.type === 'reader')
+    return savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model')
+  })()`)
   const savePayload = await evaluate(cdp, `(() => window.__lastDagPut)()`)
   const savedReader = savePayload.nodes.find((node) => node.type === 'reader')
-  assert(savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model'), 'inspector diff save drops cleared model')
+  assert(
+    savedReader && !Object.prototype.hasOwnProperty.call(savedReader.config, 'model'),
+    `inspector diff save drops cleared model: ${JSON.stringify(savedReader)}`,
+  )
+
+  const nonConfigFooter = await evaluate(cdp, `
+    (async () => {
+      const aside = [...document.querySelectorAll('aside')].at(-1)
+      const clickTab = async (label) => {
+        ;[...aside.querySelectorAll('button')].find((button) => button.textContent.includes(label))?.click()
+        await tick()
+        return Boolean(aside.querySelector('[data-inspector-config-footer]'))
+      }
+      const runtimeHasFooter = await clickTab('Runtime')
+      const triggersHasFooter = await clickTab('Triggers')
+      ;[...aside.querySelectorAll('button')].find((button) => button.textContent.includes('Config'))?.click()
+      await tick()
+      return {
+        runtimeFooterAbsent: runtimeHasFooter === false,
+        triggersFooterAbsent: triggersHasFooter === false,
+      }
+    })()
+  `)
+  assertAll(nonConfigFooter, 'inspector non-config footer')
 
   const edgeInspector = await evaluate(cdp, `
     (async () => {
