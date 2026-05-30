@@ -357,6 +357,7 @@ async function verifyInspector(cdp) {
       const hasModelSelect = Boolean(aside?.querySelector('select'))
       const inputs = aside ? [...aside.querySelectorAll('input')] : []
       const buttons = aside ? [...aside.querySelectorAll('button')] : []
+      const readonly = (name) => aside?.querySelector('[data-inspector-readonly="' + name + '"]')?.textContent ?? ''
       const hasNumberInput = Boolean(inputs.find((input) => input.type === 'number'))
       const hasJsonTextarea = Boolean(aside?.querySelector('textarea'))
       const hasSkillChip = buttons.some((button) => button.textContent.includes('summarize'))
@@ -365,6 +366,10 @@ async function verifyInspector(cdp) {
         hasSkillChip,
         hasNumberInput,
         hasJsonTextarea,
+        readonlyName: readonly('name').includes('reader'),
+        readonlyType: readonly('类型').includes('reader'),
+        readonlyInput: readonly('输入').includes('list[RawItem]'),
+        readonlyOutput: readonly('输出').includes('AnalysisResult'),
       }
     })()
   `)

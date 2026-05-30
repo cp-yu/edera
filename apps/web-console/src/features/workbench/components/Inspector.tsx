@@ -150,6 +150,7 @@ export function Inspector() {
           <>
             <div className="space-y-4">
               <Field label="Alias" value={alias} onChange={setAlias} />
+              <Readonly label="name" value={node.name} />
               <Readonly label="类型" value={node.type_name} />
               <Readonly label="角色" value={node.role} />
               <Readonly label="输入" value={node.input_type} />
@@ -910,7 +911,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 function Readonly({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div data-inspector-readonly={label}>
       <label className="text-xs text-muted-foreground">{label}</label>
       <p className="text-sm">{value}</p>
     </div>
