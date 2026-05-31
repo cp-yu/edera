@@ -1,0 +1,10 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+MODIFIED:
+  capabilities:
+    - id: cap.core.config-hot-reload
+      intent: 配置热加载由 edera-server 生命周期管理 HotReloader.watch，成功 reload 以 committed runtime snapshot 事务替换 config、handler registry、entity type registry、trigger/cron 和 runtime read 视图，失败 reload 保留旧 snapshot 且不终止 watcher
+REMOVED:
+  capabilities: []

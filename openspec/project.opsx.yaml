@@ -195,7 +195,7 @@ capabilities:
     intent: 边级 optional 是唯一执行语义；DagNodeInstance.optional 与 NodeConfig.optional 作为不同作用域的出边 optional 语法糖
     type: capability
   - id: cap.core.config-hot-reload
-    intent: 配置热加载由 edera-server 生命周期管理 HotReloader.watch，成功 reload 后 emit event:config-changed，失败 reload 隔离且不终止 watcher
+    intent: 配置热加载由 edera-server 生命周期管理 HotReloader.watch，成功 reload 以 committed runtime snapshot 事务替换 config、handler registry、entity type registry、trigger/cron 和 runtime read 视图，失败 reload 保留旧 snapshot 且不终止 watcher
     type: capability
   - id: cap.core.edera-server-grpc
     intent: edera-server 后端引擎 gRPC 服务，bootstrap bind 固定 127.0.0.1，端口从 9091 有界退避并写入本机 bootstrap.json，继续覆盖 mTLS、agent/BFF 短期证书签发与 dev 模式

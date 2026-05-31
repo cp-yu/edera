@@ -15,7 +15,7 @@ from edera_core.service_common import (
     delete_node_assets,
     editor,
     graph_dag_payload,
-    graph_dag_state,
+    graph_dag_state_from_config,
     graph_node_payload,
     json_response,
     node_payload,
@@ -34,11 +34,11 @@ class _GraphService:
         self.pb2 = daemon.pb2
 
     async def ListDags(self, request, context):
-        return json_response(self.pb2, {"dags": sorted(load_dag_configs(self.daemon.config_dir / "dags"))})
+        return json_response(self.pb2, {"dags": sorted(self.daemon.controller.runtime_snapshot().config.dags)})
 
     async def GetDag(self, request, context):
         try:
-            return json_response(self.pb2, graph_dag_state(self.daemon.config_dir, request.name))
+            return json_response(self.pb2, graph_dag_state_from_config(self.daemon.controller.runtime_snapshot().config, request.name))
         except KeyError:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag {request.name} not found")
 
@@ -103,23 +103,15 @@ class _GraphService:
         return json_response(self.pb2, {"node": node_payload(node_config, skills, entity_types, entities, available_model_names())})
 
     async def ListNodeTypes(self, request, context):
-        root = self.daemon.config_dir
-        nodes = load_node_configs(root / "nodes")
-        skills = load_skill_configs(root / "skills")
-        entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
-        entities = load_entities_config(root / "entities.yaml", entity_types)
+        app = self.daemon.controller.runtime_snapshot().config
         model_names = available_model_names()
-        payload = [node_payload(node, skills, entity_types, entities, model_names) for node in nodes.values()]
+        payload = [node_payload(node, app.skills, app.entity_types, app.entities, model_names) for node in app.nodes.values()]
         return json_response(self.pb2, {"types": payload, "prototypes": payload})
 
     async def GetNodeType(self, request, context):
         try:
-            root = self.daemon.config_dir
-            nodes = load_node_configs(root / "nodes")
-            skills = load_skill_configs(root / "skills")
-            entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
-            entities = load_entities_config(root / "entities.yaml", entity_types)
-            return json_response(self.pb2, {"node": node_payload(nodes[request.name], skills, entity_types, entities, available_model_names())})
+            app = self.daemon.controller.runtime_snapshot().config
+            return json_response(self.pb2, {"node": node_payload(app.nodes[request.name], app.skills, app.entity_types, app.entities, available_model_names())})
         except KeyError:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node {request.name} not found")
 

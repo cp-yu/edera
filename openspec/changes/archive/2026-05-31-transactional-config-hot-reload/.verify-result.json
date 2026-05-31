@@ -1,0 +1,261 @@
+{
+  "timestamp": "2026-05-30T15:22:26.773Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "018df368b1c21aa5fca88fe2c0479d5ec95da39db1525b07d34acd2e63fc63a9",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "openspec/changes/transactional-config-hot-reload/.apply-isolation.json",
+      "openspec/changes/transactional-config-hot-reload/.verify-result.json",
+      "openspec/changes/transactional-config-hot-reload/design.md",
+      "openspec/changes/transactional-config-hot-reload/opsx-delta.yaml",
+      "openspec/changes/transactional-config-hot-reload/proposal.md",
+      "openspec/changes/transactional-config-hot-reload/specs/config-hot-reload/spec.md",
+      "openspec/changes/transactional-config-hot-reload/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/bootstrap.py",
+      "packages/core/src/edera_core/config_service.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/graph_service.py",
+      "packages/core/src/edera_core/hot_reload.py",
+      "packages/core/src/edera_core/query_service.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/service_common.py",
+      "tests/core/unit/test_cron_emitter.py",
+      "tests/core/unit/test_hot_reload.py",
+      "tests/core/unit/test_server_hot_reload.py",
+      "tests/core/unit/test_trigger_system.py"
+    ],
+    "evidenceFingerprint": "6573b2f6316f17a2dc73b308a347eef14dbfe790814ab335e075741b67a6f4a1",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/transactional-config-hot-reload/.apply-isolation.json",
+        "hash": "7201fe3d3fabfc6fa44dce3e1df2de392ff4ca56ece07502ac3705e49525e2fa"
+      },
+      {
+        "path": "openspec/changes/transactional-config-hot-reload/design.md",
+        "hash": "eddee0538c8f8d3f5a95d945cb9a064c075cd3b8b32310c5ea519597db574ff2"
+      },
+      {
+        "path": "openspec/changes/transactional-config-hot-reload/opsx-delta.yaml",
+        "hash": "50e57b07601cd32452ad9af1e44df8d93d0eb853ea37d46d6d66d9a7e991e1fb"
+      },
+      {
+        "path": "openspec/changes/transactional-config-hot-reload/proposal.md",
+        "hash": "819cff7f0933a294f50800ac5bae86cbfcd2eb158f49e53ab976cfcebfaee8ef"
+      },
+      {
+        "path": "openspec/changes/transactional-config-hot-reload/specs/config-hot-reload/spec.md",
+        "hash": "713bf7c0b20bd7e9c57747b5858eedd6d293bc746a44c71fca057023569df150"
+      },
+      {
+        "path": "openspec/changes/transactional-config-hot-reload/tasks.md",
+        "hash": "018df368b1c21aa5fca88fe2c0479d5ec95da39db1525b07d34acd2e63fc63a9"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "3791d539503a4eb8393f881520963d517c66cc6255e323399fc25911c51fdfbb"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "b2dba768426001daec1558f76e8363fd95ffae88167054d9dde70473110bd8d7"
+      },
+      {
+        "path": "packages/core/src/edera_core/bootstrap.py",
+        "hash": "e00f1e7dcf3ce58a494d6a6cdd78b606774a284ce0fec25307dd457998714145"
+      },
+      {
+        "path": "packages/core/src/edera_core/config_service.py",
+        "hash": "c8106337b43ac402c3f3bf15424a445d0056bd1995329e1c81b49c2f43f22f27"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "1944dd35ce59b6463deadb64cd580877e37e9bb7b7fe5a3384ede88c19e50131"
+      },
+      {
+        "path": "packages/core/src/edera_core/graph_service.py",
+        "hash": "fb9e84705b9f484f8414e34dfe9b7add51e8ed63cb8c9334496b54da73ea40e7"
+      },
+      {
+        "path": "packages/core/src/edera_core/hot_reload.py",
+        "hash": "39df785d649d207f2a253536b8b6fab35507acb56578c5cd190fa19ebbd51989"
+      },
+      {
+        "path": "packages/core/src/edera_core/query_service.py",
+        "hash": "86996d7efc794c592ae1d57645a6ae28e6b24e380ff7be4facfad8870498b0a2"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "0b4dad0bed2e24a94ff4e30fb38b869169fb5132af7a8eee64cc783829191385"
+      },
+      {
+        "path": "packages/core/src/edera_core/service_common.py",
+        "hash": "70a425cc5246f45ee19ac419f6829463ab99fa6a63843097e203f64b46b11033"
+      },
+      {
+        "path": "tests/core/unit/test_cron_emitter.py",
+        "hash": "8281efac686c758940f47e3697b5dde3ea3dd0d6dac2b20b8b8009f983388181"
+      },
+      {
+        "path": "tests/core/unit/test_hot_reload.py",
+        "hash": "4a9e57b1cdfc7f42c268238f72eba98d04ef54119bd1224d600c8089e1299ba3"
+      },
+      {
+        "path": "tests/core/unit/test_server_hot_reload.py",
+        "hash": "91648d26e1e64bf7f3afc5f4606c24224a6e6a77ff1dd894665284adc9a19e41"
+      },
+      {
+        "path": "tests/core/unit/test_trigger_system.py",
+        "hash": "2db364bb8914441fe9756e8c947140290b7a306efd3359078c926ab19b0c7dca"
+      }
+    ],
+    "skippedEvidenceFiles": [
+      "openspec/changes/transactional-config-hot-reload/.verify-result.json"
+    ],
+    "gitHeadCommit": "5559f4f908c1837bdaa1b58f550d47af1bc9ca3e"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-30T15:26:46.999Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Inspected the refreshed PASS scope, verify metadata, proposal/spec context, implementation diffs, and focused tests. The current snapshot boundary and runtime-read changes are direct and already tight; remaining possible cleanups would be cosmetic indirection or behavior-risky changes around snapshot timing, so no behavior-preserving optimization should be applied."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-30T15:22:26.773Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "018df368b1c21aa5fca88fe2c0479d5ec95da39db1525b07d34acd2e63fc63a9",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "openspec/changes/transactional-config-hot-reload/.apply-isolation.json",
+          "openspec/changes/transactional-config-hot-reload/.verify-result.json",
+          "openspec/changes/transactional-config-hot-reload/design.md",
+          "openspec/changes/transactional-config-hot-reload/opsx-delta.yaml",
+          "openspec/changes/transactional-config-hot-reload/proposal.md",
+          "openspec/changes/transactional-config-hot-reload/specs/config-hot-reload/spec.md",
+          "openspec/changes/transactional-config-hot-reload/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/bootstrap.py",
+          "packages/core/src/edera_core/config_service.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/graph_service.py",
+          "packages/core/src/edera_core/hot_reload.py",
+          "packages/core/src/edera_core/query_service.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/service_common.py",
+          "tests/core/unit/test_cron_emitter.py",
+          "tests/core/unit/test_hot_reload.py",
+          "tests/core/unit/test_server_hot_reload.py",
+          "tests/core/unit/test_trigger_system.py"
+        ],
+        "evidenceFingerprint": "7d296dd091d9ac3d0fc91ae3fc09504352779a81a98f84e28cbb201278bc7724",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/transactional-config-hot-reload/.apply-isolation.json",
+            "hash": "7201fe3d3fabfc6fa44dce3e1df2de392ff4ca56ece07502ac3705e49525e2fa"
+          },
+          {
+            "path": "openspec/changes/transactional-config-hot-reload/design.md",
+            "hash": "eddee0538c8f8d3f5a95d945cb9a064c075cd3b8b32310c5ea519597db574ff2"
+          },
+          {
+            "path": "openspec/changes/transactional-config-hot-reload/opsx-delta.yaml",
+            "hash": "50e57b07601cd32452ad9af1e44df8d93d0eb853ea37d46d6d66d9a7e991e1fb"
+          },
+          {
+            "path": "openspec/changes/transactional-config-hot-reload/proposal.md",
+            "hash": "819cff7f0933a294f50800ac5bae86cbfcd2eb158f49e53ab976cfcebfaee8ef"
+          },
+          {
+            "path": "openspec/changes/transactional-config-hot-reload/specs/config-hot-reload/spec.md",
+            "hash": "713bf7c0b20bd7e9c57747b5858eedd6d293bc746a44c71fca057023569df150"
+          },
+          {
+            "path": "openspec/changes/transactional-config-hot-reload/tasks.md",
+            "hash": "018df368b1c21aa5fca88fe2c0479d5ec95da39db1525b07d34acd2e63fc63a9"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "d75be9b6b05f0245e9b62cbf8de1771d5617d0172cbfbcb7283711601c9c96f4"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "e460bcc3266a5ac1f04ec8f5c7e97b1bdf03bdcb69e1e478cd1b5fe7c8c897f0"
+          },
+          {
+            "path": "packages/core/src/edera_core/bootstrap.py",
+            "hash": "e00f1e7dcf3ce58a494d6a6cdd78b606774a284ce0fec25307dd457998714145"
+          },
+          {
+            "path": "packages/core/src/edera_core/config_service.py",
+            "hash": "c8106337b43ac402c3f3bf15424a445d0056bd1995329e1c81b49c2f43f22f27"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "1944dd35ce59b6463deadb64cd580877e37e9bb7b7fe5a3384ede88c19e50131"
+          },
+          {
+            "path": "packages/core/src/edera_core/graph_service.py",
+            "hash": "fb9e84705b9f484f8414e34dfe9b7add51e8ed63cb8c9334496b54da73ea40e7"
+          },
+          {
+            "path": "packages/core/src/edera_core/hot_reload.py",
+            "hash": "39df785d649d207f2a253536b8b6fab35507acb56578c5cd190fa19ebbd51989"
+          },
+          {
+            "path": "packages/core/src/edera_core/query_service.py",
+            "hash": "86996d7efc794c592ae1d57645a6ae28e6b24e380ff7be4facfad8870498b0a2"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "0b4dad0bed2e24a94ff4e30fb38b869169fb5132af7a8eee64cc783829191385"
+          },
+          {
+            "path": "packages/core/src/edera_core/service_common.py",
+            "hash": "70a425cc5246f45ee19ac419f6829463ab99fa6a63843097e203f64b46b11033"
+          },
+          {
+            "path": "tests/core/unit/test_cron_emitter.py",
+            "hash": "8281efac686c758940f47e3697b5dde3ea3dd0d6dac2b20b8b8009f983388181"
+          },
+          {
+            "path": "tests/core/unit/test_hot_reload.py",
+            "hash": "4a9e57b1cdfc7f42c268238f72eba98d04ef54119bd1224d600c8089e1299ba3"
+          },
+          {
+            "path": "tests/core/unit/test_server_hot_reload.py",
+            "hash": "91648d26e1e64bf7f3afc5f4606c24224a6e6a77ff1dd894665284adc9a19e41"
+          },
+          {
+            "path": "tests/core/unit/test_trigger_system.py",
+            "hash": "2db364bb8914441fe9756e8c947140290b7a306efd3359078c926ab19b0c7dca"
+          }
+        ],
+        "skippedEvidenceFiles": [
+          "openspec/changes/transactional-config-hot-reload/.verify-result.json"
+        ],
+        "gitHeadCommit": "5559f4f908c1837bdaa1b58f550d47af1bc9ca3e"
+      }
+    }
+  }
+}

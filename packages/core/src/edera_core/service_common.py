@@ -23,6 +23,7 @@ from edera_core.config.loader import (
     load_system_config,
 )
 from edera_core.config.schema import (
+    AppConfig,
     DagConfig,
     EntitiesConfig,
     EntityConfig,
@@ -302,6 +303,28 @@ def graph_dag_state(root: Path, name: str) -> dict[str, object]:
     entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
     entities = load_entities_config(root / "entities.yaml", entity_types)
     relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
+    return _graph_dag_state(dag, nodes, skills, entity_types, entities, relations)
+
+
+def graph_dag_state_from_config(app: AppConfig, name: str) -> dict[str, object]:
+    return _graph_dag_state(
+        app.dags[name],
+        app.nodes,
+        app.skills,
+        app.entity_types,
+        app.entities,
+        app.entity_relations,
+    )
+
+
+def _graph_dag_state(
+    dag: DagConfig,
+    nodes: dict[str, NodeConfig],
+    skills: dict[str, SkillConfig],
+    entity_types: dict[str, EntityTypeConfig],
+    entities: EntitiesConfig,
+    relations: EntityRelationsConfig,
+) -> dict[str, object]:
     model_names = available_model_names()
     node_instances = []
     for instance in dag.nodes:
