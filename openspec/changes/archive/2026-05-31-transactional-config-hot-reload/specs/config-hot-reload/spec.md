@@ -1,8 +1,5 @@
-# config-hot-reload Specification
+## MODIFIED Requirements
 
-## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
-## Requirements
 ### Requirement: 配置文件热加载
 系统 SHALL 监听 `config/` 目录下的 YAML 文件变更，变更发生时 SHALL 构建候选运行时快照，并在候选配置完整解析和提交成功后更新 committed runtime snapshot，无需重启服务。失败 reload MUST 保留旧 committed runtime snapshot。
 
@@ -55,17 +52,6 @@
 - **WHEN** reload commit 成功后触发新的 DAG run
 - **THEN** 新 run SHALL 使用最新 committed runtime snapshot
 
-### Requirement: 文件监听机制
-系统 SHALL 使用 `watchfiles` 库监听 `config/` 与 `extensions/` 文件系统变更，支持 debounce 机制避免快速连续变更触发多次重载。该 watcher SHALL 由 `edera-server` 生命周期启动和停止。
-
-#### Scenario: Debounce 合并连续变更
-- **WHEN** 同一文件在 1 秒内被修改 3 次
-- **THEN** 系统 SHALL 仅触发一次热加载
-
-#### Scenario: server 生命周期管理监听
-- **WHEN** `edera-server` 正常运行
-- **THEN** hot reload watcher SHALL 处于运行状态
-
 ### Requirement: 配置变更 emit 事件
 
 系统 SHALL 在配置文件或 extension 文件变更且 reload commit 成功后自动 emit `event:config-changed` 事件到 committed runtime snapshot 中的 TriggerExecutor。失败 reload MUST NOT emit `event:config-changed`，且 emit 路径 MUST NOT 为该事件重新从文件构建 trigger registry。
@@ -91,18 +77,6 @@
 - **THEN** emit 路径 MUST 使用已提交 snapshot 中的 TriggerExecutor
 - **AND** emit 路径 MUST NOT 重新从文件加载 trigger 配置
 
-### Requirement: HotReloader server 生命周期
-`edera-server` SHALL 在 server start 时启动 `HotReloader.watch()` 后台任务，并在 server stop 时取消该任务。Watcher 生命周期 SHALL 由 server 进程管理，不要求用户单独启动热重载进程。
-
-#### Scenario: server 启动 watcher
-- **WHEN** `edera-server` 成功启动
-- **THEN** server SHALL 启动一个 `HotReloader.watch()` 后台任务监听配置和扩展目录
-
-#### Scenario: server 停止 watcher
-- **WHEN** `edera-server` 停止
-- **THEN** server SHALL 取消 hot reload watcher task
-- **AND** SHALL NOT 留下继续运行的 watcher task
-
 ### Requirement: 热加载失败隔离
 Hot reload SHALL 隔离单次 reload 失败。配置解析、extension 扫描、extension table 创建、trigger 加载或 reload callback 失败时，系统 MUST NOT emit `event:config-changed`，MUST NOT 终止 watcher，MUST NOT 影响当前 running DAG run，MUST NOT 替换旧 committed runtime snapshot。
 
@@ -116,6 +90,8 @@ Hot reload SHALL 隔离单次 reload 失败。配置解析、extension 扫描、
 - **THEN** watcher SHALL 记录错误并继续监听后续变更
 - **AND** 当前运行中的 DAG SHALL 继续使用启动时捕获的配置快照
 - **AND** 系统 MUST 保留失败前 committed runtime snapshot
+
+## ADDED Requirements
 
 ### Requirement: Runtime read APIs use committed snapshot
 系统 SHALL 让运行时读 API 读取最新 committed runtime snapshot，而不是直接读取未提交文件状态。Config edit API SHALL 保持文件读写语义，保存成功 MUST NOT 表示运行时已生效。
@@ -140,4 +116,3 @@ Hot reload SHALL 隔离单次 reload 失败。配置解析、extension 扫描、
 - **WHEN** 多个文件变更触发并发 reload commit
 - **THEN** 系统 SHALL 串行处理每个候选 snapshot commit
 - **AND** 任一时刻 runtime consumers SHALL 只看到某一个完整 committed runtime snapshot
-

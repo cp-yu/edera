@@ -12,6 +12,7 @@ from typing import Any
 import grpc
 import yaml
 
+from edera_core.bootstrap import BootstrapResult
 from edera_core.cert import CertificateAuthority, IssuedCertificate
 from edera_core.config_service import _ConfigService
 from edera_core.config.entities import EntityStore, can_read, can_write, field_permission
@@ -27,7 +28,6 @@ from edera_core.proto import edera_pb2 as pb2, edera_pb2_grpc as pb2_grpc
 from edera_core.query_service import _QueryService
 from edera_core.service_common import (
     briefing_metadata,
-    entity_store,
     json_response,
     repair_task_dir,
     repair_task_payload,
@@ -140,8 +140,8 @@ class Server:
             pass
         self._hot_reload_task = None
 
-    async def _reload_config(self, _config: AppConfig, _bootstrap: Any) -> None:
-        return None
+    async def _reload_config(self, config: AppConfig, bootstrap: BootstrapResult) -> None:
+        await self.controller.install_snapshot(config, bootstrap)
 
     async def _emit_config_changed(self, event: str) -> object:
         return await self.controller.emit(event, source="hot-reload")
@@ -174,12 +174,12 @@ class _EntityService:
 
     async def Get(self, request, context):
         await _identity(context)
-        store, app = _entity_store(self.daemon.config_dir)
+        store, app = _runtime_entity_store(self.daemon)
         return _entity_message(self.pb2, store, store.resolve(request.ref))
 
     async def List(self, request, context):
         await _identity(context)
-        store, app = _entity_store(self.daemon.config_dir)
+        store, app = _runtime_entity_store(self.daemon)
         if request.type == "entity_type":
             return self.pb2.EntityList(entities=[_entity_type_message(self.pb2, name, entity_type) for name, entity_type in app.entity_types.items()])
         entities = store.query(request.type or None)
@@ -187,7 +187,7 @@ class _EntityService:
 
     async def Query(self, request, context):
         identity = request.identity or await _identity(context)
-        store, app = _entity_store(self.daemon.config_dir)
+        store, app = _runtime_entity_store(self.daemon)
         try:
             entities = await _query(app, store, identity, _identity_permissions(identity, app.dags), request.expression)
         except ValueError as exc:
@@ -332,7 +332,7 @@ class _NodeService:
 
     async def Output(self, request, context):
         await _identity(context)
-        store, app = _entity_store(self.daemon.config_dir)
+        store, app = _runtime_entity_store(self.daemon)
         expression = f"type=node-output AND node_id={request.id}"
         if request.run_id:
             expression = f"{expression} AND run_id={request.run_id}"
@@ -397,7 +397,7 @@ class _SystemService:
 
     async def CreateRepairTask(self, request, context):
         await _identity(context)
-        source = source_map(entity_store(self.daemon.config_dir)).get(request.name)
+        source = source_map(self.daemon.controller.runtime_snapshot().entity_store).get(request.name)
         if source is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, "source not found")
         async with self.daemon.controller._factory()() as session:
@@ -437,6 +437,11 @@ def _entity_store(config_dir: Path) -> tuple[EntityStore, object]:
     app = load_app_config(config_dir)
     store = EntityStore(app.entities, app.entity_types, app.entity_relations, config_dir / "entities.yaml")
     return store, app
+
+
+def _runtime_entity_store(daemon: Server) -> tuple[EntityStore, AppConfig]:
+    snapshot = daemon.controller.runtime_snapshot()
+    return snapshot.entity_store, snapshot.config
 
 
 def _entity_message(pb2, store: EntityStore, entity: EntityConfig):

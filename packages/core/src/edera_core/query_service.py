@@ -6,7 +6,6 @@ from edera_core.service_common import (
     advice_payload,
     briefing_metadata,
     briefing_payload,
-    entity_store,
     event_payload,
     json_response,
     limit,
@@ -15,7 +14,6 @@ from edera_core.service_common import (
     source_map,
     summary_item,
 )
-from edera_core.config.loader import load_dag_configs
 from edera_core.storage.repository import (
     analyses_for_advice,
     event_evidence_details,
@@ -121,14 +119,14 @@ class _QueryService:
         )
 
     async def SourceHealth(self, request, context):
-        source_names = list(source_map(entity_store(self.daemon.config_dir)).keys())
+        source_names = list(source_map(self.daemon.controller.runtime_snapshot().entity_store).keys())
         async with self.daemon.controller._factory()() as session:
             health = await source_health_summary(session, source_names)
             logs = await source_execution_logs(session, source_names=source_names)
         return json_response(self.pb2, {"sources": health, "logs": logs})
 
     async def SourceLogs(self, request, context):
-        source_names = list(source_map(entity_store(self.daemon.config_dir)).keys())
+        source_names = list(source_map(self.daemon.controller.runtime_snapshot().entity_store).keys())
         async with self.daemon.controller._factory()() as session:
             logs = await source_execution_logs(session, request.source_name or None, limit(request.limit), source_names)
         return json_response(self.pb2, {"logs": logs})
@@ -144,7 +142,7 @@ class _QueryService:
         return json_response(self.pb2, {"outputs": [output.model_dump(mode="json") for output in outputs]})
 
     async def NodeHistory(self, request, context):
-        if request.dag_name not in load_dag_configs(self.daemon.config_dir / "dags"):
+        if request.dag_name not in self.daemon.controller.runtime_snapshot().config.dags:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
         async with self.daemon.controller._factory()() as session:
             recent = await recent_dag_runs(session, limit(request.limit), request.dag_name)
