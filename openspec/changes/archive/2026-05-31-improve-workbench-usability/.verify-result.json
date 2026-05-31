@@ -1,0 +1,195 @@
+{
+  "timestamp": "2026-05-31T13:38:27.847Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "d4bd643622e152d4476066a9b5bfaff7bd9b03f9b0fbb3c09f5d59cb447ff5ac",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-review",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+      "apps/web-console/src/features/workbench/components/Canvas.tsx",
+      "apps/web-console/src/features/workbench/components/Palette.tsx",
+      "apps/web-console/src/store/useAppStore.ts",
+      "apps/web-console/tests/workbench-usability.spec.ts",
+      "openspec/changes/improve-workbench-usability/.apply-isolation.json",
+      "openspec/changes/improve-workbench-usability/design.md",
+      "openspec/changes/improve-workbench-usability/opsx-delta.yaml",
+      "openspec/changes/improve-workbench-usability/proposal.md",
+      "openspec/changes/improve-workbench-usability/specs/canvas-interaction-enhancement/spec.md",
+      "openspec/changes/improve-workbench-usability/specs/dag-workbench-ui/spec.md",
+      "openspec/changes/improve-workbench-usability/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml"
+    ],
+    "evidenceFingerprint": "e1e2e7751d62145985931b08fdf9ee39f7bdf63c83888df00fa36a4c68644260",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+        "hash": "3c91099417c679e5b95643addf6719e03b4176b90c6fcf6cbb123d0a91fa3ac4"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Palette.tsx",
+        "hash": "b84910483e80dcdf179c10ede4136fee4b55860d25a73e0d0597529e37835618"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+        "hash": "2b1706e1e54f648ee5886cbb81b3e104c368c341036e800fd131df4de5696b85"
+      },
+      {
+        "path": "apps/web-console/src/store/useAppStore.ts",
+        "hash": "a25a1c7bb572644a1d0e890a5e65b1ea2fc9187a9b88a19444662e146880de9f"
+      },
+      {
+        "path": "apps/web-console/tests/workbench-usability.spec.ts",
+        "hash": "503c08c21152acfa9980efd6d846a8e65c25067bc80822705d64b561c8c78d5f"
+      },
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/.apply-isolation.json",
+        "hash": "ee9d7d37446ade7c70e75ffc9e3f69ac31b2ba3fa0f437514d677b91aecc00d0"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/design.md",
+        "hash": "5582236e42191dbad9912c5539c3f7b340bb229be09555a8786e6552efd8ff70"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/opsx-delta.yaml",
+        "hash": "00c74df6b242190df02108cfefc78b355db653411c82f334ba218e44f6927a00"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/proposal.md",
+        "hash": "62c7f7472b5378662cd2ab70dee1d5eebc31e0f0655a5070c1611c31a6c0d581"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/specs/canvas-interaction-enhancement/spec.md",
+        "hash": "c80d5ad5d1e9bc73a81c3582d544dca3f5ca916bb8b8b5a2ad18603dd3dfa48d"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/specs/dag-workbench-ui/spec.md",
+        "hash": "4d6626d1cbd8e6cb72a18e0f40e4af92668e124fe147cbc1a15a1e934c124532"
+      },
+      {
+        "path": "openspec/changes/improve-workbench-usability/tasks.md",
+        "hash": "d4bd643622e152d4476066a9b5bfaff7bd9b03f9b0fbb3c09f5d59cb447ff5ac"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "5218a3c14a80c180574b7b52cdaffa1467a1d863ae890fc5c5213383a2b301fe"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "3db782409541747f109fcd7f9c01d2f121ead1fd036ad8f90eb30d8e82115364"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "45f584bad259a1b1d9697ad29ff420d0fc21d581"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-05-31T13:40:50.377Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "no optimization opportunities were found; the focus files are already narrowly scoped to the required behavior, and any plausible cleanup would be cosmetic or risk changing the selected-DAG restore, Palette search/collapse semantics, or runtime edge color preservation."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-05-31T13:38:27.847Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "d4bd643622e152d4476066a9b5bfaff7bd9b03f9b0fbb3c09f5d59cb447ff5ac",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-review",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+          "apps/web-console/src/features/workbench/components/Canvas.tsx",
+          "apps/web-console/src/features/workbench/components/Palette.tsx",
+          "apps/web-console/src/store/useAppStore.ts",
+          "apps/web-console/tests/workbench-usability.spec.ts",
+          "openspec/changes/improve-workbench-usability/.apply-isolation.json",
+          "openspec/changes/improve-workbench-usability/design.md",
+          "openspec/changes/improve-workbench-usability/opsx-delta.yaml",
+          "openspec/changes/improve-workbench-usability/proposal.md",
+          "openspec/changes/improve-workbench-usability/specs/canvas-interaction-enhancement/spec.md",
+          "openspec/changes/improve-workbench-usability/specs/dag-workbench-ui/spec.md",
+          "openspec/changes/improve-workbench-usability/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml"
+        ],
+        "evidenceFingerprint": "ac8b294db831a22e18254a70b8e7dd4faf7e080f4f25a722ae05694e13ba1de3",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+            "hash": "3c91099417c679e5b95643addf6719e03b4176b90c6fcf6cbb123d0a91fa3ac4"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Palette.tsx",
+            "hash": "b84910483e80dcdf179c10ede4136fee4b55860d25a73e0d0597529e37835618"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/WorkbenchPage.tsx",
+            "hash": "2b1706e1e54f648ee5886cbb81b3e104c368c341036e800fd131df4de5696b85"
+          },
+          {
+            "path": "apps/web-console/src/store/useAppStore.ts",
+            "hash": "a25a1c7bb572644a1d0e890a5e65b1ea2fc9187a9b88a19444662e146880de9f"
+          },
+          {
+            "path": "apps/web-console/tests/workbench-usability.spec.ts",
+            "hash": "503c08c21152acfa9980efd6d846a8e65c25067bc80822705d64b561c8c78d5f"
+          },
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/.apply-isolation.json",
+            "hash": "ee9d7d37446ade7c70e75ffc9e3f69ac31b2ba3fa0f437514d677b91aecc00d0"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/design.md",
+            "hash": "5582236e42191dbad9912c5539c3f7b340bb229be09555a8786e6552efd8ff70"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/opsx-delta.yaml",
+            "hash": "00c74df6b242190df02108cfefc78b355db653411c82f334ba218e44f6927a00"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/proposal.md",
+            "hash": "62c7f7472b5378662cd2ab70dee1d5eebc31e0f0655a5070c1611c31a6c0d581"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/specs/canvas-interaction-enhancement/spec.md",
+            "hash": "c80d5ad5d1e9bc73a81c3582d544dca3f5ca916bb8b8b5a2ad18603dd3dfa48d"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/specs/dag-workbench-ui/spec.md",
+            "hash": "4d6626d1cbd8e6cb72a18e0f40e4af92668e124fe147cbc1a15a1e934c124532"
+          },
+          {
+            "path": "openspec/changes/improve-workbench-usability/tasks.md",
+            "hash": "d4bd643622e152d4476066a9b5bfaff7bd9b03f9b0fbb3c09f5d59cb447ff5ac"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "3791d539503a4eb8393f881520963d517c66cc6255e323399fc25911c51fdfbb"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "b2dba768426001daec1558f76e8363fd95ffae88167054d9dde70473110bd8d7"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "45f584bad259a1b1d9697ad29ff420d0fc21d581"
+      }
+    }
+  }
+}

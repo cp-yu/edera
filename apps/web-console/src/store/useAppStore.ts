@@ -15,6 +15,10 @@ interface AppState {
   toggleTheme: () => void
 }
 
+const SELECTED_DAG_STORAGE_KEY = 'workbench:selectedDagName'
+
+const getInitialSelectedDag = (): string => localStorage.getItem(SELECTED_DAG_STORAGE_KEY) || 'default'
+
 const getInitialTheme = (): 'light' | 'dark' => {
   const stored = localStorage.getItem('theme')
   if (stored === 'dark' || stored === 'light') return stored
@@ -22,13 +26,16 @@ const getInitialTheme = (): 'light' | 'dark' => {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  selectedDagName: 'default',
+  selectedDagName: getInitialSelectedDag(),
   selectedNodeId: null,
   selectedEdgeId: null,
   inspectorTab: 'config',
   entityFilter: [],
   theme: getInitialTheme(),
-  setSelectedDag: (name) => set({ selectedDagName: name, selectedNodeId: null, selectedEdgeId: null, inspectorTab: 'config' }),
+  setSelectedDag: (name) => {
+    localStorage.setItem(SELECTED_DAG_STORAGE_KEY, name)
+    set({ selectedDagName: name, selectedNodeId: null, selectedEdgeId: null, inspectorTab: 'config' })
+  },
   setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null, inspectorTab: 'config' }),
   setSelectedEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null, inspectorTab: 'config' }),
   setInspectorTab: (tab) => set({ inspectorTab: tab }),

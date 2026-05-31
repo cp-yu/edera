@@ -430,7 +430,15 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     if (!selectedNodeId) return edges
     return edges.map((edge) => {
       const connected = edge.source === selectedNodeId || edge.target === selectedNodeId
-      if (!connected) return edge
+      if (!connected) {
+        return {
+          ...edge,
+          style: {
+            ...(edge.style ?? {}),
+            opacity: 0.28,
+          },
+        }
+      }
       const width = Number(edge.style?.strokeWidth ?? 2)
       return {
         ...edge,

@@ -41,11 +41,11 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.dag-workbench-ui
-    intent: DAG 工作台 UI 支持 Inspector 编辑边级 optional 与当前 DAG 节点实例 optional，并保留既有三栏、节点面板、Triggers tab 和 React Flow 图编辑交互
+    intent: DAG 工作台 UI 支持恢复上次选中的 DAG、节点面板搜索与临时折叠，并保留既有三栏、Inspector、Triggers tab 和 React Flow 图编辑交互
     type: capability
     domain: dom.web
   - id: cap.web.canvas-interaction-enhancement
-    intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附、撤销重做和选中节点一跳连线高亮
+    intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附、撤销重做和选中节点一跳连线高亮及无关连线弱化
     type: capability
     domain: dom.web
   - id: cap.web.node-visual-system

@@ -1,0 +1,14 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+
+MODIFIED:
+  capabilities:
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI 支持恢复上次选中的 DAG、节点面板搜索与临时折叠，并保留既有三栏、Inspector、Triggers tab 和 React Flow 图编辑交互
+    - id: cap.web.canvas-interaction-enhancement
+      intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附、撤销重做和选中节点一跳连线高亮及无关连线弱化
+
+REMOVED:
+  capabilities: []
