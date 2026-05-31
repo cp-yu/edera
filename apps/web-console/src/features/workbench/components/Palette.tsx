@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useNodePrototypes } from '@/api/queries'
-import type { NodeType } from '@/api/types'
+import type { DagState, NodeType } from '@/api/types'
 import { NewFetcherSheet } from './NewFetcherSheet'
 
 const ROLE_LABELS = {
@@ -45,25 +46,84 @@ function groupPrototypes(prototypes: NodeType[]) {
   })
 }
 
-export function Palette() {
+interface Props {
+  dag: DagState | null
+}
+
+function matchesNode(node: NodeType, aliases: string[], query: string): boolean {
+  const keyword = query.trim().toLowerCase()
+  if (!keyword) return true
+  return node.name.toLowerCase().includes(keyword) || aliases.some((alias) => alias.toLowerCase().includes(keyword))
+}
+
+export function Palette({ dag }: Props) {
   const { data } = useNodePrototypes()
   const prototypes = data?.prototypes ?? []
   const [sheetOpen, setSheetOpen] = useState(false)
-  const grouped = groupPrototypes(prototypes)
+  const [query, setQuery] = useState('')
+  const [collapsedRoles, setCollapsedRoles] = useState<Set<string>>(() => new Set())
+  const [collapsedPrefixes, setCollapsedPrefixes] = useState<Set<string>>(() => new Set())
+  const searchActive = query.trim().length > 0
+  const aliasesByType = useMemo(() => {
+    const aliases = new Map<string, string[]>()
+    for (const node of dag?.nodes ?? []) {
+      const typeName = node.type_name ?? node.type
+      const alias = node.alias?.trim()
+      if (!alias) continue
+      const list = aliases.get(typeName) ?? []
+      list.push(alias)
+      aliases.set(typeName, list)
+    }
+    return aliases
+  }, [dag])
+  const grouped = groupPrototypes(prototypes.filter((node) => matchesNode(node, aliasesByType.get(node.name) ?? [], query)))
+  const toggle = (current: Set<string>, key: string) => {
+    const next = new Set(current)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  }
 
   return (
     <aside className="w-[250px] border-r overflow-y-auto p-3 space-y-4 bg-card">
       <h2 className="text-sm font-medium text-muted-foreground">节点面板</h2>
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          aria-label="搜索节点"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="h-8 w-full rounded-md border bg-background pl-7 pr-2 text-xs outline-none focus:border-primary"
+          placeholder="搜索节点"
+        />
+      </label>
       {grouped.map((group) => (
         <div key={group.role}>
-          <h3 className="text-xs font-medium text-muted-foreground mb-2">{group.label}</h3>
-          <div className="space-y-3">
+          <button
+            type="button"
+            aria-expanded={searchActive || !collapsedRoles.has(group.role)}
+            onClick={() => setCollapsedRoles((current) => toggle(current, group.role))}
+            className="mb-2 flex w-full items-center gap-1 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            {searchActive || !collapsedRoles.has(group.role) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {group.label}
+          </button>
+          {(searchActive || !collapsedRoles.has(group.role)) && <div className="space-y-3">
             {group.prefixes.map((prefixGroup) => (
               <div key={prefixGroup.prefix} className="space-y-1">
-                <div data-palette-prefix className="text-[11px] font-medium text-muted-foreground">
+                <button
+                  type="button"
+                  data-palette-prefix
+                  aria-expanded={searchActive || !collapsedPrefixes.has(`${group.role}:${prefixGroup.prefix}`)}
+                  onClick={() => setCollapsedPrefixes((current) => toggle(current, `${group.role}:${prefixGroup.prefix}`))}
+                  className="flex w-full items-center gap-1 text-left text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {searchActive || !collapsedPrefixes.has(`${group.role}:${prefixGroup.prefix}`)
+                    ? <ChevronDown className="h-3 w-3" />
+                    : <ChevronRight className="h-3 w-3" />}
                   {prefixGroup.prefix}
-                </div>
-                {prefixGroup.nodes.map((node) => (
+                </button>
+                {(searchActive || !collapsedPrefixes.has(`${group.role}:${prefixGroup.prefix}`)) && prefixGroup.nodes.map((node) => (
                   <div
                     key={node.name}
                     draggable
@@ -78,7 +138,7 @@ export function Palette() {
                 ))}
               </div>
             ))}
-          </div>
+          </div>}
         </div>
       ))}
       <button

@@ -16,7 +16,7 @@ export function WorkbenchPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 overflow-hidden">
-        <Palette />
+        <Palette dag={dag.data ?? null} />
         <ReactFlowProvider>
           <div className="flex-1 relative">
             <Canvas

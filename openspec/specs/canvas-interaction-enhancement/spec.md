@@ -74,12 +74,16 @@
 - **THEN** 系统 SHALL 清空 redo 栈
 
 ### Requirement: Selected node neighborhood highlight
-系统 SHALL 在用户点击 Canvas 上的节点时高亮该节点及其直接相连的一跳入边和出边。该高亮 SHALL 是渲染派生状态，不写入 DAG 配置。
+系统 SHALL 在用户点击 Canvas 上的节点时高亮该节点及其直接相连的一跳入边和出边，并弱化无关 edge。该高亮 SHALL 是渲染派生状态，不写入 DAG 配置。
 
 #### Scenario: Highlight connected edges on node click
 - **WHEN** 用户点击 Canvas 上的一个节点
 - **THEN** 系统 SHALL 高亮该节点
 - **AND** 系统 SHALL 高亮所有 `source` 或 `target` 等于该节点 ID 的 edge
+
+#### Scenario: De-emphasize unrelated edges
+- **WHEN** 用户点击 Canvas 上的一个节点
+- **THEN** 系统 SHALL 降低与该节点不直接相连的 edge opacity
 
 #### Scenario: Do not highlight unrelated edges
 - **WHEN** 用户点击 Canvas 上的一个节点
