@@ -16,7 +16,7 @@ git:
   branch:
     deleteAfterArchive: true
 apply:
-  defaultIsolation: ask
+  defaultIsolation: branch
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.

@@ -4,23 +4,8 @@
 
 agent节点测试，  agent节点交互。  agent节点需要在网页上的显示有不同。
 
----
-  - 完整跨 registry 事务热加载
----
 
-
-bootstrap server 地址固定，但是端口需要退避
----
-
-[x] 缺少一个配置dag 触发源的web console位置。
 需要增加web console配置 出发事件来源。 需要构思如何接受外界来源。
-
----
-
-[x] rig cli改名 Edera cli
-
-
-[x] edera  cli 形成 设计讨论
 
 ---
 
@@ -41,18 +26,13 @@ ended
 agent节点需要可以插入的，现在web console还没看到这个功能
 
 ---
-[x] 确保完全可以通过cli，或者llm友好的形式（比如文本）,完成编辑。
-[x] 确认现在有cli 
 Web Console实现上一次关闭的时候，上一次阅读是什么DAG，那么打开的时候就是对应哪个DAG。
-[x] 需要可以动态的增加dag，完成。  比如先增加 采集节点，然后在采集节点的基础上（此时有数据）增加处理节点（不用重跑一次dag)。 这个目前考虑可以通过前面增加的重试完成曲线救国。
-[x] rig cli需要增加
 
 
 ---
 
 创建 workbench的 节点面板需要增加 搜索功能， 需要有折叠功能。 
 
-[x] 非core应该是动态更新才对。
 
 ---
 点击dag上的node可以高亮它，及其连线。 现在连线高亮不够明显，可以将其他连线透明度增加
@@ -114,12 +94,12 @@ bubblewrap 实现沙箱。
   你是只解决当前实例的需求，还是想顺便把边级 optional 作为通用能力加到引擎里（为未来场景预留）？                                                         
 
 ---
-[x] 现在还不能实时看到 node 运行的内部信息，尤其是 agent节点的。
+现在还不能实时看到 node 运行的内部信息，尤其是 agent节点的。
 
 
 ---
 
-[x] session_dir 不是设置pi cli在某个文件夹下工作，而是控制存放session的路径。这个需要修改core 的实现。
+session_dir 不是设置pi cli在某个文件夹下工作，而是控制存放session的路径。这个需要修改core 的实现。
 
 ---
 https://github.com/Kaka-cheaper/codeSee  codesee将项目可视化， 这里的呈现很舒服 感觉可以借鉴
