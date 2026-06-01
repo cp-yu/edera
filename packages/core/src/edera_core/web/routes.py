@@ -286,7 +286,9 @@ async def api_config_entity_relations_save(request: Request, body: dict[str, obj
 
 @router.get("/api/entities", response_model=None)
 async def api_entities_list(request: Request, type: str | None = None) -> Any:
-    return await _call(request, lambda client: client.entity_list(type))
+    async def _list(client: GrpcClient) -> dict[str, object]:
+        return {"entities": await client.entity_list(type)}
+    return await _call(request, _list)
 
 
 @router.post("/api/entities", response_model=None)
@@ -323,12 +325,20 @@ async def api_entity_relations_query(request: Request, entity: str | None = None
         expression += f" AND relation_type={relation_type}"
     if entity:
         expression += f" AND from={entity}"
-    return await _call(request, lambda client: client.entity_search(expression, client.identity or "human"))
+    async def _query(client: GrpcClient) -> dict[str, object]:
+        items = await client.entity_search(expression, client.identity or "human")
+        relations = [{"id": r["id"], "entities": r.get("attributes", {}).get("entities", []), "type": r.get("attributes", {}).get("relation_type", ""), "metadata": r.get("attributes", {}).get("metadata", {})} for r in items if isinstance(r, dict)]
+        return {"relations": relations}
+    return await _call(request, _query)
 
 
 @router.get("/api/entity-relations/types", response_model=None)
 async def api_entity_relation_types(request: Request) -> Any:
-    return await _call(request, lambda client: client.entity_search("type=relation", client.identity or "human"))
+    async def _types(client: GrpcClient) -> dict[str, object]:
+        relations = await client.entity_search("type=relation", client.identity or "human")
+        types = sorted({str(r.get("relation_type", "")) for r in relations if isinstance(r, dict) and r.get("relation_type")})
+        return {"types": types}
+    return await _call(request, _types)
 
 
 @router.post("/api/entity-relations", response_model=None)

@@ -30,6 +30,7 @@ from edera_core.service_common import (
     json_response,
     repair_task_dir,
     repair_task_payload,
+    render_entity_display,
     source_map,
     write_repair_task,
 )
@@ -659,7 +660,7 @@ async def _query(
     if not parts:
         raise ValueError(_supported_query_message())
     relation_filters = _relation_filters(parts)
-    if relation_filters:
+    if relation_filters is not None:
         return _readable_entities(identity, store, permissions, _query_relations(store, relation_filters))
     runtime_filters = _runtime_filters(parts)
     if runtime_filters is not None:
@@ -712,17 +713,20 @@ def _readable_entity(
     return entity.model_copy(update={"attributes": filtered})
 
 
-def _relation_filters(parts: list[str]) -> dict[str, str]:
+def _relation_filters(parts: list[str]) -> dict[str, str] | None:
+    is_relation = False
     filters: dict[str, str] = {}
     for part in parts:
         if "=" not in part:
             continue
         key, value = [item.strip() for item in part.split("=", 1)]
-        if key == "relation_type":
+        if key == "type" and value == "relation":
+            is_relation = True
+        elif key == "relation_type":
             filters["type"] = value
         elif key in {"from", "to"}:
             filters[key] = value
-    return filters
+    return filters if is_relation else None
 
 
 def _query_relations(store: EntityStore, filters: dict[str, str]) -> list[EntityConfig]:
@@ -859,7 +863,9 @@ def _entity_payload(store: EntityStore, entity: EntityConfig) -> dict[str, objec
         ref = entity_ref(entity, store.entity_types)
     except (KeyError, ValueError):
         ref = entity.id
-    return {"ref": ref, **entity.model_dump(mode="json")}
+    entity_type = store.entity_types.get(entity.type)
+    display = render_entity_display(entity, entity_type) if entity_type else ref
+    return {"ref": ref, "display": display, **entity.model_dump(mode="json")}
 
 
 def _supported_query_message() -> str:

@@ -11,7 +11,6 @@ webconsole的agent node增加agent交互弹窗，如果是运行时那么就是�
 
 创建 workbench的 节点面板需要增加 搜索功能， 需要有折叠功能。 
 
-数据库化内容。 [x] • 这个 warning 的意思是：现在 DELETE /api/config/entity-types/{name}?cascade=true 的正常路径能工作，会删除类型、该类型实例、相关关系；但实现是按顺序写多个文件，不是严格事务。
 
 
  缺少完整的用户使用文档
