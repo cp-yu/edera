@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 import grpc
+import yaml
 
 from edera_core.errors import ConfigError
 from edera_core.grpc_client import GrpcClient
@@ -37,7 +38,7 @@ def main() -> None:
     except grpc.RpcError as exc:
         detail = exc.details() if hasattr(exc, "details") else str(exc)
         parser.exit(1, f"{detail}\n")
-    except (ConfigError, ValueError, FileNotFoundError) as exc:
+    except (ConfigError, ValueError, FileNotFoundError, yaml.YAMLError) as exc:
         parser.exit(1, f"{exc}\n")
     if result is not None:
         print(json.dumps(result, ensure_ascii=False, default=str))
@@ -50,6 +51,14 @@ def _entity_parser(parser: argparse.ArgumentParser) -> None:
     create = subparsers.add_parser("create")
     create.add_argument("--type", required=True)
     create.add_argument("--attributes", default="{}")
+    import_ = subparsers.add_parser("import")
+    import_.add_argument("--file", required=True, type=Path)
+    export = subparsers.add_parser("export")
+    export.add_argument("ref")
+    export.add_argument("--file", required=True, type=Path)
+    template = subparsers.add_parser("template")
+    template.add_argument("--type", required=True)
+    template.add_argument("--file", required=True, type=Path)
     list_ = subparsers.add_parser("list")
     list_.add_argument("--type")
     update = subparsers.add_parser("update")
@@ -172,6 +181,7 @@ def _inject_human_cert_env() -> None:
 
 
 async def _grpc_entity(args: argparse.Namespace) -> object:
+    import_document = _read_entity_yaml(args.file) if args.entity_command == "import" else None
     client = GrpcClient(args.server, identity=args.identity)
     try:
         if args.entity_command == "get":
@@ -181,6 +191,18 @@ async def _grpc_entity(args: argparse.Namespace) -> object:
             if not isinstance(attributes, dict):
                 raise ValueError("attributes must be a JSON object")
             return await client.entity_create(args.type, attributes)
+        if args.entity_command == "import":
+            document = import_document or _read_entity_yaml(args.file)
+            return await client.entity_create(str(document["type"]), document["attributes"], entity_id=str(document["id"]))
+        if args.entity_command == "export":
+            entity = await client.entity_get(args.ref)
+            _write_entity_yaml(args.file, _entity_document(entity))
+            return {"exported": args.ref, "file": str(args.file)}
+        if args.entity_command == "template":
+            entity_type = await _entity_type(client, args.type)
+            document = {"type": args.type, "id": "", "attributes": _template_attributes(entity_type)}
+            _write_entity_yaml(args.file, document)
+            return {"template": args.type, "file": str(args.file)}
         if args.entity_command == "list":
             return await client.entity_list(args.type)
         if args.entity_command == "update":
@@ -332,6 +354,74 @@ def _json_value(value: str) -> object:
         return json.loads(value)
     except json.JSONDecodeError:
         return value
+
+
+def _read_entity_yaml(path: Path) -> dict[str, object]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError("entity YAML must be a mapping")
+    type_name = data.get("type")
+    attributes = data.get("attributes")
+    if not isinstance(type_name, str) or not type_name:
+        raise ValueError("entity YAML requires non-empty type")
+    if "id" not in data or str(data["id"]) == "":
+        raise ValueError("entity YAML requires non-empty id")
+    if not isinstance(attributes, dict):
+        raise ValueError("entity YAML requires attributes mapping")
+    return {"type": type_name, "id": str(data["id"]), "attributes": attributes}
+
+
+def _write_entity_yaml(path: Path, document: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(document, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+
+def _entity_document(entity: dict[str, object]) -> dict[str, object]:
+    attributes = entity.get("attributes")
+    if not isinstance(attributes, dict):
+        raise ValueError("entity response missing attributes")
+    return {
+        "type": str(entity.get("type") or ""),
+        "id": str(entity.get("id") or ""),
+        "attributes": attributes,
+    }
+
+
+async def _entity_type(client: GrpcClient, type_name: str) -> dict[str, object]:
+    for entity_type in await client.entity_list("entity_type"):
+        attributes = entity_type.get("attributes")
+        if entity_type.get("id") == type_name and isinstance(attributes, dict):
+            return attributes
+    raise ValueError(f"unknown entity type: {type_name}")
+
+
+def _template_attributes(entity_type: dict[str, object]) -> dict[str, object]:
+    schema = entity_type.get("schema")
+    properties = schema.get("properties") if isinstance(schema, dict) else None
+    required = schema.get("required") if isinstance(schema, dict) else None
+    if not isinstance(properties, dict):
+        return {}
+    names = required if isinstance(required, list) else list(properties)
+    return {str(name): _template_value(properties.get(name)) for name in names if isinstance(name, str)}
+
+
+def _template_value(schema: object) -> object:
+    if not isinstance(schema, dict):
+        return ""
+    if "default" in schema:
+        return schema["default"]
+    type_name = schema.get("type")
+    if type_name == "integer":
+        return 0
+    if type_name == "number":
+        return 0
+    if type_name == "boolean":
+        return False
+    if type_name == "array":
+        return []
+    if type_name == "object":
+        return {}
+    return ""
 
 
 if __name__ == "__main__":

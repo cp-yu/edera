@@ -1,0 +1,375 @@
+{
+  "timestamp": "2026-06-01T07:20:14.581Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "a824beedb241f36c4733beb5d0142ef18541877b7f68032383a109ee55f6e689",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "alembic/versions/0009_db_backed_core_entities.py",
+      "openspec/changes/db-backed-core-entities/.apply-isolation.json",
+      "openspec/changes/db-backed-core-entities/design.md",
+      "openspec/changes/db-backed-core-entities/opsx-delta.yaml",
+      "openspec/changes/db-backed-core-entities/proposal.md",
+      "openspec/changes/db-backed-core-entities/specs/db-backed-core-entities/spec.md",
+      "openspec/changes/db-backed-core-entities/specs/edera-cli/spec.md",
+      "openspec/changes/db-backed-core-entities/specs/entity-storage-tiers/spec.md",
+      "openspec/changes/db-backed-core-entities/specs/runtime-input-context/spec.md",
+      "openspec/changes/db-backed-core-entities/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/editor.py",
+      "packages/core/src/edera_core/config/entities.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/graph_service.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/hot_reload.py",
+      "packages/core/src/edera_core/node/executor.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/service_common.py",
+      "packages/core/src/edera_core/storage/database.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_entity_crud.py",
+      "tests/core/unit/test_node_executor.py",
+      "tests/core/unit/test_server_hot_reload.py"
+    ],
+    "evidenceFingerprint": "71b036ece8de54f9d8e577b29364074dd02b7ef51d398ecc01a223f21b829a5b",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "alembic/versions/0009_db_backed_core_entities.py",
+        "hash": "e6583bd4fd04a2822af2c5c098c134e803a0faa397af7a8a5103bdf6761e4127"
+      },
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/.apply-isolation.json",
+        "hash": "bee8a163c0c27fa469920cde85c981fdeb704bd23af051e29d5da56dad76148e"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/design.md",
+        "hash": "8bd00867931f88098d5e390e8d7c088a35d9e5d3ac7225f05e03948550f01221"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/opsx-delta.yaml",
+        "hash": "09c17f16135ccaa03797b011e28e46afacefa3ea93e61bb96a3ed1f720480d97"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/proposal.md",
+        "hash": "f34f29a310d77939e71e7e33b12b6235bddcc26cc2d963df59dd0626e259de5a"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/specs/db-backed-core-entities/spec.md",
+        "hash": "4b72775aade8aff085302a59e8644175f27fa88fa95124793880a7ac32df585a"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/specs/edera-cli/spec.md",
+        "hash": "8469c8ea48d0d2cbdfebb1f7af3a1cdcfd0e17dabe856084d876ab78838a0f36"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/specs/entity-storage-tiers/spec.md",
+        "hash": "c506ebecd1273d50a57773dc8f1a3578bee84b43231e48618c8de298854bd996"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/specs/runtime-input-context/spec.md",
+        "hash": "047f9fd06eb708848aad62b1521a69344043922d9f764ee506d4a092024d0f36"
+      },
+      {
+        "path": "openspec/changes/db-backed-core-entities/tasks.md",
+        "hash": "a824beedb241f36c4733beb5d0142ef18541877b7f68032383a109ee55f6e689"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "0ad81412a2cedb3204f363e24b12678ed4446b393f7380fb20a795ff0dc47aef"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "5e8872eaebc8c342a9ca54d6dac0c83af2861ddc7d3be49133c69fe06b2fd390"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "c228e9dae39a75be3f855b814762259058241561ed02e120992f3f118d433f09"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/editor.py",
+        "hash": "282c24fb8e8c865035e7ad44cd5ea67d3f533a7a813c6ba08a3708640bda8100"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/entities.py",
+        "hash": "18c05c99c1e17e828cf3bb599c63b825820e81ddc0995852bb431d78b628d9c2"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "e8eb0943c3b7795a88eda8e79bc8a14d44bda45a7cd2894c3f0b3942af7baa4e"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "7183b93618c331e3763ad8737725732e533e5907d38d164cabb47e78521ef4ca"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "4f15d018c48ee4f60e78565b7ff5f35de98a61898ed0d5cdb393e3af1522d5b2"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "299a271c75630fb52436e8a95edc8b81d078f3bbe5dc9dc5455ccca033aa23cc"
+      },
+      {
+        "path": "packages/core/src/edera_core/graph_service.py",
+        "hash": "83517efd7a44c8b43ab684209c590ad85d5cb2d085acc7e2f08263c2bcc7372c"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "01d158aeca7633481db148876722c85ba8de11bc9a394d39eecd533f53e1e9df"
+      },
+      {
+        "path": "packages/core/src/edera_core/hot_reload.py",
+        "hash": "55d9ee223204d3a3b16cc17b0070376b74fbf62c7f37e9f91afcffd776503613"
+      },
+      {
+        "path": "packages/core/src/edera_core/node/executor.py",
+        "hash": "74a9b7112e8e66ab9cefcebb0c66936cc0f7fe9e513515ee8b9f2a6385bacc16"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "a47a8c61c6e4e84e7858e384ae502d49939be33ed452f90df453710bbb54e253"
+      },
+      {
+        "path": "packages/core/src/edera_core/service_common.py",
+        "hash": "e2b5ea2ca12a86564c5f02afa3c21135375f98bed7c079341d92ce21b66f3d92"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/database.py",
+        "hash": "a6e8a03fd0825b7a0addda8348e8108dfc8af8b6117fc1381c847183fb39aab7"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "a7b75bca391c6207addffbcbaa6e9e8920398b2b320ffe2444155008bef2ef53"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "f79e184a22bee91230576ba151ae275c5f610b710526a006df3a49e961368ef0"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "3f65f606b5788689028a6ff4767429fee31e3f9a91a463537950e90a8a12ea0a"
+      },
+      {
+        "path": "tests/core/unit/test_entity_crud.py",
+        "hash": "70c5ccb7b527602349745ab1a0686e6b8435192b406cb680996fb5b0a3cd11d9"
+      },
+      {
+        "path": "tests/core/unit/test_node_executor.py",
+        "hash": "2ec7f3d3a68ed1a9afe29b74c70c59980b2e63a7b9ae05d229eca907cc16fdff"
+      },
+      {
+        "path": "tests/core/unit/test_server_hot_reload.py",
+        "hash": "fbd44ac0b1b02c755d224da51b569d621491f1e00529429bb2fdb2bd07743ef2"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "94cfc74dd778244c4963c7850d946060eb050ada"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-01T07:30:42.827Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Optimizer subagent returned No optimization opportunities found."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-01T07:20:14.581Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "a824beedb241f36c4733beb5d0142ef18541877b7f68032383a109ee55f6e689",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "alembic/versions/0009_db_backed_core_entities.py",
+          "openspec/changes/db-backed-core-entities/.apply-isolation.json",
+          "openspec/changes/db-backed-core-entities/design.md",
+          "openspec/changes/db-backed-core-entities/opsx-delta.yaml",
+          "openspec/changes/db-backed-core-entities/proposal.md",
+          "openspec/changes/db-backed-core-entities/specs/db-backed-core-entities/spec.md",
+          "openspec/changes/db-backed-core-entities/specs/edera-cli/spec.md",
+          "openspec/changes/db-backed-core-entities/specs/entity-storage-tiers/spec.md",
+          "openspec/changes/db-backed-core-entities/specs/runtime-input-context/spec.md",
+          "openspec/changes/db-backed-core-entities/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/editor.py",
+          "packages/core/src/edera_core/config/entities.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/graph_service.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/hot_reload.py",
+          "packages/core/src/edera_core/node/executor.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/service_common.py",
+          "packages/core/src/edera_core/storage/database.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_entity_crud.py",
+          "tests/core/unit/test_node_executor.py",
+          "tests/core/unit/test_server_hot_reload.py"
+        ],
+        "evidenceFingerprint": "33f60ec1864bc68a191c5267d2b62886c24b3fb1da81353f2705a323814cc5c9",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "alembic/versions/0009_db_backed_core_entities.py",
+            "hash": "e6583bd4fd04a2822af2c5c098c134e803a0faa397af7a8a5103bdf6761e4127"
+          },
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/.apply-isolation.json",
+            "hash": "bee8a163c0c27fa469920cde85c981fdeb704bd23af051e29d5da56dad76148e"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/design.md",
+            "hash": "8bd00867931f88098d5e390e8d7c088a35d9e5d3ac7225f05e03948550f01221"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/opsx-delta.yaml",
+            "hash": "09c17f16135ccaa03797b011e28e46afacefa3ea93e61bb96a3ed1f720480d97"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/proposal.md",
+            "hash": "f34f29a310d77939e71e7e33b12b6235bddcc26cc2d963df59dd0626e259de5a"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/specs/db-backed-core-entities/spec.md",
+            "hash": "4b72775aade8aff085302a59e8644175f27fa88fa95124793880a7ac32df585a"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/specs/edera-cli/spec.md",
+            "hash": "8469c8ea48d0d2cbdfebb1f7af3a1cdcfd0e17dabe856084d876ab78838a0f36"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/specs/entity-storage-tiers/spec.md",
+            "hash": "c506ebecd1273d50a57773dc8f1a3578bee84b43231e48618c8de298854bd996"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/specs/runtime-input-context/spec.md",
+            "hash": "047f9fd06eb708848aad62b1521a69344043922d9f764ee506d4a092024d0f36"
+          },
+          {
+            "path": "openspec/changes/db-backed-core-entities/tasks.md",
+            "hash": "a824beedb241f36c4733beb5d0142ef18541877b7f68032383a109ee55f6e689"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "5218a3c14a80c180574b7b52cdaffa1467a1d863ae890fc5c5213383a2b301fe"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "3db782409541747f109fcd7f9c01d2f121ead1fd036ad8f90eb30d8e82115364"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "c228e9dae39a75be3f855b814762259058241561ed02e120992f3f118d433f09"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/editor.py",
+            "hash": "282c24fb8e8c865035e7ad44cd5ea67d3f533a7a813c6ba08a3708640bda8100"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/entities.py",
+            "hash": "18c05c99c1e17e828cf3bb599c63b825820e81ddc0995852bb431d78b628d9c2"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "e8eb0943c3b7795a88eda8e79bc8a14d44bda45a7cd2894c3f0b3942af7baa4e"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "7183b93618c331e3763ad8737725732e533e5907d38d164cabb47e78521ef4ca"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "4f15d018c48ee4f60e78565b7ff5f35de98a61898ed0d5cdb393e3af1522d5b2"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "299a271c75630fb52436e8a95edc8b81d078f3bbe5dc9dc5455ccca033aa23cc"
+          },
+          {
+            "path": "packages/core/src/edera_core/graph_service.py",
+            "hash": "83517efd7a44c8b43ab684209c590ad85d5cb2d085acc7e2f08263c2bcc7372c"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "01d158aeca7633481db148876722c85ba8de11bc9a394d39eecd533f53e1e9df"
+          },
+          {
+            "path": "packages/core/src/edera_core/hot_reload.py",
+            "hash": "55d9ee223204d3a3b16cc17b0070376b74fbf62c7f37e9f91afcffd776503613"
+          },
+          {
+            "path": "packages/core/src/edera_core/node/executor.py",
+            "hash": "74a9b7112e8e66ab9cefcebb0c66936cc0f7fe9e513515ee8b9f2a6385bacc16"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "a47a8c61c6e4e84e7858e384ae502d49939be33ed452f90df453710bbb54e253"
+          },
+          {
+            "path": "packages/core/src/edera_core/service_common.py",
+            "hash": "e2b5ea2ca12a86564c5f02afa3c21135375f98bed7c079341d92ce21b66f3d92"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/database.py",
+            "hash": "a6e8a03fd0825b7a0addda8348e8108dfc8af8b6117fc1381c847183fb39aab7"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "a7b75bca391c6207addffbcbaa6e9e8920398b2b320ffe2444155008bef2ef53"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "f79e184a22bee91230576ba151ae275c5f610b710526a006df3a49e961368ef0"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "3f65f606b5788689028a6ff4767429fee31e3f9a91a463537950e90a8a12ea0a"
+          },
+          {
+            "path": "tests/core/unit/test_entity_crud.py",
+            "hash": "70c5ccb7b527602349745ab1a0686e6b8435192b406cb680996fb5b0a3cd11d9"
+          },
+          {
+            "path": "tests/core/unit/test_node_executor.py",
+            "hash": "2ec7f3d3a68ed1a9afe29b74c70c59980b2e63a7b9ae05d229eca907cc16fdff"
+          },
+          {
+            "path": "tests/core/unit/test_server_hot_reload.py",
+            "hash": "fbd44ac0b1b02c755d224da51b569d621491f1e00529429bb2fdb2bd07743ef2"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "94cfc74dd778244c4963c7850d946060eb050ada"
+      }
+    }
+  }
+}

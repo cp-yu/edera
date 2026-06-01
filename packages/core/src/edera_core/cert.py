@@ -42,7 +42,7 @@ class CertificateAuthority:
             .issuer_name(_name("edera-ca"))
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.now(timezone.utc))
+            .not_valid_before(_valid_from())
             .not_valid_after(datetime.now(timezone.utc) + timedelta(days=3650))
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
             .sign(key, hashes.SHA256())
@@ -96,7 +96,7 @@ class CertificateAuthority:
             .issuer_name(ca_cert.subject)
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.now(timezone.utc))
+            .not_valid_before(_valid_from())
             .not_valid_after(datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds))
         )
         if alt_names:
@@ -107,6 +107,10 @@ class CertificateAuthority:
 
 def _name(common_name: str) -> x509.Name:
     return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+
+
+def _valid_from() -> datetime:
+    return datetime.now(timezone.utc) - timedelta(seconds=60)
 
 
 def _private_key_bytes(key) -> bytes:

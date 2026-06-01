@@ -9,12 +9,14 @@ import pytest
 from edera_core.bootstrap import scan_extensions
 from edera_core.config_service import _ConfigService
 from edera_core.config.loader import load_app_config
+from edera_core.config.schema import EntityConfig
 from edera_core.dag_controller import DagController
 from edera_core.errors import ConfigError
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.query_service import _QueryService
-from edera_core.server import Server, _EntityService
+from edera_core.server import Server, _DagService, _EntityService, _NodeService
+from edera_core.storage.repository import save_core_entity
 
 
 class _Controller:
@@ -75,6 +77,8 @@ async def test_reload_installs_snapshot(tmp_path: Path) -> None:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         _write_dag(tmp_path, nodes=["worker"])
         _write_node(tmp_path, "worker", handler="worker-v2")
+        await _save_core_node(controller, "worker", "worker-v2")
+        await _save_core_dag(controller, ["worker"])
 
         await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
 
@@ -96,8 +100,10 @@ async def test_runtime_read_api_committed_snapshot(tmp_path: Path) -> None:
         _write_dag(tmp_path, nodes=["worker"])
         _write_node(tmp_path, "worker", handler="worker-v2")
         _write_stock(tmp_path, "NEW")
+        await _save_core_node(controller, "worker", "worker-v2")
+        await _save_core_dag(controller, ["worker"])
 
-        before = json.loads((await graph.GetDag(pb2.NameRequest(name="default"), _Context())).json)
+        before = json.loads((await graph.ListDags(pb2.EmptyRequest(), _Context())).json)
         before_types = json.loads((await graph.ListNodeTypes(pb2.EmptyRequest(), _Context())).json)
         await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
         after = json.loads((await graph.GetDag(pb2.NameRequest(name="default"), _Context())).json)
@@ -105,8 +111,8 @@ async def test_runtime_read_api_committed_snapshot(tmp_path: Path) -> None:
         node_type = json.loads((await graph.GetNodeType(pb2.NameRequest(name="worker"), _Context())).json)
         entity = await entities.Get(pb2.EntityRef(ref="stock:NEW"), _Context())
 
-        assert before["nodes"] == []
-        assert before_types["types"][0]["handler"] == "worker"
+        assert before["dags"] == []
+        assert before_types["types"] == []
         assert [node["type_name"] for node in after["nodes"]] == ["worker"]
         assert after_types["types"][0]["handler"] == "worker-v2"
         assert node_type["node"]["handler"] == "worker-v2"
@@ -124,6 +130,9 @@ async def test_runtime_read_api_ignores_failed_candidate(tmp_path: Path) -> None
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         graph = _GraphService(daemon)
         entities = _EntityService(daemon)
+        await _save_core_node(controller, "worker", "worker")
+        await _save_core_dag(controller, [])
+        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
         _write_dag(tmp_path, nodes=["worker"])
         _write_node(tmp_path, "worker", handler="worker-v2")
         _write_stock(tmp_path, "NEW")
@@ -170,6 +179,8 @@ async def test_query_runtime_api_committed_snapshot(monkeypatch: pytest.MonkeyPa
         monkeypatch.setattr("edera_core.query_service.source_execution_logs", fake_source_execution_logs)
         _write_rss_source(tmp_path, "candidate")
         _write_named_dag(tmp_path, "candidate")
+        await _save_core_node(controller, "worker", "worker")
+        await _save_core_dag(controller, ["worker"], name="candidate")
 
         await query.SourceHealth(pb2.EmptyRequest(), _Context())
         await query.SourceLogs(pb2.SourceLogsRequest(), _Context())
@@ -199,13 +210,100 @@ async def test_config_edit_api_file_backed(tmp_path: Path) -> None:
         config = _ConfigService(daemon)
         _write_dag(tmp_path, nodes=["worker"])
 
-        runtime_payload = json.loads((await graph.GetDag(pb2.NameRequest(name="default"), _Context())).json)
+        runtime_payload = json.loads((await graph.ListDags(pb2.EmptyRequest(), _Context())).json)
         file_payload = load_app_config(tmp_path).dags["default"]
         raw = json.loads((await config.ReadConfig(pb2.ConfigFileRequest(kind="dag", name="default"), _Context())).json)
 
-        assert runtime_payload["nodes"] == []
+        assert runtime_payload["dags"] == []
         assert [node.type for node in file_payload.nodes] == ["worker"]
         assert "worker" in raw["file"]["content"]
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_control_api_uses_committed_snapshot_not_yaml(tmp_path: Path) -> None:
+    _write_config(tmp_path)
+    controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
+    await controller.start(run_startup=False)
+    try:
+        daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
+        dags = _DagService(daemon)
+        nodes = _NodeService(daemon)
+        _write_named_dag(tmp_path, "candidate")
+        _write_dag(tmp_path, nodes=["worker"])
+
+        with pytest.raises(AssertionError, match="dag 'candidate' not found"):
+            await dags.Stop(pb2.DagStopRequest(dag_name="candidate"), _Context())
+        with pytest.raises(AssertionError, match="dag 'candidate' not found"):
+            await dags.Retry(pb2.DagRetryRequest(dag_name="candidate", node_ids=["worker"]), _Context())
+        with pytest.raises(AssertionError, match="node 'worker' not found"):
+            await nodes.Stop(pb2.NodeRef(id="worker"), _Context())
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_dag_edit_updates_db_snapshot_not_yaml(tmp_path: Path) -> None:
+    _write_config(tmp_path)
+    controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
+    await controller.start(run_startup=False)
+    try:
+        daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
+        dags = _DagService(daemon)
+        await _save_core_dag(controller, [])
+        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+        yaml_path = tmp_path / "dags" / "default.yaml"
+        yaml_path.unlink()
+
+        result = await dags.Edit(
+            pb2.DagEditRequest(
+                name="default",
+                operation="add-node",
+                json=json.dumps({"id": "worker", "type": "worker"}),
+            ),
+            _Context(),
+        )
+
+        assert json.loads(result.json) == {"updated": True, "dag": "default"}
+        assert [node.type for node in controller.runtime_snapshot().config.dags["default"].nodes] == ["worker"]
+        assert not yaml_path.exists()
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_graph_core_mutations_update_db_snapshot_not_yaml(tmp_path: Path) -> None:
+    _write_config(tmp_path)
+    controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
+    await controller.start(run_startup=False)
+    try:
+        daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
+        graph = _GraphService(daemon)
+        await graph.CreateDag(pb2.NameRequest(name="scratch"), _Context())
+        await graph.SaveNodeType(
+            pb2.NamedJsonRequest(
+                name="worker-db",
+                json=json.dumps({"handler": "worker-db", "input_type": "Any", "output_type": "Any"}),
+            ),
+            _Context(),
+        )
+        await graph.CreateDagNode(
+            pb2.NamedJsonRequest(
+                name="scratch",
+                json=json.dumps({"name": "worker-in-dag", "handler": "worker-in-dag"}),
+            ),
+            _Context(),
+        )
+
+        app = controller.runtime_snapshot().config
+        assert "scratch" in app.dags
+        assert "worker-db" in app.nodes
+        assert "worker-in-dag" in app.nodes
+        assert [node.type for node in app.dags["scratch"].nodes] == ["worker-in-dag"]
+        assert not (tmp_path / "dags" / "scratch.yaml").exists()
+        assert not (tmp_path / "nodes" / "worker-db.yaml").exists()
+        assert not (tmp_path / "nodes" / "worker-in-dag.yaml").exists()
     finally:
         await controller.shutdown()
 
@@ -271,3 +369,39 @@ def _write_rss_source(root: Path, name: str) -> None:
         f"entities:\n  - id: source-{name}\n    type: rss-source\n    attributes:\n      name: {name}\n",
         encoding="utf-8",
     )
+
+
+async def _save_core_node(controller: DagController, name: str, handler: str) -> None:
+    async with controller._factory()() as session:
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id=name,
+                type="node",
+                attributes={
+                    "name": name,
+                    "type": "function",
+                    "handler": handler,
+                    "input_type": "Any",
+                    "output_type": "Any",
+                },
+            ),
+        )
+        await session.commit()
+
+
+async def _save_core_dag(controller: DagController, nodes: list[str], *, name: str = "default") -> None:
+    async with controller._factory()() as session:
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id=name,
+                type="dag",
+                attributes={
+                    "name": name,
+                    "nodes": [{"id": name, "type": name, "config": {}} for name in nodes],
+                    "edges": [],
+                },
+            ),
+        )
+        await session.commit()

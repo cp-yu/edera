@@ -162,3 +162,6 @@ relations:
   - from: cap.core.terminology-glossary
     type: contains
     to: dom.core
+  - from: cap.core.db-backed-core-entities
+    type: contains
+    to: dom.core

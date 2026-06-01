@@ -21,6 +21,9 @@ from edera_core.config.schema import (
 from edera_core.errors import ConfigError
 
 
+CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource"}
+
+
 def _read_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ConfigError(f"missing config file: {path}")
@@ -171,6 +174,89 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
     )
 
 
+async def load_runtime_app_config(config_dir: Path, engine) -> AppConfig:
+    return await materialize_runtime_app_config(config_dir, _load_runtime_base_config(config_dir), engine)
+
+
+def _load_runtime_base_config(config_dir: Path) -> AppConfig:
+    entity_types = _runtime_entity_types(load_entity_types(config_dir))
+    entities = _load_non_core_entities_config(config_dir / "entities.yaml", entity_types)
+    entity_relations = EntityRelationsConfig.model_validate(_read_yaml(config_dir / "entity-relations.yaml"))
+    return AppConfig(
+        system=load_system_config(config_dir / "system.toml"),
+        entity_types=entity_types,
+        entities=entities,
+        entity_relations=entity_relations,
+        runtime=RuntimeSettings(),
+        nodes={},
+        skills=load_skill_configs(config_dir / "skills"),
+        dags={},
+    )
+
+
+async def materialize_runtime_app_config(config_dir: Path, config: AppConfig, engine) -> AppConfig:
+    config.entity_types = _runtime_entity_types(config.entity_types)
+    from edera_core.storage import session_factory
+    from edera_core.storage.repository import (
+        list_core_entities,
+        list_entity_type_configs,
+        seed_entity_type_records,
+    )
+
+    factory = session_factory(engine)
+    async with factory() as session:
+        await seed_entity_type_records(session, config.entity_types)
+        for trigger in await _default_trigger_entities(session, config.entity_types):
+            from edera_core.storage.repository import get_core_entity, save_core_entity
+
+            if await get_core_entity(session, trigger.id, config.entity_types) is None:
+                await save_core_entity(session, trigger)
+        core_entities = await list_core_entities(session)
+        db_entity_types = await list_entity_type_configs(session)
+        await session.commit()
+    runtime_entities = [
+        entity
+        for entity in config.entities.entities
+        if entity.type not in CORE_ENTITY_TYPES
+    ]
+    runtime_entities.extend(core_entities)
+    config.entity_types = {**config.entity_types, **db_entity_types}
+    config.entities = EntitiesConfig(entities=runtime_entities)
+    config.nodes = _nodes_from_core_entities(config_dir, core_entities)
+    config.dags = _dags_from_core_entities(core_entities)
+    _validate_entity_relations(config.entity_relations, config.entities, config.entity_types)
+    from edera_core.dag.loader import validate_sub_dag_nesting
+
+    validate_sub_dag_nesting(config.dags, config.system.max_dag_depth)
+    _validate_dag_entity_permissions(config.dags, config.entity_types)
+    return config
+
+
+def _load_non_core_entities_config(
+    path: Path,
+    entity_types: dict[str, EntityTypeConfig],
+) -> EntitiesConfig:
+    entities = EntitiesConfig.model_validate(_read_yaml(path))
+    entity_dir = path.parent / "entities"
+    for file in sorted(entity_dir.glob("*.yaml")):
+        entities.entities.append(_entity_from_file(file, None))
+    entities.entities = [entity for entity in entities.entities if entity.type not in CORE_ENTITY_TYPES]
+    _validate_entities(entities, entity_types)
+    return entities
+
+
+def _validate_entity_relations(
+    relations: EntityRelationsConfig,
+    entities: EntitiesConfig,
+    entity_types: dict[str, EntityTypeConfig],
+) -> None:
+    refs = _entity_refs(entities, entity_types)
+    for relation in relations.relations:
+        for ref in relation.entities:
+            if ref not in refs:
+                raise ConfigError(f"Entity not found: {ref}")
+
+
 def load_config(config_dir: Path = Path("config")) -> AppConfig:
     return load_app_config(config_dir)
 
@@ -269,6 +355,170 @@ def _entity_store(config_dir: Path):
     entities = load_entities_config(config_dir / "entities.yaml", entity_types)
     relations = load_entity_relations_config(config_dir / "entity-relations.yaml", entities, entity_types)
     return EntityStore(entities, entity_types, relations, config_dir / "entities.yaml")
+
+
+def _entity_store_from_config(config: AppConfig, config_dir: Path):
+    from edera_core.config.entities import EntityStore
+
+    return EntityStore(config.entities, config.entity_types, config.entity_relations, config_dir / "entities.yaml")
+
+
+def _runtime_entity_types(entity_types: dict[str, EntityTypeConfig]) -> dict[str, EntityTypeConfig]:
+    result = dict(entity_types)
+    for name, entity_type in _default_core_entity_types().items():
+        result.setdefault(name, entity_type)
+    for name in CORE_ENTITY_TYPES:
+        entity_type = result.get(name)
+        if entity_type is not None:
+            result[name] = entity_type.model_copy(update={"storage_tier": "database"})
+    return result
+
+
+def _default_core_entity_types() -> dict[str, EntityTypeConfig]:
+    return {
+        "node": EntityTypeConfig.model_validate(
+            {
+                "display_name": "Node",
+                "business_id_field": "name",
+                "display_template": "{name}",
+                "system_protected": True,
+                "schema": {
+                    "required": ["name", "type", "input_type", "output_type"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "type": {"type": "string"},
+                        "role": {"type": "string"},
+                        "handler": {"type": "string"},
+                        "input_type": {"type": "string"},
+                        "output_type": {"type": "string"},
+                    },
+                },
+            }
+        ),
+        "dag": EntityTypeConfig.model_validate(
+            {
+                "display_name": "DAG",
+                "business_id_field": "name",
+                "display_template": "{name}",
+                "system_protected": True,
+                "schema": {
+                    "required": ["name", "nodes", "edges"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "nodes": {"type": "array"},
+                        "edges": {"type": "array"},
+                        "ui": {"type": "object"},
+                    },
+                },
+            }
+        ),
+        "trigger": EntityTypeConfig.model_validate(
+            {
+                "display_name": "Trigger",
+                "business_id_field": "name",
+                "display_template": "{name}",
+                "system_protected": True,
+                "schema": {
+                    "required": ["name", "wait_for", "target"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "wait_for": {"type": "string"},
+                        "target": {"type": "string"},
+                        "enabled": {"type": "boolean"},
+                    },
+                },
+            }
+        ),
+        "resource": EntityTypeConfig.model_validate(
+            {
+                "display_name": "Resource",
+                "business_id_field": "id",
+                "display_template": "{id}",
+                "system_protected": True,
+                "schema": {
+                    "required": ["permits"],
+                    "properties": {
+                        "permits": {"type": "integer", "minimum": 1},
+                    },
+                },
+            }
+        ),
+    }
+
+
+def _nodes_from_core_entities(config_dir: Path, entities: list[EntityConfig]) -> dict[str, NodeConfig]:
+    root = config_dir.parent
+    nodes: dict[str, NodeConfig] = {}
+    for entity in entities:
+        if entity.type != "node":
+            continue
+        node = NodeConfig.model_validate(entity.attributes)
+        system_prompt_file = getattr(node, "system_prompt_file", None)
+        if system_prompt_file:
+            prompt_path = root / system_prompt_file
+            if prompt_path.exists():
+                node.system_prompt = prompt_path.read_text(encoding="utf-8")
+        nodes[node.name] = node
+    return nodes
+
+
+def _dags_from_core_entities(entities: list[EntityConfig]) -> dict[str, DagConfig]:
+    dags: dict[str, DagConfig] = {}
+    for entity in entities:
+        if entity.type != "dag":
+            continue
+        attrs = dict(entity.attributes)
+        attrs.setdefault("name", entity.id)
+        dag = DagConfig.model_validate(attrs)
+        dags[dag.name] = dag
+    return dags
+
+
+def _core_entities_from_config(config: AppConfig, entity_type: str) -> list[EntityConfig]:
+    if entity_type == "node":
+        return [
+            EntityConfig(id=node.name, type="node", attributes=node.model_dump(mode="json"))
+            for node in config.nodes.values()
+        ]
+    if entity_type == "dag":
+        return [
+            EntityConfig(id=dag.name, type="dag", attributes=dag.model_dump(mode="json", by_alias=True))
+            for dag in config.dags.values()
+        ]
+    return []
+
+
+async def _default_trigger_entities(session, entity_types: dict[str, EntityTypeConfig]) -> list[EntityConfig]:
+    from edera_core.storage.repository import list_core_entities
+
+    dags = await list_core_entities(session, "dag")
+    triggers = await list_core_entities(session, "trigger")
+    existing = {
+        str(trigger.attributes.get("target"))
+        for trigger in triggers
+        if str(trigger.attributes.get("wait_for")) == 'cron:"*/30 * * * *"'
+    }
+    if "trigger" not in entity_types:
+        return []
+    result: list[EntityConfig] = []
+    for dag in dags:
+        name = str(dag.attributes.get("name") or dag.id)
+        target = f"dag:{name}"
+        if target in existing:
+            continue
+        result.append(
+            EntityConfig(
+                id=f"{name}-default-cron",
+                type="trigger",
+                attributes={
+                    "name": f"{name}-default-cron",
+                    "wait_for": 'cron:"*/30 * * * *"',
+                    "target": target,
+                    "enabled": True,
+                },
+            )
+        )
+    return result
 
 
 def _entity_store_or_none(config_dir: Path):

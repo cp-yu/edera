@@ -1,0 +1,20 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.db-backed-core-entities
+      type: capability
+      intent: 核心配置型 Entity 使用 SQLite DB 作为运行时 source of truth，覆盖 node/dag/trigger/resource 固定 per-type tables、完整列化、YAML import/export/template、runtime snapshot 构建和 raw log index 边界
+  relations:
+    - from: cap.core.db-backed-core-entities
+      type: contains
+      to: dom.core
+MODIFIED:
+  capabilities:
+    - id: cap.entity-storage-tiers
+      intent: Entity 三层存储中核心配置型 Entity 迁移为 DB-backed per-type tables，YAML 仅作为 import/export/template 格式；输出型 Entity 和瞬态 Entity 边界保持独立
+    - id: cap.core.edera-cli
+      intent: edera 控制 CLI 增加 Entity YAML import/export/template 文件工作流，并继续作为纯 gRPC 客户端访问 server
+    - id: cap.core.runtime-input-context
+      intent: Runtime facts 以具体表持久化并投影为 runtime entities，同时明确运行中调度状态以内存 runtime state 和 committed snapshot 为准
+REMOVED:
+  capabilities: []

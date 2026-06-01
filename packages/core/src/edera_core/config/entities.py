@@ -22,6 +22,7 @@ from edera_core.errors import ConfigEditError, ConfigError
 
 logger = logging.getLogger(__name__)
 PERMISSIONS: tuple[FieldPermission, ...] = ("none", "read-only", "write-only", "read-write")
+CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource"}
 _ALLOWED_PERMISSION_OVERRIDES: dict[FieldPermission, set[FieldPermission]] = {
     "none": {"none", "read-only", "write-only", "read-write"},
     "read-only": {"read-only", "read-write"},
@@ -99,6 +100,16 @@ class EntityStore:
             return self.create(entity_type, attributes)
         if session is None:
             raise ConfigError("database session is required")
+        if entity_type in CORE_ENTITY_TYPES:
+            from edera_core.storage.repository import save_core_entity
+
+            entity = EntityConfig(
+                id=str(attributes.get("id") or uuid4().hex),
+                type=entity_type,
+                attributes=attributes,
+            )
+            _validate_entity_semantics(entity)
+            return await save_core_entity(session, entity)
         from edera_core.storage.repository import node_output_to_entity, store_node_output_entities
 
         stored = await store_node_output_entities(
@@ -123,15 +134,20 @@ class EntityStore:
     ) -> list[EntityConfig]:
         if session is None or not self._needs_database(entity_type):
             return self.query(entity_type, run_id, node_id, tags)
-        from edera_core.storage.repository import query_node_output_entities
+        from edera_core.storage.repository import list_core_entities, query_node_output_entities
 
         filesystem_and_memory = [
             entity
             for entity in self.query(entity_type, run_id, node_id, tags)
             if self.entity_types[entity.type].storage_tier != "database"
         ]
-        database = await query_node_output_entities(session, entity_type, run_id, node_id, tags)
-        return _dedupe_entities(filesystem_and_memory + database)
+        core: list[EntityConfig] = []
+        if entity_type in CORE_ENTITY_TYPES or entity_type is None:
+            core = await list_core_entities(session, entity_type if entity_type in CORE_ENTITY_TYPES else None)
+        outputs: list[EntityConfig] = []
+        if entity_type not in CORE_ENTITY_TYPES:
+            outputs = await query_node_output_entities(session, entity_type, run_id, node_id, tags)
+        return _dedupe_entities(filesystem_and_memory + core + outputs)
 
     async def save_async(
         self,
@@ -143,14 +159,22 @@ class EntityStore:
             return self.save(entity, permissions)
         if session is None:
             raise ConfigError("database session is required")
+        if entity.type in CORE_ENTITY_TYPES:
+            from edera_core.storage.repository import save_core_entity
+
+            saved = entity.model_copy(update={"attributes": self._writable_attributes(entity, entity, permissions)})
+            _validate_entity_semantics(saved)
+            return await save_core_entity(session, saved)
         from edera_core.storage.repository import save_node_output_entity
 
         return await save_node_output_entity(session, entity)
 
     async def delete_async(self, entity_id: str, session: Any | None = None) -> int:
         if session is not None:
-            from edera_core.storage.repository import delete_node_output_entity
+            from edera_core.storage.repository import delete_core_entity, delete_node_output_entity
 
+            if await delete_core_entity(session, entity_id, self.entity_types):
+                return 0
             if await delete_node_output_entity(session, entity_id):
                 return 0
         return self.delete(entity_id)
@@ -172,10 +196,10 @@ class EntityStore:
                     related.append(item)
         return related
 
-    def create(self, entity_type: str, attributes: dict[str, Any]) -> EntityConfig:
+    def create(self, entity_type: str, attributes: dict[str, Any], entity_id: str | None = None) -> EntityConfig:
         if entity_type not in self.entity_types:
             raise ConfigError(f"unknown entity type: {entity_type}")
-        entity = EntityConfig(id=uuid4().hex, type=entity_type, attributes=attributes)
+        entity = EntityConfig(id=entity_id or uuid4().hex, type=entity_type, attributes=attributes)
         _validate_entity_semantics(entity)
         tier = self.entity_types[entity_type].storage_tier
         if tier == "memory":

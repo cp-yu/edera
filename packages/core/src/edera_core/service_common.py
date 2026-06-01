@@ -14,11 +14,9 @@ from pydantic import ValidationError
 from edera_core.config.editor import ConfigEditError, ConfigKind, RuntimeConfigEditor
 from edera_core.config.entities import EntityStore, validate_permission_overrides
 from edera_core.config.loader import (
-    load_dag_configs,
     load_entities_config,
     load_entity_relations_config,
     load_entity_type_configs,
-    load_node_configs,
     load_skill_configs,
     load_system_config,
 )
@@ -294,16 +292,6 @@ def atomic_write(path: Path, content: str) -> None:
 
 def valid_dag_name(name: str) -> bool:
     return bool(name) and all(part and part.islower() and part.replace("-", "").isalnum() for part in name.split("-"))
-
-
-def graph_dag_state(root: Path, name: str) -> dict[str, object]:
-    dag = load_dag_configs(root / "dags")[name]
-    nodes = load_node_configs(root / "nodes")
-    skills = load_skill_configs(root / "skills")
-    entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
-    entities = load_entities_config(root / "entities.yaml", entity_types)
-    relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
-    return _graph_dag_state(dag, nodes, skills, entity_types, entities, relations)
 
 
 def graph_dag_state_from_config(app: AppConfig, name: str) -> dict[str, object]:

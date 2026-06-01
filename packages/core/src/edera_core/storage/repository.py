@@ -6,8 +6,378 @@ from uuid import uuid4
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from edera_core.config.schema import EntityConfig
+from edera_core.config.schema import EntityConfig, EntityTypeConfig, entity_ref
 from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
+from edera_core.storage.entities import (
+    CoreEntityDag,
+    CoreEntityNode,
+    CoreEntityResource,
+    CoreEntityTrigger,
+    EntityTypeRecord,
+    LogIndex,
+)
+
+
+CORE_ENTITY_TABLES = {
+    "node": "entity_node",
+    "dag": "entity_dag",
+    "trigger": "entity_trigger",
+    "resource": "entity_resource",
+}
+
+
+async def upsert_entity_type_record(
+    session: AsyncSession,
+    name: str,
+    entity_type: EntityTypeConfig,
+    schema_version: int = 1,
+) -> EntityTypeRecord:
+    result = await session.exec(select(EntityTypeRecord).where(EntityTypeRecord.name == name))
+    record = result.first()
+    if record is None:
+        record = EntityTypeRecord(
+            name=name,
+            display_name=entity_type.display_name,
+            business_id_field=entity_type.business_id_field,
+            display_template=entity_type.display_template,
+            storage_tier=entity_type.storage_tier,
+        )
+    record.display_name = entity_type.display_name
+    record.business_id_field = entity_type.business_id_field
+    record.display_template = entity_type.display_template
+    record.storage_tier = entity_type.storage_tier
+    record.table_name = CORE_ENTITY_TABLES.get(name)
+    record.schema_version = schema_version
+    record.system_protected = entity_type.system_protected
+    record.schema_body = dict(entity_type.schema_)
+    record.field_permissions = dict(entity_type.field_permissions)
+    record.validate_ = entity_type.validate_
+    record.updated_at = utc_now()
+    session.add(record)
+    await session.flush()
+    return record
+
+
+async def seed_entity_type_records(
+    session: AsyncSession,
+    entity_types: dict[str, EntityTypeConfig],
+) -> dict[str, EntityTypeConfig]:
+    for name, entity_type in entity_types.items():
+        await upsert_entity_type_record(session, name, entity_type)
+    return await list_entity_type_configs(session)
+
+
+async def list_entity_type_configs(session: AsyncSession) -> dict[str, EntityTypeConfig]:
+    result = await session.exec(select(EntityTypeRecord).order_by(col(EntityTypeRecord.name)))
+    return {record.name: entity_type_record_to_config(record) for record in result.all()}
+
+
+def entity_type_record_to_config(record: EntityTypeRecord) -> EntityTypeConfig:
+    return EntityTypeConfig.model_validate(
+        {
+            "display_name": record.display_name,
+            "business_id_field": record.business_id_field,
+            "display_template": record.display_template,
+            "storage_tier": record.storage_tier,
+            "system_protected": record.system_protected,
+            "schema": record.schema_body,
+            "field_permissions": record.field_permissions,
+            "validate": record.validate_,
+        }
+    )
+
+
+async def save_core_entity(session: AsyncSession, entity: EntityConfig) -> EntityConfig:
+    if entity.type == "node":
+        return core_node_to_entity(await _save_core_node(session, entity))
+    if entity.type == "dag":
+        return core_dag_to_entity(await _save_core_dag(session, entity))
+    if entity.type == "trigger":
+        return core_trigger_to_entity(await _save_core_trigger(session, entity))
+    if entity.type == "resource":
+        return core_resource_to_entity(await _save_core_resource(session, entity))
+    raise ValueError(f"unsupported core entity type: {entity.type}")
+
+
+async def list_core_entities(session: AsyncSession, entity_type: str | None = None) -> list[EntityConfig]:
+    if entity_type == "node":
+        return [core_node_to_entity(item) for item in await _all(session, CoreEntityNode)]
+    if entity_type == "dag":
+        return [core_dag_to_entity(item) for item in await _all(session, CoreEntityDag)]
+    if entity_type == "trigger":
+        return [core_trigger_to_entity(item) for item in await _all(session, CoreEntityTrigger)]
+    if entity_type == "resource":
+        return [core_resource_to_entity(item) for item in await _all(session, CoreEntityResource)]
+    if entity_type is not None:
+        return []
+    entities: list[EntityConfig] = []
+    for core_type in CORE_ENTITY_TABLES:
+        entities.extend(await list_core_entities(session, core_type))
+    return entities
+
+
+async def get_core_entity(
+    session: AsyncSession,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> EntityConfig | None:
+    for entity in await list_core_entities(session):
+        try:
+            if ref in {entity.id, entity_ref(entity, entity_types)}:
+                return entity
+        except (KeyError, ValueError):
+            if ref == entity.id:
+                return entity
+    return None
+
+
+async def delete_core_entity(
+    session: AsyncSession,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> bool:
+    entity = await get_core_entity(session, ref, entity_types)
+    if entity is None:
+        return False
+    table = _core_model(entity.type)
+    result = await session.exec(select(table).where(table.entity_id == entity.id))
+    row = result.first()
+    if row is None:
+        return False
+    await session.delete(row)
+    await session.flush()
+    return True
+
+
+async def record_log_index(
+    session: AsyncSession,
+    run_id: str,
+    node_id: str,
+    path: str,
+    digest: str,
+    size: int,
+) -> LogIndex:
+    row = LogIndex(run_id=run_id, node_id=node_id, path=path, digest=digest, size=size, updated_at=utc_now())
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def query_log_index(
+    session: AsyncSession,
+    run_id: str | None = None,
+    node_id: str | None = None,
+    limit: int = 100,
+) -> list[LogIndex]:
+    statement = select(LogIndex).order_by(col(LogIndex.created_at).desc()).limit(limit)
+    if run_id is not None:
+        statement = statement.where(LogIndex.run_id == run_id)
+    if node_id is not None:
+        statement = statement.where(LogIndex.node_id == node_id)
+    result = await session.exec(statement)
+    return list(result.all())
+
+
+async def _all(session: AsyncSession, model):
+    result = await session.exec(select(model).order_by(col(model.id)))
+    return list(result.all())
+
+
+def _core_model(entity_type: str):
+    if entity_type == "node":
+        return CoreEntityNode
+    if entity_type == "dag":
+        return CoreEntityDag
+    if entity_type == "trigger":
+        return CoreEntityTrigger
+    if entity_type == "resource":
+        return CoreEntityResource
+    raise ValueError(f"unsupported core entity type: {entity_type}")
+
+
+async def _save_core_node(session: AsyncSession, entity: EntityConfig) -> CoreEntityNode:
+    attrs = dict(entity.attributes)
+    row = await _one_by_entity_id(session, CoreEntityNode, entity.id)
+    if row is None:
+        row = CoreEntityNode(entity_id=entity.id, name=str(attrs.get("name") or entity.id), node_type=str(attrs.get("type") or "function"), input_type=str(attrs.get("input_type") or "Any"), output_type=str(attrs.get("output_type") or "Any"))
+    row.name = str(attrs["name"])
+    row.node_type = str(attrs.get("type") or "function")
+    row.role = str(attrs.get("role") or "processor")
+    row.input_type = str(attrs["input_type"])
+    row.output_type = str(attrs["output_type"])
+    row.optional = bool(attrs.get("optional", False))
+    row.timeout_seconds = _float_or_none(attrs.get("timeout_seconds"))
+    row.handler = _str_or_none(attrs.get("handler"))
+    row.skills = _str_list(attrs.get("skills"))
+    row.system_prompt_file = _str_or_none(attrs.get("system_prompt_file"))
+    row.system_prompt = _str_or_none(attrs.get("system_prompt"))
+    row.tools = _str_list(attrs.get("tools"))
+    row.source_names = _str_list(attrs.get("source_names"))
+    row.parameters = _dict(attrs.get("parameters"))
+    row.parameters_schema = _dict(attrs.get("parameters_schema"))
+    row.input_binding = _str_or_none(attrs.get("input_binding"))
+    row.model = _str_or_none(attrs.get("model"))
+    row.workdir = _str_or_none(attrs.get("workdir"))
+    row.dag_ref = _str_or_none(attrs.get("dag_ref"))
+    row.input_mapping = {str(key): str(value) for key, value in _dict(attrs.get("input_mapping")).items()}
+    row.attributes_json = _extra_attrs(attrs, _NODE_COLUMNS)
+    row.updated_at = utc_now()
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def _save_core_dag(session: AsyncSession, entity: EntityConfig) -> CoreEntityDag:
+    attrs = dict(entity.attributes)
+    row = await _one_by_entity_id(session, CoreEntityDag, entity.id)
+    if row is None:
+        row = CoreEntityDag(entity_id=entity.id, name=str(attrs.get("name") or entity.id))
+    row.name = str(attrs["name"])
+    row.inputs = _dict_list(attrs.get("inputs"))
+    row.nodes = _dict_list(attrs["nodes"])
+    row.edges = _dict_list(attrs["edges"])
+    row.ui = _dict(attrs.get("ui"))
+    row.attributes_json = _extra_attrs(attrs, {"name", "inputs", "nodes", "edges", "ui"})
+    row.updated_at = utc_now()
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def _save_core_trigger(session: AsyncSession, entity: EntityConfig) -> CoreEntityTrigger:
+    attrs = dict(entity.attributes)
+    row = await _one_by_entity_id(session, CoreEntityTrigger, entity.id)
+    if row is None:
+        row = CoreEntityTrigger(entity_id=entity.id, name=str(attrs.get("name") or entity.id), wait_for=str(attrs.get("wait_for") or ""), target=str(attrs.get("target") or ""))
+    row.name = str(attrs["name"])
+    row.wait_for = str(attrs["wait_for"])
+    row.target = str(attrs["target"])
+    row.enabled = bool(attrs.get("enabled", True))
+    row.attributes_json = _extra_attrs(attrs, {"name", "wait_for", "target", "enabled"})
+    row.updated_at = utc_now()
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def _save_core_resource(session: AsyncSession, entity: EntityConfig) -> CoreEntityResource:
+    attrs = dict(entity.attributes)
+    row = await _one_by_entity_id(session, CoreEntityResource, entity.id)
+    if row is None:
+        row = CoreEntityResource(entity_id=entity.id, resource_id=str(attrs.get("id") or entity.id), permits=int(attrs.get("permits") or 1))
+    row.resource_id = str(attrs.get("id") or entity.id)
+    row.permits = int(attrs["permits"])
+    row.attributes_json = _extra_attrs(attrs, {"id", "permits"})
+    row.updated_at = utc_now()
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def _one_by_entity_id(session: AsyncSession, model, entity_id: str):
+    result = await session.exec(select(model).where(model.entity_id == entity_id))
+    return result.first()
+
+
+_NODE_COLUMNS = {
+    "name",
+    "type",
+    "role",
+    "input_type",
+    "output_type",
+    "optional",
+    "timeout_seconds",
+    "handler",
+    "skills",
+    "system_prompt_file",
+    "system_prompt",
+    "tools",
+    "source_names",
+    "parameters",
+    "parameters_schema",
+    "input_binding",
+    "model",
+    "workdir",
+    "dag_ref",
+    "input_mapping",
+}
+
+
+def core_node_to_entity(row: CoreEntityNode) -> EntityConfig:
+    attrs = dict(row.attributes_json)
+    attrs.update(
+        {
+            "name": row.name,
+            "type": row.node_type,
+            "role": row.role,
+            "input_type": row.input_type,
+            "output_type": row.output_type,
+            "optional": row.optional,
+            "skills": row.skills,
+            "tools": row.tools,
+            "source_names": row.source_names,
+            "parameters": row.parameters,
+            "parameters_schema": row.parameters_schema,
+        }
+    )
+    _set_if_not_none(attrs, "timeout_seconds", row.timeout_seconds)
+    _set_if_not_none(attrs, "handler", row.handler)
+    _set_if_not_none(attrs, "system_prompt_file", row.system_prompt_file)
+    _set_if_not_none(attrs, "system_prompt", row.system_prompt)
+    _set_if_not_none(attrs, "input_binding", row.input_binding)
+    _set_if_not_none(attrs, "model", row.model)
+    _set_if_not_none(attrs, "workdir", row.workdir)
+    _set_if_not_none(attrs, "dag_ref", row.dag_ref)
+    if row.input_mapping:
+        attrs["input_mapping"] = row.input_mapping
+    return EntityConfig(id=row.entity_id, type="node", attributes=attrs)
+
+
+def core_dag_to_entity(row: CoreEntityDag) -> EntityConfig:
+    attrs = dict(row.attributes_json)
+    attrs.update({"name": row.name, "inputs": row.inputs, "nodes": row.nodes, "edges": row.edges, "ui": row.ui})
+    return EntityConfig(id=row.entity_id, type="dag", attributes=attrs)
+
+
+def core_trigger_to_entity(row: CoreEntityTrigger) -> EntityConfig:
+    attrs = dict(row.attributes_json)
+    attrs.update({"name": row.name, "wait_for": row.wait_for, "target": row.target, "enabled": row.enabled})
+    return EntityConfig(id=row.entity_id, type="trigger", attributes=attrs)
+
+
+def core_resource_to_entity(row: CoreEntityResource) -> EntityConfig:
+    attrs = dict(row.attributes_json)
+    attrs.update({"id": row.resource_id, "permits": row.permits})
+    return EntityConfig(id=row.entity_id, type="resource", attributes=attrs)
+
+
+def _extra_attrs(attrs: dict[str, object], column_names: set[str]) -> dict[str, object]:
+    return {key: value for key, value in attrs.items() if key not in column_names}
+
+
+def _set_if_not_none(attrs: dict[str, object], key: str, value: object | None) -> None:
+    if value is not None:
+        attrs[key] = value
+
+
+def _str_or_none(value: object) -> str | None:
+    return str(value) if value is not None else None
+
+
+def _float_or_none(value: object) -> float | None:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
+def _dict(value: object) -> dict:
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _str_list(value: object) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
+def _dict_list(value: object) -> list[dict[str, object]]:
+    return [dict(item) for item in value] if isinstance(value, list) and all(isinstance(item, dict) for item in value) else []
 
 
 async def store_node_output_entities(

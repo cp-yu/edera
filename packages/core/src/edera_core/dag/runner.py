@@ -355,9 +355,9 @@ class DagRunner:
                 await self._record_edge_inputs(run_id, graph, node, outputs, routed_edges)
                 self._start_node(running, graph, node, run_id, initial_payload, outputs, payloads, routed_edges, warnings)
                 started.add(node)
-            elif self._blocked_by_required_failure(graph, node, outputs):
+            elif self._blocked_by_required_failure(graph, node, outputs, routed_edges):
                 await self._record_edge_inputs(run_id, graph, node, outputs, routed_edges)
-                error = self._upstream_failure_error(graph, node, outputs)
+                error = self._upstream_failure_error(graph, node, outputs, routed_edges)
                 await self._record(run_id, node, "failed", error, "upstream_failed")
                 self._store_result(
                     graph,
@@ -841,6 +841,8 @@ class DagRunner:
                 return False
             if (upstream, node) in graph.optional_edges:
                 continue
+            if self._source_failure_can_be_skipped(graph, upstream, node, outputs, routed_edges):
+                continue
             return False
         return True
 
@@ -849,11 +851,11 @@ class DagRunner:
         graph: DagGraph,
         node: str,
         outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
     ) -> bool:
         upstreams = graph.reverse_edges[node]
-        return bool(upstreams) and all(upstream in outputs for upstream in upstreams) and any(
-            not outputs[upstream].ok and (upstream, node) not in graph.optional_edges
-            for upstream in upstreams
+        return bool(upstreams) and all(upstream in outputs for upstream in upstreams) and bool(
+            self._blocking_required_failures(graph, node, outputs, routed_edges)
         )
 
     def _upstream_failure_error(
@@ -861,13 +863,47 @@ class DagRunner:
         graph: DagGraph,
         node: str,
         outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
     ) -> str:
-        blocked = [
-            f"{upstream}: {outputs[upstream].error or 'node failed'}"
-            for upstream in graph.reverse_edges[node]
-            if upstream in outputs and not outputs[upstream].ok and (upstream, node) not in graph.optional_edges
-        ]
+        blocked = [f"{upstream}: {outputs[upstream].error or 'node failed'}" for upstream in self._blocking_required_failures(graph, node, outputs, routed_edges)]
         return "required upstream failed: " + "; ".join(blocked)
+
+    def _blocking_required_failures(
+        self,
+        graph: DagGraph,
+        node: str,
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> list[str]:
+        return [
+            upstream
+            for upstream in graph.reverse_edges[node]
+            if upstream in outputs
+            and not outputs[upstream].ok
+            and (upstream, node) not in graph.optional_edges
+            and not self._source_failure_can_be_skipped(graph, upstream, node, outputs, routed_edges)
+        ]
+
+    def _source_failure_can_be_skipped(
+        self,
+        graph: DagGraph,
+        upstream: str,
+        node: str,
+        outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
+    ) -> bool:
+        upstream_config = self.nodes.get(graph.instances[upstream].type)
+        return (
+            getattr(upstream_config, "role", None) == "source"
+            and any(
+                other != upstream
+                and other in outputs
+                and outputs[other].ok
+                and outputs[other].payload is not None
+                and (other, node) in routed_edges
+                for other in graph.reverse_edges[node]
+            )
+        )
 
     def _edge_input_fact(
         self,
@@ -954,12 +990,13 @@ class DagRunner:
         started: set[str],
         allowed: set[str],
         outputs: dict[str, NodeOutput],
+        routed_edges: set[tuple[str, str]],
     ) -> bool:
         return any(
             node not in started
             and node in allowed
             and self._node_fan_in_mode(graph, node) != "accumulate"
-            and self._blocked_by_required_failure(graph, node, outputs)
+            and self._blocked_by_required_failure(graph, node, outputs, routed_edges)
             for node in graph.nodes
         )
 
@@ -1013,6 +1050,7 @@ class DagRunner:
             started,
             allowed,
             outputs,
+            routed_edges,
         ) or self._has_blocked_accumulate(
             graph,
             started,

@@ -104,7 +104,7 @@ capabilities:
     intent: 统一 Entity 原语，EntityType 注册来源扩展为 manifest 声明 + 用户配置覆盖的双层优先级
     type: capability
   - id: cap.entity-storage-tiers
-    intent: Entity 三层存储（文件系统/数据库/内存），含 retention 策略和生命周期管理；输出型 Entity retention 默认保留 720 小时，且只在完整 DAG 成功完成后触发
+    intent: Entity 三层存储中核心配置型 Entity 迁移为 DB-backed per-type tables，YAML 仅作为 import/export/template 格式；输出型 Entity 和瞬态 Entity 边界保持独立
     type: capability
   - id: cap.trigger-system
     intent: Trigger Entity 使用自由布尔表达式 wait_for，支持 enabled 字段、clear:event:* target 与 fire 后自动 consume
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera 控制 CLI 作为纯 gRPC 客户端的 binary 入口、子命令集合（entity、node、dag、event、system、client、handler-validate）、身份声明、mTLS 加载与服务端连接环境变量边界
+    intent: edera 控制 CLI 增加 Entity YAML import/export/template 文件工作流，并继续作为纯 gRPC 客户端访问 server
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -218,7 +218,7 @@ capabilities:
     intent: Edera 项目 canonical identity，覆盖项目名、slug、包命名、命令名（edera/edera-server/edera-web 三件套，移除 rig 别名）、环境变量前缀、默认路径和 README 名称来源说明
     type: capability
   - id: cap.core.runtime-input-context
-    intent: Runtime facts 以具体表存储并投影为 runtime entities，覆盖 edge input facts、source recovery facts、干净 payload 聚合、agent runtime context 和 CLI export
+    intent: Runtime facts 以具体表持久化并投影为 runtime entities，同时明确运行中调度状态以内存 runtime state 和 committed snapshot 为准
     type: capability
   - id: cap.web.source-health-monitoring
     intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态和信息源日志契约
@@ -266,3 +266,6 @@ capabilities:
     intent: 项目术语表文档，定义所有核心概念的 canonical term、同义词和使用约定
     type: capability
     domain: dom.core
+  - id: cap.core.db-backed-core-entities
+    intent: 核心配置型 Entity 使用 SQLite DB 作为运行时 source of truth，覆盖 node/dag/trigger/resource 固定 per-type tables、完整列化、YAML import/export/template、runtime snapshot 构建和 raw log index 边界
+    type: capability

@@ -139,7 +139,13 @@ async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Pa
     async def emit_config_changed(event: str) -> object:
         return await ctrl.emit(event, source="hot-reload")
 
-    reloader = HotReloader(tmp_path, [], fail_reload, emit=emit_config_changed)
+    reloader = HotReloader(
+        tmp_path,
+        [],
+        fail_reload,
+        config_loader=lambda: load_app_config(tmp_path),
+        emit=emit_config_changed,
+    )
 
     with pytest.raises(RuntimeError, match="reload failed"):
         await reloader.reload_once()
