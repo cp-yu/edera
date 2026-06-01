@@ -70,3 +70,20 @@ class FakeGrpcClient:
 
     async def graph_save_handler(self, name: str, code: str) -> dict[str, object]:
         return {"saved": name, "code": code}
+
+    async def graph_list_handlers(self) -> dict[str, object]:
+        return {"handlers": [{"name": "reader"}, {"name": "fetch-api"}]}
+
+
+@pytest.mark.asyncio
+async def test_graph_handler_list_route() -> None:
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get("/api/graph/handlers")
+
+    body = resp.json()
+    assert "handlers" in body
+    assert len(body["handlers"]) == 2
+    assert body["handlers"][0]["name"] == "reader"

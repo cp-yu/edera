@@ -7,6 +7,7 @@ import pytest
 
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
+from edera_core.registry import HandlerRegistry
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
@@ -122,6 +123,85 @@ async def test_optional_round_trip(tmp_path):
     assert payload["nodes"][0]["optional"] is True
     assert payload["edges"][0]["optional"] is True
     assert "optional: true" in (root / "dags" / "demo.yaml").read_text(encoding="utf-8")
+
+
+# --- Handler registry tests ---
+
+
+def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    registry = HandlerRegistry()
+    for name, content in handler_files.items():
+        path = tmp_path / "handlers" / f"{name}.py"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        registry.register(name, path)
+    return _FakeDaemonWithHandlers(root, registry.seal())
+
+
+class _FakeDaemonWithHandlers:
+    def __init__(self, config_dir, handler_registry):
+        self.config_dir = config_dir
+        self.pb2 = pb2
+        self.controller = _FakeSnapshot(handler_registry)
+
+
+class _FakeSnapshot:
+    def __init__(self, handler_registry):
+        self.bootstrap = _FakeBootstrap(handler_registry)
+
+    def runtime_snapshot(self):
+        return self
+
+
+class _FakeBootstrap:
+    def __init__(self, handler_registry):
+        self.handler_registry = handler_registry
+
+
+@pytest.mark.asyncio
+async def test_list_handlers_returns_registry_entries(tmp_path):
+    daemon = _daemon_with_handlers(tmp_path, {"reader": "def run(): pass", "fetcher": "def run(): pass"})
+    service = _GraphService(daemon)
+    result = await service.ListHandlers(pb2.EmptyRequest(), FakeContext())
+    payload = json.loads(result.json)
+    names = [h["name"] for h in payload["handlers"]]
+    assert "reader" in names
+    assert "fetcher" in names
+
+
+@pytest.mark.asyncio
+async def test_get_handler_reads_from_registry_path(tmp_path):
+    daemon = _daemon_with_handlers(tmp_path, {"reader": "async def run(ctx): return []\n"})
+    service = _GraphService(daemon)
+    result = await service.GetHandler(pb2.NameRequest(name="reader"), FakeContext())
+    payload = json.loads(result.json)
+    assert payload["name"] == "reader"
+    assert payload["code"] == "async def run(ctx): return []\n"
+
+
+@pytest.mark.asyncio
+async def test_get_handler_not_found_not_in_registry(tmp_path):
+    daemon = _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
+    service = _GraphService(daemon)
+    with pytest.raises(AbortError) as exc:
+        await service.GetHandler(pb2.NameRequest(name="nonexistent"), FakeContext())
+    assert exc.value.code == grpc.StatusCode.NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_save_handler_writes_to_registry_path(tmp_path):
+    daemon = _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
+    service = _GraphService(daemon)
+    result = await service.SaveHandler(
+        pb2.NamedTextRequest(name="reader", content="def run(): updated"),
+        FakeContext(),
+    )
+    payload = json.loads(result.json)
+    assert payload["code"] == "def run(): updated"
+    handler_path = tmp_path / "handlers" / "reader.py"
+    assert handler_path.read_text(encoding="utf-8") == "def run(): updated"
 
 
 def _write_graph_config(root):

@@ -336,7 +336,7 @@ async def api_entity_relations_query(request: Request, entity: str | None = None
 async def api_entity_relation_types(request: Request) -> Any:
     async def _types(client: GrpcClient) -> dict[str, object]:
         relations = await client.entity_search("type=relation", client.identity or "human")
-        types = sorted({str(r.get("relation_type", "")) for r in relations if isinstance(r, dict) and r.get("relation_type")})
+        types = sorted({str(r.get("attributes", {}).get("relation_type", "")) for r in relations if isinstance(r, dict) and r.get("attributes", {}).get("relation_type")})
         return {"types": types}
     return await _call(request, _types)
 
