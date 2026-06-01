@@ -92,19 +92,27 @@
 - **THEN** server SHALL 删除 skill YAML 和关联的 handler.py 文件
 
 ### Requirement: GraphService Handler CRUD
-`edera-server` SHALL 通过 `GraphService` 提供 Handler 代码的读写操作。
+`edera-server` SHALL 通过 `GraphService` 提供 Handler 代码的读写操作，handler 列表通过 `ListHandlers` 从 `bootstrap.handler_registry` 获取，handler 路径通过 registry 查找而非硬编码。
+
+#### Scenario: 列出所有 handler
+- **WHEN** 客户端调用 `GraphService.ListHandlers`
+- **THEN** server SHALL 从 `handler_registry` 返回所有已注册 handler 的名称列表
 
 #### Scenario: 读取 handler
 - **WHEN** 客户端调用 `GraphService.GetHandler(name)`
-- **THEN** server SHALL 返回 handler.py 文件内容
+- **THEN** server SHALL 通过 `handler_registry` 查找 handler 路径，返回 handler.py 文件内容
 
-#### Scenario: handler 不存在
-- **WHEN** 客户端调用 `GraphService.GetHandler(name)` 且文件不存在
+#### Scenario: handler 不在注册表中
+- **WHEN** 客户端调用 `GraphService.GetHandler(name)` 且 handler 不在 registry 中或文件不存在
 - **THEN** server SHALL 返回 gRPC NOT_FOUND 错误
 
 #### Scenario: 保存 handler
 - **WHEN** 客户端调用 `GraphService.SaveHandler(name, code)`
-- **THEN** server SHALL 写入 handler.py 文件内容
+- **THEN** server SHALL 通过 `handler_registry` 查找 handler 路径，写入 handler.py 文件内容
+
+#### Scenario: 保存 handler 不在注册表中
+- **WHEN** 客户端调用 `GraphService.SaveHandler(name, code)` 且 handler 不在 registry 中
+- **THEN** server SHALL 返回 gRPC NOT_FOUND 错误
 
 ### Requirement: GraphService runtime-status
 `edera-server` SHALL 通过 `GraphService` 提供 DAG 运行时节点状态查询。

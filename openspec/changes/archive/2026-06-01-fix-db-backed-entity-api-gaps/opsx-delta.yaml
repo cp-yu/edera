@@ -1,0 +1,16 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+MODIFIED:
+  capabilities:
+    - id: cap.entity-instance-crud-api
+      intent: "Entity Instance CRUD API 适配三层存储路由，GET /api/entities 返回 {entities: [...]} 包装格式，entity payload 包含 display 字段（按 EntityType display_template 渲染），写操作完成后 emit event:entity-changed:{ref}"
+    - id: cap.entity-relation-crud-api
+      intent: "Entity Relation 统一为 Entity（type: relation），通过 Entity Store 管理；GET /api/entity-relations 返回 {relations: [...]} 包装格式并转换 gRPC entity 为 {id, entities, type, metadata} 结构；GET /api/entity-relations/types 返回 {types: [...]} 包装格式；type=relation 查询正确路由到 _query_relations"
+    - id: cap.core.grpc-graph-service
+      intent: "GraphService 增加 ListHandlers RPC 从 handler_registry 返回 handler 列表；GetHandler/SaveHandler 改为通过 bootstrap.handler_registry 查找 handler 路径而非硬编码 extensions/{name}/handler.py"
+  relations: []
+REMOVED:
+  capabilities: []
+  relations: []

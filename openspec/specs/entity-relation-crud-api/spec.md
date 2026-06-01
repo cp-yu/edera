@@ -19,17 +19,17 @@
 
 ### Requirement: List entity relations
 
-系统 SHALL 提供 `GET /api/entity-relations` 端点，返回所有关系及其 ID。
+系统 SHALL 提供 `GET /api/entity-relations` 端点，以 `{ "relations": [...] }` 包装格式返回所有关系，每条包含 `id`、`entities`、`type`、`metadata`。关系查询通过 `type=relation` 表达式路由到 `_query_relations`。
 
 #### Scenario: List all relations
 
 - **WHEN** 前端请求 `GET /api/entity-relations`
-- **THEN** 系统 SHALL 返回所有关系，每条包含 `id`、`entities`、`type`、`metadata`
+- **THEN** 系统 SHALL 以 `{ "relations": [...] }` 格式返回所有关系，每条包含 `id`、`entities`、`type`、`metadata`
 
 #### Scenario: List relation types
 
 - **WHEN** 前端请求 `GET /api/entity-relations/types`
-- **THEN** 系统 SHALL 返回所有已使用的关系类型去重列表
+- **THEN** 系统 SHALL 以 `{ "types": [...] }` 格式返回所有已使用的关系类型去重列表，从 `attributes.relation_type` 提取
 
 ### Requirement: Create entity relation
 

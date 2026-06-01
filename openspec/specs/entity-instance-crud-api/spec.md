@@ -5,12 +5,12 @@
 ## Requirements
 ### Requirement: List entity instances
 
-系统 SHALL 提供 `GET /api/entities` 端点，返回所有实例及其 display 信息。
+系统 SHALL 提供 `GET /api/entities` 端点，以 `{ "entities": [...] }` 包装格式返回所有实例及其 display 信息（按 EntityType `display_template` 渲染）。
 
 #### Scenario: List all instances
 
 - **WHEN** 前端请求 `GET /api/entities`
-- **THEN** 系统 SHALL 返回所有实例，每个实例包含 `id`、`type`、`ref`、`display`、`attributes`
+- **THEN** 系统 SHALL 以 `{ "entities": [...] }` 格式返回所有实例，每个实例包含 `id`、`type`、`ref`、`display`、`attributes`，其中 `display` 按 EntityType 的 `display_template` 渲染
 
 #### Scenario: Filter by type
 
