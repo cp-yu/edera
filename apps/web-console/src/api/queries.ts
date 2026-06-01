@@ -39,6 +39,13 @@ export function useHandler(name: string | null) {
   })
 }
 
+export function useHandlers() {
+  return useQuery({
+    queryKey: ['handlers'],
+    queryFn: () => apiFetch<{ handlers: { name: string }[] }>('/api/graph/handlers'),
+  })
+}
+
 export function useSkills() {
   return useQuery({
     queryKey: ['skills'],

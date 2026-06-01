@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useHandler, useNodeTypes, useSkills } from '@/api/queries'
+import { useHandler, useHandlers, useNodeTypes, useSkills } from '@/api/queries'
 import {
   useCreateNodeType,
   useCreateSkill,
@@ -36,6 +36,7 @@ export function NodesPage() {
   const [tab, setTab] = useState<Tab>('function')
   const { data: nodeTypes } = useNodeTypes()
   const { data: skills } = useSkills()
+  const { data: handlers } = useHandlers()
   const saveNodeType = useSaveNodeType()
   const createNodeType = useCreateNodeType()
   const deleteNodeType = useDeleteNodeType()
@@ -45,7 +46,6 @@ export function NodesPage() {
   const nodes = tab === 'function'
     ? nodeTypes?.types.filter((node) => node.type === tab) ?? []
     : []
-  const functionNodes = nodeTypes?.types.filter((node) => node.type === 'function') ?? []
 
   return (
     <main className="h-full overflow-y-auto bg-background p-6">
@@ -84,8 +84,8 @@ export function NodesPage() {
 
         {tab === 'handlers' ? (
           <div className="grid gap-4 md:grid-cols-2">
-            {functionNodes.map((node) => (
-              <HandlerCard key={node.name} node={node} />
+            {(handlers?.handlers ?? []).map((h) => (
+              <HandlerCard key={h.name} name={h.name} />
             ))}
           </div>
         ) : tab !== 'skills' ? (
@@ -120,27 +120,20 @@ export function NodesPage() {
   )
 }
 
-function HandlerCard({ node }: {
-  node: NodeType
-}) {
+function HandlerCard({ name }: { name: string }) {
   const [handlerCode, setHandlerCode] = useState('')
-  const handlerName = node.name
-  const handler = useHandler(handlerName)
+  const handler = useHandler(name)
   const saveHandler = useSaveHandler()
-  const saveCode = (code: string) => saveHandler.mutate({ name: handlerName, code })
-  const noHandler = !handler.isLoading && handler.isError
+  const saveCode = (code: string) => saveHandler.mutate({ name, code })
 
   useEffect(() => {
     setHandlerCode(handler.data?.code ?? '')
   }, [handler.data?.code])
 
-  if (noHandler) return null
-
   return (
     <section className="rounded-xl border bg-card p-4 shadow-sm">
       <div>
-        <h2 className="font-medium">{node.name}</h2>
-        <p className="text-xs text-muted-foreground">{handlerName}</p>
+        <h2 className="font-medium">{name}</h2>
       </div>
       <div className="mt-3 space-y-2">
         {handler.isLoading ? (

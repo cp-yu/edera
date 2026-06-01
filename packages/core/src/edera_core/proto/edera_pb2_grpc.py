@@ -1264,6 +1264,11 @@ class GraphServiceStub(object):
                 request_serializer=edera__pb2.NamedTextRequest.SerializeToString,
                 response_deserializer=edera__pb2.JsonResponse.FromString,
                 _registered_method=True)
+        self.ListHandlers = channel.unary_unary(
+                '/edera.v1.GraphService/ListHandlers',
+                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
         self.RuntimeStatus = channel.unary_unary(
                 '/edera.v1.GraphService/RuntimeStatus',
                 request_serializer=edera__pb2.EmptyRequest.SerializeToString,
@@ -1370,6 +1375,12 @@ class GraphServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListHandlers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def RuntimeStatus(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1457,6 +1468,11 @@ def add_GraphServiceServicer_to_server(servicer, server):
             'SaveHandler': grpc.unary_unary_rpc_method_handler(
                     servicer.SaveHandler,
                     request_deserializer=edera__pb2.NamedTextRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'ListHandlers': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListHandlers,
+                    request_deserializer=edera__pb2.EmptyRequest.FromString,
                     response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
             'RuntimeStatus': grpc.unary_unary_rpc_method_handler(
@@ -1896,6 +1912,33 @@ class GraphService(object):
             target,
             '/edera.v1.GraphService/SaveHandler',
             edera__pb2.NamedTextRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListHandlers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.GraphService/ListHandlers',
+            edera__pb2.EmptyRequest.SerializeToString,
             edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,

@@ -451,6 +451,11 @@ async def api_graph_skill_delete(request: Request, name: str) -> Any:
     return await _call(request, lambda client: client.graph_delete_skill(name))
 
 
+@router.get("/api/graph/handlers", response_model=None)
+async def api_graph_handler_list(request: Request) -> Any:
+    return await _call(request, lambda client: client.graph_list_handlers())
+
+
 @router.get("/api/graph/handlers/{name}", response_model=None)
 async def api_graph_handler_read(request: Request, name: str) -> Any:
     return await _call(request, lambda client: client.graph_get_handler(name))

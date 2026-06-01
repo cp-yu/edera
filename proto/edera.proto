@@ -57,6 +57,7 @@ service GraphService {
   rpc DeleteSkill(NameRequest) returns (JsonResponse);
   rpc GetHandler(NameRequest) returns (JsonResponse);
   rpc SaveHandler(NamedTextRequest) returns (JsonResponse);
+  rpc ListHandlers(EmptyRequest) returns (JsonResponse);
   rpc RuntimeStatus(EmptyRequest) returns (JsonResponse);
 }
 

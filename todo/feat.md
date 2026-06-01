@@ -24,3 +24,5 @@ bubblewrap 实现沙箱。
 需要增加subdag于workbench的节点列表。这个需要一个 测试的dag完成sUbdag
  父子 dag调用关系
 
+edera  的DAG需要，或者说node可以等待外界的一个输入。
+

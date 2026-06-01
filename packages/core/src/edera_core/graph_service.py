@@ -168,17 +168,26 @@ class _GraphService:
         (self.daemon.config_dir.parent / "extensions" / skill.handler / "handler.py").unlink(missing_ok=True)
         return json_response(self.pb2, {"deleted": True})
 
+    async def ListHandlers(self, request, context):
+        handlers = [{"name": entry.name} for entry in self._handler_registry().values()]
+        return json_response(self.pb2, {"handlers": handlers})
+
     async def GetHandler(self, request, context):
-        path = self.daemon.config_dir.parent / "extensions" / request.name / "handler.py"
-        if not path.exists():
+        entry = self._handler_registry().get(request.name)
+        if entry is None or not entry.path.exists():
             await context.abort(grpc.StatusCode.NOT_FOUND, f"handler {request.name} not found")
-        return json_response(self.pb2, {"name": request.name, "code": path.read_text(encoding="utf-8")})
+        return json_response(self.pb2, {"name": request.name, "code": entry.path.read_text(encoding="utf-8")})
 
     async def SaveHandler(self, request, context):
-        path = self.daemon.config_dir.parent / "extensions" / request.name / "handler.py"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(request.content, encoding="utf-8")
+        entry = self._handler_registry().get(request.name)
+        if entry is None:
+            await context.abort(grpc.StatusCode.NOT_FOUND, f"handler {request.name} not found")
+        entry.path.parent.mkdir(parents=True, exist_ok=True)
+        entry.path.write_text(request.content, encoding="utf-8")
         return json_response(self.pb2, {"name": request.name, "code": request.content})
+
+    def _handler_registry(self):
+        return self.daemon.controller.runtime_snapshot().bootstrap.handler_registry
 
     async def RuntimeStatus(self, request, context):
         factory = self.daemon.controller._factory()

@@ -242,6 +242,9 @@ class GrpcClient:
     async def graph_delete_skill(self, name: str) -> dict[str, object]:
         return _json_response(await self.graph.DeleteSkill(pb2.NameRequest(name=name)))
 
+    async def graph_list_handlers(self) -> dict[str, object]:
+        return _json_response(await self.graph.ListHandlers(pb2.EmptyRequest()))
+
     async def graph_get_handler(self, name: str) -> dict[str, object]:
         return _json_response(await self.graph.GetHandler(pb2.NameRequest(name=name)))
 
