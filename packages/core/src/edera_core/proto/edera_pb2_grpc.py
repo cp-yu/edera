@@ -64,6 +64,11 @@ class EntityServiceStub(object):
                 request_serializer=edera__pb2.EntityRef.SerializeToString,
                 response_deserializer=edera__pb2.DeleteResult.FromString,
                 _registered_method=True)
+        self.Materialize = channel.unary_unary(
+                '/edera.v1.EntityService/Materialize',
+                request_serializer=edera__pb2.JsonRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
 
 
 class EntityServiceServicer(object):
@@ -107,6 +112,12 @@ class EntityServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Materialize(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_EntityServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -139,6 +150,11 @@ def add_EntityServiceServicer_to_server(servicer, server):
                     servicer.Delete,
                     request_deserializer=edera__pb2.EntityRef.FromString,
                     response_serializer=edera__pb2.DeleteResult.SerializeToString,
+            ),
+            'Materialize': grpc.unary_unary_rpc_method_handler(
+                    servicer.Materialize,
+                    request_deserializer=edera__pb2.JsonRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -303,6 +319,33 @@ class EntityService(object):
             '/edera.v1.EntityService/Delete',
             edera__pb2.EntityRef.SerializeToString,
             edera__pb2.DeleteResult.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Materialize(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.EntityService/Materialize',
+            edera__pb2.JsonRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,
             insecure,

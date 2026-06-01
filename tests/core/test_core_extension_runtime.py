@@ -3,12 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from sqlalchemy import inspect
 
 from edera_core.bootstrap import scan_extensions
+from edera_core.config.schema import EntityConfig, EntityTypeConfig
 from edera_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.engine import Engine
 from edera_core.node.executor import NodeExecutor
 from edera_core.registry import HandlerRegistry
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.storage.repository import save_ordinary_entity, seed_entity_type_records
 from edera_types import NodeInput
 
 
@@ -37,6 +41,57 @@ def test_scan_extensions_maps_declared_table_names(tmp_path: Path) -> None:
     result = scan_extensions([tmp_path])
 
     assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
+
+
+@pytest.mark.asyncio
+async def test_entity_and_extension_table_names_do_not_collide(tmp_path: Path) -> None:
+    extension = tmp_path / "extensions" / "rss-fetcher"
+    extension.mkdir(parents=True)
+    (extension / "manifest.yaml").write_text(
+        "name: rss-fetcher\n"
+        "version: 0.1.0\n"
+        "storage:\n"
+        "  tables:\n"
+        "    - name: raw_items\n"
+        "      columns:\n"
+        "        - name: id\n"
+        "          type: integer\n"
+        "          primary_key: true\n",
+        encoding="utf-8",
+    )
+    bootstrap = scan_extensions([tmp_path / "extensions"])
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    try:
+        await init_db(engine)
+        from edera_core.bootstrap import create_extension_tables
+
+        await create_extension_tables(engine, bootstrap.storage_tables)
+        factory = session_factory(engine)
+        async with factory() as session:
+            rss_source = EntityTypeConfig.model_validate(
+                {
+                    "display_name": "RSS Source",
+                    "business_id_field": "url",
+                    "display_template": "{url}",
+                    "storage_tier": "database",
+                    "schema": {"required": ["url"], "properties": {"url": {"type": "string"}}},
+                }
+            )
+            await seed_entity_type_records(session, {"rss-source": rss_source})
+            await save_ordinary_entity(
+                session,
+                EntityConfig(id="rss-1", type="rss-source", attributes={"url": "https://example.test/rss"}),
+                rss_source,
+            )
+            await session.commit()
+
+        async with engine.connect() as conn:
+            tables = await conn.run_sync(lambda sync: set(inspect(sync).get_table_names()))
+        assert "entity_rss_source" in tables
+        assert "ext_rss_fetcher_raw_items" in tables
+        assert "entity_raw_items" not in tables
+    finally:
+        await engine.dispose()
 
 
 def test_handler_registry_rejects_duplicate_names() -> None:

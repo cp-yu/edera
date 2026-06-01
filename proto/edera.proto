@@ -11,6 +11,7 @@ service EntityService {
   rpc Create(Entity) returns (Entity);
   rpc Update(Entity) returns (Entity);
   rpc Delete(EntityRef) returns (DeleteResult);
+  rpc Materialize(JsonRequest) returns (JsonResponse);
 }
 
 service DagService {

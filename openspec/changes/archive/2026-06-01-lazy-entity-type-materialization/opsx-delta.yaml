@@ -1,0 +1,20 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.lazy-entity-type-materialization
+      type: capability
+      intent: 普通 EntityType 支持 per-type table、attributes_json 承接新增字段、lazy materialized columns、deprecated 字段生命周期和维护命令
+  relations:
+    - from: cap.core.lazy-entity-type-materialization
+      type: contains
+      to: dom.core
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-declarative-storage
+      intent: 扩展声明表继续使用 ext_ 命名空间，并与普通 EntityType 的 entity_ per-type table DDL 和列类型契约保持兼容
+    - id: cap.unified-entity-model
+      intent: 统一 Entity 原语扩展 EntityType DB-backed metadata，覆盖 schema version、table mapping、materialized fields 和 deprecated fields
+    - id: cap.core.edera-cli
+      intent: edera CLI 增加普通 EntityType 字段物化的 plan/apply/inspect 维护命令
+REMOVED:
+  capabilities: []

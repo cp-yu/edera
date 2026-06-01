@@ -165,3 +165,6 @@ relations:
   - from: cap.core.db-backed-core-entities
     type: contains
     to: dom.core
+  - from: cap.core.lazy-entity-type-materialization
+    type: contains
+    to: dom.core

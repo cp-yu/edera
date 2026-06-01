@@ -17,7 +17,7 @@ from edera_core.cert import CertificateAuthority, IssuedCertificate
 from edera_core.config_service import _ConfigService
 from edera_core.config.entities import EntityStore, can_read, can_write, field_permission
 from edera_core.config.loader import CORE_ENTITY_TYPES, load_app_config, load_runtime_app_config
-from edera_core.config.schema import AppConfig, DagConfig, EntitiesConfig, EntityConfig, entity_ref
+from edera_core.config.schema import AppConfig, DagConfig, EntitiesConfig, EntityConfig, MaterializedFieldConfig, entity_ref
 from edera_core.events import event_bus
 from edera_core.graph_service import _GraphService
 from edera_core.event_service import _EventService
@@ -36,14 +36,22 @@ from edera_core.service_common import (
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.repository import (
     delete_core_entity,
+    delete_ordinary_entity,
     edge_inputs_for_run,
     latest_briefing,
     save_core_entity,
+    save_ordinary_entity,
     query_node_output_entities,
     save_node_output_entity,
     source_execution_logs,
     source_health_summary,
     source_recoveries,
+    upsert_entity_type_record,
+)
+from edera_core.storage.materialization import (
+    apply_materialization,
+    deprecated_cleanup_ready,
+    materialization_plan,
 )
 
 
@@ -203,7 +211,7 @@ class _EntityService:
 
     async def Create(self, request, context):
         await _identity(context)
-        if _core_db_available(self.daemon, request.type):
+        if _database_entity_available(self.daemon, request.type):
             store, app = _runtime_entity_store(self.daemon)
             attrs = json.loads(request.json or "{}")
             if not isinstance(attrs, dict):
@@ -211,7 +219,7 @@ class _EntityService:
             created = EntityConfig(id=request.id or uuid4().hex, type=request.type, attributes=attrs)
             _validate_entity_for_store(store, created, replace=False)
             async with self.daemon.controller._factory()() as session:
-                saved = await save_core_entity(session, created)
+                saved = await _save_database_entity(session, created, store.entity_types[request.type])
                 await session.commit()
             await self._refresh_runtime_snapshot()
             store, app = _runtime_entity_store(self.daemon)
@@ -237,10 +245,10 @@ class _EntityService:
         except PermissionError as exc:
             await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
         updated = entity.model_copy(update={"attributes": {**entity.attributes, data["field"]: data.get("value")}})
-        if _core_db_available(self.daemon, entity.type):
+        if _database_entity_available(self.daemon, entity.type):
             _validate_entity_for_store(store, updated, replace=True)
             async with self.daemon.controller._factory()() as session:
-                saved = await save_core_entity(session, updated)
+                saved = await _save_database_entity(session, updated, store.entity_types[entity.type])
                 await session.commit()
             await self._refresh_runtime_snapshot()
             store, app = _runtime_entity_store(self.daemon)
@@ -253,9 +261,12 @@ class _EntityService:
         await _identity(context)
         store, app = _runtime_entity_store(self.daemon) if _controller_started(self.daemon) else _entity_store(self.daemon.config_dir)
         entity = store.resolve(request.ref)
-        if _core_db_available(self.daemon, entity.type):
+        if _database_entity_available(self.daemon, entity.type):
             async with self.daemon.controller._factory()() as session:
-                deleted = await delete_core_entity(session, entity.id, store.entity_types)
+                if entity.type in CORE_ENTITY_TYPES:
+                    deleted = await delete_core_entity(session, entity.id, store.entity_types)
+                else:
+                    deleted = await delete_ordinary_entity(session, entity.id, store.entity_types)
                 await session.commit()
             if not deleted:
                 await context.abort(grpc.StatusCode.NOT_FOUND, f"Entity not found: {request.ref}")
@@ -265,6 +276,60 @@ class _EntityService:
             store.delete(entity.id)
         await self._emit_entity_changed(store, entity)
         return self.pb2.DeleteResult(deleted=True)
+
+    async def Materialize(self, request, context):
+        await _identity(context)
+        store, app = _runtime_entity_store(self.daemon)
+        payload = json.loads(request.json or "{}")
+        if not isinstance(payload, dict):
+            raise ValueError("materialize request must be an object")
+        operation = str(payload.get("operation") or "")
+        type_name = str(payload.get("entity_type") or "")
+        if not type_name or type_name not in store.entity_types:
+            await context.abort(grpc.StatusCode.NOT_FOUND, f"unknown entity type: {type_name}")
+        entity_type = store.entity_types[type_name]
+        if type_name in CORE_ENTITY_TYPES or entity_type.storage_tier != "database":
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, f"entity type is not ordinary database-backed: {type_name}")
+        field = str(payload.get("field") or "")
+        field_type = str(payload["type"]) if payload.get("type") is not None else None
+        index = bool(payload["index"]) if "index" in payload else None
+        async with self.daemon.controller._factory()() as session:
+            if operation == "inspect":
+                result = {
+                    "entity_type": type_name,
+                    "table_name": entity_type.table_name,
+                    "materialized_fields": {
+                        name: config.model_dump(mode="json")
+                        for name, config in entity_type.materialized_fields.items()
+                    },
+                    "deprecated_fields": list(entity_type.deprecated_fields),
+                }
+            elif operation == "plan":
+                if not field:
+                    raise ValueError("field is required")
+                result = (await materialization_plan(session, type_name, entity_type, field, field_type, index)).to_dict()
+            elif operation == "apply":
+                if not field:
+                    raise ValueError("field is required")
+                plan = await apply_materialization(session, type_name, entity_type, field, field_type, index)
+                materialized_fields = dict(entity_type.materialized_fields)
+                materialized_fields[field] = MaterializedFieldConfig(type=plan.column_type, index=plan.index)
+                updated = entity_type.model_copy(update={"materialized_fields": materialized_fields})
+                await upsert_entity_type_record(session, type_name, updated)
+                await session.commit()
+                await self._refresh_runtime_snapshot()
+                result = {**plan.to_dict(), "applied": True}
+            elif operation == "cleanup-ready":
+                if not field:
+                    raise ValueError("field is required")
+                result = {
+                    "entity_type": type_name,
+                    "field": field,
+                    "cleanup_ready": await deprecated_cleanup_ready(session, type_name, entity_type, field),
+                }
+            else:
+                raise ValueError(f"unknown materialize operation: {operation}")
+        return json_response(self.pb2, result)
 
     async def _refresh_runtime_snapshot(self) -> None:
         if not _controller_started(self.daemon) or self.daemon.controller.engine is None:
@@ -497,8 +562,18 @@ def _controller_started(daemon: Server) -> bool:
     return getattr(daemon.controller, "factory", None) is not None
 
 
-def _core_db_available(daemon: Server, entity_type: str) -> bool:
-    return entity_type in CORE_ENTITY_TYPES and _controller_started(daemon)
+def _database_entity_available(daemon: Server, entity_type: str) -> bool:
+    if not _controller_started(daemon):
+        return False
+    _, app = _runtime_entity_store(daemon)
+    config = app.entity_types.get(entity_type)
+    return config is not None and config.storage_tier == "database"
+
+
+async def _save_database_entity(session, entity: EntityConfig, entity_type) -> EntityConfig:
+    if entity.type in CORE_ENTITY_TYPES:
+        return await save_core_entity(session, entity)
+    return await save_ordinary_entity(session, entity, entity_type)
 
 
 def _validate_entity_for_store(store: EntityStore, entity: EntityConfig, *, replace: bool) -> None:

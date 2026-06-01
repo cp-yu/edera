@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from sqlalchemy import inspect, text
 from sqlmodel import select
 
-from edera_core.config.schema import EntityConfig, EntityTypeConfig
+from edera_core.config.schema import EntityConfig, EntityTypeConfig, MaterializedFieldConfig
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.server import _EntityService
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
@@ -13,10 +15,13 @@ from edera_core.storage.repository import (
     get_core_entity,
     list_core_entities,
     list_entity_type_configs,
+    query_ordinary_entities,
+    save_ordinary_entity,
     save_core_entity,
     seed_entity_type_records,
     store_node_output_entities,
 )
+from edera_core.storage.materialization import apply_materialization
 from edera_core.trigger import TriggerExpressionError
 
 
@@ -178,6 +183,97 @@ async def test_output_entities_remain_in_node_outputs(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_ordinary_entity_type_persists_in_per_type_table(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "ordinary.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            stock = _stock_entity_type()
+            await seed_entity_type_records(session, {"stock": stock})
+            saved = await save_ordinary_entity(
+                session,
+                EntityConfig(id="stock-1", type="stock", attributes={"code": "00700", "name": "Tencent", "sector": "Tech"}),
+                stock,
+            )
+            await session.commit()
+
+        async with engine.connect() as conn:
+            tables = await conn.run_sync(lambda sync: set(inspect(sync).get_table_names()))
+        assert "entity_stock" in tables
+        assert saved.attributes["sector"] == "Tech"
+
+        async with factory() as session:
+            result = await session.exec(text("select business_id, attributes_json from entity_stock"))
+            row = result.one()
+            assert row[0] == "00700"
+            assert json.loads(row[1]) == {"code": "00700", "name": "Tencent", "sector": "Tech"}
+            result = await session.exec(text("select count(*) from node_outputs"))
+            assert result.one()[0] == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_materialize_indexed_field_backfills_and_queries_column(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "materialized.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            stock = _stock_entity_type()
+            await seed_entity_type_records(session, {"stock": stock})
+            await save_ordinary_entity(
+                session,
+                EntityConfig(id="stock-1", type="stock", attributes={"code": "00700", "name": "Tencent"}),
+                stock,
+            )
+            plan = await apply_materialization(session, "stock", stock, "code", "text", True)
+            materialized_stock = stock.model_copy(
+                update={"materialized_fields": {"code": MaterializedFieldConfig(type="text", index=True)}}
+            )
+            await session.commit()
+
+        async with factory() as session:
+            columns = await session.exec(text("PRAGMA table_info(entity_stock)"))
+            indexes = await session.exec(text("PRAGMA index_list(entity_stock)"))
+            rows = await session.exec(text("select code from entity_stock"))
+            queried = await query_ordinary_entities(session, "stock", {"stock": materialized_stock}, {"code": "00700"})
+
+        assert plan.backfill_count == 1
+        assert "code" in {row[1] for row in columns.all()}
+        assert "idx_entity_stock_code" in {row[1] for row in indexes.all()}
+        assert rows.one()[0] == "00700"
+        assert [entity.id for entity in queried] == ["stock-1"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_core_entity_tables_unchanged_when_ordinary_table_created(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "unchanged.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            await seed_entity_type_records(session, {**_core_entity_types(), "stock": _stock_entity_type()})
+            await save_ordinary_entity(
+                session,
+                EntityConfig(id="stock-1", type="stock", attributes={"code": "00700", "name": "Tencent"}),
+                _stock_entity_type(),
+            )
+            await session.commit()
+        async with engine.connect() as conn:
+            tables = await conn.run_sync(lambda sync: set(inspect(sync).get_table_names()))
+        assert {"entity_node", "entity_dag", "entity_trigger", "entity_resource", "entity_stock"} <= tables
+        async with factory() as session:
+            result = await session.exec(text("select count(*) from entity_node"))
+            assert result.one()[0] == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_entity_type_metadata_round_trips_from_db(tmp_path) -> None:
     engine = create_engine(sqlite_url(tmp_path / "edera.db"))
     try:
@@ -248,6 +344,25 @@ def _core_entity_types() -> dict[str, EntityTypeConfig]:
             }
         ),
     }
+
+
+def _stock_entity_type() -> EntityTypeConfig:
+    return EntityTypeConfig.model_validate(
+        {
+            "display_name": "Stock",
+            "business_id_field": "code",
+            "display_template": "{code}",
+            "storage_tier": "database",
+            "schema": {
+                "required": ["code", "name"],
+                "properties": {
+                    "code": {"type": "string"},
+                    "name": {"type": "string"},
+                    "sector": {"type": "string"},
+                },
+            },
+        }
+    )
 
 
 def _write_config(root) -> None:

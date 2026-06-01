@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from uuid import uuid4
 
+from sqlalchemy import text
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from edera_core.config.schema import EntityConfig, EntityTypeConfig, entity_ref
+from edera_core.storage.materialization import (
+    decode_value,
+    encode_value,
+    ensure_ordinary_entity_table,
+    entity_table_name,
+    identifier,
+)
 from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
 from edera_core.storage.entities import (
     CoreEntityDag,
@@ -46,9 +55,15 @@ async def upsert_entity_type_record(
     record.business_id_field = entity_type.business_id_field
     record.display_template = entity_type.display_template
     record.storage_tier = entity_type.storage_tier
-    record.table_name = CORE_ENTITY_TABLES.get(name)
-    record.schema_version = schema_version
+    record.table_name = CORE_ENTITY_TABLES.get(name) or entity_type.table_name or entity_table_name(name)
+    record.schema_version = entity_type.schema_version or schema_version
     record.system_protected = entity_type.system_protected
+    if entity_type.materialized_fields or record.materialized_fields is None:
+        record.materialized_fields = {
+            field: config.model_dump(mode="json") for field, config in entity_type.materialized_fields.items()
+        }
+    if entity_type.deprecated_fields or record.deprecated_fields is None:
+        record.deprecated_fields = list(entity_type.deprecated_fields)
     record.schema_body = dict(entity_type.schema_)
     record.field_permissions = dict(entity_type.field_permissions)
     record.validate_ = entity_type.validate_
@@ -79,6 +94,10 @@ def entity_type_record_to_config(record: EntityTypeRecord) -> EntityTypeConfig:
             "business_id_field": record.business_id_field,
             "display_template": record.display_template,
             "storage_tier": record.storage_tier,
+            "table_name": record.table_name,
+            "schema_version": record.schema_version,
+            "materialized_fields": record.materialized_fields,
+            "deprecated_fields": record.deprecated_fields,
             "system_protected": record.system_protected,
             "schema": record.schema_body,
             "field_permissions": record.field_permissions,
@@ -147,6 +166,125 @@ async def delete_core_entity(
     await session.delete(row)
     await session.flush()
     return True
+
+
+async def save_ordinary_entity(
+    session: AsyncSession,
+    entity: EntityConfig,
+    entity_type: EntityTypeConfig,
+) -> EntityConfig:
+    table = await ensure_ordinary_entity_table(session, entity.type, entity_type)
+    attrs = _ordinary_writable_attrs(entity.attributes, entity_type)
+    business_id = entity.id if entity_type.business_id_field == "id" else attrs.get(entity_type.business_id_field)
+    if not isinstance(business_id, str) or not business_id:
+        raise ValueError(f"entity {entity.id} missing business id field: {entity_type.business_id_field}")
+    now = utc_now().isoformat()
+    row = await _ordinary_row(session, table, entity.id)
+    created_at = row["created_at"] if row is not None else now
+    materialized = {
+        field: encode_value(attrs[field], config.type)
+        for field, config in entity_type.materialized_fields.items()
+        if field in attrs and field not in entity_type.deprecated_fields
+    }
+    json_attrs = {
+        key: value
+        for key, value in attrs.items()
+        if key not in entity_type.materialized_fields and key not in entity_type.deprecated_fields
+    }
+    columns = ["id", "business_id", "schema_version", "attributes_json", "created_at", "updated_at", *materialized]
+    values = {
+        "id": entity.id,
+        "business_id": business_id,
+        "schema_version": entity_type.schema_version,
+        "attributes_json": json.dumps(json_attrs, ensure_ascii=False),
+        "created_at": created_at,
+        "updated_at": now,
+        **materialized,
+    }
+    assignments = [f"{identifier(column)} = :{column}" for column in columns if column != "id"]
+    await session.exec(
+        text(
+            f"INSERT INTO {table} ({', '.join(identifier(column) for column in columns)}) "
+            f"VALUES ({', '.join(':' + column for column in columns)}) "
+            f"ON CONFLICT(id) DO UPDATE SET {', '.join(assignments)}"
+        ),
+        params=values,
+    )
+    await session.flush()
+    return await get_ordinary_entity(session, entity.type, entity.id, {entity.type: entity_type}) or entity
+
+
+async def list_ordinary_entities(
+    session: AsyncSession,
+    entity_types: dict[str, EntityTypeConfig],
+    entity_type: str | None = None,
+) -> list[EntityConfig]:
+    names = [entity_type] if entity_type is not None else sorted(entity_types)
+    entities: list[EntityConfig] = []
+    for name in names:
+        config = entity_types.get(name)
+        if config is None or name in CORE_ENTITY_TABLES or config.storage_tier != "database":
+            continue
+        table = await ensure_ordinary_entity_table(session, name, config)
+        result = await session.exec(text(f"SELECT * FROM {table} ORDER BY id"))
+        entities.extend(_ordinary_entity_from_row(name, config, row._mapping) for row in result.all())
+    return entities
+
+
+async def get_ordinary_entity(
+    session: AsyncSession,
+    entity_type: str,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> EntityConfig | None:
+    config = entity_types.get(entity_type)
+    if config is None:
+        return None
+    table = await ensure_ordinary_entity_table(session, entity_type, config)
+    result = await session.exec(text(f"SELECT * FROM {table} WHERE id = :ref OR business_id = :ref"), params={"ref": ref})
+    row = result.first()
+    return _ordinary_entity_from_row(entity_type, config, row._mapping) if row is not None else None
+
+
+async def query_ordinary_entities(
+    session: AsyncSession,
+    entity_type: str,
+    entity_types: dict[str, EntityTypeConfig],
+    filters: dict[str, object] | None = None,
+) -> list[EntityConfig]:
+    config = entity_types[entity_type]
+    table = await ensure_ordinary_entity_table(session, entity_type, config)
+    filters = filters or {}
+    materialized = {key: value for key, value in filters.items() if key in config.materialized_fields}
+    clauses = [f"{identifier(key)} = :{key}" for key in materialized]
+    sql = f"SELECT * FROM {table}"
+    if clauses:
+        sql = f"{sql} WHERE {' AND '.join(clauses)}"
+    result = await session.exec(text(sql), params={key: encode_value(value, config.materialized_fields[key].type) for key, value in materialized.items()})
+    entities = [_ordinary_entity_from_row(entity_type, config, row._mapping) for row in result.all()]
+    json_filters = {key: value for key, value in filters.items() if key not in materialized}
+    for key, value in json_filters.items():
+        entities = [entity for entity in entities if entity.attributes.get(key) == value]
+    return entities
+
+
+async def delete_ordinary_entity(
+    session: AsyncSession,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> bool:
+    for entity_type, config in entity_types.items():
+        if entity_type in CORE_ENTITY_TABLES or config.storage_tier != "database":
+            continue
+        table = await ensure_ordinary_entity_table(session, entity_type, config)
+        result = await session.exec(text(f"SELECT id FROM {table} WHERE id = :ref OR business_id = :ref"), params={"ref": ref})
+        row = result.first()
+        if row is None:
+            continue
+        await session.exec(text(f"DELETE FROM {table} WHERE id = :id"), params={"id": row[0]})
+        await session.flush()
+        return True
+    return False
 
 
 async def record_log_index(
@@ -378,6 +516,42 @@ def _str_list(value: object) -> list[str]:
 
 def _dict_list(value: object) -> list[dict[str, object]]:
     return [dict(item) for item in value] if isinstance(value, list) and all(isinstance(item, dict) for item in value) else []
+
+
+async def _ordinary_row(session: AsyncSession, table: str, entity_id: str):
+    result = await session.exec(text(f"SELECT * FROM {table} WHERE id = :id"), params={"id": entity_id})
+    row = result.first()
+    return row._mapping if row is not None else None
+
+
+def _ordinary_entity_from_row(
+    entity_type: str,
+    config: EntityTypeConfig,
+    row: object,
+) -> EntityConfig:
+    values = dict(row)
+    attrs = _json_dict(values.get("attributes_json"))
+    for field, field_config in config.materialized_fields.items():
+        if field in config.deprecated_fields:
+            continue
+        if field in values and values[field] is not None:
+            attrs[field] = decode_value(values[field], field_config.type)
+    if config.business_id_field not in attrs:
+        attrs[config.business_id_field] = values.get("business_id")
+    return EntityConfig(id=str(values["id"]), type=entity_type, attributes=attrs)
+
+
+def _ordinary_writable_attrs(attrs: dict[str, Any], config: EntityTypeConfig) -> dict[str, Any]:
+    return {key: value for key, value in attrs.items() if key not in config.deprecated_fields}
+
+
+def _json_dict(value: object) -> dict[str, object]:
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str) and value:
+        data = json.loads(value)
+        return dict(data) if isinstance(data, dict) else {}
+    return {}
 
 
 async def store_node_output_entities(

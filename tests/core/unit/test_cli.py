@@ -297,6 +297,38 @@ def test_cli_entity_template_uses_entity_type_metadata(
     assert '"template": "node"' in capsys.readouterr().out
 
 
+def test_cli_entity_type_materialize_plan_uses_grpc(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def entity_materialize(self, payload: dict[str, object]) -> dict[str, object]:
+            assert payload == {
+                "operation": "plan",
+                "entity_type": "stock",
+                "field": "code",
+                "index": True,
+            }
+            return {"column": "code", "index_name": "idx_entity_stock_code", "backfill_count": 3}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "entity-type", "materialize", "plan", "stock", "--field", "code", "--index"])
+
+    main()
+
+    output = capsys.readouterr().out
+    assert '"column": "code"' in output
+    assert '"idx_entity_stock_code"' in output
+
+
 def test_cli_entity_import_rejects_invalid_yaml_document(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

@@ -110,6 +110,12 @@ class EntityStore:
             )
             _validate_entity_semantics(entity)
             return await save_core_entity(session, entity)
+        if not _looks_like_output(attributes):
+            from edera_core.storage.repository import save_ordinary_entity
+
+            entity = EntityConfig(id=str(attributes.get("id") or uuid4().hex), type=entity_type, attributes=attributes)
+            _validate_entity_semantics(entity)
+            return await save_ordinary_entity(session, entity, self.entity_types[entity_type])
         from edera_core.storage.repository import node_output_to_entity, store_node_output_entities
 
         stored = await store_node_output_entities(
@@ -134,7 +140,7 @@ class EntityStore:
     ) -> list[EntityConfig]:
         if session is None or not self._needs_database(entity_type):
             return self.query(entity_type, run_id, node_id, tags)
-        from edera_core.storage.repository import list_core_entities, query_node_output_entities
+        from edera_core.storage.repository import list_core_entities, list_ordinary_entities, query_node_output_entities
 
         filesystem_and_memory = [
             entity
@@ -144,10 +150,11 @@ class EntityStore:
         core: list[EntityConfig] = []
         if entity_type in CORE_ENTITY_TYPES or entity_type is None:
             core = await list_core_entities(session, entity_type if entity_type in CORE_ENTITY_TYPES else None)
+        ordinary = await list_ordinary_entities(session, self.entity_types, entity_type)
         outputs: list[EntityConfig] = []
         if entity_type not in CORE_ENTITY_TYPES:
             outputs = await query_node_output_entities(session, entity_type, run_id, node_id, tags)
-        return _dedupe_entities(filesystem_and_memory + core + outputs)
+        return _dedupe_entities(filesystem_and_memory + core + ordinary + outputs)
 
     async def save_async(
         self,
@@ -165,15 +172,19 @@ class EntityStore:
             saved = entity.model_copy(update={"attributes": self._writable_attributes(entity, entity, permissions)})
             _validate_entity_semantics(saved)
             return await save_core_entity(session, saved)
-        from edera_core.storage.repository import save_node_output_entity
+        from edera_core.storage.repository import save_ordinary_entity
 
-        return await save_node_output_entity(session, entity)
+        saved = entity.model_copy(update={"attributes": self._writable_attributes(entity, entity, permissions)})
+        _validate_entity_semantics(saved)
+        return await save_ordinary_entity(session, saved, self.entity_types[entity.type])
 
     async def delete_async(self, entity_id: str, session: Any | None = None) -> int:
         if session is not None:
-            from edera_core.storage.repository import delete_core_entity, delete_node_output_entity
+            from edera_core.storage.repository import delete_core_entity, delete_node_output_entity, delete_ordinary_entity
 
             if await delete_core_entity(session, entity_id, self.entity_types):
+                return 0
+            if await delete_ordinary_entity(session, entity_id, self.entity_types):
                 return 0
             if await delete_node_output_entity(session, entity_id):
                 return 0
@@ -567,6 +578,12 @@ def _dedupe_entities(entities: list[EntityConfig]) -> list[EntityConfig]:
         seen.add(entity.id)
         result.append(entity)
     return result
+
+
+def _looks_like_output(attributes: dict[str, Any]) -> bool:
+    return isinstance(attributes.get("payload"), dict) and (
+        isinstance(attributes.get("run_id"), str) or isinstance(attributes.get("node_id"), str)
+    )
 
 
 def _filesystem_dirs(config_dir: Path) -> dict[str, Path]:

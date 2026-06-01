@@ -29,6 +29,7 @@ async def init_db(engine: AsyncEngine) -> None:
         await _ensure_dag_retry_of(conn)
         await _ensure_node_run_failure_kind(conn)
         await _ensure_node_run_metadata(conn)
+        await _ensure_entity_type_materialization_metadata(conn)
         result = await conn.execute(text("PRAGMA journal_mode"))
         mode = result.scalar_one()
         if str(mode).lower() != "wal":
@@ -78,3 +79,10 @@ async def _ensure_node_run_metadata(conn) -> None:
     if await _has_column(conn, "node_runs", "metadata"):
         return
     await conn.execute(text("ALTER TABLE node_runs ADD COLUMN metadata JSON NOT NULL DEFAULT '{}'"))
+
+
+async def _ensure_entity_type_materialization_metadata(conn) -> None:
+    for column, default in (("materialized_fields", "{}"), ("deprecated_fields", "[]")):
+        if await _has_column(conn, "entity_types", column):
+            continue
+        await conn.execute(text(f"ALTER TABLE entity_types ADD COLUMN {column} JSON NOT NULL DEFAULT '{default}'"))

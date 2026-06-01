@@ -44,6 +44,12 @@ class SystemConfig(BaseModel):
 
 FieldPermission = Literal["none", "read-only", "write-only", "read-write"]
 StorageTier = Literal["filesystem", "database", "memory"]
+MaterializedFieldType = Literal["integer", "text", "real", "datetime", "boolean", "json"]
+
+
+class MaterializedFieldConfig(BaseModel):
+    type: MaterializedFieldType
+    index: bool = False
 
 
 class EntityTypeConfig(BaseModel):
@@ -51,6 +57,10 @@ class EntityTypeConfig(BaseModel):
     business_id_field: str
     display_template: str
     storage_tier: StorageTier = "filesystem"
+    table_name: str | None = None
+    schema_version: int = 1
+    materialized_fields: dict[str, MaterializedFieldConfig] = Field(default_factory=dict)
+    deprecated_fields: list[str] = Field(default_factory=list)
     system_protected: bool = False
     schema_: dict[str, Any] = Field(default_factory=dict, alias="schema")
     field_permissions: dict[str, FieldPermission] = Field(default_factory=dict)

@@ -21,6 +21,7 @@ def main() -> None:
     parser.add_argument("--version", action="version", version="edera 0.1.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
     _entity_parser(subparsers.add_parser("entity"))
+    _entity_type_parser(subparsers.add_parser("entity-type"))
     _node_parser(subparsers.add_parser("node"))
     _dag_parser(subparsers.add_parser("dag"))
     _event_parser(subparsers.add_parser("event"))
@@ -69,6 +70,20 @@ def _entity_parser(parser: argparse.ArgumentParser) -> None:
     query.add_argument("expression")
     delete = subparsers.add_parser("delete")
     delete.add_argument("ref")
+
+
+def _entity_type_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="entity_type_command", required=True)
+    materialize = subparsers.add_parser("materialize")
+    materialize_sub = materialize.add_subparsers(dest="materialize_command", required=True)
+    for command in ("plan", "apply"):
+        item = materialize_sub.add_parser(command)
+        item.add_argument("type")
+        item.add_argument("--field", required=True)
+        item.add_argument("--type", dest="field_type")
+        item.add_argument("--index", action="store_true")
+    inspect = materialize_sub.add_parser("inspect")
+    inspect.add_argument("type")
 
 
 def _node_parser(parser: argparse.ArgumentParser) -> None:
@@ -147,6 +162,8 @@ def _client_parser(parser: argparse.ArgumentParser) -> None:
 def _dispatch(args: argparse.Namespace) -> object:
     if args.command == "entity":
         return _run_grpc(_grpc_entity(args))
+    if args.command == "entity-type":
+        return _run_grpc(_grpc_entity_type(args))
     if args.command == "node":
         return _run_grpc(_grpc_node(args))
     if args.command == "dag":
@@ -214,6 +231,26 @@ async def _grpc_entity(args: argparse.Namespace) -> object:
     finally:
         await client.close()
     raise ValueError(f"unknown entity command: {args.entity_command}")
+
+
+async def _grpc_entity_type(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.entity_type_command != "materialize":
+            raise ValueError(f"unknown entity-type command: {args.entity_type_command}")
+        payload: dict[str, object] = {
+            "operation": args.materialize_command,
+            "entity_type": args.type,
+        }
+        if args.materialize_command in {"plan", "apply"}:
+            payload["field"] = args.field
+            if args.field_type:
+                payload["type"] = args.field_type
+            if args.index:
+                payload["index"] = True
+        return await client.entity_materialize(payload)
+    finally:
+        await client.close()
 
 
 async def _grpc_node(args: argparse.Namespace) -> object:
