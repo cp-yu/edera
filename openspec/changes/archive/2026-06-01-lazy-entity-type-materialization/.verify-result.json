@@ -1,0 +1,241 @@
+{
+  "timestamp": "2026-06-01T08:19:12.134Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Clean-context reviewer subagent could not complete because the agent service returned 429 Too Many Requests twice; local Phase 1 evidence was used instead.",
+      "evidence": [
+        "uv run pytest tests/core/unit/test_entity_types.py tests/core/unit/test_entity_crud.py tests/core/unit/test_cli.py tests/core/test_core_extension_runtime.py tests/core/unit/test_node_context.py => 54 passed",
+        "git diff --check => passed",
+        "openspec instructions apply --change lazy-entity-type-materialization --json => 5/5 tasks complete, needs_verify"
+      ]
+    }
+  ],
+  "tasksFileHash": "050f9f30eae5a21bab5b7ae9ef1501a95d041488f62383503453dee223f756eb",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "local-with-subagent-429-warning",
+    "evidenceFiles": [
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/entities.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/database.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/materialization.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "proto/edera.proto",
+      "tests/core/test_core_extension_runtime.py",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_entity_crud.py",
+      "tests/core/unit/test_entity_types.py",
+      "tests/core/unit/test_node_context.py"
+    ],
+    "evidenceFingerprint": "b5c8a8bf281736ed7620085f67f4e3bd37a50451e31eca748d31f5afad1b4515",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "05e2fe487a028fbc68bf06dc41f527850814a1f2d71f629ae1952d412be2c714"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/entities.py",
+        "hash": "d533d0a2cb5e3eed90805465ce6544d38e44dd65677d77e98a8bf2e1e3f1cfb9"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "ed7d7915ba3370bdbfa65051ff5aec0ef48dd22de4a454b871b6e5e7dbc0e6a9"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "4ec4d3df7c1bd259cfa751c9cec69158f1e4c645ac49c2a7f00123ef51c2b095"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "4f559d77b7a62462dbc86b38f7a95f849e873fe75e6c450b7e29fb3d36966aff"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "f4976a9a1ec541d5576cdcc7cde0b44045257f528d6d0bc7a2486358bcb3f2de"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/database.py",
+        "hash": "ef432285c75b73f9bec7364a3b8f2f3fbd2d22eafd3947d4c53207897c9658ce"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "c95bc622b5c915d31a3a54d4beb2e84f5460a0f89327eed2dbdc12c2167e04f2"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/materialization.py",
+        "hash": "3f0da40bbeac38f1fc5d56cadfee5bf88a87d31993bd78720be0247536c5451e"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "2586f2bac8a6add3cb774eaf2df08a7739ae2c90179af9ea0e22d714e116e512"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "41bed74b744ba56143f30374be6f78a8c728d7c5fe0cda091e33e8aa4e0d9cdb"
+      },
+      {
+        "path": "tests/core/test_core_extension_runtime.py",
+        "hash": "e0a489260771b15c8c796ee70b45c77f5125a25433611706378130afe16e56e3"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "d9dea7a0b378e2d1f72aa8b50069a3eca3dae1e0e941dd4badf2b5ec045504a1"
+      },
+      {
+        "path": "tests/core/unit/test_entity_crud.py",
+        "hash": "b308ed59674b4c7aacefb2d927aac4e99f7d133529da1a5e897bb8d63588b7a8"
+      },
+      {
+        "path": "tests/core/unit/test_entity_types.py",
+        "hash": "9cc40fdd2bca97accf0727e9ce71c1dea2107e4a271b6ac9876d24a6ffb6b07c"
+      },
+      {
+        "path": "tests/core/unit/test_node_context.py",
+        "hash": "9efccac8c6629e8d605318f6f6b828236573c7dc0a69753255fadb7a4691af97"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "ea2fbdcef22d9155c05de72412a550b55ff9f0e8"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-01T08:23:24.332Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Extract duplicate database entity save branching in EntityService Create/Update into a shared helper.",
+        "files": [
+          "packages/core/src/edera_core/server.py"
+        ]
+      },
+      {
+        "timestamp": "2026-06-01T08:24:51.446Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/server.py": "041e71592fe6fecad9687bc158b5fc05c88338f52d1a86d37f2cc7e9999b3a01"
+    },
+    "baseline": {
+      "timestamp": "2026-06-01T08:19:12.134Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Clean-context reviewer subagent could not complete because the agent service returned 429 Too Many Requests twice; local Phase 1 evidence was used instead.",
+          "evidence": [
+            "uv run pytest tests/core/unit/test_entity_types.py tests/core/unit/test_entity_crud.py tests/core/unit/test_cli.py tests/core/test_core_extension_runtime.py tests/core/unit/test_node_context.py => 54 passed",
+            "git diff --check => passed",
+            "openspec instructions apply --change lazy-entity-type-materialization --json => 5/5 tasks complete, needs_verify"
+          ]
+        }
+      ],
+      "tasksFileHash": "050f9f30eae5a21bab5b7ae9ef1501a95d041488f62383503453dee223f756eb",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "local-with-subagent-429-warning",
+        "evidenceFiles": [
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/entities.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/database.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/materialization.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "proto/edera.proto",
+          "tests/core/test_core_extension_runtime.py",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_entity_crud.py",
+          "tests/core/unit/test_entity_types.py",
+          "tests/core/unit/test_node_context.py"
+        ],
+        "evidenceFingerprint": "5cf73d2455fafec393fd71ed53a8735abf7b8d992604345e7c9ea7268ae365a3",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "05e2fe487a028fbc68bf06dc41f527850814a1f2d71f629ae1952d412be2c714"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/entities.py",
+            "hash": "d533d0a2cb5e3eed90805465ce6544d38e44dd65677d77e98a8bf2e1e3f1cfb9"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "ed7d7915ba3370bdbfa65051ff5aec0ef48dd22de4a454b871b6e5e7dbc0e6a9"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "4ec4d3df7c1bd259cfa751c9cec69158f1e4c645ac49c2a7f00123ef51c2b095"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "4f559d77b7a62462dbc86b38f7a95f849e873fe75e6c450b7e29fb3d36966aff"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "041e71592fe6fecad9687bc158b5fc05c88338f52d1a86d37f2cc7e9999b3a01"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/database.py",
+            "hash": "ef432285c75b73f9bec7364a3b8f2f3fbd2d22eafd3947d4c53207897c9658ce"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "c95bc622b5c915d31a3a54d4beb2e84f5460a0f89327eed2dbdc12c2167e04f2"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/materialization.py",
+            "hash": "3f0da40bbeac38f1fc5d56cadfee5bf88a87d31993bd78720be0247536c5451e"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "2586f2bac8a6add3cb774eaf2df08a7739ae2c90179af9ea0e22d714e116e512"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "41bed74b744ba56143f30374be6f78a8c728d7c5fe0cda091e33e8aa4e0d9cdb"
+          },
+          {
+            "path": "tests/core/test_core_extension_runtime.py",
+            "hash": "e0a489260771b15c8c796ee70b45c77f5125a25433611706378130afe16e56e3"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "d9dea7a0b378e2d1f72aa8b50069a3eca3dae1e0e941dd4badf2b5ec045504a1"
+          },
+          {
+            "path": "tests/core/unit/test_entity_crud.py",
+            "hash": "b308ed59674b4c7aacefb2d927aac4e99f7d133529da1a5e897bb8d63588b7a8"
+          },
+          {
+            "path": "tests/core/unit/test_entity_types.py",
+            "hash": "9cc40fdd2bca97accf0727e9ce71c1dea2107e4a271b6ac9876d24a6ffb6b07c"
+          },
+          {
+            "path": "tests/core/unit/test_node_context.py",
+            "hash": "9efccac8c6629e8d605318f6f6b828236573c7dc0a69753255fadb7a4691af97"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "ea2fbdcef22d9155c05de72412a550b55ff9f0e8"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

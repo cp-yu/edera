@@ -200,18 +200,29 @@ async def materialize_runtime_app_config(config_dir: Path, config: AppConfig, en
     from edera_core.storage.repository import (
         list_core_entities,
         list_entity_type_configs,
+        list_ordinary_entities,
         seed_entity_type_records,
     )
 
     factory = session_factory(engine)
     async with factory() as session:
-        await seed_entity_type_records(session, config.entity_types)
+        config.entity_types = await seed_entity_type_records(session, config.entity_types)
         for trigger in await _default_trigger_entities(session, config.entity_types):
             from edera_core.storage.repository import get_core_entity, save_core_entity
 
             if await get_core_entity(session, trigger.id, config.entity_types) is None:
                 await save_core_entity(session, trigger)
+        for entity in config.entities.entities:
+            if entity.type in CORE_ENTITY_TYPES:
+                continue
+            entity_type = config.entity_types.get(entity.type)
+            if entity_type is None or entity_type.storage_tier != "database":
+                continue
+            from edera_core.storage.repository import save_ordinary_entity
+
+            await save_ordinary_entity(session, entity, entity_type)
         core_entities = await list_core_entities(session)
+        ordinary_entities = await list_ordinary_entities(session, config.entity_types)
         db_entity_types = await list_entity_type_configs(session)
         await session.commit()
     runtime_entities = [
@@ -220,6 +231,7 @@ async def materialize_runtime_app_config(config_dir: Path, config: AppConfig, en
         if entity.type not in CORE_ENTITY_TYPES
     ]
     runtime_entities.extend(core_entities)
+    runtime_entities.extend(ordinary_entities)
     config.entity_types = {**config.entity_types, **db_entity_types}
     config.entities = EntitiesConfig(entities=runtime_entities)
     config.nodes = _nodes_from_core_entities(config_dir, core_entities)

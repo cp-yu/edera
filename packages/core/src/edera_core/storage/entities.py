@@ -25,6 +25,8 @@ class EntityTypeRecord(SQLModel, table=True):
     table_name: str | None = Field(default=None, index=True)
     schema_version: int = 1
     system_protected: bool = False
+    materialized_fields: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    deprecated_fields: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     schema_body: dict[str, Any] = Field(default_factory=dict, sa_column=Column("schema_json", JSON, nullable=False))
     field_permissions: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     validate_: bool = Field(default=True, sa_column=Column("validate", Boolean, nullable=False))

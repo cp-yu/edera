@@ -88,6 +88,13 @@ class GrpcClient:
         response = await self.entities.Query(pb2.QueryRequest(expression=expression, identity=identity), metadata=_identity_metadata(identity))
         return [_entity_response(item) for item in response.entities]
 
+    async def entity_materialize(self, payload: dict[str, object]) -> dict[str, object]:
+        response = await self.entities.Materialize(
+            pb2.JsonRequest(json=json.dumps(payload)),
+            metadata=_identity_metadata(self.identity),
+        )
+        return _json_response(response)
+
     async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
         response = await self.dags.Run(pb2.DagRunRequest(name=name, inputs_json=json.dumps(payload) if payload is not None else ""))
         return {"run_id": response.run_id}
