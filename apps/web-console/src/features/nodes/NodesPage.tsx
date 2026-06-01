@@ -124,14 +124,17 @@ function HandlerCard({ node }: {
   node: NodeType
 }) {
   const [handlerCode, setHandlerCode] = useState('')
-  const handlerName = node.handler ?? node.name
+  const handlerName = node.name
   const handler = useHandler(handlerName)
   const saveHandler = useSaveHandler()
   const saveCode = (code: string) => saveHandler.mutate({ name: handlerName, code })
+  const noHandler = !handler.isLoading && handler.isError
 
   useEffect(() => {
     setHandlerCode(handler.data?.code ?? '')
   }, [handler.data?.code])
+
+  if (noHandler) return null
 
   return (
     <section className="rounded-xl border bg-card p-4 shadow-sm">
@@ -142,10 +145,6 @@ function HandlerCard({ node }: {
       <div className="mt-3 space-y-2">
         {handler.isLoading ? (
           <div className="min-h-56 rounded-md border bg-background p-3 text-xs text-muted-foreground">加载中...</div>
-        ) : handler.isError ? (
-          <div className="min-h-56 rounded-md border bg-background p-3 text-xs text-destructive">
-            {(handler.error as Error).message}
-          </div>
         ) : (
           <textarea
             className="min-h-56 w-full rounded-md border bg-background p-3 font-mono text-xs"
