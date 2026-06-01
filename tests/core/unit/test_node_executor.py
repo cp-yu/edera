@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -11,8 +12,11 @@ from edera_core.config.schema import (
     EntityTypeConfig,
     NodeConfig,
 )
+from edera_core.dag_controller import _record_raw_log
 from edera_core.node.executor import NodeExecutor, _apply_instance_config
 from edera_core.node.models import NodeContext, NodeInput
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.storage.repository import query_log_index
 from edera_types import NodeOutput
 
 
@@ -352,6 +356,68 @@ async def test_instance_config_sets_model_tools_and_session_dir() -> None:
     assert effective.parameters["model"] == "hf-share/deepseek-v4-flash"
     assert effective.parameters["session_dir"] == "sandbox:llm-0:latest"
     assert effective.tools == ["bash", "read"]
+
+
+@pytest.mark.asyncio
+async def test_agent_executor_records_raw_log_file(tmp_path: Path) -> None:
+    config = load_app_config(Path("config"))
+    pi = tmp_path / "pi"
+    pi.write_text("#!/bin/sh\nprintf 'line one\\nline two\\n'\n", encoding="utf-8")
+    pi.chmod(0o755)
+    node = NodeConfig.model_validate(
+        {
+            "name": "agent-node",
+            "type": "agent",
+            "model": "test-model",
+            "input_type": "Any",
+            "output_type": "Any",
+        }
+    )
+    runtime = config.runtime.model_copy(update={"pi_bin": str(pi)})
+    records: list[tuple[str, str, str, str, int]] = []
+
+    async def recorder(run_id: str, node_id: str, path: str, digest: str, size: int) -> None:
+        records.append((run_id, node_id, path, digest, size))
+
+    executor = NodeExecutor(
+        {"agent-node": node},
+        config.system,
+        runtime,
+        daemon_data_dir=tmp_path / "data",
+        raw_log_recorder=recorder,
+    )
+
+    output = await executor.execute("agent-node", NodeInput(run_id="run-1", payload={}))
+
+    assert output.ok
+    assert output.payload["stdout"] == "line one\nline two"
+    assert len(records) == 1
+    run_id, node_id, log_path, digest, size = records[0]
+    content = Path(log_path).read_bytes()
+    assert run_id == "run-1"
+    assert node_id == "agent-node"
+    assert content == b"line one\nline two\n"
+    assert digest == hashlib.sha256(content).hexdigest()
+    assert size == len(content)
+
+
+@pytest.mark.asyncio
+async def test_raw_log_index_is_queryable(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        await _record_raw_log(factory, "run-1", "agent-node", "/tmp/stdout.log", "digest", 12)
+
+        async with factory() as session:
+            rows = await query_log_index(session, run_id="run-1", node_id="agent-node")
+
+        assert len(rows) == 1
+        assert rows[0].path == "/tmp/stdout.log"
+        assert rows[0].digest == "digest"
+        assert rows[0].size == 12
+    finally:
+        await engine.dispose()
 
 
 async def _unused_handler(_node_input: NodeInput) -> dict[str, object]:

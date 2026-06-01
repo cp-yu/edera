@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 
 from edera_core.cli import _grpc_client_init, _inject_human_cert_env, main
 from edera_core.grpc_client import GrpcClient
@@ -174,6 +175,149 @@ def test_cli_entity_update_human_writes_field(
     main()
 
     assert '"name": "Changed"' in capsys.readouterr().out
+
+
+def test_cli_entity_import_uses_full_yaml_document(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "node.yaml"
+    path.write_text(
+        "type: node\n"
+        "id: node-1\n"
+        "attributes:\n"
+        "  name: reader\n"
+        "  type: function\n",
+        encoding="utf-8",
+    )
+    calls: list[tuple[str, dict[str, object], str]] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def entity_create(self, type_name: str, attributes: dict[str, object], entity_id: str = "") -> dict[str, object]:
+            calls.append((type_name, attributes, entity_id))
+            return {"id": entity_id, "type": type_name, "attributes": attributes}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "import", "--file", str(path)])
+
+    main()
+
+    assert calls == [("node", {"name": "reader", "type": "function"}, "node-1")]
+    assert '"id": "node-1"' in capsys.readouterr().out
+
+
+def test_cli_entity_export_writes_full_yaml_document(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "exported.yaml"
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def entity_get(self, ref: str) -> dict[str, object]:
+            assert ref == "node:reader"
+            return {"id": "node-1", "type": "node", "attributes": {"name": "reader"}}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "export", "node:reader", "--file", str(path)])
+
+    main()
+
+    assert yaml.safe_load(path.read_text(encoding="utf-8")) == {
+        "type": "node",
+        "id": "node-1",
+        "attributes": {"name": "reader"},
+    }
+    assert '"exported": "node:reader"' in capsys.readouterr().out
+
+
+def test_cli_entity_template_uses_entity_type_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "template.yaml"
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def entity_list(self, type_name: str | None = None) -> list[dict[str, object]]:
+            assert type_name == "entity_type"
+            return [
+                {
+                    "id": "node",
+                    "type": "entity_type",
+                    "attributes": {
+                        "schema": {
+                            "required": ["name", "enabled", "permits", "tags"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "enabled": {"type": "boolean", "default": True},
+                                "permits": {"type": "integer"},
+                                "tags": {"type": "array"},
+                            },
+                        }
+                    },
+                }
+            ]
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "template", "--type", "node", "--file", str(path)])
+
+    main()
+
+    assert yaml.safe_load(path.read_text(encoding="utf-8")) == {
+        "type": "node",
+        "id": "",
+        "attributes": {"name": "", "enabled": True, "permits": 0, "tags": []},
+    }
+    assert '"template": "node"' in capsys.readouterr().out
+
+
+def test_cli_entity_import_rejects_invalid_yaml_document(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "bad.yaml"
+    path.write_text("id: node-1\nattributes: []\n", encoding="utf-8")
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            raise AssertionError("invalid import must not open gRPC client")
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "import", "--file", str(path)])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1
+    assert "entity YAML requires non-empty type" in capsys.readouterr().err
 
 
 def test_cli_dag_status_uses_grpc(

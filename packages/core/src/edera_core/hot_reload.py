@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from edera_core.bootstrap import BootstrapResult, scan_extensions
-from edera_core.config.loader import load_app_config
 from edera_core.config.schema import AppConfig
 from edera_core.node.executor import NodeExecutor
 
 
 ReloadCallback = Callable[[AppConfig, BootstrapResult], Awaitable[None]]
 EmitCallback = Callable[[str], Awaitable[object]]
+ConfigLoader = Callable[[], AppConfig | Awaitable[AppConfig]]
 LOGGER = logging.getLogger(__name__)
 
 
@@ -22,6 +23,7 @@ class HotReloader:
         config_dir: Path,
         extensions_dirs: list[Path],
         callback: ReloadCallback,
+        config_loader: ConfigLoader,
         emit: EmitCallback | None = None,
         debounce_seconds: float = 0.2,
     ) -> None:
@@ -29,10 +31,12 @@ class HotReloader:
         self.extensions_dirs = extensions_dirs
         self.callback = callback
         self.emit = emit
+        self.config_loader = config_loader
         self.debounce_seconds = debounce_seconds
 
     async def reload_once(self) -> None:
-        config = load_app_config(self.config_dir)
+        loaded = self.config_loader()
+        config = await loaded if inspect.isawaitable(loaded) else loaded
         bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
         config.entity_types.update(bootstrap.entity_type_registry.as_dict())
         await self.callback(config, bootstrap)

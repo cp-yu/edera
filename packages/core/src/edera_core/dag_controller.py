@@ -11,7 +11,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from edera_core.config.loader import load_app_config
+from edera_core.config.loader import load_runtime_app_config, load_system_config, materialize_runtime_app_config
 from edera_core.config.entities import EntityStore
 from edera_core.config.git import commit_config_changes
 from edera_core.config.schema import AppConfig, DagNodeInstance
@@ -34,6 +34,7 @@ from edera_core.storage.repository import (
     edge_inputs_for_run,
     query_node_output_entities,
     recent_dag_runs,
+    record_log_index,
     restart_dag_run,
     store_node_output_entities,
     upsert_edge_input,
@@ -111,10 +112,11 @@ class DagController:
         self._snapshot_lock = asyncio.Lock()
 
     async def start(self, run_startup: bool = True) -> None:
-        config = load_app_config(self.config_dir)
         bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
-        self.engine = create_engine(config.system.database_url)
+        system = load_system_config(self.config_dir / "system.toml")
+        self.engine = create_engine(system.database_url)
         await init_db(self.engine)
+        config = await load_runtime_app_config(self.config_dir, self.engine)
         self.factory = session_factory(self.engine)
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
@@ -170,8 +172,10 @@ class DagController:
         return await snapshot.trigger_executor.emit(event, payload, source=source, depth=depth)
 
     async def _reload_triggers(self) -> None:
+        if self.engine is None:
+            raise RuntimeError("DAG controller has not been started")
         await self.install_snapshot(
-            load_app_config(self.config_dir),
+            await load_runtime_app_config(self.config_dir, self.engine),
             scan_extensions(self.extensions_dirs, self.config_dir),
         )
 
@@ -180,12 +184,13 @@ class DagController:
             raise RuntimeError("DAG controller has not been started")
         async with self._snapshot_lock:
             config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+            config = await materialize_runtime_app_config(self.config_dir, config, self.engine)
             await create_extension_tables(self.engine, bootstrap.storage_tables)
             store = EntityStore(
                 config.entities,
                 config.entity_types,
                 config.entity_relations,
-                self.config_dir / "entities.yaml",
+                None,
             )
             _ensure_default_cron_triggers(config, store)
             trigger_executor = self._new_trigger_executor(config, store)
@@ -694,6 +699,17 @@ class DagController:
         async with self._db_write_lock:
             await _record_node_output(self._factory(), run_id, node_id, entity_type, payload, session_id)
 
+    async def _record_raw_log(
+        self,
+        run_id: str,
+        node_id: str,
+        path: str,
+        digest: str,
+        size: int,
+    ) -> None:
+        async with self._db_write_lock:
+            await _record_raw_log(self._factory(), run_id, node_id, path, digest, size)
+
     async def _record_source_recovery(
         self,
         run_id: str,
@@ -739,6 +755,9 @@ class DagController:
                 node_id=node_id,
                 line=line,
             ),
+            raw_log_recorder=lambda output_run_id, node_id, path, digest, size: self._record_raw_log(
+                output_run_id, node_id, path, digest, size
+            ),
             agent_certificate_issuer=self.agent_certificate_issuer,
             daemon_data_dir=self.daemon_data_dir,
             source_recovery_recorder=self._record_source_recovery,
@@ -746,10 +765,26 @@ class DagController:
 
 
 def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str]:
-    bootstrap = scan_extensions([Path("extensions")], config_dir)
-    config = load_app_config(config_dir)
-    config.entity_types.update(bootstrap.entity_type_registry.as_dict())
-    return _build_executor(config, bootstrap.handler_registry, config_dir=config_dir, extension_tables=bootstrap.table_names), "default"
+    async def _load() -> tuple[NodeExecutor, str]:
+        controller = DagController(config_dir)
+        await controller.start(run_startup=False)
+        try:
+            snapshot = controller.runtime_snapshot()
+            graph = load_graph(snapshot.config.dags["default"], snapshot.config.nodes)
+            return (
+                _build_executor(
+                    snapshot.config,
+                    snapshot.bootstrap.handler_registry,
+                    graph.instances,
+                    config_dir=config_dir,
+                    extension_tables=snapshot.extension_table_names,
+                ),
+                "default",
+            )
+        finally:
+            await controller.shutdown()
+
+    return asyncio.run(_load())
 
 
 async def run_default_run(config_dir: Path = Path("config")) -> object:
@@ -787,6 +822,19 @@ async def _record_node_output(
         await session.commit()
 
 
+async def _record_raw_log(
+    factory: async_sessionmaker[AsyncSession],
+    run_id: str,
+    node_id: str,
+    path: str,
+    digest: str,
+    size: int,
+) -> None:
+    async with factory() as session:
+        await record_log_index(session, run_id, node_id, path, digest, size)
+        await session.commit()
+
+
 def _build_executor(
     app_config: AppConfig,
     handler_registry,
@@ -795,6 +843,7 @@ def _build_executor(
     extension_tables: dict[str, dict[str, str]] | None = None,
     output_recorder=None,
     stdout_recorder=None,
+    raw_log_recorder=None,
     agent_certificate_issuer=None,
     daemon_data_dir: Path | None = None,
     source_recovery_recorder=None,
@@ -803,7 +852,7 @@ def _build_executor(
         app_config.entities,
         app_config.entity_types,
         app_config.entity_relations,
-        config_dir / "entities.yaml" if config_dir is not None else None,
+        None,
     )
     entity_store.system = app_config.system
     entity_store.runtime = app_config.runtime
@@ -816,6 +865,7 @@ def _build_executor(
         entity_store,
         output_recorder=output_recorder,
         stdout_recorder=stdout_recorder,
+        raw_log_recorder=raw_log_recorder,
         agent_certificate_issuer=agent_certificate_issuer,
         extension_tables=extension_tables,
         daemon_data_dir=daemon_data_dir,

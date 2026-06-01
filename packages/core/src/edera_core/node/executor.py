@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import importlib.util
 import json
 import os
@@ -30,6 +31,7 @@ from edera_core.registry import HandlerRegistry
 
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
 StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
+RawLogRecorder = Callable[[str, str, str, str, int], Awaitable[None]]
 DagExecutor = Callable[[DagNodeConfig, str, NodeInput, NodeContext], Awaitable[NodeOutput]]
 AgentCertificateIssuer = Callable[[str, int], object]
 
@@ -45,6 +47,7 @@ class NodeExecutor:
         entity_store: EntityStore | None = None,
         output_recorder: OutputRecorder | None = None,
         stdout_recorder: StdoutRecorder | None = None,
+        raw_log_recorder: RawLogRecorder | None = None,
         dag_executor: DagExecutor | None = None,
         agent_certificate_issuer: AgentCertificateIssuer | None = None,
         extension_tables: dict[str, dict[str, str]] | None = None,
@@ -71,6 +74,7 @@ class NodeExecutor:
         self.entity_store = entity_store
         self.output_recorder = output_recorder
         self.stdout_recorder = stdout_recorder
+        self.raw_log_recorder = raw_log_recorder
         self.dag_executor = dag_executor
         self.agent_certificate_issuer = agent_certificate_issuer
         self.extension_tables = extension_tables or {}
@@ -199,7 +203,10 @@ class NodeExecutor:
                 stderr=asyncio.subprocess.STDOUT,
             )
             self._agent_processes[(node_input.run_id, node_name)] = process
-            lines = await asyncio.wait_for(self._stream_stdout(process, node_input.run_id, node_name), timeout=timeout or None)
+            lines = await asyncio.wait_for(
+                self._stream_stdout(process, node_input.run_id, node_name, session_dir / "stdout.log"),
+                timeout=timeout or None,
+            )
             code = await process.wait()
         except Exception as exc:
             return _failed(node_name, node_input, str(exc))
@@ -225,18 +232,31 @@ class NodeExecutor:
             return self.daemon_data_dir
         return Path(os.environ.get("EDERA_DATA_DIR", self.system.workspace_root))
 
-    async def _stream_stdout(self, process: asyncio.subprocess.Process, run_id: str, node_name: str) -> list[str]:
+    async def _stream_stdout(
+        self,
+        process: asyncio.subprocess.Process,
+        run_id: str,
+        node_name: str,
+        log_path: Path,
+    ) -> list[str]:
         lines: list[str] = []
-        if process.stdout is None:
-            return lines
-        while True:
-            line = await process.stdout.readline()
-            if not line:
-                break
-            text = line.decode(errors="replace").rstrip("\n")
-            lines.append(text)
-            if self.stdout_recorder is not None:
-                await self.stdout_recorder(run_id, node_name, text)
+        digest = hashlib.sha256()
+        size = 0
+        with log_path.open("wb") as raw_log:
+            if process.stdout is not None:
+                while True:
+                    line = await process.stdout.readline()
+                    if not line:
+                        break
+                    raw_log.write(line)
+                    digest.update(line)
+                    size += len(line)
+                    text = line.decode(errors="replace").rstrip("\n")
+                    lines.append(text)
+                    if self.stdout_recorder is not None:
+                        await self.stdout_recorder(run_id, node_name, text)
+        if self.raw_log_recorder is not None:
+            await self.raw_log_recorder(run_id, node_name, str(log_path), digest.hexdigest(), size)
         return lines
 
     def _node(self, node_name: str) -> NodeConfigBase:

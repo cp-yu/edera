@@ -4,13 +4,161 @@ from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import field_validator
-from sqlalchemy import Column, UniqueConstraint
+from sqlalchemy import Boolean, Column, UniqueConstraint
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
 
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class EntityTypeRecord(SQLModel, table=True):
+    __tablename__ = "entity_types"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    display_name: str
+    business_id_field: str
+    display_template: str
+    storage_tier: str = Field(index=True)
+    table_name: str | None = Field(default=None, index=True)
+    schema_version: int = 1
+    system_protected: bool = False
+    schema_body: dict[str, Any] = Field(default_factory=dict, sa_column=Column("schema_json", JSON, nullable=False))
+    field_permissions: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    validate_: bool = Field(default=True, sa_column=Column("validate", Boolean, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("name", "display_name", "business_id_field", "display_template", "storage_tier")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
+class CoreEntityNode(SQLModel, table=True):
+    __tablename__ = "entity_node"
+    __table_args__ = (UniqueConstraint("name", name="uq_entity_node_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_id: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    node_type: str = Field(index=True)
+    role: str = Field(default="processor", index=True)
+    input_type: str
+    output_type: str
+    optional: bool = False
+    timeout_seconds: float | None = None
+    handler: str | None = Field(default=None, index=True)
+    skills: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    system_prompt_file: str | None = None
+    system_prompt: str | None = None
+    tools: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    source_names: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    parameters: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    parameters_schema: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    input_binding: str | None = None
+    model: str | None = None
+    workdir: str | None = None
+    dag_ref: str | None = None
+    input_mapping: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    attributes_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("entity_id", "name", "node_type", "role", "input_type", "output_type")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
+class CoreEntityDag(SQLModel, table=True):
+    __tablename__ = "entity_dag"
+    __table_args__ = (UniqueConstraint("name", name="uq_entity_dag_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_id: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    inputs: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    nodes: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    edges: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    ui: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    attributes_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("entity_id", "name")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
+class CoreEntityTrigger(SQLModel, table=True):
+    __tablename__ = "entity_trigger"
+    __table_args__ = (UniqueConstraint("name", name="uq_entity_trigger_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_id: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    wait_for: str
+    target: str
+    enabled: bool = True
+    attributes_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("entity_id", "name", "wait_for", "target")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
+class CoreEntityResource(SQLModel, table=True):
+    __tablename__ = "entity_resource"
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_id: str = Field(index=True, unique=True)
+    resource_id: str = Field(index=True, unique=True)
+    permits: int
+    attributes_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("entity_id", "resource_id")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
+class LogIndex(SQLModel, table=True):
+    __tablename__ = "log_index"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    node_id: str = Field(index=True)
+    path: str
+    digest: str = Field(index=True)
+    size: int
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("run_id", "node_id", "path", "digest")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
 
 
 class NodeOutputEntity(SQLModel, table=True):

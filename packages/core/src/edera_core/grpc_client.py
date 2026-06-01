@@ -62,9 +62,9 @@ class GrpcClient:
     async def entity_get(self, ref: str) -> dict[str, object]:
         return _entity_response(await self.entities.Get(pb2.EntityRef(ref=ref), metadata=_identity_metadata(self.identity)))
 
-    async def entity_create(self, type_name: str, attributes: dict[str, object]) -> dict[str, object]:
+    async def entity_create(self, type_name: str, attributes: dict[str, object], entity_id: str = "") -> dict[str, object]:
         response = await self.entities.Create(
-            pb2.Entity(type=type_name, json=json.dumps(attributes)),
+            pb2.Entity(id=entity_id, type=type_name, json=json.dumps(attributes)),
             metadata=_identity_metadata(self.identity),
         )
         return _entity_response(response)

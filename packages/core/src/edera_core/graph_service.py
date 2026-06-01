@@ -5,15 +5,13 @@ from uuid import uuid4
 import grpc
 import yaml
 
-from edera_core.config.editor import ConfigEditError
-from edera_core.config.loader import load_dag_configs, load_entities_config, load_entity_type_configs, load_node_configs, load_skill_configs
-from edera_core.config.schema import DagConfig, NodeConfig, SkillConfig
+from edera_core.config.entities import validate_permission_overrides
+from edera_core.config.loader import load_runtime_app_config, load_skill_configs
+from edera_core.config.schema import DagConfig, EntityConfig, SkillConfig
 from edera_core.errors import ConfigError
 from edera_core.service_common import (
-    atomic_write,
     available_model_names,
     delete_node_assets,
-    editor,
     graph_dag_payload,
     graph_dag_state_from_config,
     graph_node_payload,
@@ -23,9 +21,8 @@ from edera_core.service_common import (
     save_node_assets,
     save_skill,
     valid_dag_name,
-    validate_graph_entity_permissions,
 )
-from edera_core.storage.repository import node_runs_for_run, recent_dag_runs
+from edera_core.storage.repository import delete_core_entity, node_runs_for_run, recent_dag_runs, save_core_entity
 
 
 class _GraphService:
@@ -46,25 +43,23 @@ class _GraphService:
         name = request.name.strip()
         if not valid_dag_name(name):
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "dag name must be kebab-case")
-        path = self.daemon.config_dir / "dags" / f"{name}.yaml"
-        if path.exists():
+        if name in self.daemon.controller.runtime_snapshot().config.dags:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"dag '{name}' already exists")
         payload = {"name": name, "nodes": [], "edges": [], "ui": {}}
-        atomic_write(path, yaml.safe_dump(payload, allow_unicode=True, sort_keys=False))
+        await _save_core_and_refresh(self.daemon, EntityConfig(id=name, type="dag", attributes=payload))
         return json_response(self.pb2, {"dag": payload})
 
     async def SaveDag(self, request, context):
         try:
             payload = graph_dag_payload(request.name, parse_json(request.json))
-            validate_graph_entity_permissions(self.daemon.config_dir, payload)
-            saved = editor(self.daemon.config_dir).save("dag", request.name, yaml.safe_dump(payload, allow_unicode=True, sort_keys=False))
-            dag_config = DagConfig.model_validate(yaml.safe_load(saved.content) or {})
-        except (ConfigEditError, ConfigError, KeyError) as exc:
+            _validate_graph_entity_permissions(self.daemon.controller.runtime_snapshot().config.entity_types, payload)
+            dag_config = DagConfig.model_validate(payload)
+            await _save_core_and_refresh(self.daemon, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
+        except (ConfigError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(
             self.pb2,
             {
-                "file": saved.__dict__,
                 "dag": {
                     "name": dag_config.name,
                     "nodes": [node.model_dump(mode="json") for node in dag_config.nodes],
@@ -76,31 +71,31 @@ class _GraphService:
 
     async def CreateDagNode(self, request, context):
         body = parse_json(request.json)
-        dags = load_dag_configs(self.daemon.config_dir / "dags")
+        app = self.daemon.controller.runtime_snapshot().config
+        dags = app.dags
         if request.name not in dags:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.name}' not found")
         node_name = str(body.get("name", ""))
         if not node_name:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "node name is required")
-        node_path = self.daemon.config_dir / "nodes" / f"{node_name}.yaml"
-        if node_path.exists():
+        if node_name in app.nodes:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"node '{node_name}' already exists")
         try:
             node_data = graph_node_payload(node_name, body)
-            ed = editor(self.daemon.config_dir)
-            ed.save("node", node_name, yaml.safe_dump(node_data, allow_unicode=True, sort_keys=False))
             dag = dags[request.name]
             dag_nodes = [node.model_dump(mode="json") for node in dag.nodes] + [{"id": uuid4().hex, "type": node_name, "alias": node_name, "config": {}}]
             dag_payload = {"name": dag.name, "nodes": dag_nodes, "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag.edges], "ui": dag.ui}
-            ed.save("dag", request.name, yaml.safe_dump(DagConfig.model_validate(dag_payload).model_dump(by_alias=True, mode="json"), allow_unicode=True, sort_keys=False))
-            node_config = NodeConfig.model_validate(node_data)
-            skills = load_skill_configs(self.daemon.config_dir / "skills")
-            entity_types = load_entity_type_configs(self.daemon.config_dir.parent / "schemas" / "entity-types")
-            entities = load_entities_config(self.daemon.config_dir / "entities.yaml", entity_types)
-            nodes = load_node_configs(self.daemon.config_dir / "nodes")
-        except (ConfigEditError, ConfigError, KeyError) as exc:
+            dag_config = DagConfig.model_validate(dag_payload)
+            async with self.daemon.controller._factory()() as session:
+                await save_core_entity(session, EntityConfig(id=node_name, type="node", attributes=node_data))
+                await save_core_entity(session, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
+                await session.commit()
+            await _refresh_runtime_snapshot(self.daemon)
+            app = self.daemon.controller.runtime_snapshot().config
+            node_config = app.nodes[node_name]
+        except (ConfigError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
-        return json_response(self.pb2, {"node": node_payload(node_config, skills, entity_types, entities, available_model_names())})
+        return json_response(self.pb2, {"node": node_payload(node_config, app.skills, app.entity_types, app.entities, available_model_names())})
 
     async def ListNodeTypes(self, request, context):
         app = self.daemon.controller.runtime_snapshot().config
@@ -119,33 +114,32 @@ class _GraphService:
         body = parse_json(request.json)
         try:
             payload = graph_node_payload(request.name, body)
-            saved = editor(self.daemon.config_dir).save("node", request.name, yaml.safe_dump(payload, allow_unicode=True, sort_keys=False))
             save_node_assets(self.daemon.config_dir.parent, payload, body)
-            node_config = NodeConfig.model_validate(yaml.safe_load(saved.content) or {})
-            nodes = load_node_configs(self.daemon.config_dir / "nodes")
-            skills = load_skill_configs(self.daemon.config_dir / "skills")
-            entity_types = load_entity_type_configs(self.daemon.config_dir.parent / "schemas" / "entity-types")
-            entities = load_entities_config(self.daemon.config_dir / "entities.yaml", entity_types)
-        except (ConfigEditError, ConfigError, KeyError) as exc:
+            await _save_core_and_refresh(self.daemon, EntityConfig(id=request.name, type="node", attributes=payload))
+            app = self.daemon.controller.runtime_snapshot().config
+            node_config = app.nodes[request.name]
+        except (ConfigError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
-        return json_response(self.pb2, {"file": saved.__dict__, "node": node_payload(node_config, skills, entity_types, entities, available_model_names())})
+        return json_response(self.pb2, {"node": node_payload(node_config, app.skills, app.entity_types, app.entities, available_model_names())})
 
     async def CreateNodeType(self, request, context):
-        path = self.daemon.config_dir / "nodes" / f"{request.name}.yaml"
-        if path.exists():
+        if request.name in self.daemon.controller.runtime_snapshot().config.nodes:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"node type '{request.name}' already exists")
         return await self.SaveNodeType(request, context)
 
     async def DeleteNodeType(self, request, context):
-        for dag in load_dag_configs(self.daemon.config_dir / "dags").values():
+        app = self.daemon.controller.runtime_snapshot().config
+        for dag in app.dags.values():
             if any(node.type == request.name for node in dag.nodes):
                 await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"node type '{request.name}' is referenced by DAG '{dag.name}'")
-        path = self.daemon.config_dir / "nodes" / f"{request.name}.yaml"
-        if not path.exists():
+        if request.name not in app.nodes:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node type {request.name} not found")
-        node = NodeConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
-        path.unlink()
+        node = app.nodes[request.name]
+        async with self.daemon.controller._factory()() as session:
+            await delete_core_entity(session, request.name, app.entity_types)
+            await session.commit()
         delete_node_assets(self.daemon.config_dir.parent, node)
+        await _refresh_runtime_snapshot(self.daemon)
         return json_response(self.pb2, {"deleted": True})
 
     async def ListSkills(self, request, context):
@@ -203,3 +197,30 @@ class _GraphService:
                             "run_id": node_run.run_id,
                         }
         return json_response(self.pb2, {"node_statuses": node_statuses})
+
+
+async def _save_core_and_refresh(daemon, entity: EntityConfig) -> None:
+    async with daemon.controller._factory()() as session:
+        await save_core_entity(session, entity)
+        await session.commit()
+    await _refresh_runtime_snapshot(daemon)
+
+
+async def _refresh_runtime_snapshot(daemon) -> None:
+    config = await load_runtime_app_config(daemon.config_dir, daemon.controller.engine)
+    await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
+
+
+def _validate_graph_entity_permissions(entity_types: dict[str, object], payload: dict[str, object]) -> None:
+    nodes = payload.get("nodes", [])
+    if not isinstance(nodes, list):
+        return
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        config = node.get("config")
+        if not isinstance(config, dict):
+            continue
+        permissions = config.get("entity_permissions")
+        if isinstance(permissions, dict):
+            validate_permission_overrides(entity_types, permissions)

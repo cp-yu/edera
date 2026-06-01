@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from edera_core.bootstrap import BootstrapResult, scan_extensions
-from edera_core.config.loader import load_app_config
 from edera_core.config.schema import AppConfig
 from edera_core.dag_controller import DagController
 
@@ -13,12 +12,17 @@ class Engine:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or [Path("extensions")]
         self.bootstrap: BootstrapResult = scan_extensions(self.extensions_dirs, self.config_dir)
-        self.config: AppConfig = load_app_config(self.config_dir)
-        self.config.entity_types.update(self.bootstrap.entity_type_registry.as_dict())
+        self.config: AppConfig | None = None
         self.controller = DagController(self.config_dir, extensions_dirs=self.extensions_dirs)
 
     async def start(self, run_startup: bool = False) -> None:
         await self.controller.start(run_startup=run_startup)
+        try:
+            snapshot = self.controller.runtime_snapshot()
+        except RuntimeError:
+            return
+        self.bootstrap = snapshot.bootstrap
+        self.config = snapshot.config
 
     async def run(self, source: str = "manual", dag_name: str = "default") -> str:
         return await self.controller.run_now(source, dag_name)

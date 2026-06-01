@@ -6,9 +6,11 @@ import pytest
 
 from edera_core.bootstrap import scan_extensions
 from edera_core.config.loader import load_app_config
+from edera_core.config.schema import EntityConfig
 from edera_core.dag.models import DagGraph
 from edera_core.dag_controller import DagController
 from edera_core.hot_reload import HotReloader
+from edera_core.storage.repository import save_core_entity
 
 
 @pytest.mark.asyncio
@@ -122,6 +124,8 @@ async def test_new_run_uses_committed_snapshot(monkeypatch: pytest.MonkeyPatch, 
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
     await controller.start(run_startup=False)
+    await _save_core_dag(controller, [])
+    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
     captured: list[list[str]] = []
 
     async def fake_run(*_args, snapshot=None, **_kwargs):
@@ -130,6 +134,8 @@ async def test_new_run_uses_committed_snapshot(monkeypatch: pytest.MonkeyPatch, 
     monkeypatch.setattr(controller, "_run", fake_run)
     await controller.run_now("manual")
     _write_dag(tmp_path, nodes=["changed"])
+    await _save_core_node(controller, "changed", "changed")
+    await _save_core_dag(controller, ["changed"])
     await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
     await controller.run_now("manual")
 
@@ -201,7 +207,13 @@ async def test_config_parse_failure_preserves_snapshot(tmp_path: Path) -> None:
     (tmp_path / "nodes" / "broken.yaml").write_text("name: broken\ntype: function\n", encoding="utf-8")
 
     with pytest.raises(Exception):
-        await HotReloader(tmp_path, [extensions], controller.install_snapshot, emit=emit).reload_once()
+        await HotReloader(
+            tmp_path,
+            [extensions],
+            controller.install_snapshot,
+            emit=emit,
+            config_loader=lambda: load_app_config(tmp_path),
+        ).reload_once()
 
     assert controller.runtime_snapshot() is old_snapshot
     assert emitted == []
@@ -238,11 +250,15 @@ async def test_cron_registry_update_and_preservation(monkeypatch: pytest.MonkeyP
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
     await controller.start(run_startup=False)
+    await _save_core_dag(controller, [])
+    await _save_core_trigger(controller, "trigger-0", 'cron:"0 9 * * *"')
+    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
     old_emitter = controller.cron_emitter
     assert old_emitter is not None
     assert old_emitter.cron_tokens() == {'cron:"0 9 * * *"', 'cron:"*/30 * * * *"'}
 
     _write_triggers(tmp_path, ['cron:"0 10 * * *"'])
+    await _save_core_trigger(controller, "trigger-0", 'cron:"0 10 * * *"')
     await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
     updated_emitter = controller.cron_emitter
     assert updated_emitter is not None
@@ -253,6 +269,7 @@ async def test_cron_registry_update_and_preservation(monkeypatch: pytest.MonkeyP
         raise RuntimeError("table failure")
 
     _write_triggers(tmp_path, ['cron:"0 11 * * *"'])
+    await _save_core_trigger(controller, "trigger-0", 'cron:"0 11 * * *"')
     monkeypatch.setattr("edera_core.dag_controller.create_extension_tables", fail_create_extension_tables)
     with pytest.raises(RuntimeError, match="table failure"):
         await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
@@ -273,7 +290,7 @@ async def test_emit_config_changed(tmp_path: Path) -> None:
         calls.append(f"emit:{event}")
 
     _write_config(tmp_path)
-    reloader = HotReloader(tmp_path, [], callback, emit=emit)
+    reloader = HotReloader(tmp_path, [], callback, emit=emit, config_loader=lambda: load_app_config(tmp_path))
 
     await reloader.reload_once()
 
@@ -301,7 +318,7 @@ async def test_failure_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     _write_config(tmp_path)
     monkeypatch.setitem(__import__("sys").modules, "watchfiles", type("Watchfiles", (), {"awatch": fake_awatch}))
 
-    await HotReloader(tmp_path, [], callback, emit=emit).watch()
+    await HotReloader(tmp_path, [], callback, emit=emit, config_loader=lambda: load_app_config(tmp_path)).watch()
 
     assert attempts == 2
     assert events == ["event:config-changed"]
@@ -370,3 +387,57 @@ handlers:
 """,
         encoding="utf-8",
     )
+
+
+async def _save_core_node(controller: DagController, name: str, handler: str) -> None:
+    async with controller._factory()() as session:
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id=name,
+                type="node",
+                attributes={
+                    "name": name,
+                    "type": "function",
+                    "handler": handler,
+                    "input_type": "Any",
+                    "output_type": "Any",
+                },
+            ),
+        )
+        await session.commit()
+
+
+async def _save_core_dag(controller: DagController, nodes: list[str]) -> None:
+    async with controller._factory()() as session:
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id="default",
+                type="dag",
+                attributes={
+                    "name": "default",
+                    "nodes": [{"id": name, "type": name, "config": {}} for name in nodes],
+                    "edges": [],
+                },
+            ),
+        )
+        await session.commit()
+
+
+async def _save_core_trigger(controller: DagController, trigger_id: str, wait_for: str) -> None:
+    async with controller._factory()() as session:
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id=trigger_id,
+                type="trigger",
+                attributes={
+                    "name": trigger_id,
+                    "wait_for": wait_for,
+                    "target": "dag:default",
+                    "enabled": True,
+                },
+            ),
+        )
+        await session.commit()
