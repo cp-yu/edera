@@ -1,0 +1,19 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.operations.dag-node-wait-input
+      type: capability
+      intent: wait 节点类型、waiting 运行状态、WaitRegistry 与 emit 解锁通道、信号先到/后到/超时三态、run 隔离命名约定与重启重放恢复
+      status: draft
+  relations:
+    - from: cap.operations.dag-node-wait-input
+      type: contains
+      to: dom.operations
+MODIFIED:
+  capabilities:
+    - id: cap.core.node-type-discriminated-union
+      intent: NodeConfig discriminated union 在 function/agent/dag 基础上新增 wait variant
+    - id: cap.core.event-emit-rpc
+      intent: emit 路径在置位 bit 后额外驱动 WaitRegistry 求值，作为 run 内挂起 wait 节点的唤醒入口
+    - id: cap.operations.dag-event-driven-executor
+      intent: dispatcher 将 wait 节点作为常规 Task 调度，挂起不阻塞主循环与独立路径，stop 时可取消挂起

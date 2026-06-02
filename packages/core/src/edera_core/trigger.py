@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable, Iterable
@@ -7,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlmodel import select
+from sqlmodel import desc, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from edera_core.config.entities import EntityStore
@@ -93,6 +94,44 @@ class EventGroup:
 
 
 @dataclass
+class Waiter:
+    expression: TriggerExpression
+    future: asyncio.Future[object | None]
+
+
+class WaitRegistry:
+    def __init__(self) -> None:
+        self._waiters: list[Waiter] = []
+        self._matched: dict[asyncio.Future[object | None], set[str]] = {}
+
+    def register(self, wait_for: str, *, consume: bool = True) -> asyncio.Future[object | None]:
+        future: asyncio.Future[object | None] = asyncio.get_running_loop().create_future()
+        self._waiters.append(Waiter(TriggerExpression(wait_for), future))
+        return future
+
+    def unregister(self, future: asyncio.Future[object | None]) -> None:
+        self._waiters = [waiter for waiter in self._waiters if waiter.future is not future]
+        self._matched.pop(future, None)
+
+    def ready(self, active: set[str], payload: object | None) -> None:
+        for waiter in list(self._waiters):
+            if waiter.future.done():
+                continue
+            if waiter.expression.evaluate(active):
+                self._matched[waiter.future] = waiter.expression.matched_tokens(active)
+                waiter.future.set_result(payload)
+
+    def matched_tokens(self, future: asyncio.Future[object | None]) -> set[str]:
+        return set(self._matched.get(future, set()))
+
+    def active_tokens(self) -> set[str]:
+        tokens: set[str] = set()
+        for matched in self._matched.values():
+            tokens.update(matched)
+        return tokens
+
+
+@dataclass
 class CronEmitter:
     executor: TriggerExecutor
     emitted_minutes: set[tuple[str, datetime]] = field(default_factory=set)
@@ -121,11 +160,13 @@ class TriggerExecutor:
     factory: async_sessionmaker[AsyncSession] | None = None
     max_depth: int = 3
     events: EventGroup = field(init=False)
+    waiters: WaitRegistry = field(init=False)
     records: list[dict[str, object]] = field(default_factory=list)
     _triggers: list[EntityConfig] | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         self.events = EventGroup(self.factory)
+        self.waiters = WaitRegistry()
         if self.run_dag is not None:
             self.run_dag = _payload_adapter(self.run_dag)
         if self.run_node is not None:
@@ -169,6 +210,7 @@ class TriggerExecutor:
             await self.events.clear(event.removeprefix("clear:"))
             return []
         await self.events.set(event)
+        await self._wake_waiters(payload)
         fired: list[str] = []
         for trigger in self._affected_triggers(event):
             if trigger.attributes.get("enabled", True) is False:
@@ -179,10 +221,27 @@ class TriggerExecutor:
             target = str(trigger.attributes.get("target", ""))
             await self.fire(target, payload, depth + 1, f"trigger:{trigger.id}")
             fired.append(target)
-            await self.events.consume(expr.matched_tokens(self.events.events))
+            await self.events.consume(expr.matched_tokens(self.events.events) - self.waiters.active_tokens())
             if _is_oneshot(expr.tokens):
                 self._disable_trigger(trigger)
         return fired
+
+    def register_waiter(self, wait_for: str, *, consume: bool = True) -> asyncio.Future[object | None]:
+        return self.waiters.register(wait_for, consume=consume)
+
+    def unregister_waiter(self, future: asyncio.Future[object | None]) -> None:
+        self.waiters.unregister(future)
+
+    def matched_waiter_tokens(self, future: asyncio.Future[object | None]) -> set[str]:
+        return self.waiters.matched_tokens(future)
+
+    async def wait_payload(self, wait_for: str) -> tuple[object | None, set[str]] | None:
+        expr = TriggerExpression(wait_for)
+        active = set(self.events.events)
+        if not expr.evaluate(active):
+            return None
+        tokens = expr.matched_tokens(active)
+        return await self._latest_payload(tokens), tokens
 
     async def fire(self, target: str, payload: object | None = None, depth: int = 0, source: str = "manual") -> None:
         if target.startswith("clear:"):
@@ -234,6 +293,27 @@ class TriggerExecutor:
                 )
             )
             await session.commit()
+
+    async def _wake_waiters(self, payload: object | None) -> None:
+        self.waiters.ready(set(self.events.events), payload)
+
+    async def _latest_payload(self, tokens: set[str]) -> object | None:
+        if not tokens:
+            return None
+        for record in reversed(self.records):
+            if str(record.get("event")) in tokens:
+                return record.get("payload")
+        if self.factory is None:
+            return None
+        async with self.factory() as session:
+            result = await session.exec(
+                select(EmitRecord)
+                .where(EmitRecord.event.in_(tokens))
+                .order_by(desc(EmitRecord.created_at), desc(EmitRecord.id))
+                .limit(1)
+            )
+            record = result.first()
+            return record.payload if record is not None else None
 
     def _disable_trigger(self, trigger: EntityConfig) -> None:
         updated = trigger.model_copy(update={"attributes": {**trigger.attributes, "enabled": False}})

@@ -318,6 +318,27 @@ async def test_daemon_streams_events_over_grpc(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_daemon_streams_node_waiting_over_grpc(tmp_path: Path) -> None:
+    daemon = Server(tmp_path / "edera", "127.0.0.1:0")
+    service = _SystemService(daemon, bootstrap=False)
+    request = daemon.pb2.EventSubscribeRequest(node_id="gate")
+    events = service.SubscribeEvents(request, _FakeGrpcContext())
+    pending = asyncio.create_task(events.__anext__())
+    await asyncio.sleep(0)
+    await event_bus.publish("node.waiting", run_id="run", node="other", node_id="other", wait_for="event:other")
+    await event_bus.publish("node.waiting", run_id="run", node="gate", node_id="gate", wait_for="event:approve:run")
+    event = await asyncio.wait_for(pending, timeout=1)
+    assert event.type == "node.waiting"
+    assert json.loads(event.json) == {
+        "run_id": "run",
+        "node": "gate",
+        "node_id": "gate",
+        "wait_for": "event:approve:run",
+    }
+    await events.aclose()
+
+
+@pytest.mark.asyncio
 async def test_dag_controller_publishes_dag_status_events(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")

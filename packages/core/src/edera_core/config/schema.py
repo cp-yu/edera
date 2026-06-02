@@ -217,11 +217,25 @@ class DagNodeConfig(NodeConfigBase):
         return {str(key): str(item) for key, item in value.items()}
 
 
+class WaitNodeConfig(NodeConfigBase):
+    type: Literal["wait"] = "wait"
+    wait_for: str
+    consume: bool = True
+
+    @field_validator("wait_for")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("wait_for must not be blank")
+        return value
+
+
 class NodeConfig(FunctionNodeConfig):
     _variants: ClassVar[dict[str, type[NodeConfigBase]]] = {
         "function": FunctionNodeConfig,
         "agent": AgentNodeConfig,
         "dag": DagNodeConfig,
+        "wait": WaitNodeConfig,
     }
 
     @classmethod

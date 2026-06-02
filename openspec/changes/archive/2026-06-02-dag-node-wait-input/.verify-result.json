@@ -1,0 +1,331 @@
+{
+  "timestamp": "2026-06-02T09:48:42.988Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "800d14a1f987def9d320355bf8f39df7d3745fffdd0c0f01fac0ce9d78530412",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "openspec/changes/dag-node-wait-input/.apply-isolation.json",
+      "openspec/changes/dag-node-wait-input/.verify-result.json",
+      "openspec/changes/dag-node-wait-input/design.md",
+      "openspec/changes/dag-node-wait-input/opsx-delta.yaml",
+      "openspec/changes/dag-node-wait-input/proposal.md",
+      "openspec/changes/dag-node-wait-input/specs/dag-event-driven-executor/spec.md",
+      "openspec/changes/dag-node-wait-input/specs/dag-node-wait-input/spec.md",
+      "openspec/changes/dag-node-wait-input/specs/event-emit-rpc/spec.md",
+      "openspec/changes/dag-node-wait-input/specs/node-type-discriminated-union/spec.md",
+      "openspec/changes/dag-node-wait-input/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/events.py",
+      "packages/core/src/edera_core/node/executor.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/trigger.py",
+      "packages/core/tests/test_wait_node_config.py",
+      "packages/core/tests/test_wait_node_dispatcher.py",
+      "packages/core/tests/test_wait_node_execute.py",
+      "packages/core/tests/test_wait_node_isolation.py",
+      "packages/core/tests/test_wait_node_replay.py",
+      "packages/core/tests/test_wait_node_status.py",
+      "packages/core/tests/test_wait_registry.py",
+      "tests/core/unit/test_core_architecture_overhaul.py"
+    ],
+    "evidenceFingerprint": "00863cbc71229d7bc584cdc24574162e6385f2f967d8ba9081b657eceb4ee765",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/.apply-isolation.json",
+        "hash": "159d1a3e9cdf663136ea718594622d852a2a5393fc9ac2c26ef892495c8cd358"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/design.md",
+        "hash": "28865dbb4dbc44da9e56645439928c2f8cd6a01ad59c6bcc221ac77b6f803a25"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/opsx-delta.yaml",
+        "hash": "ef27fed01784ed8087b33cd6be9371ad9aca746024870fa4fac921ffdb9e4378"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/proposal.md",
+        "hash": "edc4afaf6b3276954a0c43fa534dc1a7e3cf217db98ecc18f3c4826133fa6c65"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/specs/dag-event-driven-executor/spec.md",
+        "hash": "25ffb6ea0c09c92e62afc9a431886edf4fd840617777fdda18a6c09a356117d4"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/specs/dag-node-wait-input/spec.md",
+        "hash": "846c59fb13f2a581b65b7556bb01d38cc1d79a61b7852dd0d8017c7f474bea10"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/specs/event-emit-rpc/spec.md",
+        "hash": "54e5f74cbf799ca6a7a52a8635ffee804b79533406c2959b4ee51ee21001b178"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/specs/node-type-discriminated-union/spec.md",
+        "hash": "f5787c99e1e0e8bd6df4e7d1bebbcd156b97d6b4312d98f20750b20ff4936d22"
+      },
+      {
+        "path": "openspec/changes/dag-node-wait-input/tasks.md",
+        "hash": "800d14a1f987def9d320355bf8f39df7d3745fffdd0c0f01fac0ce9d78530412"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "658413c2aa641b498e8cb2acefb332cb0bcb7a98f55dabbe6e5a6e99050435f5"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "7b7a222aa6a389cc9264518de80aacee35760523d760ef910d607df798140438"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "9566f429f0c010e76b27afd0b3b1e94174083137a62bcf0d6018535917d155c7"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "61616382639372ffa3357f2930bbc24551b0461fd3593669954a9bd822a2a212"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "9f722d566b154903a673fa7b1b885ba56b1330936257e1b91648a382f63875a5"
+      },
+      {
+        "path": "packages/core/src/edera_core/events.py",
+        "hash": "b1dda35c28f035733e0bdb84255524a9e83448f76cf67ef81204f565dfd58eda"
+      },
+      {
+        "path": "packages/core/src/edera_core/node/executor.py",
+        "hash": "c4e3795686ee23e11e3a39953967d1f5f661fb29f98f892fe4e3003ca0c2a91f"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "390c5804a6db4bec72f030ba0186e5987588a5d73ce4fa57dc8beee22bbdf32d"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "6fa7bb882749f21a32de2b9f768fa9e551672750c0891c1a608b36399a9e93f9"
+      },
+      {
+        "path": "packages/core/src/edera_core/trigger.py",
+        "hash": "23e8b9425c99cab20e6376e3cc83e6c44632ff6e6cc6ecf8a5a611371977e7b0"
+      },
+      {
+        "path": "packages/core/tests/test_wait_node_config.py",
+        "hash": "cdd2f510a7a3a6c7f98d122e613ae33e2b9d06f1fa010bcda2b648dcc2ea57e4"
+      },
+      {
+        "path": "packages/core/tests/test_wait_node_dispatcher.py",
+        "hash": "a5e416aa2ca965646e2d987109a79b9ab40af04555a392fa8f2234f76f196438"
+      },
+      {
+        "path": "packages/core/tests/test_wait_node_execute.py",
+        "hash": "f1d82bd528741287a73744e8da40c6ba82f17ebad7af4da6b2eec0831451e2d5"
+      },
+      {
+        "path": "packages/core/tests/test_wait_node_isolation.py",
+        "hash": "149a5c8cfabcd3e90034dcc3100267db4811ab585220d931749ad83f7067bae0"
+      },
+      {
+        "path": "packages/core/tests/test_wait_node_replay.py",
+        "hash": "2f440147a12e8e18d9c2705507d12710afb045b6f8b3bd1654e985518f4ac8d8"
+      },
+      {
+        "path": "packages/core/tests/test_wait_node_status.py",
+        "hash": "391246b06745b851e3ae2a3141aee7e233416cea915da927e13291ca696b6f97"
+      },
+      {
+        "path": "packages/core/tests/test_wait_registry.py",
+        "hash": "b601c205e8dae2a34f778dec67d6294fa2b778b48a706555cdf21c2a2b60113b"
+      },
+      {
+        "path": "tests/core/unit/test_core_architecture_overhaul.py",
+        "hash": "5d65d7b8364bdd128fa17446e31721c6ac707467a077e41073c8a55f41b34731"
+      }
+    ],
+    "skippedEvidenceFiles": [
+      "openspec/changes/dag-node-wait-input/.verify-result.json"
+    ],
+    "gitHeadCommit": "ba3e2623ab6b8f836b1b573599ba082bc85ece26",
+    "gitDiffSummary": "originalBranch resolved from .apply-isolation.json as master. Current disk evidence satisfies all requirements; wait-node race is covered by packages/core/tests/test_wait_node_execute.py and wait-node test set passed via uv run pytest."
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-02T09:51:43.374Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Optimizer found no behavior-preserving structural optimization opportunities."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-02T09:48:42.988Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "800d14a1f987def9d320355bf8f39df7d3745fffdd0c0f01fac0ce9d78530412",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "openspec/changes/dag-node-wait-input/.apply-isolation.json",
+          "openspec/changes/dag-node-wait-input/.verify-result.json",
+          "openspec/changes/dag-node-wait-input/design.md",
+          "openspec/changes/dag-node-wait-input/opsx-delta.yaml",
+          "openspec/changes/dag-node-wait-input/proposal.md",
+          "openspec/changes/dag-node-wait-input/specs/dag-event-driven-executor/spec.md",
+          "openspec/changes/dag-node-wait-input/specs/dag-node-wait-input/spec.md",
+          "openspec/changes/dag-node-wait-input/specs/event-emit-rpc/spec.md",
+          "openspec/changes/dag-node-wait-input/specs/node-type-discriminated-union/spec.md",
+          "openspec/changes/dag-node-wait-input/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/events.py",
+          "packages/core/src/edera_core/node/executor.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/trigger.py",
+          "packages/core/tests/test_wait_node_config.py",
+          "packages/core/tests/test_wait_node_dispatcher.py",
+          "packages/core/tests/test_wait_node_execute.py",
+          "packages/core/tests/test_wait_node_isolation.py",
+          "packages/core/tests/test_wait_node_replay.py",
+          "packages/core/tests/test_wait_node_status.py",
+          "packages/core/tests/test_wait_registry.py",
+          "tests/core/unit/test_core_architecture_overhaul.py"
+        ],
+        "evidenceFingerprint": "dd242dcf4e07a9861b8a4b9cdec515a6e418dbf50866c4e0169a5ada096a70bd",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/.apply-isolation.json",
+            "hash": "159d1a3e9cdf663136ea718594622d852a2a5393fc9ac2c26ef892495c8cd358"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/design.md",
+            "hash": "28865dbb4dbc44da9e56645439928c2f8cd6a01ad59c6bcc221ac77b6f803a25"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/opsx-delta.yaml",
+            "hash": "ef27fed01784ed8087b33cd6be9371ad9aca746024870fa4fac921ffdb9e4378"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/proposal.md",
+            "hash": "edc4afaf6b3276954a0c43fa534dc1a7e3cf217db98ecc18f3c4826133fa6c65"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/specs/dag-event-driven-executor/spec.md",
+            "hash": "25ffb6ea0c09c92e62afc9a431886edf4fd840617777fdda18a6c09a356117d4"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/specs/dag-node-wait-input/spec.md",
+            "hash": "846c59fb13f2a581b65b7556bb01d38cc1d79a61b7852dd0d8017c7f474bea10"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/specs/event-emit-rpc/spec.md",
+            "hash": "54e5f74cbf799ca6a7a52a8635ffee804b79533406c2959b4ee51ee21001b178"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/specs/node-type-discriminated-union/spec.md",
+            "hash": "f5787c99e1e0e8bd6df4e7d1bebbcd156b97d6b4312d98f20750b20ff4936d22"
+          },
+          {
+            "path": "openspec/changes/dag-node-wait-input/tasks.md",
+            "hash": "800d14a1f987def9d320355bf8f39df7d3745fffdd0c0f01fac0ce9d78530412"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "0f31d89a65621a1d1b15b504cdac5a56aadd9cc7f0a9d4969910671ec5e875a2"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "5a01341e52adeb2bf9fe87dce78d5ba75d152e2ba5553771c1ae5077a5149e8d"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "9566f429f0c010e76b27afd0b3b1e94174083137a62bcf0d6018535917d155c7"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "61616382639372ffa3357f2930bbc24551b0461fd3593669954a9bd822a2a212"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "9f722d566b154903a673fa7b1b885ba56b1330936257e1b91648a382f63875a5"
+          },
+          {
+            "path": "packages/core/src/edera_core/events.py",
+            "hash": "b1dda35c28f035733e0bdb84255524a9e83448f76cf67ef81204f565dfd58eda"
+          },
+          {
+            "path": "packages/core/src/edera_core/node/executor.py",
+            "hash": "c4e3795686ee23e11e3a39953967d1f5f661fb29f98f892fe4e3003ca0c2a91f"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "390c5804a6db4bec72f030ba0186e5987588a5d73ce4fa57dc8beee22bbdf32d"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "6fa7bb882749f21a32de2b9f768fa9e551672750c0891c1a608b36399a9e93f9"
+          },
+          {
+            "path": "packages/core/src/edera_core/trigger.py",
+            "hash": "23e8b9425c99cab20e6376e3cc83e6c44632ff6e6cc6ecf8a5a611371977e7b0"
+          },
+          {
+            "path": "packages/core/tests/test_wait_node_config.py",
+            "hash": "cdd2f510a7a3a6c7f98d122e613ae33e2b9d06f1fa010bcda2b648dcc2ea57e4"
+          },
+          {
+            "path": "packages/core/tests/test_wait_node_dispatcher.py",
+            "hash": "a5e416aa2ca965646e2d987109a79b9ab40af04555a392fa8f2234f76f196438"
+          },
+          {
+            "path": "packages/core/tests/test_wait_node_execute.py",
+            "hash": "f1d82bd528741287a73744e8da40c6ba82f17ebad7af4da6b2eec0831451e2d5"
+          },
+          {
+            "path": "packages/core/tests/test_wait_node_isolation.py",
+            "hash": "149a5c8cfabcd3e90034dcc3100267db4811ab585220d931749ad83f7067bae0"
+          },
+          {
+            "path": "packages/core/tests/test_wait_node_replay.py",
+            "hash": "2f440147a12e8e18d9c2705507d12710afb045b6f8b3bd1654e985518f4ac8d8"
+          },
+          {
+            "path": "packages/core/tests/test_wait_node_status.py",
+            "hash": "391246b06745b851e3ae2a3141aee7e233416cea915da927e13291ca696b6f97"
+          },
+          {
+            "path": "packages/core/tests/test_wait_registry.py",
+            "hash": "b601c205e8dae2a34f778dec67d6294fa2b778b48a706555cdf21c2a2b60113b"
+          },
+          {
+            "path": "tests/core/unit/test_core_architecture_overhaul.py",
+            "hash": "5d65d7b8364bdd128fa17446e31721c6ac707467a077e41073c8a55f41b34731"
+          }
+        ],
+        "skippedEvidenceFiles": [
+          "openspec/changes/dag-node-wait-input/.verify-result.json"
+        ],
+        "gitHeadCommit": "ba3e2623ab6b8f836b1b573599ba082bc85ece26",
+        "gitDiffSummary": "originalBranch resolved from .apply-isolation.json as master. Current disk evidence satisfies all requirements; wait-node race is covered by packages/core/tests/test_wait_node_execute.py and wait-node test set passed via uv run pytest."
+      }
+    }
+  }
+}

@@ -488,6 +488,7 @@ class DagController:
                 dag_lifecycle=lambda child_run_id, child_dag_name, status, error: self._record_child_dag_run(
                     child_run_id, source, child_dag_name, status, error
                 ),
+                trigger_executor=snapshot.trigger_executor,
                 dags=config.dags,
                 nodes=config.nodes,
             ).run(
@@ -569,6 +570,7 @@ class DagController:
                 dag_lifecycle=lambda child_run_id, child_dag_name, status, error: self._record_child_dag_run(
                     child_run_id, source, child_dag_name, status, error
                 ),
+                trigger_executor=snapshot.trigger_executor,
                 dags=config.dags,
                 nodes=config.nodes,
             ).run(
