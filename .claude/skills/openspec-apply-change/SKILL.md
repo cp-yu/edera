@@ -113,15 +113,20 @@ Before Phase 0 implementation:
   ```
 - For worktrees, first check `.claude/skills/using-git-worktrees/` and `skills/using-git-worktrees/`. Use that skill when present; otherwise use `git worktree add` with paths built through `path.join()`.
 
-### Master Agent Direct Implementation
+### Master Agent Strict TDD Implementation
 
 For each pending coarse task:
 - Read Goal, Files, Requirements, and Checks from `tasks.md`.
 - Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
-- Implement the task directly in the current agent context using the smallest useful test/code loop.
-- Use existing project test commands from task Checks when available; add or update targeted tests before code when behavior changes.
+- For behavior or code Checks, add or update the targeted test before implementation.
+- Run the declared Check command or equivalent targeted command and confirm the expected failure before implementation.
+- Make the minimal implementation needed for that Check.
+- Rerun the same or equivalent Check command and confirm pass before updating task or remediation checkboxes.
+- Non-runtime text or artifact Checks do not require artificial red failures.
+- For non-runtime text or artifact Checks, run the declared verification command or inspect the declared `Evidence:` / `Expect:` fields.
+- Config, schema, template, workflow template, and agent instruction template Checks default to behavior/code Checks unless the Check explicitly establishes there is no runtime or generated-surface consumer.
 - Keep generated commands and file paths cross-platform; use Node.js path handling when constructing paths.
-- Mark the task's nested Checks complete in `tasks.md` only after implementation evidence passes.
+- Mark the task's nested Checks complete in `tasks.md` only after red/green evidence or final non-runtime evidence passes.
 
 ### Continuous Recovery Protocol
 
