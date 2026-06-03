@@ -26,7 +26,6 @@ from edera_core.storage.entities import DagRun
 from edera_core.storage.repository import (
     cleanup_node_output_entities,
     create_dag_run,
-    current_dag_run,
     finish_dag_run,
     get_dag_run,
     latest_finished_dag_run,
@@ -381,18 +380,17 @@ class DagController:
         factory = self._factory()
         if dag_name is not None:
             async with factory() as session:
-                current = await current_dag_run(session, dag_name)
                 recent = await recent_dag_runs(session, dag_name=dag_name)
             ctx = self.active_runs.get(dag_name)
+            current_run_id = ctx.run_id if ctx is not None and not ctx.task.done() else None
             return {
                 "scheduler_running": self.scheduler.running,
                 "scheduler_paused": self.scheduler.state == 2,
                 "dag_name": dag_name,
-                "current_run_id": current.run_id if current else (ctx.run_id if ctx else None),
+                "current_run_id": current_run_id,
                 "recent_runs": [_run_dict(run) for run in recent],
             }
         async with factory() as session:
-            current = await current_dag_run(session)
             recent = await recent_dag_runs(session)
         return {
             "scheduler_running": self.scheduler.running,

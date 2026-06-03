@@ -1256,6 +1256,25 @@ async def test_dag_run_dag_name_field(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_status_ignores_stale_running_rows(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    ctrl = FakeController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        async with ctrl._factory()() as session:
+            await create_dag_run(session, "stale-run", "manual", dag_name="default")
+            await session.commit()
+
+        status = await ctrl.status("default")
+    finally:
+        await ctrl.shutdown()
+
+    assert status["current_run_id"] is None
+    assert status["recent_runs"][0]["run_id"] == "stale-run"
+    assert status["recent_runs"][0]["status"] == "running"
+
+
+@pytest.mark.asyncio
 async def test_controller_start_is_idle(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     _write_full_config(tmp_path)
