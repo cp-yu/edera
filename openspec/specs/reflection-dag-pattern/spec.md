@@ -5,13 +5,13 @@ capabilities:
 # reflection-dag-pattern Specification
 
 ## Purpose
-此规约记录变更 rig-session-reuse 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 反思 DAG 独立编排、Cron + Idle 触发、Skill 自优化、反思关系可观测性。
 ## Requirements
 ### Requirement: 反思 DAG 独立编排
 反思 DAG SHALL 作为独立 DAG 存在，通过 `session_dir` 引用目标节点的 sandbox 实现 session resume。
 
 #### Scenario: 反思 DAG 配置
-- **WHEN** 用户创建反思 DAG，其中 LLM 节点配置 `session_dir: "sandbox:llm-analyze:latest"`
+- **WHEN** 用户创建反思 DAG，其中 LLM 节点配置 `session_dir: "session:llm-analyze:latest"`
 - **THEN** 系统 SHALL 在执行时解析引用，resume 目标节点最近的 session
 
 #### Scenario: 反思 DAG 访问历史输出

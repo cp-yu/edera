@@ -5,7 +5,7 @@ capabilities:
 # briefing-generation Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 结构化简报生成（FR26）、简报元数据区（FR27）、免责声明（FR46）。
 ## Requirements
 ### Requirement: 结构化简报生成（FR26）
 系统 SHALL 生成包含所有标的分析汇总的结构化简报，按标的分组展示方向、置信度、核心原因和关键信息。
@@ -35,4 +35,3 @@ capabilities:
 #### Scenario: 简报包含免责声明
 - **WHEN** 简报生成完成
 - **THEN** 简报末尾包含免责声明文本
-

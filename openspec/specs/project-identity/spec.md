@@ -5,7 +5,7 @@ capabilities:
 # project-identity Specification
 
 ## Purpose
-此规约记录变更 rename-project-to-edera 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Canonical project identity、Package namespace identity、Project command and control command、README name origin等能力。
 ## Requirements
 ### Requirement: Canonical project identity
 系统 SHALL 使用 `Edera` 作为项目 canonical name，使用 `edera` 作为 canonical slug。OpenSpec project id MUST 为 `proj.edera`，项目描述 MUST 将系统定位为以 Entity 为统一原语、以 DAG 为执行模型的通用编排内核。

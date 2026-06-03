@@ -2,6 +2,8 @@
 capabilities:
   - cap.web.node-visual-system
 ---
+# node-visual-system Specification
+
 ## Purpose
 
 定义 Workbench 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和节点分组可视化。
@@ -100,4 +102,3 @@ Canvas 中的自定义节点 SHALL 使用实例 `alias` 作为主标题；当 `a
 #### Scenario: Alias display does not change identity
 - **WHEN** Canvas 使用 `alias` 显示节点标题
 - **THEN** 系统 MUST 继续使用节点实例 UUID 作为 edge 的 `from` 和 `to` 引用
-

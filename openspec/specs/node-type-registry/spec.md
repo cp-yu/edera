@@ -5,17 +5,17 @@ capabilities:
 # node-type-registry Specification
 
 ## Purpose
-此规约记录变更 node-type-instance-model 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Node type definition schema、Role declaration、System prompt file binding、Handler binding for Function nodes等能力。
 ## Requirements
 ### Requirement: Node type definition schema
-系统 SHALL 支持两种节点类型定义格式：LLM 类型和 Function 类型，均通过 YAML 文件在 `config/nodes/` 目录注册。每个节点类型 SHALL 可选声明 `parameters_schema`（JSON Schema 格式）描述 `parameters` 内部自定义字段的类型、默认值和可选值。
+系统 SHALL 支持两种节点类型定义格式：LLM 类型和 Function 类型，均作为 DB-backed Node type Entity 注册，YAML 仅作为 import/export/template 格式。每个节点类型 SHALL 可选声明 `parameters_schema`（JSON Schema 格式）描述 `parameters` 内部自定义字段的类型、默认值和可选值。
 
 #### Scenario: LLM node type definition
-- **WHEN** 系统加载 `config/nodes/` 下一个 `type: llm` 的 YAML 文件
+- **WHEN** 系统加载 DB-backed `type: llm` Node type Entity
 - **THEN** 系统 SHALL 解析以下字段：`name`、`type: llm`、`role`、`system_prompt_file`、`skills`（默认启用列表）、`input_type`、`output_type`、`model`（可选）、`parameters`（可选）、`parameters_schema`（可选，JSON Schema 格式）
 
 #### Scenario: Function node type definition
-- **WHEN** 系统加载 `config/nodes/` 下一个 `type: function` 的 YAML 文件
+- **WHEN** 系统加载 DB-backed `type: function` Node type Entity
 - **THEN** 系统 SHALL 解析以下字段：`name`、`type: function`、`role`、`handler`、`input_type`、`output_type`、`source_names`（可选）、`timeout_seconds`（可选）、`parameters`（可选）、`parameters_schema`（可选，JSON Schema 格式）
 
 #### Scenario: Invalid parameters_schema rejected
@@ -85,4 +85,3 @@ Function 节点类型 SHALL 通过 `handler` 字段指定执行入口。
 #### Scenario: Delete node type
 - **WHEN** 前端提交 `DELETE /api/graph/node-types/{name}` 且该类型在任何 DAG 中无实例引用
 - **THEN** 系统 SHALL 删除对应 YAML 文件
-

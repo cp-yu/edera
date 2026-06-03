@@ -5,7 +5,7 @@ capabilities:
 # entity-instance-crud-api Specification
 
 ## Purpose
-此规约记录变更 entity-config-page 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 List entity instances、Create entity instance、Update entity instance、Delete entity instance等能力。
 ## Requirements
 ### Requirement: List entity instances
 
@@ -101,4 +101,3 @@ capabilities:
 
 - **WHEN** 通过 `EntityService.Delete` 删除一个 entity
 - **THEN** 系统调用 `emit("event:entity-changed:{ref}")`
-

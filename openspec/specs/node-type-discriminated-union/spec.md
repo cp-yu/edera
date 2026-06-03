@@ -5,7 +5,7 @@ capabilities:
 # node-type-discriminated-union Specification
 
 ## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 NodeConfig Discriminated Union 类型定义、共享基础字段、Rust 兼容的序列化格式、NodeConfig 增加 wait variant。
 ## Requirements
 ### Requirement: NodeConfig Discriminated Union 类型定义
 
@@ -45,4 +45,3 @@ NodeConfig 的 YAML 序列化格式 SHALL 与 Rust `serde(tag = "type")` 的 int
 #### Scenario: 现有变体不受影响
 - **WHEN** node 配置中 `type` 为 `function`/`agent`/`dag` 之一
 - **THEN** 系统 SHALL 按原有变体反序列化，行为不变
-

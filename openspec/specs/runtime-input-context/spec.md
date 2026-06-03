@@ -5,7 +5,7 @@ capabilities:
 # runtime-input-context Specification
 
 ## Purpose
-此规约记录变更 redesign-runtime-input-context 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Runtime facts storage model、Edge input facts、Payload aggregation excludes runtime failures、Node failure kind等能力。
 ## Requirements
 ### Requirement: Runtime facts storage model
 系统 SHALL 使用具体 runtime tables 存储已提交运行事实，并通过 Entity API/CLI 将这些运行事实投影为 runtime entities。运行中调度状态 SHALL 以内存 runtime snapshot 和 runner state 为准。系统 MUST NOT 将 `edge_inputs` 或 `source_recoveries` 存入 `node_outputs`。
@@ -112,4 +112,3 @@ capabilities:
 #### Scenario: Input context not copied to output
 - **WHEN** 节点输入 metadata 包含 `upstream_statuses` 或 source recovery context
 - **THEN** 系统 MUST NOT 自动将这些字段写入该节点的 `NodeOutput.metadata`
-

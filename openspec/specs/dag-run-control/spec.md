@@ -5,7 +5,7 @@ capabilities:
 # dag-run-control Specification
 
 ## Purpose
-此规约记录变更 dag-observability-controllability 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Soft stop、Hard stop、Stop API 参数扩展、节点重试等能力。
 ## Requirements
 ### Requirement: Soft stop
 
@@ -45,7 +45,7 @@ capabilities:
 - **THEN** 系统 MUST 执行 hard stop
 
 ### Requirement: 节点重试
-系统 SHALL 支持从已结束的 run 中重试一个或多个节点，生成新 run_id 并通过 `retry_of` 字段关联原始 run。`node_ids` 为 `string[]` 类型，`run_id` 为可选参数。重试 SHALL 使用历史 `node_outputs` 和 runtime facts 重建直接上游输入上下文；optional 历史缺失 SHALL 允许继续，required 历史缺失 MUST 阻断。`cycle_id` 参数已废弃，改为 `run_id`。
+系统 SHALL 支持从已结束的 run 中重试一个或多个节点，生成新 run_id 并通过 `retry_of` 字段关联原始 run。`node_ids` 为 `string[]` 类型，`run_id` 为可选参数。重试 SHALL 使用历史 `node_outputs` 和 runtime facts 重建直接上游输入上下文；optional 历史缺失 SHALL 允许继续，required 历史缺失 MUST 阻断。所有 API 参数 SHALL 使用 `run_id`。
 
 #### Scenario: Single mode 重试（单节点）
 - **WHEN** 用户调用 `POST /api/dags/{name}/retry` body `{ "run_id": "abc", "node_ids": ["node-3"], "mode": "single" }`
@@ -80,7 +80,7 @@ capabilities:
 - **THEN** 系统 MUST 返回 404 错误
 
 ### Requirement: DagRun retry 关联
-系统 SHALL 在 `DagRun` 表增加 `retry_of` 字段（nullable），指向被重试的原始 run_id。source 值 MUST 为 `"retry"`。`PipelineRun` 类名已废弃，改为 `DagRun`。
+系统 SHALL 在 `DagRun` 表增加 `retry_of` 字段（nullable），指向被重试的原始 run_id。source 值 MUST 为 `"retry"`。
 
 #### Scenario: 重试 run 记录 retry_of
 - **WHEN** 系统创建重试 run
@@ -91,9 +91,8 @@ capabilities:
 - **THEN** 系统 SHALL 通过 `retry_of` 字段追溯重试链（如 run-C retry_of run-B retry_of run-A）
 
 ### Requirement: Resume node 使用 run_id
-系统 SHALL 支持恢复暂停的节点，通过 `run_id` 定位 sandbox 并传入新 prompt。`cycle_id` 参数已废弃，改为 `run_id`。
+系统 SHALL 支持恢复暂停的节点，通过 `run_id` 定位 sandbox 并传入新 prompt。所有 API 参数 SHALL 使用 `run_id`。
 
 #### Scenario: 恢复节点使用 run_id
 - **WHEN** 用户调用 `POST /api/nodes/{id}/resume` body `{ "run_id": "abc", "prompt": "关注宏观经济因素" }`
 - **THEN** 系统 MUST 找到该 run_id 的 sandbox，以 `--continue` 模式启动并传入 prompt
-

@@ -2,6 +2,8 @@
 capabilities:
   - cap.web.result-explorer
 ---
+# result-explorer Specification
+
 ## Purpose
 
 定义本机 Web 控制台的结果浏览能力，包括最新简报、建议列表、建议详情证据链、失败源展示，以及外部公开源进入管道后的可追溯证据查看。
@@ -204,3 +206,25 @@ capabilities:
 - **WHEN** `/api/results` 成功返回且 `briefing=null`、`briefings=[]`、`advices=[]`、`events=[]`、`summary_items=[]`
 - **THEN** 结果页面 SHALL 显示明确空状态，说明当前数据库没有可展示结果，并 MUST NOT 只显示页面标题
 
+### Requirement: Results dashboard display
+Result explorer SHALL include dashboard-level summary cards, briefing shortcuts, advice table filters and event table display as part of the unified results page.
+
+#### Scenario: Display advice summary cards
+- **WHEN** 用户打开结果浏览页面
+- **THEN** 系统 SHALL 展示建议数量、方向分布和关键状态摘要卡片
+
+#### Scenario: Navigate to briefing detail
+- **WHEN** 用户点击简报详情入口
+- **THEN** 系统 SHALL 导航到对应 briefing detail 页面
+
+#### Scenario: Filter advices by stock code
+- **WHEN** 用户在建议表格中按 stock code 过滤
+- **THEN** 系统 SHALL 仅展示匹配的 advice 行
+
+#### Scenario: Navigate to advice detail from dashboard
+- **WHEN** 用户点击 advice 行
+- **THEN** 系统 SHALL 导航到对应 advice detail 页面
+
+#### Scenario: View events table
+- **WHEN** results API 返回 events
+- **THEN** 系统 SHALL 在结果页面展示事件表格

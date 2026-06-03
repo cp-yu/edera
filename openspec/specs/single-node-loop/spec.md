@@ -5,7 +5,7 @@ capabilities:
 # single-node-loop Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 并行循环模式、串行循环模式、循环不破坏 DAG 无环性。
 ## Requirements
 ### Requirement: 并行循环模式
 
@@ -58,4 +58,3 @@ capabilities:
 
 - **WHEN** 一个配置了 `loop` 的节点有下游节点
 - **THEN** 下游节点等待循环全部完成后才开始执行
-

@@ -5,10 +5,10 @@ capabilities:
 # dag-event-driven-executor Specification
 
 ## Purpose
-此规约记录变更 dag-observability-controllability 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Event-driven dispatcher 调度、Fan-in barrier 模式、Fan-in accumulate 模式、错误路径隔离等能力。
 ## Requirements
 ### Requirement: Event-driven dispatcher 调度
-系统 SHALL 使用中央 dispatcher + `asyncio.Queue` 调度 DAG 节点执行。节点完成后 MUST 立即向 queue 发送完成事件，dispatcher 消费事件后评估下游节点就绪条件并启动就绪节点。对声明了 `resource` 的节点，dispatcher MUST 在就绪条件满足后额外执行 semaphore acquire gate，acquire 失败则暂缓启动。所有涉及 `cycle_id` 的代码改为 `run_id`。
+系统 SHALL 使用中央 dispatcher + `asyncio.Queue` 调度 DAG 节点执行。节点完成后 MUST 立即向 queue 发送完成事件，dispatcher 消费事件后评估下游节点就绪条件并启动就绪节点。对声明了 `resource` 的节点，dispatcher MUST 在就绪条件满足后额外执行 semaphore acquire gate，acquire 失败则暂缓启动。所有 DAG run 关联数据 MUST 使用 `run_id`。
 
 #### Scenario: 节点完成立即触发下游
 - **WHEN** node-A 完成执行且 node-B 仅依赖 node-A
@@ -88,20 +88,20 @@ capabilities:
 - **WHEN** DAG 中某路径失败但其他路径成功
 - **THEN** `DagRunResult.ok` MUST 为 true（只要有成功的 sink 节点），`failures` 记录失败节点
 
-### Requirement: Fan-in barrier 增加 edge optional 判定
-系统 SHALL 在 fan-in barrier 模式中区分 optional 和 required 边。当所有 required 边的上游完成（或所有入边均为 optional）时，下游节点 SHALL 开始执行。Optional 边的上游失败 SHALL NOT 阻塞下游，并且 SHALL 通过 runtime facts/context 记录。
+### Requirement: Fan-in barrier 消费 edge optional 语义
+Dispatcher SHALL 以 `edge-optional` capability 定义的 effective optional 判定作为唯一语义源，不在执行器内维护第二套 optional 规则。dispatcher 在调度决策点 SHALL 写入所有直接入边 edge input facts。
 
-#### Scenario: Required 边全部完成触发执行
-- **WHEN** node-C 有入边 A→C（required）和 B→C（optional），且 A 完成
-- **THEN** dispatcher SHALL 在调度 node-C 前写入 A→C 和 B→C 的 edge input facts，并启动 node-C
+#### Scenario: Optional 判定来自 edge-optional
+- **WHEN** dispatcher 评估 fan-in barrier 是否 ready
+- **THEN** dispatcher SHALL 使用 effective edge optional 结果区分 required 与 optional 入边
 
-#### Scenario: Optional 边上游失败不阻塞
-- **WHEN** node-C 有入边 A→C（optional）和 B→C（required），A 失败，B 成功
-- **THEN** dispatcher SHALL 启动 node-C，node-C 的 payload SHALL 只包含 B 的输出，且 A→C SHALL 记录为 failed edge input
+#### Scenario: Optional 缺失记录为 input fact
+- **WHEN** optional 入边上游失败但 required 入边满足
+- **THEN** dispatcher SHALL 触发目标节点，并在 input facts 中记录 optional 缺失
 
-#### Scenario: 所有 required 边上游失败阻塞下游
-- **WHEN** node-C 有入边 A→C（required），且 A 失败
-- **THEN** node-C SHALL 被标记为 `status=failed`、`failure_kind=upstream_failed`，不执行，并写入 node-C 的所有直接入边 edge input facts
+#### Scenario: Required failure marks upstream failed
+- **WHEN** required 入边上游失败导致目标节点不可执行
+- **THEN** dispatcher SHALL 将目标节点标记为 `status=failed`、`failure_kind=upstream_failed`，并写入该节点的所有直接入边 edge input facts
 
 ### Requirement: Edge input facts 使用 run_id
 系统 SHALL 在目标节点调度决策点生成所有直接入边 facts，记录到 `edge_inputs` 表。所有 edge input facts MUST 使用 `run_id` 关联到对应的 DAG run。
@@ -139,4 +139,3 @@ capabilities:
 #### Scenario: stop 时取消挂起的 wait 节点
 - **WHEN** DAG run 收到 stop（`stop_event` 置位）且存在挂起的 wait 节点
 - **THEN** 系统 SHALL 解除该 wait 节点挂起并按 run 既有 stop 路径终止
-

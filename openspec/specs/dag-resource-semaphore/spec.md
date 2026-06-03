@@ -5,7 +5,7 @@ capabilities:
 # dag-resource-semaphore Specification
 
 ## Purpose
-此规约记录变更 dag-resource-semaphore 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Resource Entity 定义、节点 resource 声明、Semaphore acquire/release 调度、跨 DAG 共享 semaphore。
 ## Requirements
 ### Requirement: Resource Entity 定义
 
@@ -62,4 +62,3 @@ DagRunner SHALL 在启动声明了 resource 的节点前执行非阻塞 acquire�
 #### Scenario: 不同 resource 互不影响
 - **WHEN** 节点 X 声明 `resource: "v8_isolate"`，节点 Y 声明 `resource: "eastmoney_api"`
 - **THEN** X 和 Y 的 semaphore MUST 独立，互不阻塞
-

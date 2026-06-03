@@ -5,7 +5,7 @@ capabilities:
 # trade-advisory Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 生成交易建议（FR15）、建议原文溯源（FR18）、审计字段完整性、低置信度标记等能力。
 ## Requirements
 ### Requirement: 生成交易建议（FR15）
 系统 SHALL 基于当期采集的分析结果与用户当前投资情况生成交易建议，输出 MUST 包含 direction（buy/sell/hold）和核心原因。
@@ -76,4 +76,3 @@ capabilities:
 #### Scenario: Reject malformed price history rows
 - **WHEN** 本地价格历史输入包含缺少 `stock_code`、timestamp 或 close price 的记录
 - **THEN** 系统 MUST 忽略无效记录或返回 `unknown`，并且 MUST 不影响原始 advice 列表和详情展示
-

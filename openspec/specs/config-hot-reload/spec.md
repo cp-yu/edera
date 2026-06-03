@@ -5,21 +5,21 @@ capabilities:
 # config-hot-reload Specification
 
 ## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 配置文件热加载、Handler 脚本热加载、Manifest 热加载、热加载不影响运行中 DAG等能力。
 ## Requirements
 ### Requirement: 配置文件热加载
-系统 SHALL 监听 `config/` 目录下的 YAML 文件变更，变更发生时 SHALL 构建候选运行时快照，并在候选配置完整解析和提交成功后更新 committed runtime snapshot，无需重启服务。失败 reload MUST 保留旧 committed runtime snapshot。
+系统 SHALL 监听 DB-backed core Entity、system config 和 extension manifest 的变更，变更发生时 SHALL 构建候选运行时快照，并在候选配置完整解析和提交成功后更新 committed runtime snapshot，无需重启服务。失败 reload MUST 保留旧 committed runtime snapshot。
 
-#### Scenario: Node 配置变更热加载
-- **WHEN** `config/nodes/my-node.yaml` 文件被修改且 reload commit 成功
+#### Scenario: Node type Entity 变更热加载
+- **WHEN** DB-backed Node type Entity 被修改且 reload commit 成功
 - **THEN** 系统 SHALL 在 committed runtime snapshot 中更新对应的 NodeConfig
 
-#### Scenario: DAG 配置变更热加载
-- **WHEN** `config/dags/my-dag.yaml` 文件被修改且 reload commit 成功
+#### Scenario: DAG Entity 变更热加载
+- **WHEN** DB-backed DAG Entity 被修改且 reload commit 成功
 - **THEN** 系统 SHALL 在 committed runtime snapshot 中更新对应的 DAG 配置
 
 #### Scenario: 配置解析失败保留旧快照
-- **WHEN** `config/` 文件变更触发 reload 但候选配置解析失败
+- **WHEN** DB-backed core Entity 或 system config 变更触发 reload 但候选配置解析失败
 - **THEN** 系统 MUST 保留失败前的 committed runtime snapshot
 
 ### Requirement: Handler 脚本热加载
@@ -60,7 +60,7 @@ capabilities:
 - **THEN** 新 run SHALL 使用最新 committed runtime snapshot
 
 ### Requirement: 文件监听机制
-系统 SHALL 使用 `watchfiles` 库监听 `config/` 与 `extensions/` 文件系统变更，支持 debounce 机制避免快速连续变更触发多次重载。该 watcher SHALL 由 `edera-server` 生命周期启动和停止。
+系统 SHALL 监听 DB-backed core Entity/system config 变更，并使用 `watchfiles` 库监听 `extensions/` 文件系统变更，支持 debounce 机制避免快速连续变更触发多次重载。该 watcher SHALL 由 `edera-server` 生命周期启动和停止。
 
 #### Scenario: Debounce 合并连续变更
 - **WHEN** 同一文件在 1 秒内被修改 3 次
@@ -72,11 +72,11 @@ capabilities:
 
 ### Requirement: 配置变更 emit 事件
 
-系统 SHALL 在配置文件或 extension 文件变更且 reload commit 成功后自动 emit `event:config-changed` 事件到 committed runtime snapshot 中的 TriggerExecutor。失败 reload MUST NOT emit `event:config-changed`，且 emit 路径 MUST NOT 为该事件重新从文件构建 trigger registry。
+系统 SHALL 在 DB-backed core Entity、system config 或 extension 文件变更且 reload commit 成功后自动 emit `event:config-changed` 事件到 committed runtime snapshot 中的 TriggerExecutor。失败 reload MUST NOT emit `event:config-changed`，且 emit 路径 MUST NOT 为该事件重新从文件构建 trigger registry。
 
 #### Scenario: 配置变更 emit 事件
 
-- **WHEN** `config/` 目录下的文件被修改，HotReloader 检测到变更并成功 commit runtime snapshot
+- **WHEN** DB-backed core Entity 或 system config 被修改，HotReloader 检测到变更并成功 commit runtime snapshot
 - **THEN** 系统在 reload callback 成功后调用 `emit("event:config-changed")`
 
 #### Scenario: trigger entity 变更触发 cron 重扫描
@@ -144,4 +144,3 @@ Hot reload SHALL 隔离单次 reload 失败。配置解析、extension 扫描、
 - **WHEN** 多个文件变更触发并发 reload commit
 - **THEN** 系统 SHALL 串行处理每个候选 snapshot commit
 - **AND** 任一时刻 runtime consumers SHALL 只看到某一个完整 committed runtime snapshot
-

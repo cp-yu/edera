@@ -5,7 +5,7 @@ capabilities:
 # legacy-script-adapter Specification
 
 ## Purpose
-此规约记录 LegacyScriptAdapter 行为，请在后续同步或归档前补全正式 Purpose。
+定义 LegacyScriptAdapter 通用脚本适配、调用环境隔离、参数提取和 Extension manifest 注册。
 ## Requirements
 ### Requirement: 通用脚本适配
 

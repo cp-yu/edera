@@ -5,7 +5,7 @@ capabilities:
 # connection-type-validation Specification
 
 ## Purpose
-此规约记录变更 node-type-instance-model 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Role-based connection constraint、Function node type matching — hard block、LLM node type matching — soft warning、Type compatibility rules等能力。
 ## Requirements
 ### Requirement: Role-based connection constraint
 系统 SHALL 根据节点 role 约束连线方向：source 节点不允许入边，sink 节点不允许出边。
@@ -77,4 +77,3 @@ capabilities:
 #### Scenario: Drop on invalid target
 - **WHEN** 用户在红色 handle 上松手
 - **THEN** 系统 SHALL 取消连线操作，不建立边
-

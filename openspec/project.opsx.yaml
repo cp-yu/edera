@@ -37,7 +37,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.result-explorer
-    intent: 结果浏览能力，覆盖统一输出 Entity 下的简报、建议、分析、原文、失败信息、metadata bar、历史简报、字符串深链标识和错误/空态展示
+    intent: 结果浏览能力，覆盖统一输出 Entity 下的简报、建议、分析、原文、失败信息、metadata bar、历史简报、dashboard 摘要、事件表格、字符串深链标识和错误/空态展示
     type: capability
     domain: dom.web
   - id: cap.web.dag-workbench-ui
@@ -85,7 +85,7 @@ capabilities:
     type: capability
     domain: dom.data
   - id: cap.entity-management-page
-    intent: 实体管理页面适配统一 Entity 模型，支持所有 EntityType（含 Node、DAG、Trigger）的 CRUD 交互
+    intent: 实体管理页面适配统一 Entity 模型，支持所有 EntityType（含 Node、DAG、Trigger）、Node type、Function handler 和 Skill 的 CRUD 交互
     type: capability
     domain: dom.core
   - id: cap.entity-type-crud-api
@@ -202,12 +202,9 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.web.edera-web-bff
-    intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，DAG 控制路由使用参数化 dag_name，不提供 hard-coded default DAG 专用路径
+    intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，覆盖 HTTP/SSE 网关、token 认证、静态文件服务和参数化 DAG 控制路由，不提供 hard-coded default DAG 专用路径
     type: capability
     domain: dom.web
-  - id: cap.core.bff-web-gateway
-    intent: BFF Web 网关，作为 gRPC client 连 edera-server，BFF cert 通过本机 bootstrap 获取并仅驻内存（不落盘），EDERA_DEV=1 模式跳过 token 验证
-    type: capability
   - id: cap.core.agent-realtime-observability
     intent: Agent 节点实时可观测，覆盖 stdout event bus、SSE 推送和 Web Console 展示
     type: capability
@@ -221,13 +218,10 @@ capabilities:
     intent: Runtime facts 以具体表持久化并投影为 runtime entities，同时明确运行中调度状态以内存 runtime state 和 committed snapshot 为准
     type: capability
   - id: cap.web.source-health-monitoring
-    intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态和信息源日志契约
-    type: capability
-  - id: cap.web.sources-monitor-ui
-    intent: 信息源监控页面能力，覆盖信息源健康摘要、执行日志、错误态和用户可读状态展示
+    intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态、信息源日志契约、监控页面展示和错误反馈
     type: capability
   - id: cap.core.grpc-graph-service
-    intent: GraphService 提供 DAG/node type/skill/handler CRUD 和 runtime-status；ListHandlers 从 handler_registry 返回 handler 列表；GetHandler/SaveHandler 通过 registry 查找 handler 路径；DagNodeInstance.optional 与 DagEdge.optional 在 round-trip 中保留
+    intent: GraphService 提供 DB-backed DAG/node type/skill/handler CRUD 和 runtime-status；ListHandlers 从 handler_registry 返回 handler 列表；GetHandler/SaveHandler 通过 registry 查找 handler 路径；DagNodeInstance.optional 与 DagEdge.optional 在 round-trip 中保留
     type: capability
   - id: cap.core.grpc-config-service
     intent: gRPC ConfigService，覆盖 system config、entity-types config 和通用配置文件的读写，验证逻辑在 server 端执行

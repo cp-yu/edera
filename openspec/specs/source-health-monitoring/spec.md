@@ -5,7 +5,7 @@ capabilities:
 # source-health-monitoring Specification
 
 ## Purpose
-此规约记录变更 source-health-monitoring 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义信息源健康 API、执行日志、source recovery 状态、信息源监控页面和错误反馈能力。
 ## Requirements
 ### Requirement: Source health summary
 系统 SHALL 为用户展示已配置信息源的健康状态，MUST 包含信息源名称、最近运行状态、最近运行时间、成功率、统计窗口大小和最近失败原因。
@@ -100,3 +100,38 @@ capabilities:
 #### Scenario: Preserve handoff reference in health status
 - **WHEN** 信息源已经生成外部修复任务
 - **THEN** 系统 SHALL 在 source health API 和页面中展示最近 repair task 的 task_id、created_at 和 task_path
+
+### Requirement: Source monitor page display
+Source health UI SHALL display source health summaries, execution logs, error states and user-readable mutation feedback by consuming the source health/log APIs defined in this capability.
+
+#### Scenario: View source health cards
+- **WHEN** 用户进入信息源页面
+- **THEN** 系统 SHALL 展示每个信息源的健康状态（成功率、最近失败原因、恢复状态）
+
+#### Scenario: Highlight escalated sources
+- **WHEN** 某信息源处于升级（escalated）状态
+- **THEN** 系统 SHALL 以警告色高亮该信息源卡片
+
+#### Scenario: View execution logs in UI
+- **WHEN** 用户查看信息源页面且日志 payload 包含 `status`
+- **THEN** 系统 SHALL 展示最近的执行日志，包含时间、状态和错误信息
+
+#### Scenario: Filter logs by source in UI
+- **WHEN** 用户选择特定信息源
+- **THEN** 系统 SHALL 仅展示该信息源的执行日志
+
+#### Scenario: Display status from status field
+- **WHEN** 信息源日志 payload 返回 `status` 而不返回 `node_status`
+- **THEN** 信息源页面 SHALL 在状态列显示 `status`
+
+#### Scenario: Display fallback time for source logs
+- **WHEN** 信息源日志 payload 的 `started_at` 为空且 `ended_at` 非空
+- **THEN** 信息源页面 SHALL 在时间列显示 `ended_at`
+
+#### Scenario: Source health API returns error
+- **WHEN** `GET /api/sources/health` 请求失败
+- **THEN** 系统 SHALL 展示错误提示信息，包含重试操作入口
+
+#### Scenario: Source mutation fails
+- **WHEN** 信息源页面触发的 run DAG 或 create node mutation 返回错误
+- **THEN** 系统 SHALL 向用户展示包含错误原因的提示

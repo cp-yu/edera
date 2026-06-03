@@ -5,7 +5,7 @@ capabilities:
 # goal-completion Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 PRD 门禁、测试金字塔门禁、性能与可靠性门禁、完成判定入口。
 ## Requirements
 ### Requirement: PRD 门禁
 系统 MUST 在 MVP 完成前提供 PRD 门禁检查，确保 P1 范围可执行、可测试、无阶段冲突。

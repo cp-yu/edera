@@ -5,7 +5,7 @@ capabilities:
 # notification-delivery Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 分级推送（FR19）、推送摘要格式（FR20）、高优先级推送行动方向（FR21）、周期性状态输出（FR22）。
 ## Requirements
 ### Requirement: 分级推送（FR19）
 系统 SHALL 通过 ntfy.sh 按优先级分级推送消息，MUST 将优先级映射到 ntfy priority 字段（1=静默, 3=普通, 5=紧急）。
@@ -46,4 +46,3 @@ capabilities:
 #### Scenario: 无新信息时仍推送状态
 - **WHEN** 当前周期无新采集信息
 - **THEN** 系统推送系统状态通知，确认系统正常运行
-

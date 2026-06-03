@@ -5,7 +5,7 @@ capabilities:
 # dag-run-observability Specification
 
 ## Purpose
-此规约记录变更 dag-observability-controllability 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Inspector Runtime tab、Edge 数据流查看、节点历史页面、右键菜单扩展。
 ## Requirements
 ### Requirement: Inspector Runtime tab
 
@@ -72,4 +72,3 @@ capabilities:
 
 - **WHEN** 用户右键 edge
 - **THEN** 系统 SHALL 在现有菜单项基础上增加"查看上游节点历史"选项，点击后跳转到上游节点的历史页面
-

@@ -5,7 +5,7 @@ capabilities:
 # extension-entity-imports Specification
 
 ## Purpose
-此规约记录变更 extension-import-clean-runtime 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Extension manifest entity imports、Extension entity import records、Extension entity imports are idempotent、Extension import index supports future uninstall。
 ## Requirements
 ### Requirement: Extension manifest entity imports
 系统 SHALL 支持 extension manifest 通过 `imports.entities` 声明一组待导入的 Entity YAML 路径。路径 MUST 相对该 extension 根目录解析，且每个文件 MUST 是完整 Entity 文档，包含 `type`、`id` 和 `attributes`。
@@ -50,4 +50,3 @@ capabilities:
 #### Scenario: Skipped existing entity never owned
 - **WHEN** extension import record 的 `status = "skipped_existing"`
 - **THEN** 后续 extension uninstall MUST NOT 删除该 Entity
-

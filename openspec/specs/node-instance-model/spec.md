@@ -5,7 +5,7 @@ capabilities:
 # node-instance-model Specification
 
 ## Purpose
-此规约记录变更 node-type-instance-model 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Instance identification、Multiple instances of same type、Instance-level configuration、LLM instance skill freedom等能力。
 ## Requirements
 ### Requirement: Instance identification
 DAG 中的每个节点实例 SHALL 使用 UUID 作为稳定标识，可选 `alias` 字段作为人类可读标签。
@@ -83,7 +83,7 @@ DAG YAML SHALL 使用实例对象列表格式存储节点，`config` 字段包�
 `DagNodeInstance.config` SHALL 支持 `session_dir` 字段（可选字符串），控制 LLM 节点的 session 存储位置。
 
 #### Scenario: 添加 session_dir 配置
-- **WHEN** 用户在 Inspector 中为 LLM 节点实例设置 `session_dir: "sandbox:llm-analyze:latest"`
+- **WHEN** 用户在 Inspector 中为 LLM 节点实例设置 `session_dir: "session:llm-analyze:latest"`
 - **THEN** 系统 SHALL 保存到 DAG YAML 的实例 `config` 中
 
 #### Scenario: Session_dir 校验
@@ -126,4 +126,3 @@ DAG YAML SHALL 使用实例对象列表格式存储节点，`config` 字段包�
 #### Scenario: 类型层未定义 tools
 - **WHEN** `NodeConfig` 未定义 `tools` 字段
 - **THEN** 实例默认 `tools: []`（无工具，等同 `--no-tools`）
-

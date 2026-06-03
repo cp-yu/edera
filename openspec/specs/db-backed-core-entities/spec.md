@@ -5,7 +5,7 @@ capabilities:
 # db-backed-core-entities Specification
 
 ## Purpose
-此规约记录变更 db-backed-core-entities 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 核心配置型 Entity 使用 DB source of truth、核心 Entity 固定 per-type tables、EntityType DB 元数据、YAML 文件降级为 import/export/template 格式等能力。
 ## Requirements
 ### Requirement: 核心配置型 Entity 使用 DB source of truth
 
@@ -14,7 +14,7 @@ capabilities:
 #### Scenario: 运行时从 DB 读取核心 Entity
 - **WHEN** `edera-server` 启动并构建 runtime snapshot
 - **THEN** 系统 SHALL 从 DB 读取 `node`、`dag`、`trigger` 和 `resource`
-- **AND** 系统 MUST NOT 从 `config/nodes/`、`config/dags/`、`config/triggers/` 或 YAML resource 文件读取这些类型
+- **AND** 系统 MUST NOT 从 YAML 配置文件读取这些 core Entity 类型作为 runtime source
 
 #### Scenario: DB 写入后替换 committed snapshot
 - **WHEN** 用户通过 CLI 或 Web Console 修改核心配置型 Entity
@@ -89,4 +89,3 @@ capabilities:
 #### Scenario: Snapshot install does not create default cron trigger
 - **WHEN** `DagController.install_snapshot()` 构建 runtime snapshot
 - **THEN** 系统 MUST NOT 创建任何新的 Trigger Entity
-

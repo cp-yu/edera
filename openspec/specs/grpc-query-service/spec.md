@@ -5,7 +5,7 @@ capabilities:
 # grpc-query-service Specification
 
 ## Purpose
-此规约记录变更 complete-web-grpc-routes 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 QueryService briefing 查询、QueryService advice 查询、QueryService results 聚合查询、QueryService source 健康与日志查询等能力。
 ## Requirements
 ### Requirement: QueryService briefing 查询
 `edera-server` SHALL 通过 `QueryService` 提供 briefing 数据的查询操作。

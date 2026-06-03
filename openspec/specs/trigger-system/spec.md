@@ -5,7 +5,7 @@ capabilities:
 # trigger-system Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Trigger Entity 定义、触发目标、事件记录可观测、Trigger enabled 字段。
 ## Requirements
 ### Requirement: Trigger Entity 定义
 
@@ -72,4 +72,3 @@ capabilities:
 
 - **WHEN** trigger 的 `wait_for` 包含精确日期 cron（如 `cron:"0 9 30 5 *"`）且 fire 成功
 - **THEN** 系统自动将该 trigger 的 `enabled` 设为 false
-

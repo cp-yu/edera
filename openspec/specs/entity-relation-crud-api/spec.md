@@ -5,21 +5,21 @@ capabilities:
 # entity-relation-crud-api Specification
 
 ## Purpose
-此规约记录变更 entity-config-page 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Relation UUID identification、List entity relations、Create entity relation、Delete entity relation。
 ## Requirements
 ### Requirement: Relation UUID identification
 
-系统 SHALL 为每条 entity relation 分配唯一 UUID ID，存储在 `entity-relations.yaml` 中。
+系统 SHALL 为每条 entity relation 分配唯一 UUID ID，作为 DB-backed relation Entity 存储。
 
 #### Scenario: Load relations with existing IDs
 
-- **WHEN** 系统加载 `entity-relations.yaml` 且关系已有 `id` 字段
+- **WHEN** 系统加载 DB-backed relation Entity 且关系已有 `id` 字段
 - **THEN** 系统 SHALL 使用已有 ID
 
 #### Scenario: Auto-assign IDs to legacy relations
 
-- **WHEN** 系统加载 `entity-relations.yaml` 且某条关系缺少 `id` 字段
-- **THEN** 系统 SHALL 自动生成 UUID 并补全，持久化回文件
+- **WHEN** 系统导入 relation YAML 且某条关系缺少 `id` 字段
+- **THEN** 系统 SHALL 自动生成 UUID 并补全，持久化为 DB-backed relation Entity
 
 ### Requirement: List entity relations
 
@@ -42,7 +42,7 @@ capabilities:
 #### Scenario: Create valid relation
 
 - **WHEN** 前端提交 `{ "entities": ["stock:00700.HK", "web-source:sample-web"], "type": "uses-source" }`
-- **THEN** 系统 SHALL 生成 UUID ID，验证引用的实体存在，持久化到 `entity-relations.yaml`
+- **THEN** 系统 SHALL 生成 UUID ID，验证引用的实体存在，持久化为 DB-backed relation Entity
 
 #### Scenario: Create with non-existent entity
 
@@ -61,10 +61,9 @@ capabilities:
 #### Scenario: Delete existing relation
 
 - **WHEN** 前端请求 `DELETE /api/entity-relations/{id}`
-- **THEN** 系统 SHALL 从 `entity-relations.yaml` 中移除该条关系
+- **THEN** 系统 SHALL 从 DB-backed relation Entity Store 中移除该条关系
 
 #### Scenario: Delete non-existent relation
 
 - **WHEN** 前端请求删除不存在的 ID
 - **THEN** 系统 MUST 返回 404 错误
-

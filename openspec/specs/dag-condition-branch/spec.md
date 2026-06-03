@@ -5,7 +5,7 @@ capabilities:
 # dag-condition-branch Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Edge 条件表达式、默认 Condition Evaluator、Condition Evaluator 可替换、条件死路径检测。
 ## Requirements
 ### Requirement: Edge 条件表达式
 
@@ -77,4 +77,3 @@ capabilities:
 
 - **WHEN** 一个节点的所有出边都有条件，且所有条件都求值为 false
 - **THEN** 系统记录 warning 到 run metadata，标记该路径为 dead path，不视为执行错误
-

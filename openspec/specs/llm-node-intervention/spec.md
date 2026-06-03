@@ -5,7 +5,7 @@ capabilities:
 # llm-node-intervention Specification
 
 ## Purpose
-此规约记录变更 rig-session-reuse 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Stop + Resume 干预、干预后输出替换、CLI 干预入口。
 ## Requirements
 ### Requirement: Stop + Resume 干预
 系统 SHALL 支持对 LLM 节点执行 soft stop 后通过 resume session 附带干预指令重启。

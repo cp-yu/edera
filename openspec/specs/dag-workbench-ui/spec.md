@@ -363,4 +363,3 @@ DAG 工作台 Inspector SHALL 在现有 `Config | Runtime` tab 之外增加 `Tri
 - **WHEN** 用户在节点 Inspector 中切换 `optional` 开关
 - **THEN** 系统 SHALL 更新该 DAG 节点实例的 `optional` 属性并持久化到 DAG YAML
 - **AND** SHALL NOT 修改该节点类型的全局 NodeConfig
-

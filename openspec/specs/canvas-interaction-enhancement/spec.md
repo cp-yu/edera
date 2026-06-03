@@ -2,6 +2,8 @@
 capabilities:
   - cap.web.canvas-interaction-enhancement
 ---
+# canvas-interaction-enhancement Specification
+
 ## Purpose
 
 定义 Workbench 画布交互增强能力，覆盖连线视觉、右键菜单、网格吸附、对齐辅助线和撤销重做。
@@ -97,4 +99,3 @@ capabilities:
 - **WHEN** DAG 存在运行态 edge 高亮且用户选中一个节点
 - **THEN** 系统 SHALL 保留运行态 edge 颜色
 - **AND** 系统 SHALL 仅用额外 stroke width、opacity 或 shadow 表达手动选中态
-

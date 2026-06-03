@@ -5,7 +5,7 @@ capabilities:
 # sub-dag-execution Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 子 DAG 作为 Node 执行、子 DAG 错误传播、递归深度限制、Dag 节点类型支持等能力。
 ## Requirements
 ### Requirement: 子 DAG 作为 Node 执行
 

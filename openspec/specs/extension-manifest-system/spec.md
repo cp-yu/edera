@@ -5,7 +5,7 @@ capabilities:
 # extension-manifest-system Specification
 
 ## Purpose
-此规约记录变更 core-extension-separation 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Manifest 文件解析、文件名 Fallback 机制、Handler 描述符提取、扩展依赖声明等能力。
 ## Requirements
 ### Requirement: Manifest 文件解析
 
@@ -101,4 +101,3 @@ Workflow extension package SHALL use manifest `imports.entities` as the only nor
 #### Scenario: Top-level config is not duplicated
 - **WHEN** a DAG/node/trigger/resource instance has been moved into a workflow extension package
 - **THEN** the same instance MUST NOT remain as a runtime-authoritative top-level `config/` source
-

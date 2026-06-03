@@ -5,7 +5,7 @@ capabilities:
 # cron-emitter Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 cron 时钟 emitter 内置、错过 tick 不补跑、trigger 配置变更动态生效。
 ## Requirements
 ### Requirement: cron 时钟 emitter 内置
 
@@ -48,4 +48,3 @@ capabilities:
 
 - **WHEN** 用户删除某 trigger entity，且该表达式中的 cron token 不再被任何 trigger 引用
 - **THEN** cron emitter 从注册表中移除该 cron token
-

@@ -5,7 +5,7 @@ capabilities:
 # core-bootstrap Specification
 
 ## Purpose
-此规约记录变更 core-extension-separation 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 扩展目录扫描、Handler Registry 构建、Entity Type Registry 构建、Module Path 设置等能力。
 ## Requirements
 ### Requirement: 扩展目录扫描
 

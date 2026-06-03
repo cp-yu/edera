@@ -5,7 +5,7 @@ capabilities:
 # dag-cycle-detection-ui Specification
 
 ## Purpose
-此规约记录变更 dag-observability-controllability 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 前端连线环检测。
 ## Requirements
 ### Requirement: 前端连线环检测
 
@@ -25,4 +25,3 @@ capabilities:
 
 - **WHEN** `onConnect` 回调触发
 - **THEN** 系统 MUST 从 target 节点出发沿现有 edges 做 DFS，检查是否能到达 source 节点。如果能到达则存在环
-

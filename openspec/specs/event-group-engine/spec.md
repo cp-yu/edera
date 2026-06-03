@@ -5,7 +5,7 @@ capabilities:
 # event-group-engine Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Bit 持久化存储、bit 置位语义、fire 后自动 consume、bit→trigger 反向索引。
 ## Requirements
 ### Requirement: Bit 持久化存储
 
@@ -72,4 +72,3 @@ capabilities:
 
 - **WHEN** trigger entity 被修改或删除
 - **THEN** 系统更新或移除该 trigger 在反向索引中的注册项
-

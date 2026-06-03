@@ -87,9 +87,6 @@ relations:
   - from: cap.core.config-hot-reload
     type: contains
     to: dom.core
-  - from: cap.core.bff-web-gateway
-    type: contains
-    to: dom.core
   - from: cap.core.agent-realtime-observability
     type: contains
     to: dom.core
@@ -103,9 +100,6 @@ relations:
     type: contains
     to: dom.core
   - from: cap.web.source-health-monitoring
-    type: contains
-    to: dom.web
-  - from: cap.web.sources-monitor-ui
     type: contains
     to: dom.web
   - from: cap.core.edera-cli

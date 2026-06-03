@@ -5,7 +5,7 @@ capabilities:
 # grpc-config-service Specification
 
 ## Purpose
-此规约记录变更 complete-web-grpc-routes 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 ConfigService system config 读写、ConfigService entity-type CRUD、ConfigService 通用 config 读写。
 ## Requirements
 ### Requirement: ConfigService system config 读写
 `edera-server` SHALL 通过 `ConfigService` 提供 system.toml 配置的读写操作，验证逻辑在 server 端执行。
@@ -78,9 +78,8 @@ capabilities:
 
 #### Scenario: 保存 entities config
 - **WHEN** 客户端调用 `ConfigService.SaveEntitiesConfig(json)` 携带合法 EntitiesConfig
-- **THEN** server SHALL 验证 entity type 存在性和 attributes schema，原子写入 config/entities.yaml
+- **THEN** server SHALL 验证 entity type 存在性和 attributes schema，原子写入 DB-backed Entity Store
 
 #### Scenario: 保存 entity-relations config
 - **WHEN** 客户端调用 `ConfigService.SaveEntityRelationsConfig(json)` 携带合法配置
-- **THEN** server SHALL 验证引用的 entity 存在，原子写入 config/entity-relations.yaml
-
+- **THEN** server SHALL 验证引用的 entity 存在，原子写入 DB-backed relation Entity Store

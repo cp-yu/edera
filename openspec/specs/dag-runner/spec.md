@@ -5,7 +5,7 @@ capabilities:
 # dag-runner Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 DAG 定义加载与校验、拓扑排序与并发调度、数据路由、Fan-out/Fan-in等能力。
 ## Requirements
 ### Requirement: DAG 定义加载与校验
 
@@ -110,4 +110,3 @@ capabilities:
 
 - **WHEN** LLM 节点执行失败，且配置 `fallback: skip`
 - **THEN** 系统跳过该节点，将其标记为 skipped，下游按 optional 节点逻辑处理
-

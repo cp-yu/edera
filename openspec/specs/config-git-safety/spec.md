@@ -5,7 +5,7 @@ capabilities:
 # config-git-safety Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 配置文件夹 git 强制管理、配置文件操作互斥锁、git 回滚支持。
 ## Requirements
 ### Requirement: 配置文件夹 git 强制管理
 
@@ -58,4 +58,3 @@ capabilities:
 
 - **WHEN** 配置文件被回滚
 - **THEN** 系统重新加载所有 Entity，校验 schema，跳过有问题的 Entity 继续运行
-

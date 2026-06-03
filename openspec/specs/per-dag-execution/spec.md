@@ -5,7 +5,7 @@ capabilities:
 # per-dag-execution Specification
 
 ## Purpose
-此规约记录变更 backend-per-dag-api 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Per-DAG concurrent execution、Per-DAG run API、Per-DAG stop API、Per-DAG status API等能力。
 ## Requirements
 ### Requirement: Per-DAG concurrent execution
 系统 SHALL 支持不同 DAG 并发执行，同一 DAG 同一时间 MUST 只允许一个活跃运行。
@@ -14,7 +14,7 @@ capabilities:
 - **WHEN** 用户对一个当前无活跃运行的 DAG 触发运行
 - **THEN** 系统 SHALL 创建新 run 并启动该 DAG 的执行任务
 
-#### Scenario: Reject concurrent run for same DAG
+#### Scenario: Reject same-DAG active run
 - **WHEN** 用户对一个已有活跃运行的 DAG 再次触发运行
 - **THEN** 系统 MUST 拒绝并返回当前活跃运行的 run_id
 
@@ -23,14 +23,14 @@ capabilities:
 - **THEN** 系统 SHALL 允许 DAG-B 启动，两个 DAG 并行执行互不阻塞
 
 ### Requirement: Per-DAG run API
-系统 SHALL 提供按 DAG 名称触发运行的 API 端点。
+系统 SHALL 提供按 DAG 名称触发运行的 API 端点，手动运行请求 SHALL 进入 `emit("manual:dag:<name>")` 路径。
 
 #### Scenario: Trigger named DAG run
 - **WHEN** 客户端发送 `POST /api/dags/{dag_name}/run`
 - **THEN** 系统 SHALL 加载指定 DAG 配置并启动执行，返回新 run_id
 
 #### Scenario: Trigger non-existent DAG
-- **WHEN** 客户端发送 `POST /api/dags/{dag_name}/run` 且该 DAG 不存在于配置中
+- **WHEN** 客户端发送 `POST /api/dags/{dag_name}/run` 且该 DAG 不存在于 DB-backed DAG Entity Store 中
 - **THEN** 系统 MUST 返回 404 错误
 
 ### Requirement: Per-DAG stop API
@@ -56,14 +56,14 @@ capabilities:
 - **THEN** 系统 SHALL 包含各节点的实时执行状态（pending/running/succeeded/failed）
 
 ### Requirement: Per-DAG scheduler registration
-系统 SHALL 在启动时为每个已配置的 DAG 注册独立的定时调度 job。
+系统 SHALL 在启动时从 DB-backed Trigger Entity 构建调度视图，并通过 TriggerExecutor + cron emitter 驱动每个 DAG 的定时触发。
 
-#### Scenario: Register scheduler jobs on startup
-- **WHEN** 系统启动且 `config/dags/` 目录下存在多个 DAG 配置文件
-- **THEN** 系统 SHALL 为每个 DAG 注册独立的 APScheduler interval job
+#### Scenario: Register trigger schedules on startup
+- **WHEN** 系统启动且 DB 中存在多个 enabled Trigger Entity
+- **THEN** 系统 SHALL 构建 TriggerExecutor 调度视图，不创建独立 interval scheduler job
 
-#### Scenario: Scheduler respects per-DAG mutex
-- **WHEN** 调度器触发某 DAG 的定时运行但该 DAG 已有活跃运行
+#### Scenario: TriggerExecutor respects per-DAG mutex
+- **WHEN** TriggerExecutor 触发某 DAG 的定时运行但该 DAG 已有活跃运行
 - **THEN** 系统 SHALL 静默跳过本次触发，不创建新运行
 
 ### Requirement: DagRun dag_name field
@@ -72,7 +72,3 @@ capabilities:
 #### Scenario: Record dag_name in DAG run
 - **WHEN** 系统创建新的 DagRun 记录
 - **THEN** 系统 MUST 将触发运行的 DAG 名称写入 `dag_name` 字段
-
-#### Scenario: Default dag_name for legacy records
-- **WHEN** 系统读取不含 `dag_name` 字段的历史记录
-- **THEN** 系统 SHALL 将其视为 `"default"` DAG 的运行记录

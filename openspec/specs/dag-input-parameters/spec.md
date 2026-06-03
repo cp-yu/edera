@@ -5,7 +5,7 @@ capabilities:
 # dag-input-parameters Specification
 
 ## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 DAG 输入参数声明、Source 节点 Input Binding、运行时参数传递、Web Console 输入表单等能力。
 ## Requirements
 ### Requirement: DAG 输入参数声明
 DAG 配置 SHALL 支持 `inputs` 字段，声明该 DAG 接受的外部输入参数。每个 input SHALL 包含 `name`、`type`、`required` 字段。

@@ -5,7 +5,7 @@ capabilities:
 # config-management Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 标的与投资情况配置（FR29）、信息源关联配置（FR30）、标准 RSS 信息源配置（FR31）、非标准源接入规则配置（FR32）等能力。
 ## Requirements
 ### Requirement: 标的与投资情况配置（FR29）
 系统 SHALL 支持用户通过 YAML 文件配置持仓/关注标的列表与当前投资情况（持仓量、成本价等）。
@@ -49,4 +49,3 @@ capabilities:
 #### Scenario: 凭据不入仓库
 - **WHEN** 凭据通过 .env 文件配置
 - **THEN** .env 文件在 .gitignore 中，仓库中仅保留 .env.example 模板
-

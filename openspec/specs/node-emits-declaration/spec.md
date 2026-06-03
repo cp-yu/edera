@@ -5,7 +5,7 @@ capabilities:
 # node-emits-declaration Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Node Type emits 字段、DAG Runner 评估 emits 条件、Node Instance 覆盖 emits。
 ## Requirements
 ### Requirement: Node Type emits 字段
 
@@ -53,4 +53,3 @@ Node Instance（DAG 中的 node 实例）SHALL 支持在 instance 级 config 中
 
 - **WHEN** node instance config 中无 `emits` 字段
 - **THEN** DAG Runner 使用 Node Type 上的 emits 声明
-

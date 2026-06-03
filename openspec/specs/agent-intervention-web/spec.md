@@ -5,7 +5,7 @@ capabilities:
 # agent-intervention-web Specification
 
 ## Purpose
-此规约记录变更 agent-intervention-web 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Agent 交互弹窗入口、运行中节点中断后注入、已结束节点直接发送、前端干预 hooks。
 ## Requirements
 ### Requirement: Agent 交互弹窗入口
 Web Console SHALL 在 DAG 工作台运行视图为 agent 节点提供交互弹窗触发入口。弹窗 MUST 仅对 agent 类型节点可用，并 MUST 展示该节点当前运行状态。
@@ -46,4 +46,3 @@ Web Console SHALL 在 `queries.ts` 提供 `useNodeStop`、`useNodeResume`、`use
 #### Scenario: hooks 对接既有路由
 - **WHEN** 调用 `useNodeStop`/`useNodeResume`/`useNodeStatus`
 - **THEN** 它们 SHALL 分别请求 `/api/node/{id}/stop`、`/api/node/{id}/resume`、`/api/node/{id}/status`，不新增后端端点
-

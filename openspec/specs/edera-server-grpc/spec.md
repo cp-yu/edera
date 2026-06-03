@@ -215,14 +215,12 @@ Server SHALL 根据客户端身份（从 cert CN 提取）查找对应的 `entit
 - **THEN** server SHALL 查找该节点的 `entity_permissions`，校验是否允许写入目标字段
 
 ### Requirement: DagRunRef 使用 run_id
-Proto message `DagRunRef` SHALL 使用 `run_id` 字段标识 DAG 执行实例，不再使用 `cycle_id`。
+Proto message `DagRunRef` SHALL 使用 `run_id` 字段标识 DAG 执行实例。
 
 #### Scenario: DagRunRef 字段定义
 - **WHEN** 检查 `proto/edera.proto` 中的 `DagRunRef` message
 - **THEN** message SHALL 包含 `string run_id = 1;` 字段
-- **AND** SHALL NOT 包含 `cycle_id` 字段
 
 #### Scenario: DagService.Run 返回 run_id
 - **WHEN** 客户端调用 `DagService.Run`
 - **THEN** server SHALL 返回 `DagRunRef{run_id: "<uuid>"}`
-

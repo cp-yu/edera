@@ -5,7 +5,7 @@ capabilities:
 # manual-trigger-prefix Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 manual 前缀直接 fire、manual 前缀禁止用户在 wait_for 中引用。
 ## Requirements
 ### Requirement: manual 前缀直接 fire
 
@@ -34,4 +34,3 @@ capabilities:
 
 - **WHEN** 用户保存一个 `wait_for: 'manual:dag:default'` 的 trigger entity
 - **THEN** 系统返回校验错误，提示 manual 是保留前缀仅用于 emit
-

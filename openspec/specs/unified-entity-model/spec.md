@@ -5,7 +5,7 @@ capabilities:
 # unified-entity-model Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 统一 Entity 原语、EntityType schema 字段即能力声明、Entity 统一 CRUD 接口。
 ## Requirements
 ### Requirement: 统一 Entity 原语
 
@@ -13,17 +13,17 @@ capabilities:
 
 #### Scenario: Node 作为 Entity
 
-- **WHEN** 系统加载 `config/nodes/rss-fetcher.yaml` 文件
+- **WHEN** 系统加载 DB-backed `node` Entity
 - **THEN** 系统将其解析为一个 `type: node` 的 Entity，`attributes` 包含 `handler`、`input_type`、`output_type` 等字段
 
 #### Scenario: DAG 作为 Entity
 
-- **WHEN** 系统加载 `config/dags/default.yaml` 文件
+- **WHEN** 系统加载 DB-backed `dag` Entity
 - **THEN** 系统将其解析为一个 `type: dag` 的 Entity，`attributes` 包含 `nodes`（引用列表）和 `edges`（连线定义）
 
 #### Scenario: Trigger 作为 Entity
 
-- **WHEN** 系统加载 `config/triggers/every-30min.yaml` 文件
+- **WHEN** 系统加载 DB-backed `trigger` Entity
 - **THEN** 系统将其解析为一个 `type: trigger` 的 Entity，`attributes` 包含 `wait_for` 和 `target`
 
 #### Scenario: Relation 作为 Entity
@@ -77,15 +77,14 @@ capabilities:
 #### Scenario: 通过统一接口创建 Node Entity
 
 - **WHEN** 用户通过 Entity Store 创建一个 `type: node` 的 Entity
-- **THEN** 系统校验 attributes 符合 `node` EntityType schema，生成 UUID，持久化到 `config/nodes/` 目录
+- **THEN** 系统校验 attributes 符合 `node` EntityType schema，生成 UUID，持久化到 DB-backed Entity Store
 
 #### Scenario: 通过统一接口查询 Trigger Entity
 
 - **WHEN** 用户通过 Entity Store 查询所有 `type: trigger` 的 Entity
-- **THEN** 系统返回 `config/triggers/` 目录下所有 Trigger Entity 实例
+- **THEN** 系统返回 DB-backed Entity Store 中所有 Trigger Entity 实例
 
 #### Scenario: 通过统一接口删除 Relation Entity
 
 - **WHEN** 用户通过 Entity Store 删除一个 `type: relation` 的 Entity
 - **THEN** 系统从 `config/relations.yaml` 中移除该条记录
-

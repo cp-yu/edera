@@ -5,14 +5,14 @@ capabilities:
 # grpc-graph-service Specification
 
 ## Purpose
-此规约记录变更 complete-web-grpc-routes 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 GraphService DAG CRUD、GraphService Node-type CRUD、GraphService Skill CRUD、GraphService Handler CRUD等能力。
 ## Requirements
 ### Requirement: GraphService DAG CRUD
-`edera-server` SHALL 通过 `GraphService` 提供 DAG 配置的完整 CRUD 操作。所有验证逻辑（DAG name 格式、node 引用存在性、edge 合法性、entity permission 校验）SHALL 在 server 端执行。DAG graph payload 的 GET、SAVE 和 SAVE response SHALL 保留 `DagNodeInstance.optional` 与 `DagEdge.optional`。
+`edera-server` SHALL 通过 `GraphService` 提供 DB-backed DAG Entity 的完整 CRUD 操作。所有验证逻辑（DAG name 格式、node 引用存在性、edge 合法性、entity permission 校验）SHALL 在 server 端执行。DAG graph payload 的 GET、SAVE 和 SAVE response SHALL 保留 `DagNodeInstance.optional` 与 `DagEdge.optional`。
 
 #### Scenario: 列出所有 DAG
 - **WHEN** 客户端调用 `GraphService.ListDags`
-- **THEN** server SHALL 返回 config/dags/ 目录下所有 DAG 名称列表
+- **THEN** server SHALL 返回 DB-backed DAG Entity 表中所有 DAG 名称列表
 
 #### Scenario: 获取 DAG 详情
 - **WHEN** 客户端调用 `GraphService.GetDag(name="uzi-skill")`
@@ -26,7 +26,7 @@ capabilities:
 
 #### Scenario: 创建 DAG
 - **WHEN** 客户端调用 `GraphService.CreateDag(name="new-dag")`
-- **THEN** server SHALL 验证 name 为 kebab-case，创建空 DAG 配置文件，返回创建结果
+- **THEN** server SHALL 验证 name 为 kebab-case，创建空 DAG Entity，返回创建结果
 
 #### Scenario: 创建重复 DAG
 - **WHEN** 客户端调用 `GraphService.CreateDag` 且同名 DAG 已存在
@@ -34,7 +34,7 @@ capabilities:
 
 #### Scenario: 保存 DAG
 - **WHEN** 客户端调用 `GraphService.SaveDag(name, json)` 携带合法 DAG payload
-- **THEN** server SHALL 验证 DagConfig schema、entity_permissions，原子写入配置文件，返回保存后的 DAG 状态
+- **THEN** server SHALL 验证 DagConfig schema、entity_permissions，原子写入 DB-backed DAG Entity，返回保存后的 DAG 状态
 - **AND** 保存后的 DAG 状态 SHALL 保留 `DagNodeInstance.optional` 与 `DagEdge.optional`
 
 #### Scenario: 保存非法 DAG
@@ -46,15 +46,15 @@ capabilities:
 - **THEN** server SHALL 在配置文件和保存响应中保留原有 node instance optional 与 edge optional 值
 
 ### Requirement: GraphService Node-type CRUD
-`edera-server` SHALL 通过 `GraphService` 提供 Node type 配置的完整 CRUD 操作。
+`edera-server` SHALL 通过 `GraphService` 提供 DB-backed Node type Entity 的完整 CRUD 操作。
 
 #### Scenario: 获取所有 node type
 - **WHEN** 客户端调用 `GraphService.ListNodeTypes`
-- **THEN** server SHALL 返回 config/nodes/ 目录下所有 node type 列表（含 inspector_schema）
+- **THEN** server SHALL 返回 DB-backed Node type Entity 表中所有 node type 列表（含 inspector_schema）
 
 #### Scenario: 创建 node type
 - **WHEN** 客户端调用 `GraphService.CreateNodeType(json)` 携带合法 NodeConfig payload
-- **THEN** server SHALL 验证 NodeConfig schema，写入 config/nodes/{name}.yaml，返回创建结果
+- **THEN** server SHALL 验证 NodeConfig schema，写入 DB-backed Node type Entity，返回创建结果
 
 #### Scenario: 更新 node type
 - **WHEN** 客户端调用 `GraphService.SaveNodeType(name, json)`
@@ -66,7 +66,7 @@ capabilities:
 
 #### Scenario: 删除未引用的 node type
 - **WHEN** 客户端调用 `GraphService.DeleteNodeType(name)` 且该 type 未被引用
-- **THEN** server SHALL 删除 node 配置文件和关联的 handler 文件
+- **THEN** server SHALL 删除 Node type Entity，并按 handler ownership 规则处理关联 handler 文件
 
 #### Scenario: 在 DAG 中创建 node instance
 - **WHEN** 客户端调用 `GraphService.CreateDagNode(dag_name, json)` 携带 node 定义
@@ -124,4 +124,3 @@ capabilities:
 #### Scenario: 查询 runtime status
 - **WHEN** 客户端调用 `GraphService.RuntimeStatus`
 - **THEN** server SHALL 查询最近一次 DAG run 的各节点执行状态并返回
-

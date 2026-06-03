@@ -5,7 +5,7 @@ capabilities:
 # trigger-workbench-inspector Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Inspector Triggers tab、trigger 表达式编辑器、闹钟式 cron 片段生成器、事件源片段生成器等能力。
 ## Requirements
 ### Requirement: Inspector Triggers tab
 
@@ -104,4 +104,3 @@ Triggers tab SHALL 支持创建、编辑、删除、启用/禁用 trigger entity
 
 - **WHEN** 用户点击某 trigger 的"删除"按钮并确认
 - **THEN** 系统通过 `EntityService.Delete` 删除该 trigger entity
-

@@ -5,7 +5,7 @@ capabilities:
 # lazy-entity-type-materialization Specification
 
 ## Purpose
-此规约记录变更 lazy-entity-type-materialization 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 普通 EntityType per-type table、新增字段进入 attributes_json、Lazy materialization、Deprecated field lifecycle。
 ## Requirements
 ### Requirement: 普通 EntityType per-type table
 
@@ -54,4 +54,3 @@ capabilities:
 #### Scenario: Cleanup deprecated column
 - **WHEN** 维护命令确认 deprecated 字段已不再被访问
 - **THEN** 系统 MAY 在维护窗口清理对应列
-

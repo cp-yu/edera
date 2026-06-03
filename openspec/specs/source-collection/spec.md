@@ -5,7 +5,7 @@ capabilities:
 # source-collection Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 RSS 订阅拉取（FR1）、非标准源抓取（FR2）、定时触发（FR3）、URL 去重（FR4）。
 ## Requirements
 ### Requirement: RSS 订阅拉取（FR1）
 系统 SHALL 通过 RSS 订阅自动拉取财经新闻流，使用 feedparser 解析 RSS/Atom 格式。
@@ -30,11 +30,11 @@ capabilities:
 - **THEN** 系统记录提取失败，标记该源为本周期采集失败
 
 ### Requirement: 定时触发（FR3）
-系统 SHALL 使用 APScheduler 按 30min 周期定时触发采集任务。
+系统 SHALL 使用 TriggerExecutor + cron emitter 按 Trigger Entity 声明定时触发采集任务。
 
 #### Scenario: 周期性采集触发
-- **WHEN** APScheduler 到达 30min 周期
-- **THEN** 系统触发 DAG Runner 执行默认管道
+- **WHEN** cron emitter 产生匹配采集 Trigger Entity 的 tick
+- **THEN** TriggerExecutor 触发对应采集 DAG
 
 ### Requirement: URL 去重（FR4）
 系统 SHALL 基于 URL 对采集到的信息进行去重，同一 URL 在系统中仅保留一条 RawItem。
@@ -46,4 +46,3 @@ capabilities:
 #### Scenario: 不同源的相同 URL
 - **WHEN** 两个不同信息源采集到相同 URL 的条目
 - **THEN** 系统仅保留首次采集的记录
-

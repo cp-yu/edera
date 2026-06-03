@@ -2,6 +2,8 @@
 capabilities:
   - cap.operations.dag-control
 ---
+# dag-control Specification
+
 ## Purpose
 
 定义 DAG 运行控制能力，包括运行记录、节点状态记录、手动运行、并发拒绝、调度暂停恢复、停止当前运行和状态展示。
@@ -114,12 +116,12 @@ capabilities:
 
 ### Requirement: TriggerExecutor 统一调度
 
-系统 SHALL 通过 TriggerExecutor 统一管理所有 DAG/Node 的调度。系统 MUST 不再使用 APScheduler 全局 interval 调度。
+系统 SHALL 通过 TriggerExecutor 统一管理所有 DAG/Node 的调度。系统 MUST NOT 创建独立 interval scheduler job；调度完全由 Trigger Entity + cron emitter 驱动。
 
 #### Scenario: 启动时不注册 interval job
 
 - **WHEN** edera-server 启动
-- **THEN** 系统不创建 APScheduler interval job；调度完全由 trigger entity + cron emitter 驱动
+- **THEN** 系统不创建独立 interval scheduler job；调度完全由 Trigger Entity + cron emitter 驱动
 
 #### Scenario: 手动运行走 emit 路径
 
@@ -146,4 +148,3 @@ capabilities:
 - **WHEN** `emit("manual:dag:default")` is called
 - **THEN** system SHALL fire `dag:default`
 - **AND** MUST NOT persist `manual:dag:default` as an EventGroup bit
-

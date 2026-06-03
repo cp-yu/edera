@@ -5,7 +5,7 @@ capabilities:
 # entity-field-permissions Specification
 
 ## Purpose
-此规约记录变更 refactor-to-domain-agnostic-entity-system 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 字段权限枚举值、权限继承、配置时权限验证、运行时权限检查等能力。
 ## Requirements
 ### Requirement: 字段权限枚举值
 
@@ -111,4 +111,3 @@ capabilities:
 
 - **WHEN** 默认权限是 `read-only`，节点配置 `entity_permissions: {stock: {code: none}}`
 - **THEN** 系统拒绝配置（非法降权）
-

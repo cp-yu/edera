@@ -241,7 +241,7 @@ capabilities:
 - **THEN** 系统 SHALL 输出 scheduler 当前状态（running/paused）
 
 ### Requirement: Node 子命令使用 run_id
-`edera node` 子命令中所有涉及 cycle_id 的参数 SHALL 改为 run_id。
+`edera node` 子命令 SHALL 使用 run_id 参数标识 DAG 执行实例。
 
 #### Scenario: 查看节点输出使用 run_id
 - **WHEN** 用户执行 `edera node output llm-analyzer --run-id abc123`
@@ -289,4 +289,3 @@ capabilities:
 #### Scenario: Inspect materialized fields
 - **WHEN** 用户执行 `edera entity-type materialize inspect stock`
 - **THEN** CLI SHALL 展示 `stock` 的 materialized fields 和 deprecated fields
-

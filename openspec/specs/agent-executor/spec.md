@@ -5,7 +5,7 @@ capabilities:
 # agent-executor Specification
 
 ## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Agent 节点独立执行分支、Pi CLI subprocess 配置、Workdir 和 Session 分离、实时 Stdout Streaming等能力。
 ## Requirements
 ### Requirement: Agent 节点独立执行分支
 Executor SHALL 对 `AgentNodeConfig` 类型的节点走独立执行分支，不通过 handler registry，而是直接启动 subprocess 调用 pi CLI。

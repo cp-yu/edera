@@ -5,7 +5,7 @@ capabilities:
 # node-executor Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Skill 加载、Agent 调用、I/O 管理、Node 执行隔离等能力。
 ## Requirements
 ### Requirement: Skill 加载
 
@@ -237,12 +237,12 @@ Node executor SHALL 在启动 pi 进程时注入 `EDERA_IDENTITY` 环境变量�
 Node executor SHALL 解析 `session_dir` 配置（支持引用格式），将解析后的绝对路径传递给 pi 的 `--session-dir` 参数。
 
 #### Scenario: 解析 latest 引用
-- **WHEN** 实例配置 `session_dir: "sandbox:llm-analyze:latest"`
+- **WHEN** 实例配置 `session_dir: "session:llm-analyze:latest"`
 - **THEN** executor SHALL 查询 `llm-analyze` 节点最近一次执行的 sandbox 路径，传递给 pi
 
 #### Scenario: 解析指定 run 引用
-- **WHEN** 实例配置 `session_dir: "sandbox:llm-analyze:run-20260524-001"`
-- **THEN** executor SHALL 构造路径 `workspace_root/sandbox/llm-analyze/run-20260524-001/sessions/`，传递给 pi
+- **WHEN** 实例配置 `session_dir: "session:llm-analyze:run-20260524-001"`
+- **THEN** executor SHALL 解析为 server 管理的 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/run-20260524-001/`，传递给 pi
 
 #### Scenario: 绝对路径直接传递
 - **WHEN** 实例配置 `session_dir: "/data/persistent/advisor-session"`

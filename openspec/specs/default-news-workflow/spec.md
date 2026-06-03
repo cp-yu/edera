@@ -5,7 +5,7 @@ capabilities:
 # default-news-workflow Specification
 
 ## Purpose
-此规约记录变更 move-workflows-to-extensions 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Default news workflow extension package、Default DAG topology is preserved、Default workflow seed sources are extension-owned、Default workflow trigger is imported等能力。
 ## Requirements
 ### Requirement: Default news workflow extension package
 系统 SHALL 提供 `extensions/default-news-workflow/manifest.yaml` 作为默认新闻工作流 package。该 manifest MUST 声明 package name、version、handler provider dependencies，并通过 `imports.entities` 显式列出本 package 拥有的 DAG、node、trigger 和 source seed Entity 文件。
@@ -59,15 +59,14 @@ capabilities:
 - **AND** `enabled` MUST be true
 
 ### Requirement: Top-level default workflow config is no longer authoritative
-迁移完成后，`config/dags/default.yaml`、default workflow 的 6 个 `config/nodes/*.yaml` 文件和 `config/triggers/default-default-cron.yaml` MUST NOT remain as runtime-authoritative sources for the default workflow. Runtime SHALL load these migrated entities from DB records created or skipped by extension imports.
+default workflow 的 DAG、node、trigger 和 resource instances SHALL 由 extension manifest imports 写入 DB-backed Entity Store，并以 DB records 作为唯一 runtime-authoritative source.
 
-#### Scenario: No top-level default DAG source
-- **WHEN** repository configuration is inspected after migration
-- **THEN** `config/dags/default.yaml` MUST be absent or ignored by runtime loading
-- **AND** `extensions/default-news-workflow/manifest.yaml` MUST be the manifest source for importing the `default` DAG Entity
+#### Scenario: Manifest import is default workflow source
+- **WHEN** repository workflow ownership is inspected
+- **THEN** `extensions/default-news-workflow/manifest.yaml` MUST be the manifest source for importing the `default` DAG Entity
+- **AND** runtime MUST NOT treat workflow YAML files as authoritative runtime sources
 
 #### Scenario: Runtime loads imported default workflow
 - **WHEN** runtime materialization builds the DAG registry after extension imports
 - **THEN** `default` DAG MUST be resolved from DB-backed Entity storage
-- **AND** runtime MUST NOT read top-level `config/dags/default.yaml` as a fallback source
-
+- **AND** runtime MUST NOT read workflow YAML files as fallback runtime sources

@@ -24,11 +24,6 @@ nodes:
       - path: packages/core/src/edera_core/node/executor.py
       - path: packages/core/src/edera_core/server.py
       - path: packages/core/src/edera_core/web/routes.py
-  - id: cap.core.bff-web-gateway
-    refs:
-      - path: packages/core/src/edera_core/cert.py
-      - path: packages/core/src/edera_core/grpc_client.py
-      - path: packages/core/src/edera_core/web/__main__.py
   - id: cap.core.config-hot-reload
     refs:
       - path: packages/core/src/edera_core/hot_reload.py
@@ -215,7 +210,6 @@ nodes:
   - id: cap.entity-relation-crud-api
     refs:
       - path: apps/web-console/src/features/entities/EntitiesPage.tsx
-      - path: config/entity-relations.yaml
       - path: packages/core/src/edera_core/config_service.py
       - path: packages/core/src/edera_core/service_common.py
       - path: packages/core/src/edera_core/storage/entities.py
@@ -387,12 +381,9 @@ nodes:
       - path: packages/core/src/edera_core/web/routes.py
   - id: cap.web.source-health-monitoring
     refs:
+      - path: apps/web-console/src/features/sources/SourcesPage.tsx
       - path: apps/web-console/src/api
       - path: packages/core/src/edera_core/query_service.py
-      - path: packages/core/src/edera_core/web/routes.py
-  - id: cap.web.sources-monitor-ui
-    refs:
-      - path: apps/web-console/src/features/sources/SourcesPage.tsx
       - path: packages/core/src/edera_core/web/routes.py
   - id: cap.web.trigger-workbench-inspector
     refs:

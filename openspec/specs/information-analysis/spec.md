@@ -5,7 +5,7 @@ capabilities:
 # information-analysis Specification
 
 ## Purpose
-此规约记录变更 project-mvp 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 摘要与关键词生成（FR7）、利好/利空分类（FR7）、原文引用与 URL 溯源（FR11）、跨源关键词事件归并（FR8）等能力。
 ## Requirements
 ### Requirement: 摘要与关键词生成（FR7）
 系统 SHALL 对每条 RawItem 生成摘要和提取关键词，摘要 MUST 保留原文核心信息，不引入 LLM 幻觉内容。
@@ -65,4 +65,3 @@ capabilities:
 #### Scenario: 复用 AnalysisResult contradiction 字段
 - **WHEN** AnalysisResult 属于已标记 contradiction=true 的事件矛盾证据
 - **THEN** 系统 SHALL 允许将该 AnalysisResult.contradiction 置为 true，并保持 source_quote 和 source_url 可查询
-

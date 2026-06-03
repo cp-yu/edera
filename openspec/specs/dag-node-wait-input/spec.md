@@ -5,7 +5,7 @@ capabilities:
 # dag-node-wait-input Specification
 
 ## Purpose
-此规约记录变更 dag-node-wait-input 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Wait 节点类型、Waiting 运行状态、信号先到即直接通过、信号后到唤醒挂起节点等能力。
 ## Requirements
 ### Requirement: Wait 节点类型
 系统 SHALL 在 `NodeConfig` discriminated union 中提供 `type: "wait"` variant，作为 DAG 拓扑层显式的等待停顿点。`WaitNodeConfig` MUST 包含 `wait_for`（布尔表达式字符串）字段，MUST 支持可选 `timeout_seconds`（> 0）和 `consume`（默认 `true`）字段。
@@ -96,4 +96,3 @@ wait 节点挂起为 `waiting` 期间 MUST NOT 阻塞 DAG 中不依赖它的独�
 #### Scenario: waiting 经 SSE 推送
 - **WHEN** wait 节点 `gate` 进入 `waiting`
 - **THEN** 系统 SHALL 通过 `event_bus.publish("node.waiting", run_id=..., node=..., wait_for=...)` 推送，订阅方可实时获知该节点正在等待
-

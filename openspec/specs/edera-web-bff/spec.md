@@ -5,10 +5,10 @@ capabilities:
 # edera-web-bff Specification
 
 ## Purpose
-定义 `edera-web` 网页 BFF 的纯 gRPC client 角色、启动配置、BFF cert 内存模式和服务端部署拓扑。
+定义 `edera-web` 网页 BFF 的纯 gRPC client 角色、启动配置、BFF cert 内存模式、HTTP/SSE 网关、token 认证、静态文件服务和服务端部署拓扑。
 ## Requirements
 ### Requirement: edera-web 纯 BFF 角色
-`edera-web` SHALL 作为纯 BFF（Backend for Frontend）运行，进程内 MUST NOT 实例化 `DagController`，所有数据操作 MUST 通过 gRPC 调用 `edera-server`。`PipelineController` 类名已废弃，改为 `DagController`。
+`edera-web` SHALL 作为纯 BFF（Backend for Frontend）运行，进程内 MUST NOT 实例化 `DagController`，所有数据操作 MUST 通过 gRPC 调用 `edera-server`。
 
 #### Scenario: create_app 单一签名
 - **WHEN** 检查 `web/app.py` 的 `create_app` 函数签名
@@ -49,7 +49,7 @@ capabilities:
 #### Scenario: cert 不落盘
 - **WHEN** BFF cert 签发完成
 - **THEN** 进程 MUST NOT 创建 `~/.edera/bff/` 或任何持久化目录
-- **AND** SHALL NOT 设置 `EDERA_BFF_DIR` / `RIG_BFF_DIR` 环境变量
+- **AND** SHALL NOT 设置任何 BFF cert 持久化目录环境变量
 
 #### Scenario: 重启自愈
 - **WHEN** `edera-web` 进程因任意原因重启
@@ -156,7 +156,7 @@ BFF 的 HTTP API 路径 SHALL 保持稳定，前端无需修改路由。内部 g
 - **THEN** BFF SHALL 调用 `EventService.Emit`
 
 ### Requirement: 响应中使用 run_id
-BFF 返回给前端的 JSON 响应 SHALL 使用 `run_id` 字段，不再使用 `cycle_id`。
+BFF 返回给前端的 JSON 响应 SHALL 使用 `run_id` 字段。
 
 #### Scenario: DAG 状态响应
 - **WHEN** 前端 GET `/api/dags/{name}/status`
@@ -183,3 +183,35 @@ BFF 返回给前端的 JSON 响应 SHALL 使用 `run_id` 字段，不再使用 `
 - **THEN** client SHALL use a route that includes the DAG name
 - **AND** web routes MUST NOT hard-code `dag_name = "default"` for history queries
 
+### Requirement: BFF SSE 实时推送
+`edera-web` SHALL 提供 SSE endpoint，订阅 `edera-server` 的 event bus，实时推送 DAG 状态、node 状态和 agent stdout 到浏览器。
+
+#### Scenario: BFF SSE 推送 node 输出
+- **WHEN** agent 节点输出一行文本到 stdout
+- **THEN** BFF SHALL 通过 SSE 推送该行文本到订阅的浏览器
+
+#### Scenario: SSE 推送 DAG 状态
+- **WHEN** DAG 状态变更（started/completed/failed）
+- **THEN** BFF SHALL 通过 SSE 推送状态变更事件到浏览器
+
+### Requirement: BFF token 认证
+`edera-web` SHALL 支持 token 认证，浏览器请求 SHALL 携带 token（通过 Authorization header 或 cookie）。BFF 验证 token 后，使用自己的 client cert 转发请求到 `edera-server`。
+
+#### Scenario: Token 验证成功
+- **WHEN** 浏览器请求携带有效 token
+- **THEN** BFF SHALL 验证 token，转发请求到 `edera-server`
+
+#### Scenario: Token 验证失败
+- **WHEN** 浏览器请求携带无效或缺失 token
+- **THEN** BFF SHALL 返回 401 Unauthorized
+
+#### Scenario: Dev 模式跳过 token 验证
+- **WHEN** BFF 运行在 `EDERA_DEV=1`，且浏览器请求未携带 token
+- **THEN** BFF SHALL 允许请求，默认身份为 `human:dev`
+
+### Requirement: Web Console 静态文件服务
+`edera-web` SHALL 提供 Web Console 的静态文件服务（HTML/JS/CSS）。
+
+#### Scenario: 服务静态文件
+- **WHEN** 浏览器访问 `/`
+- **THEN** BFF SHALL 返回 Web Console 的 index.html

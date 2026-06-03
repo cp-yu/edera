@@ -5,7 +5,7 @@ capabilities:
 # dag-creation Specification
 
 ## Purpose
-此规约记录变更 dag-observability-controllability 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 DAG 创建 API、DAG 创建前端入口。
 ## Requirements
 ### Requirement: DAG 创建 API
 
@@ -14,7 +14,7 @@ capabilities:
 #### Scenario: 创建新 DAG 成功
 
 - **WHEN** 用户调用 `POST /api/graph/dag` body `{ "name": "weekly-report" }`
-- **THEN** 系统 MUST 创建 `config/dags/weekly-report.yaml`（内容为 `{ name: "weekly-report", nodes: [], edges: [] }`），返回 201 和空 DAG 结构
+- **THEN** 系统 MUST 创建 DB-backed DAG Entity（内容为 `{ name: "weekly-report", nodes: [], edges: [] }`），返回 201 和空 DAG 结构
 
 #### Scenario: DAG 名称已存在
 
@@ -39,4 +39,3 @@ capabilities:
 
 - **WHEN** 用户在 dialog 中输入合法名称并确认
 - **THEN** 系统 MUST 调用创建 API，成功后自动切换到新 DAG 的空画布，dropdown 刷新显示新 DAG
-

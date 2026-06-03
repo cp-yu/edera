@@ -5,7 +5,7 @@ capabilities:
 # spa-shell Specification
 
 ## Purpose
-此规约记录变更 frontend-react-spa 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 SPA routing、Global navigation、Theme switching、API client layer。
 ## Requirements
 ### Requirement: SPA routing
 系统 SHALL 使用 React Router v6 提供客户端路由，默认路径 `/` 重定向到 `/workbench`。
@@ -46,4 +46,3 @@ capabilities:
 #### Scenario: API base URL configuration
 - **WHEN** 应用在开发环境运行
 - **THEN** 系统 SHALL 使用 Vite 环境变量配置的 API base URL（默认 `http://localhost:8000`）
-

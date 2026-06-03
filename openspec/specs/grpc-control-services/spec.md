@@ -8,11 +8,11 @@ capabilities:
 此规约记录 gRPC 控制面服务的 DAG 运行、系统控制、事件注入和 source repair task 行为。
 ## Requirements
 ### Requirement: DagService DAG 运行控制
-`edera-server` SHALL 通过 `DagService` 提供 DAG run、stop 和 retry 操作。
+`edera-server` SHALL 通过 `DagService` 提供 DAG run、stop 和 retry 操作。手动 run MUST 进入 TriggerExecutor emit 路径，不得直接调用 start_run。
 
 #### Scenario: 启动 DAG run
 - **WHEN** 客户端调用 `DagService.Run`
-- **THEN** server SHALL 调用 `DagController.start_run("manual")` 并返回 run_id
+- **THEN** server SHALL 调用 controller emit path for `manual:dag:<name>` 并返回 run_id
 
 #### Scenario: 启动时已有活跃 run
 - **WHEN** 客户端调用 `DagService.Run` 且目标 DAG 已有活跃 run

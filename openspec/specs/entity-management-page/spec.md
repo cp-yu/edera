@@ -5,7 +5,7 @@ capabilities:
 # entity-management-page Specification
 
 ## Purpose
-此规约记录变更 entity-config-page 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义统一 Entity 管理页面能力，覆盖 EntityType、Entity instance、Relation、Node type、Function handler 和 Skill 管理。
 ## Requirements
 ### Requirement: Entity management page routing
 
@@ -143,3 +143,55 @@ capabilities:
 - **WHEN** 用户点击关系行的删除按钮并确认
 - **THEN** 系统 SHALL 调用删除 API 移除该条关系
 
+### Requirement: Node type management UI
+Entity management SHALL include Node type management for LLM and Function node types as specialized views over DB-backed Node type Entity records.
+
+#### Scenario: Create LLM node type from entity management
+- **WHEN** 用户创建 LLM node type
+- **THEN** 系统 SHALL 创建 DB-backed Node type Entity，包含 LLM 类型配置字段
+
+#### Scenario: Edit LLM node type from entity management
+- **WHEN** 用户编辑 LLM node type
+- **THEN** 系统 SHALL 更新对应 Node type Entity 并保留 system-protected 字段约束
+
+#### Scenario: Delete LLM node type from entity management
+- **WHEN** 用户删除未被 DAG 引用的 LLM node type
+- **THEN** 系统 SHALL 删除对应 Node type Entity
+
+### Requirement: Function handler management UI
+Entity management SHALL expose Function node type editing and handler code editing without making handler code a separate runtime authority source.
+
+#### Scenario: Function handler tab content
+- **WHEN** 用户选中 Function node type
+- **THEN** 系统 SHALL 展示 handler 信息和可编辑代码区域
+
+#### Scenario: Handler tab loads code from backend
+- **WHEN** 用户打开 handler tab
+- **THEN** 页面 SHALL 通过后端 API 加载 handler code
+
+#### Scenario: Save handler code
+- **WHEN** 用户保存 handler code
+- **THEN** 系统 SHALL 通过 GraphService handler API 持久化代码并返回保存结果
+
+#### Scenario: Create Function node type from entity management
+- **WHEN** 用户创建 Function node type
+- **THEN** 系统 SHALL 创建 DB-backed Node type Entity，并按 handler ownership 规则保存 handler code
+
+#### Scenario: Delete Function node type from entity management
+- **WHEN** 用户删除未被 DAG 引用的 Function node type
+- **THEN** 系统 SHALL 删除对应 Node type Entity，并按 handler ownership 规则处理 handler code
+
+### Requirement: Skill management UI
+Entity management SHALL include skill CRUD UI through GraphService Skill APIs.
+
+#### Scenario: Create skill from entity management
+- **WHEN** 用户创建 skill
+- **THEN** 系统 SHALL 通过 GraphService 创建 skill 定义和 handler code
+
+#### Scenario: Edit skill from entity management
+- **WHEN** 用户编辑 skill
+- **THEN** 系统 SHALL 通过 GraphService 更新 skill 定义和 handler code
+
+#### Scenario: Delete skill from entity management
+- **WHEN** 用户删除 skill
+- **THEN** 系统 SHALL 通过 GraphService 删除 skill 定义和 handler code

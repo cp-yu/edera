@@ -5,7 +5,7 @@ capabilities:
 # multi-node-retry Specification
 
 ## Purpose
-此规约记录变更 multi-node-retry 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 多节点 retry API、run_id 可选化、响应包含实际执行节点集合、single 模式内部拓扑传播等能力。
 ## Requirements
 ### Requirement: 多节点 retry API
 
@@ -95,4 +95,3 @@ capabilities:
 
 - **WHEN** 用户通过菜单触发批量重试
 - **THEN** 系统 MUST 立即清除节点选中状态，并用 API 返回的 `retry_nodes` 驱动"重试中"视觉高亮
-

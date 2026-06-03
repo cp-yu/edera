@@ -5,7 +5,7 @@ capabilities:
 # trigger-loop-guard Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 emit 深度计数、深度阈值可配。
 ## Requirements
 ### Requirement: emit 深度计数
 
@@ -34,4 +34,3 @@ capabilities:
 
 - **WHEN** `max_trigger_depth` 配置为负数或非整数
 - **THEN** 系统启动时报错并拒绝加载
-

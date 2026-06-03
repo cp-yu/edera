@@ -5,7 +5,7 @@ capabilities:
 # edge-optional Specification
 
 ## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Edge Optional 属性、节点级 Optional 语法糖、Fan-in Barrier Optional 判定、Optional 边数据缺失处理。
 ## Requirements
 ### Requirement: Edge Optional 属性
 Edge model SHALL 支持 `optional` 布尔字段（默认 false）。当边标记为 optional 时，上游节点失败 SHALL NOT 阻塞下游节点执行。
@@ -63,4 +63,3 @@ Executor 的 fan-in barrier 逻辑 SHALL 区分 optional 和 required 边。当�
 #### Scenario: Optional 边不得污染 list 输入
 - **WHEN** 节点 C 的 input type 为 `list[RawItem]`，且 optional 上游 A 失败
 - **THEN** 节点 C 的 `payload` MUST NOT 包含 `None`
-

@@ -5,7 +5,7 @@ capabilities:
 # uzi-skill-dag-instance Specification
 
 ## Purpose
-此规约记录 UZI-Skill DAG 实例行为，请在后续同步或归档前补全正式 Purpose。
+定义 UZI-Skill 分析管道 DAG 实例拓扑、并发波次、optional 节点、资源约束和 extension imports 边界。
 ## Requirements
 ### Requirement: DAG 拓扑声明
 
@@ -112,15 +112,14 @@ The UZI-Skill workflow package SHALL import `uzi-skill-analysis-default-cron`. T
 - **AND** `enabled` MUST be true
 
 ### Requirement: Top-level UZI workflow config is no longer authoritative
-迁移完成后，`config/dags/uzi-skill-analysis.yaml`、UZI workflow 的 `config/nodes/uzi-*.yaml` 文件、`config/triggers/uzi-skill-analysis-default-cron.yaml` 和 `config/entities.yaml` 中的 `v8_isolate` resource MUST NOT remain as runtime-authoritative sources for the UZI workflow. Runtime SHALL load these migrated entities from DB records created or skipped by extension imports.
+UZI workflow 的 DAG、node、trigger 和 resource instances SHALL 由 extension manifest imports 写入 DB-backed Entity Store，并以 DB records 作为唯一 runtime-authoritative source.
 
-#### Scenario: No top-level UZI DAG source
-- **WHEN** repository configuration is inspected after migration
-- **THEN** `config/dags/uzi-skill-analysis.yaml` MUST be absent or ignored by runtime loading
-- **AND** `extensions/uzi-skill/manifest.yaml` MUST be the manifest source for importing the `uzi-skill-analysis` DAG Entity
+#### Scenario: Manifest import is UZI workflow source
+- **WHEN** repository workflow ownership is inspected
+- **THEN** `extensions/uzi-skill/manifest.yaml` MUST be the manifest source for importing the `uzi-skill-analysis` DAG Entity
+- **AND** runtime MUST NOT treat workflow YAML files as authoritative runtime sources
 
 #### Scenario: Runtime loads imported UZI workflow
 - **WHEN** runtime materialization builds the DAG registry after extension imports
 - **THEN** `uzi-skill-analysis` DAG MUST be resolved from DB-backed Entity storage
-- **AND** runtime MUST NOT read top-level `config/dags/uzi-skill-analysis.yaml` as a fallback source
-
+- **AND** runtime MUST NOT read workflow YAML files as fallback runtime sources

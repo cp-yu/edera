@@ -5,7 +5,7 @@ capabilities:
 # entity-system Specification
 
 ## Purpose
-此规约记录变更 refactor-to-domain-agnostic-entity-system 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 实体类型定义、实体存储、实体引用解析、字段权限检查等能力。
 ## Requirements
 ### Requirement: 实体类型定义
 
@@ -136,4 +136,3 @@ capabilities:
 
 - **WHEN** 节点调用 `context.create_entity(type="analysis", attributes={...})`
 - **THEN** 系统根据 EntityType 的 `storage_tier` 决定存储位置，生成 UUID，校验后保存
-

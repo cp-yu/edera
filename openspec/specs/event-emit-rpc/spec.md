@@ -5,7 +5,7 @@ capabilities:
 # event-emit-rpc Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 EventService.Emit RPC、emit 记录持久化、edera event emit CLI 命令、emit 路径统一等能力。
 ## Requirements
 ### Requirement: EventService.Emit RPC
 
@@ -82,4 +82,3 @@ capabilities:
 #### Scenario: emit 同时驱动 trigger 与 waiter
 - **WHEN** 一次 emit 既满足某 Trigger Entity 的 `wait_for`，又满足某挂起 wait 节点的 `wait_for`
 - **THEN** 系统 SHALL 既 fire trigger target，又唤醒挂起 wait 节点
-

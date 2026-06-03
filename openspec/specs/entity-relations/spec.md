@@ -5,15 +5,15 @@ capabilities:
 # entity-relations Specification
 
 ## Purpose
-此规约记录变更 refactor-to-domain-agnostic-entity-system 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 实体关系定义、节点自动发现实体、节点配置优先、关系查询 API。
 ## Requirements
 ### Requirement: 实体关系定义
 
-系统 SHALL 支持在 `config/entity-relations.yaml` 中定义实体之间的无方向关系，每个关系包含实体列表、类型和可选的元数据。
+系统 SHALL 支持以 DB-backed relation Entity 定义实体之间的无方向关系，每个关系包含实体列表、类型和可选的元数据。YAML 仅作为 import/export/template 格式。
 
 #### Scenario: 定义股票和信息源的关系
 
-- **WHEN** 用户在 `entity-relations.yaml` 中添加关系，包含 `entities: ["stock:00700.HK", "rss-source:sample-rss"]`, `type: uses-source`
+- **WHEN** 用户创建 relation Entity，包含 `entities: ["stock:00700.HK", "rss-source:sample-rss"]`, `type: uses-source`
 - **THEN** 系统加载该关系，可用于自动发现和 UI 可视化
 
 #### Scenario: 关系类型自由定义
@@ -28,31 +28,31 @@ capabilities:
 
 ### Requirement: 节点自动发现实体
 
-系统 SHALL 在节点配置只指定 source 而未指定 entities 时，自动从 `entity-relations.yaml` 发现关联的实体。
+系统 SHALL 在节点配置只指定 source 而未指定 entities 时，自动从 DB-backed relation Entity Store 发现关联的实体。
 
 #### Scenario: 自动发现关联实体
 
 - **WHEN** 节点配置 `config: {source: "rss-source:sample-rss"}`，未指定 `entities`
-- **THEN** 系统查找 `entity-relations.yaml` 中包含该 source 的关系，返回关联的其他实体（如 `stock:00700.HK`）
+- **THEN** 系统查找 DB-backed relation Entity Store 中包含该 source 的关系，返回关联的其他实体（如 `stock:00700.HK`）
 
 #### Scenario: 无关联关系时返回空
 
-- **WHEN** 节点配置的 source 在 `entity-relations.yaml` 中没有关联关系
+- **WHEN** 节点配置的 source 在 DB-backed relation Entity Store 中没有关联关系
 - **THEN** 系统返回空列表，节点处理所有数据
 
 ### Requirement: 节点配置优先
 
-系统 SHALL 在节点配置显式指定 entities 时，使用节点配置而忽略 `entity-relations.yaml` 的自动发现。
+系统 SHALL 在节点配置显式指定 entities 时，使用节点配置而忽略 relation Entity Store 的自动发现。
 
 #### Scenario: 显式配置覆盖自动发现
 
 - **WHEN** 节点配置 `config: {source: "rss-source:sample-rss", entities: ["stock:600519.SH"]}`
-- **THEN** 系统使用 `stock:600519.SH`，忽略 `entity-relations.yaml` 中该 source 的其他关联实体
+- **THEN** 系统使用 `stock:600519.SH`，忽略 relation Entity Store 中该 source 的其他关联实体
 
 #### Scenario: 空列表禁用自动发现
 
 - **WHEN** 节点配置 `config: {source: "rss-source:sample-rss", entities: []}`
-- **THEN** 系统不处理任何实体，即使 `entity-relations.yaml` 中有关联关系
+- **THEN** 系统不处理任何实体，即使 relation Entity Store 中有关联关系
 
 ### Requirement: 关系查询 API
 
@@ -72,4 +72,3 @@ capabilities:
 
 - **WHEN** 调用 `GET /api/entity-relations?entity=stock:00700.HK&type=uses-source`
 - **THEN** 系统返回关系中除 `stock:00700.HK` 外的其他实体（如 `rss-source:sample-rss`）
-

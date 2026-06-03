@@ -2,6 +2,8 @@
 capabilities:
   - cap.web.local-web-console
 ---
+# local-web-console Specification
+
 ## Purpose
 
 定义本机 Web 控制台基础能力，包括默认本机监听、浏览器访问、统一导航和 WebUI API 错误格式。
@@ -59,4 +61,3 @@ capabilities:
 #### Scenario: Preflight OPTIONS request
 - **WHEN** 浏览器发送 OPTIONS 预检请求
 - **THEN** 系统 SHALL 返回 200 和正确的 `Access-Control-Allow-*` 头
-

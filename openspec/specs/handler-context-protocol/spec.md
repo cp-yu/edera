@@ -5,10 +5,10 @@ capabilities:
 # handler-context-protocol Specification
 
 ## Purpose
-此规约记录变更 core-extension-separation 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 HandlerContext 数据结构、HandlerProtocol 接口定义、EntityStoreProtocol 接口定义、NodeInput 和 NodeOutput 数据模型等能力。
 ## Requirements
 ### Requirement: HandlerContext 数据结构
-核心 SHALL 定义 `HandlerContext` dataclass 作为 handler 调用的唯一参数，MUST 包含以下字段：`input: NodeInput`、`params: dict[str, Any]`、`node_name: str`、`node_type: str`、`run_id: str`、`entity_store: EntityStoreProtocol`、`runtime: RuntimeContextProtocol`。
+核心 SHALL 定义 `HandlerContext` dataclass 作为 handler 调用的唯一参数，MUST 包含以下字段：`input: NodeInput`、`params: dict[str, Any]`、`node_id: str`、`node_type: str`、`run_id: str`、`entity_store: EntityStoreProtocol`、`runtime: RuntimeContextProtocol`。
 
 #### Scenario: HandlerContext 字段完整性
 - **WHEN** 核心构造 `HandlerContext` 传递给 handler
@@ -49,7 +49,7 @@ capabilities:
 - **THEN** import path SHALL 为 `edera_types`
 
 ### Requirement: NodeInput 和 NodeOutput 数据模型
-`edera-types` 包 SHALL 定义 `NodeInput`（`run_id: str`、`payload: Any`、`metadata: dict`）和 `NodeOutput`（`node_name: str`、`ok: bool`、`payload: Any`、`metadata: dict`、`error: str | None`）。
+`edera-types` 包 SHALL 定义 `NodeInput`（`run_id: str`、`payload: Any`、`metadata: dict`）和 `NodeOutput`（`node_id: str`、`ok: bool`、`payload: Any`、`metadata: dict`、`error: str | None`）。
 
 #### Scenario: NodeInput 构造
 - **WHEN** DAG runner 调度一个节点
@@ -57,11 +57,11 @@ capabilities:
 
 #### Scenario: NodeOutput 成功
 - **WHEN** handler 返回成功结果
-- **THEN** 核心 SHALL 包装为 `NodeOutput(node_name=..., ok=True, payload=handler返回值, metadata=...)`
+- **THEN** 核心 SHALL 包装为 `NodeOutput(node_id=..., ok=True, payload=handler返回值, metadata=...)`
 
 #### Scenario: NodeOutput 失败
 - **WHEN** handler 抛出异常
-- **THEN** 核心 SHALL 包装为 `NodeOutput(node_name=..., ok=False, error=异常信息, metadata=...)`
+- **THEN** 核心 SHALL 包装为 `NodeOutput(node_id=..., ok=False, error=异常信息, metadata=...)`
 
 #### Scenario: Import models from edera_types
 - **WHEN** extension handler 导入 `NodeInput` 或 `NodeOutput`
@@ -92,4 +92,3 @@ capabilities:
 #### Scenario: Metadata not copied to output
 - **WHEN** handler 返回成功 payload
 - **THEN** core MUST NOT 自动将 `ctx.input.metadata` 复制到 `NodeOutput.metadata`
-

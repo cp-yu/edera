@@ -5,7 +5,7 @@ capabilities:
 # entity-type-crud-api Specification
 
 ## Purpose
-此规约记录变更 entity-config-page 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 List entity types、Read single entity type、Create entity type、Update entity type等能力。
 ## Requirements
 ### Requirement: List entity types
 
@@ -107,4 +107,3 @@ capabilities:
 #### Scenario: 中间步骤失败不回滚
 - **WHEN** cascade delete 过程中第二步失败
 - **THEN** 系统 SHALL 返回错误，但第一步的文件修改已持久化，不会自动恢复
-

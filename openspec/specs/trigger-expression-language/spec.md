@@ -5,7 +5,7 @@ capabilities:
 # trigger-expression-language Specification
 
 ## Purpose
-此规约记录变更 trigger-system-redesign 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 布尔表达式语法、cron token 引号语义、表达式求值时机。
 ## Requirements
 ### Requirement: 布尔表达式语法
 
@@ -58,4 +58,3 @@ capabilities:
 
 - **WHEN** `emit("event:unrelated")` 置位一个无 trigger 引用的 bit
 - **THEN** 系统不执行任何 trigger 表达式求值
-

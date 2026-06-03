@@ -5,7 +5,7 @@ capabilities:
 # terminology-glossary Specification
 
 ## Purpose
-此规约记录变更 terminology-unification 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 术语表文档、存储层术语约定、Sub-DAG 关系约定、术语一致性检查。
 ## Requirements
 ### Requirement: 术语表文档
 项目根目录 SHALL 包含 `GLOSSARY.md` 文件，定义所有核心概念的 canonical term、同义词（禁用）、说明和使用约定。
@@ -43,11 +43,10 @@ capabilities:
 ### Requirement: 术语一致性检查
 项目 SHALL 在 CI 中添加术语一致性检查，禁止新代码引入已废弃术语。
 
-#### Scenario: 禁止 pipeline_runs 表名
-- **WHEN** 开发者提交包含 `pipeline_runs` 字符串的代码
-- **THEN** CI SHALL 失败并提示使用 `dag_runs`
+#### Scenario: 强制使用 dag_runs 表名
+- **WHEN** 开发者提交访问 DAG run 表的代码
+- **THEN** CI SHALL 要求使用 `dag_runs` 表名
 
-#### Scenario: 禁止 cycle_id 变量名
-- **WHEN** 开发者提交包含 `cycle_id` 变量名的代码
-- **THEN** CI SHALL 失败并提示使用 `run_id`
-
+#### Scenario: 强制使用 run_id 变量名
+- **WHEN** 开发者提交标识 DAG 执行实例的代码
+- **THEN** CI SHALL 要求使用 `run_id` 变量名

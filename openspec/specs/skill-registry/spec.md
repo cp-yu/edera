@@ -5,7 +5,7 @@ capabilities:
 # skill-registry Specification
 
 ## Purpose
-此规约记录变更 node-type-instance-model 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Skill definition schema、Skill registry API、Skill handler isolation。
 ## Requirements
 ### Requirement: Skill definition schema
 系统 SHALL 在 `config/skills/` 目录下注册独立的 skill 定义文件，每个 skill 一个 YAML。
@@ -43,4 +43,3 @@ Skill handler SHALL 存放在 `skill_handlers/` 目录，与 Function 节点的 
 #### Scenario: Directory separation
 - **WHEN** 系统加载 skill handler 和 function handler
 - **THEN** 系统 SHALL 分别从 `skill_handlers/` 和 `handlers/` 加载，两者互不干扰
-

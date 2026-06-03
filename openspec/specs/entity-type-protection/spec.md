@@ -5,7 +5,7 @@ capabilities:
 # entity-type-protection Specification
 
 ## Purpose
-此规约记录变更 protect-base-entity-types 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 system_protected 字段声明、前端保护展示、查看弹窗只读。
 ## Requirements
 ### Requirement: system_protected 字段声明
 
@@ -48,4 +48,3 @@ capabilities:
 
 - **WHEN** 用户点击 protected 类型的"查看"按钮
 - **THEN** 弹窗 SHALL 显示 YAML 内容，textarea MUST 为 readonly，MUST NOT 显示保存按钮
-

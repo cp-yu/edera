@@ -5,7 +5,7 @@ capabilities:
 # node-graph-dag-editor Specification
 
 ## Purpose
-此规约记录变更 add-node-graph-dag-editor 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Node Graph editor entry、Graph schema API、Interactive graph editing、Graph DAG save等能力。
 ## Requirements
 ### Requirement: Node Graph editor entry
 系统 SHALL 在 Web 控制台提供 Node Graph DAG 编辑入口，并将其作为 DAG 可视化编辑的主入口。
@@ -53,7 +53,7 @@ capabilities:
 - **THEN** 画布分辨率 SHALL 自动匹配容器实际像素尺寸，交互坐标保持准确
 
 ### Requirement: Graph DAG save
-系统 MUST 将 Node Graph 草稿保存回现有 DAG 执行语义，包含 Handle 元数据。
+系统 MUST 将 Node Graph 草稿保存回 DB-backed DAG Entity，包含 Handle 元数据。
 
 #### Scenario: Save valid graph DAG with handle metadata
 - **WHEN** 用户保存合法 Node Graph DAG
@@ -90,18 +90,18 @@ capabilities:
 - **THEN** 系统 SHALL 在节点或 Inspector 中展示该节点的错误信息
 
 ### Requirement: Create node and add to DAG
-系统 SHALL 提供 `POST /api/graph/dag/{name}/nodes` 端点，创建新节点配置文件并将其加入指定 DAG 的节点列表。
+系统 SHALL 提供 `POST /api/graph/dag/{name}/nodes` 端点，创建新 Node type Entity 并将其实例加入指定 DAG 的节点列表。
 
 #### Scenario: Create node successfully
 - **WHEN** 前端提交合法的节点定义（含 name、type、input_type、output_type）
-- **THEN** 系统 SHALL 创建节点 YAML 文件、将节点名追加到 DAG 的 nodes 列表、并返回创建后的节点数据
+- **THEN** 系统 SHALL 创建 Node type Entity、将节点实例追加到 DAG Entity 的 nodes 列表、并返回创建后的节点数据
 
 #### Scenario: Node name conflicts with existing node
 - **WHEN** 提交的节点 name 与已有节点文件同名
 - **THEN** 系统 MUST 返回 409 错误，包含 `conflict` 错误类型
 
 #### Scenario: Target DAG not found
-- **WHEN** 指定的 DAG name 不存在于 `config/dags/` 目录
+- **WHEN** 指定的 DAG name 不存在于 DB-backed DAG Entity 表
 - **THEN** 系统 MUST 返回 404 错误，包含 `not_found` 错误类型
 
 ### Requirement: DAG persistence format
@@ -172,4 +172,3 @@ capabilities:
 #### Scenario: Deselect node clears Inspector
 - **WHEN** 用户点击画布空白区域取消选中
 - **THEN** Inspector SHALL 清空节点配置显示
-

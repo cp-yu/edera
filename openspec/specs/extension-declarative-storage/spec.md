@@ -5,7 +5,7 @@ capabilities:
 # extension-declarative-storage Specification
 
 ## Purpose
-此规约记录变更 core-extension-separation 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Manifest 表声明、列类型支持、扩展表命名空间隔离、Entity table DDL namespace compatibility等能力。
 ## Requirements
 ### Requirement: Manifest 表声明
 
@@ -76,4 +76,3 @@ capabilities:
 #### Scenario: Reject unsupported materialized field type
 - **WHEN** 普通 EntityType 声明 materialized field 类型为 `blob`
 - **THEN** 系统 MUST 拒绝该字段物化声明
-

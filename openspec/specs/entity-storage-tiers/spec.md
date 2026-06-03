@@ -5,7 +5,7 @@ capabilities:
 # entity-storage-tiers Specification
 
 ## Purpose
-此规约记录变更 everything-is-entity 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 三层存储模型、存储层路由规则、输出型 Entity retention 策略、瞬态 Entity 生命周期。
 ## Requirements
 ### Requirement: 三层存储模型
 
@@ -15,7 +15,7 @@ capabilities:
 
 - **WHEN** 用户创建一个 `type: node` 的 Entity
 - **THEN** 系统将其持久化到 `entity_node` 表
-- **AND** 系统 MUST NOT 将其作为运行时配置写入 `config/nodes/`
+- **AND** 系统 MUST NOT 将其作为运行时配置写入 YAML 配置目录
 
 #### Scenario: 输出型 Entity 存储在数据库
 
@@ -93,4 +93,3 @@ capabilities:
 
 - **WHEN** DAG run 因异常终止
 - **THEN** 系统仍然释放该 run 的所有瞬态 Entity，不产生内存泄漏
-

@@ -2,13 +2,15 @@
 capabilities:
   - cap.config.runtime-config-editing
 ---
+# runtime-config-editing Specification
+
 ## Purpose
 
 定义运行时配置编辑能力，包括读取、展示、校验、原子保存 config 与 skills 文档，并保持运行中周期使用启动时配置快照。
 ## Requirements
 ### Requirement: Read runtime configuration
 
-系统 SHALL 从现有 `config/` 和 `skills/` 目录读取可编辑配置，并通过 WebUI 展示。
+系统 SHALL 从 DB-backed core Entity、system config 和 skill 文档读取可编辑配置，并通过 WebUI 展示。YAML 文件仅作为 import/export/template 格式。
 
 #### Scenario: View system config
 
@@ -158,7 +160,7 @@ capabilities:
 
 ### Requirement: Read entities config via dedicated endpoint
 
-系统 SHALL 提供 `GET /api/config/entities` 端点，返回 entities 配置文件的原始 YAML 文本内容。
+系统 SHALL 提供 `GET /api/config/entities` 端点，以 YAML import/export 格式返回 DB-backed Entity Store 中的 entities 内容。
 
 #### Scenario: Read entities config successfully
 
@@ -167,12 +169,12 @@ capabilities:
 
 #### Scenario: Entities config file missing
 
-- **WHEN** `config/entities.yaml` 文件不存在
+- **WHEN** DB-backed Entity Store 中无对应 entities
 - **THEN** 系统 MUST 返回 404 错误，包含 `not_found` 错误类型
 
 ### Requirement: Read entity-relations config via dedicated endpoint
 
-系统 SHALL 提供 `GET /api/config/entity-relations` 端点，返回 entity-relations 配置文件的原始 YAML 文本内容。
+系统 SHALL 提供 `GET /api/config/entity-relations` 端点，以 YAML import/export 格式返回 DB-backed relation Entity 内容。
 
 #### Scenario: Read entity-relations config successfully
 
@@ -181,7 +183,7 @@ capabilities:
 
 #### Scenario: Entity-relations config file missing
 
-- **WHEN** `config/entity-relations.yaml` 文件不存在
+- **WHEN** DB-backed relation Entity Store 中无对应 relations
 - **THEN** 系统 MUST 返回 404 错误，包含 `not_found` 错误类型
 
 ### Requirement: Save entities config
@@ -191,11 +193,11 @@ capabilities:
 #### Scenario: Save valid entities config
 
 - **WHEN** 用户提交符合 entities schema 的配置
-- **THEN** 系统 SHALL 原子写入 `config/entities.yaml`，并返回保存成功状态
+- **THEN** 系统 SHALL 原子写入 DB-backed Entity Store，并返回保存成功状态
 
 #### Scenario: Reject invalid entity type
 
-- **WHEN** 用户提交的实体 `type` 在 `schemas/entity-types/` 中不存在
+- **WHEN** 用户提交的实体 `type` 在 DB-backed EntityType 元数据中不存在
 - **THEN** 系统 MUST 拒绝保存并返回校验错误 "Unknown entity type: <type>"
 
 #### Scenario: Reject invalid entity attributes
@@ -210,10 +212,9 @@ capabilities:
 #### Scenario: Save valid entity-relations config
 
 - **WHEN** 用户提交符合 entity-relations schema 的配置
-- **THEN** 系统 SHALL 原子写入 `config/entity-relations.yaml`，并返回保存成功状态
+- **THEN** 系统 SHALL 原子写入 DB-backed relation Entity Store，并返回保存成功状态
 
 #### Scenario: Reject relation with non-existent entity
 
 - **WHEN** 用户提交的关系引用不存在的实体
 - **THEN** 系统 MUST 拒绝保存并返回校验错误 "Entity not found: <entity_ref>"
-

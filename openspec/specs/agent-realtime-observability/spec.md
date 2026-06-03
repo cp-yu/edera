@@ -5,7 +5,7 @@ capabilities:
 # agent-realtime-observability Specification
 
 ## Purpose
-此规约记录变更 core-architecture-overhaul 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 Agent 节点 Stdout Event Bus、SSE 推送到 Web Console、Web Console 实时展示、历史输出持久化等能力。
 ## Requirements
 ### Requirement: Agent 节点 Stdout Event Bus
 Executor 执行 agent 节点时，SHALL 将 subprocess 的 stdout 逐行读取并发送到 event bus。Event bus SHALL 支持订阅者实时接收事件。
@@ -41,4 +41,3 @@ Agent 节点的实时输出 SHALL 支持流式传输，不等待节点执行完�
 #### Scenario: 执行中即可查看输出
 - **WHEN** agent 节点正在执行，用户打开运行详情页
 - **THEN** 页面 SHALL 立即开始接收并展示已输出的内容，并持续接收新输出
-

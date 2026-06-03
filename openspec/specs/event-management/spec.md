@@ -5,7 +5,7 @@ capabilities:
 # event-management Specification
 
 ## Purpose
-此规约记录变更 event-situation-foundation 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 事件创建与更新（FR12）、事件生命周期状态（FR13）、确定性事件热度分数（FR14）。
 ## Requirements
 ### Requirement: 事件创建与更新（FR12）
 系统 SHALL 基于跨源归并后的信息创建和更新事件记录，MUST 保留事件与 RawItem、AnalysisResult 的证据链接。
@@ -67,4 +67,3 @@ capabilities:
 #### Scenario: 不使用实时行情
 - **WHEN** 系统计算 EventRecord.heat_score
 - **THEN** 系统 MUST 只使用本地 RawItem、AnalysisResult、EventRecord 和配置输入，不访问实时行情、成交量、热搜或第三方服务
-
