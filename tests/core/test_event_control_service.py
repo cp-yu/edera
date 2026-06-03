@@ -5,12 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.config.entities import EntityStore
-from edera_core.config.loader import load_app_config
-from edera_core.dag_controller import DagController, _ensure_default_cron_triggers
+from edera_core.dag_controller import DagController
 from edera_core.event_service import _EventService
 from edera_core.hot_reload import HotReloader
 from edera_core.proto import edera_pb2 as pb2
+from edera_core.config.schema import EntityConfig
+from edera_core.config.loader import load_app_config
+from edera_core.storage import create_engine, init_db, session_factory
+from edera_core.storage.repository import save_core_entity
 
 
 class _Daemon:
@@ -58,80 +60,30 @@ async def test_no_apscheduler(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_config_changed_rescans_cron_tokens(tmp_path: Path) -> None:
     _write_config(tmp_path)
+    await _seed_trigger(tmp_path, "hourly", 'cron:"0 * * * *"')
     ctrl = DagController(tmp_path)
-
-    (tmp_path / "triggers").mkdir()
-    trigger_path = tmp_path / "triggers" / "hourly.yaml"
-    trigger_path.write_text(
-        "id: hourly\n"
-        "type: trigger\n"
-        "attributes:\n"
-        "  name: hourly\n"
-        "  wait_for: 'cron:\"0 * * * *\"'\n"
-        "  target: dag:default\n"
-        "  enabled: true\n",
-        encoding="utf-8",
-    )
-
-    await ctrl.emit("event:bootstrap")
+    await ctrl.start(run_startup=False)
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
 
-    trigger_path.write_text(
-        "id: hourly\n"
-        "type: trigger\n"
-        "attributes:\n"
-        "  name: hourly\n"
-        "  wait_for: 'cron:\"15 * * * *\"'\n"
-        "  target: dag:default\n"
-        "  enabled: true\n",
-        encoding="utf-8",
-    )
-    await ctrl.emit("event:config-changed")
+    await _seed_trigger(tmp_path, "hourly", 'cron:"15 * * * *"')
+    await ctrl._reload_triggers()
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == {'cron:"15 * * * *"'}
-
-    trigger_path.unlink()
-    await ctrl.emit("event:config-changed")
-
-    assert ctrl.cron_emitter is not None
-    assert ctrl.cron_emitter.cron_tokens() == set()
+    await ctrl.shutdown()
 
 
 @pytest.mark.asyncio
 async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Path) -> None:
     _write_config(tmp_path)
+    await _seed_trigger(tmp_path, "hourly", 'cron:"0 * * * *"')
     ctrl = DagController(tmp_path)
-
-    (tmp_path / "triggers").mkdir()
-    trigger_path = tmp_path / "triggers" / "hourly.yaml"
-    trigger_path.write_text(
-        "id: hourly\n"
-        "type: trigger\n"
-        "attributes:\n"
-        "  name: hourly\n"
-        "  wait_for: 'cron:\"0 * * * *\"'\n"
-        "  target: dag:default\n"
-        "  enabled: true\n",
-        encoding="utf-8",
-    )
-    await ctrl.emit("event:bootstrap")
+    await ctrl.start(run_startup=False)
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
-
-    trigger_path.write_text(
-        "id: hourly\n"
-        "type: trigger\n"
-        "attributes:\n"
-        "  name: hourly\n"
-        "  wait_for: 'cron:\"15 * * * *\"'\n"
-        "  target: dag:default\n"
-        "  enabled: true\n",
-        encoding="utf-8",
-    )
 
     async def fail_reload(_config, _bootstrap) -> None:
         raise RuntimeError("reload failed")
@@ -152,23 +104,22 @@ async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Pa
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
+    await ctrl.shutdown()
 
 
-def test_migration_trigger_entity_generated(tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_dag_presence_does_not_generate_default_cron_trigger(tmp_path: Path) -> None:
     _write_config(tmp_path)
-    config = load_app_config(tmp_path)
-    store = EntityStore(
-        config.entities,
-        config.entity_types,
-        config.entity_relations,
-        tmp_path / "entities.yaml",
-    )
+    ctrl = DagController(tmp_path)
+    await ctrl.start(run_startup=False)
+    try:
+        assert ctrl.cron_emitter is not None
+        assert ctrl.cron_emitter.cron_tokens() == set()
+    finally:
+        await ctrl.shutdown()
 
-    _ensure_default_cron_triggers(config, store)
-
-    assert (tmp_path / "triggers" / "default-default-cron.yaml").exists()
-    assert (tmp_path / "triggers" / "realtime-default-cron.yaml").exists()
-    assert 'cron:"*/30 * * * *"' in (tmp_path / "triggers" / "default-default-cron.yaml").read_text(encoding="utf-8")
+    assert not (tmp_path / "triggers" / "default-default-cron.yaml").exists()
+    assert not (tmp_path / "triggers" / "realtime-default-cron.yaml").exists()
 
 
 def _write_config(root: Path) -> None:
@@ -199,3 +150,22 @@ def _write_config(root: Path) -> None:
     )
     (root / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
     (root / "dags" / "realtime.yaml").write_text("name: realtime\nnodes: []\nedges: []\n", encoding="utf-8")
+
+
+async def _seed_trigger(root: Path, name: str, wait_for: str) -> None:
+    engine = create_engine(f"sqlite+aiosqlite:///{root / 'test.db'}")
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            await save_core_entity(
+                session,
+                EntityConfig(
+                    id=name,
+                    type="trigger",
+                    attributes={"name": name, "wait_for": wait_for, "target": "dag:default", "enabled": True},
+                ),
+            )
+            await session.commit()
+    finally:
+        await engine.dispose()

@@ -8,6 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 import edera_core.dag_controller as dag_controller_module
+from edera_core.config.schema import EntityConfig
 from edera_core.errors import DagError
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
@@ -17,6 +18,7 @@ from edera_core.storage.repository import (
     get_dag_run,
     node_runs_for_run,
     recent_dag_runs,
+    save_core_entity,
     store_node_output_entities,
     upsert_edge_input,
 )
@@ -1210,13 +1212,15 @@ async def test_bff_entity_types_route_uses_grpc(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_bff_default_node_history_route_returns_history_list(tmp_path: Path) -> None:
+async def test_bff_node_history_route_requires_dag_name(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     app = create_app(FakeGrpcClient())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/nodes/node-a/history?limit=10")
+        removed = await client.get("/api/nodes/node-a/history?limit=10")
+        response = await client.get("/api/history/dag/default/nodes/node-a?limit=10")
+    assert removed.status_code == 404
     assert response.status_code == 200
-    assert response.json() == [{"dag_name": "default", "node_id": "node-a", "run_id": "run-1", "limit": 10}]
+    assert response.json() == {"history": [{"dag_name": "default", "node_id": "node-a", "run_id": "run-1", "limit": 10}]}
 
 
 @pytest.mark.asyncio
@@ -1244,19 +1248,35 @@ async def test_dag_run_dag_name_field(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_controller_start_is_idle(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    _write_full_config(tmp_path)
+    ctrl = DagController(tmp_path)
+    await ctrl.start()
+    try:
+        async with ctrl._factory()() as session:
+            runs = await recent_dag_runs(session)
+        assert runs == []
+        assert ctrl.active_runs == {}
+    finally:
+        await ctrl.shutdown()
+
+
+@pytest.mark.asyncio
 async def test_scheduler_per_dag_registration(tmp_path: Path) -> None:
     """C8: Scheduler exposes cron DAG runs through Trigger Entity records."""
     _write_dag_config(tmp_path)
     _write_full_config(tmp_path)
     _write_trigger_schema(tmp_path)
     (tmp_path / "dags" / "reflection.yaml").unlink()
+    await _seed_trigger(tmp_path, "hourly", 'cron:"0 * * * *"')
     ctrl = DagController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
-        assert (tmp_path / "triggers" / "default-default-cron.yaml").exists()
-        assert (tmp_path / "triggers" / "realtime-default-cron.yaml").exists()
+        assert not (tmp_path / "triggers" / "default-default-cron.yaml").exists()
+        assert not (tmp_path / "triggers" / "realtime-default-cron.yaml").exists()
         assert ctrl.cron_emitter is not None
-        assert ctrl.cron_emitter.cron_tokens() == {'cron:"*/30 * * * *"'}
+        assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
     finally:
         await ctrl.shutdown()
 
@@ -1266,6 +1286,25 @@ def _write_full_config(path: Path) -> None:
     _write_entity_schemas(path)
     nodes_dir = path / "nodes"
     nodes_dir.mkdir(exist_ok=True)
+
+
+async def _seed_trigger(root: Path, name: str, wait_for: str) -> None:
+    engine = create_engine(sqlite_url(root / "test.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            await save_core_entity(
+                session,
+                EntityConfig(
+                    id=name,
+                    type="trigger",
+                    attributes={"name": name, "wait_for": wait_for, "target": "dag:default", "enabled": True},
+                ),
+            )
+            await session.commit()
+    finally:
+        await engine.dispose()
 
 
 def _write_trigger_schema(path: Path) -> None:

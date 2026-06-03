@@ -121,8 +121,6 @@ class DagController:
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
         self._cron_task = asyncio.create_task(self._cron_loop())
-        if run_startup:
-            await self.start_run("startup")
 
     async def shutdown(self) -> None:
         if self._cron_task is not None:
@@ -184,7 +182,12 @@ class DagController:
             raise RuntimeError("DAG controller has not been started")
         async with self._snapshot_lock:
             config.entity_types.update(bootstrap.entity_type_registry.as_dict())
-            config = await materialize_runtime_app_config(self.config_dir, config, self.engine)
+            extension_imports = [
+                (bootstrap.extension_roots[manifest.name], manifest)
+                for manifest in bootstrap.manifests
+                if manifest.entity_imports
+            ]
+            config = await materialize_runtime_app_config(self.config_dir, config, self.engine, extension_imports)
             await create_extension_tables(self.engine, bootstrap.storage_tables)
             store = EntityStore(
                 config.entities,
@@ -192,7 +195,6 @@ class DagController:
                 config.entity_relations,
                 None,
             )
-            _ensure_default_cron_triggers(config, store)
             trigger_executor = self._new_trigger_executor(config, store)
             await trigger_executor.load()
             cron_emitter = CronEmitter(trigger_executor)
@@ -884,29 +886,6 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
         if isinstance(name, str):
             refs.append(f"{entity.type}:{name}")
     return refs
-
-
-def _ensure_default_cron_triggers(config: AppConfig, store: EntityStore) -> None:
-    if "trigger" not in store.entity_types:
-        return
-    existing = {
-        str(trigger.attributes.get("target"))
-        for trigger in store.query("trigger")
-        if str(trigger.attributes.get("wait_for")) == 'cron:"*/30 * * * *"'
-    }
-    for dag_name in sorted(config.dags):
-        target = f"dag:{dag_name}"
-        if target in existing:
-            continue
-        store.create(
-            "trigger",
-            {
-                "name": f"{dag_name}-default-cron",
-                "wait_for": 'cron:"*/30 * * * *"',
-                "target": target,
-                "enabled": True,
-            },
-        )
 
 
 class _TriggerSchedulerState:

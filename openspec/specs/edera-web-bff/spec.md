@@ -162,3 +162,20 @@ BFF 返回给前端的 JSON 响应 SHALL 使用 `run_id` 字段，不再使用 `
 - **WHEN** 前端 GET `/api/nodes/{id}/history`
 - **THEN** BFF SHALL 返回 `[{run_id: "...", status: "succeeded", ...}, ...]`
 
+### Requirement: No hard-coded default DAG routes
+`edera-web` SHALL expose DAG run, stop, status and history behavior through parameterized DAG routes. It MUST NOT provide hard-coded `default` DAG compatibility routes that bypass the `{dag_name}` path parameter.
+
+#### Scenario: Run default through parameterized route
+- **WHEN** client needs to run DAG `default`
+- **THEN** client SHALL call `POST /api/dags/default/run`
+- **AND** the route SHALL be handled by the generic `/api/dags/{dag_name}/run` handler
+
+#### Scenario: No duplicate default run route
+- **WHEN** web routes are registered
+- **THEN** there MUST NOT be a separate route handler dedicated to `/api/dags/default/run`
+
+#### Scenario: No default-only node history route
+- **WHEN** client queries node history
+- **THEN** client SHALL use a route that includes the DAG name
+- **AND** web routes MUST NOT hard-code `dag_name = "default"` for history queries
+

@@ -354,9 +354,10 @@ class _DagService:
         await _identity(context)
         payload = json.loads(request.inputs_json) if request.inputs_json else None
         try:
-            run_id = await self.daemon.controller.start_run("manual", request.name, payload)
+            fired = await self.daemon.controller.emit(f"manual:dag:{request.name}", payload, source="dag-service")
         except RunAlreadyActiveError as exc:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, exc.run_id)
+        run_id = fired[0] if fired else ""
         return self.pb2.DagRunRef(run_id=run_id)
 
     async def Status(self, request, context):

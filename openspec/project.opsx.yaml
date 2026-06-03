@@ -65,7 +65,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.dag-control
-    intent: 管道控制能力，废弃 APScheduler interval 调度，统一由 TriggerExecutor 驱动；DAG 运行 API 通过 emit 路径
+    intent: 管道控制能力统一由 TriggerExecutor emit 路径驱动；启动不自动运行 DAG，手动运行通过 manual:dag:<name> emit 进入调度
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
@@ -81,7 +81,7 @@ capabilities:
     type: capability
     domain: dom.config
   - id: cap.data.data-models
-    intent: 共享数据模型，覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本，统一使用 run_id 标识执行实例
+    intent: 共享数据模型覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本；DagRun.source 仅允许 manual、retry、trigger:<name>
     type: capability
     domain: dom.data
   - id: cap.entity-management-page
@@ -125,7 +125,7 @@ capabilities:
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability
   - id: cap.core.extension-manifest-system
-    intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor 提取和依赖校验
+    intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor、依赖校验和 imports.entities 导入声明解析；扫描阶段不写 DB 实例
     type: capability
   - id: cap.core.core-bootstrap
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
@@ -202,7 +202,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.web.edera-web-bff
-    intent: edera-web 网页 BFF，作为服务端本机进程从 EDERA_DATA_DIR/bootstrap.json 发现 bootstrap 端口获取 BFF cert，所有 HTTP route handler 纯 gRPC 调用
+    intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，DAG 控制路由使用参数化 dag_name，不提供 hard-coded default DAG 专用路径
     type: capability
     domain: dom.web
   - id: cap.core.bff-web-gateway
@@ -267,7 +267,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.core.db-backed-core-entities
-    intent: 核心配置型 Entity 使用 SQLite DB 作为运行时 source of truth，覆盖 node/dag/trigger/resource 固定 per-type tables、完整列化、YAML import/export/template、runtime snapshot 构建和 raw log index 边界
+    intent: 核心配置型 Entity 运行时读取以 DB 为唯一 source of truth，core 不再自动生成 default DAG/Trigger 或任何配置实例
     type: capability
   - id: cap.core.lazy-entity-type-materialization
     intent: 普通 EntityType 支持 per-type table、attributes_json 承接新增字段、lazy materialized columns、deprecated 字段生命周期和维护命令
@@ -279,4 +279,7 @@ capabilities:
   - id: cap.web.agent-intervention-web
     intent: Web Console agent 交互弹窗、运行中中断+注入与已结束直接发送两种干预编排、前端干预 hooks 与实时状态展示
     status: draft
+    type: capability
+  - id: cap.core.extension-entity-imports
+    intent: Extension manifest 声明 imports.entities 后由独立 importer 自动导入 Entity 实例一次，并通过 extension_imports 记录导入状态、digest 和未来卸载依据
     type: capability

@@ -16,7 +16,7 @@ from edera_core.storage.materialization import (
     entity_table_name,
     identifier,
 )
-from edera_core.storage.entities import EdgeInput, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
+from edera_core.storage.entities import EdgeInput, ExtensionImportRecord, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
 from edera_core.storage.entities import (
     CoreEntityDag,
     CoreEntityNode,
@@ -285,6 +285,59 @@ async def delete_ordinary_entity(
         await session.flush()
         return True
     return False
+
+
+async def get_extension_import_record(
+    session: AsyncSession,
+    extension_name: str,
+    import_path: str,
+) -> ExtensionImportRecord | None:
+    result = await session.exec(
+        select(ExtensionImportRecord).where(
+            ExtensionImportRecord.extension_name == extension_name,
+            ExtensionImportRecord.import_path == import_path,
+        )
+    )
+    return result.first()
+
+
+async def record_extension_import(
+    session: AsyncSession,
+    *,
+    extension_name: str,
+    extension_version: str,
+    import_path: str,
+    entity_type: str,
+    entity_id: str,
+    entity_ref: str,
+    content_digest: str,
+    imported_entity_digest: str,
+    status: str,
+) -> ExtensionImportRecord:
+    record = await get_extension_import_record(session, extension_name, import_path)
+    if record is None:
+        record = ExtensionImportRecord(
+            extension_name=extension_name,
+            extension_version=extension_version,
+            import_path=import_path,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_ref=entity_ref,
+            content_digest=content_digest,
+            imported_entity_digest=imported_entity_digest,
+            status=status,
+        )
+    record.extension_version = extension_version
+    record.entity_type = entity_type
+    record.entity_id = entity_id
+    record.entity_ref = entity_ref
+    record.content_digest = content_digest
+    record.imported_entity_digest = imported_entity_digest
+    record.status = status
+    record.updated_at = utc_now()
+    session.add(record)
+    await session.flush()
+    return record
 
 
 async def record_log_index(

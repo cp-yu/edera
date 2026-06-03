@@ -1,0 +1,225 @@
+{
+  "timestamp": "2026-06-03T07:59:56.768Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "ab9242f74ac04f964622f4811a0c343d4066fba586905bdc1c07837496a2d914",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "packages/core/src/edera_core/bootstrap.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/extension_imports.py",
+      "packages/core/src/edera_core/manifest.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/src/edera_core/trigger.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "packages/core/tests/test_grpc_control_services.py",
+      "packages/core/tests/test_web_routes.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/test_core_extension_runtime.py",
+      "tests/core/test_event_control_service.py",
+      "tests/core/unit/test_entity_payload.py",
+      "tests/core/unit/test_extension_entity_imports.py",
+      "tests/core/unit/test_trigger_system.py"
+    ],
+    "evidenceFingerprint": "bb213b6e16bf2af3ae7046b49d2459cb06934b9e9f741a4eddd6ec4d58e487e0",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "packages/core/src/edera_core/bootstrap.py",
+        "hash": "0e2ee3c25bbd0f5c0155743b0f089d8976d82020408ee634d943e25afab49dde"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "7ea81e449c9498d46d927bbd9307ad0eb141ee9c55caf38a683e2f850eb36141"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "bddd44ad7fa8c0f0b6c80e9851f80aa4c18cf24b40154c1c91d2555696a07cf2"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_imports.py",
+        "hash": "2614124e7680756c2b2d8fdc3036db1c5e1fc2cbc610db6887783186038a7778"
+      },
+      {
+        "path": "packages/core/src/edera_core/manifest.py",
+        "hash": "972864a544b256ea96891cfb97323472bc70d54d1625b2c61256f02f9eb49c07"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "09b1156140e3eecc15988143a8a796fa4d0e2b38ec33ea09cb6f5df8dd250991"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "4a978f502ed36a35094afed3372e78eac50ca819c0749edfc9f12d67874ebd38"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "3811538b3a18300aed22703d99001c9e8db489024e37e1182233300451290860"
+      },
+      {
+        "path": "packages/core/src/edera_core/trigger.py",
+        "hash": "0bc992160e62b8d51b28e17608d6ae87056d68093752c8a07815bc3c0320f11f"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "758ea2226f74797ba8b94eebb63383169cb90d8ed6a999d8c6062cac328dfbb4"
+      },
+      {
+        "path": "packages/core/tests/test_grpc_control_services.py",
+        "hash": "a0b9b748a4482922ae9a28d823d1098c4669fc04b34f8304274aa40cfdab046b"
+      },
+      {
+        "path": "packages/core/tests/test_web_routes.py",
+        "hash": "36be87b06a5d3ab88b56c1916adb8274f2b8520542ad02f9f93a238f150fe9d9"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "9e9a4b91ae5cf78d7eafe44ac4706368ea76d045ec7d6fcd26a6e87f4aceba6a"
+      },
+      {
+        "path": "tests/core/test_core_extension_runtime.py",
+        "hash": "e77853cf1b6ba3e809ec2f4671371198f120d4000dd4e9d3adaf764eb25098c4"
+      },
+      {
+        "path": "tests/core/test_event_control_service.py",
+        "hash": "ab3d094aa6ac5a3a880bddd5cd5b2f4e05b979d9b52ca2b94f927e72a3aa49bc"
+      },
+      {
+        "path": "tests/core/unit/test_entity_payload.py",
+        "hash": "37c4aef66b59e4ed34c2d7b22e6f2c35cef883cc5ae0cada5cae5d02c69bc99e"
+      },
+      {
+        "path": "tests/core/unit/test_extension_entity_imports.py",
+        "hash": "b59942831f3ece6aaa8ad9dbcbc0d3dbf9c1a01e93db22386b89851e09ec62bf"
+      },
+      {
+        "path": "tests/core/unit/test_trigger_system.py",
+        "hash": "4757ea3ce0d1234aff1224aa83274bef06cb9d71859f93c700362975ca5fee65"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "fbb4b2ecba04432368c77e48eb5b47324843566e"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-03T08:04:34.450Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-03T07:59:56.768Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "ab9242f74ac04f964622f4811a0c343d4066fba586905bdc1c07837496a2d914",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "packages/core/src/edera_core/bootstrap.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/extension_imports.py",
+          "packages/core/src/edera_core/manifest.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/src/edera_core/trigger.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "packages/core/tests/test_grpc_control_services.py",
+          "packages/core/tests/test_web_routes.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/test_core_extension_runtime.py",
+          "tests/core/test_event_control_service.py",
+          "tests/core/unit/test_entity_payload.py",
+          "tests/core/unit/test_extension_entity_imports.py",
+          "tests/core/unit/test_trigger_system.py"
+        ],
+        "evidenceFingerprint": "bb213b6e16bf2af3ae7046b49d2459cb06934b9e9f741a4eddd6ec4d58e487e0",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "packages/core/src/edera_core/bootstrap.py",
+            "hash": "0e2ee3c25bbd0f5c0155743b0f089d8976d82020408ee634d943e25afab49dde"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "7ea81e449c9498d46d927bbd9307ad0eb141ee9c55caf38a683e2f850eb36141"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "bddd44ad7fa8c0f0b6c80e9851f80aa4c18cf24b40154c1c91d2555696a07cf2"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_imports.py",
+            "hash": "2614124e7680756c2b2d8fdc3036db1c5e1fc2cbc610db6887783186038a7778"
+          },
+          {
+            "path": "packages/core/src/edera_core/manifest.py",
+            "hash": "972864a544b256ea96891cfb97323472bc70d54d1625b2c61256f02f9eb49c07"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "09b1156140e3eecc15988143a8a796fa4d0e2b38ec33ea09cb6f5df8dd250991"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "4a978f502ed36a35094afed3372e78eac50ca819c0749edfc9f12d67874ebd38"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "3811538b3a18300aed22703d99001c9e8db489024e37e1182233300451290860"
+          },
+          {
+            "path": "packages/core/src/edera_core/trigger.py",
+            "hash": "0bc992160e62b8d51b28e17608d6ae87056d68093752c8a07815bc3c0320f11f"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "758ea2226f74797ba8b94eebb63383169cb90d8ed6a999d8c6062cac328dfbb4"
+          },
+          {
+            "path": "packages/core/tests/test_grpc_control_services.py",
+            "hash": "a0b9b748a4482922ae9a28d823d1098c4669fc04b34f8304274aa40cfdab046b"
+          },
+          {
+            "path": "packages/core/tests/test_web_routes.py",
+            "hash": "36be87b06a5d3ab88b56c1916adb8274f2b8520542ad02f9f93a238f150fe9d9"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "9e9a4b91ae5cf78d7eafe44ac4706368ea76d045ec7d6fcd26a6e87f4aceba6a"
+          },
+          {
+            "path": "tests/core/test_core_extension_runtime.py",
+            "hash": "e77853cf1b6ba3e809ec2f4671371198f120d4000dd4e9d3adaf764eb25098c4"
+          },
+          {
+            "path": "tests/core/test_event_control_service.py",
+            "hash": "ab3d094aa6ac5a3a880bddd5cd5b2f4e05b979d9b52ca2b94f927e72a3aa49bc"
+          },
+          {
+            "path": "tests/core/unit/test_entity_payload.py",
+            "hash": "37c4aef66b59e4ed34c2d7b22e6f2c35cef883cc5ae0cada5cae5d02c69bc99e"
+          },
+          {
+            "path": "tests/core/unit/test_extension_entity_imports.py",
+            "hash": "b59942831f3ece6aaa8ad9dbcbc0d3dbf9c1a01e93db22386b89851e09ec62bf"
+          },
+          {
+            "path": "tests/core/unit/test_trigger_system.py",
+            "hash": "4757ea3ce0d1234aff1224aa83274bef06cb9d71859f93c700362975ca5fee65"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "fbb4b2ecba04432368c77e48eb5b47324843566e"
+      }
+    }
+  }
+}
