@@ -127,13 +127,22 @@ async def test_manual_node_prefix() -> None:
 
 
 @pytest.mark.asyncio
-async def test_manual_no_bit() -> None:
+async def test_manual_no_bit(tmp_path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "manual.db"))
+    await init_db(engine)
+    factory = session_factory(engine)
     store = EntityStore(_triggers(), _types(), EntityRelationsConfig())
-    executor = TriggerExecutor(store, run_dag=lambda name, payload: _record([], name))
+    executor = TriggerExecutor(store, run_dag=lambda name, payload: _record([], name), factory=factory)
 
-    await executor.emit("manual:dag:default")
+    try:
+        await executor.emit("manual:dag:default")
 
-    assert executor.events.events == set()
+        async with factory() as session:
+            bits = (await session.exec(select(EventGroupBit))).all()
+        assert executor.events.events == set()
+        assert bits == []
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

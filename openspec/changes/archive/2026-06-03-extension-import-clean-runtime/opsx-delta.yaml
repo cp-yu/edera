@@ -1,0 +1,32 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.extension-entity-imports
+      type: capability
+      intent: Extension manifest 声明 imports.entities 后由独立 importer 自动导入 Entity 实例一次，并通过 extension_imports 记录导入状态、digest 和未来卸载依据
+  relations:
+    - from: cap.core.extension-entity-imports
+      type: contains
+      to: dom.core
+    - from: cap.core.extension-entity-imports
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.extension-entity-imports
+      type: depends_on
+      to: cap.core.db-backed-core-entities
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor、依赖校验和 imports.entities 导入声明解析；扫描阶段不写 DB 实例
+    - id: cap.core.db-backed-core-entities
+      intent: 核心配置型 Entity 运行时读取以 DB 为唯一 source of truth，core 不再自动生成 default DAG/Trigger 或任何配置实例
+    - id: cap.operations.dag-control
+      intent: 管道控制能力统一由 TriggerExecutor emit 路径驱动；启动不自动运行 DAG，手动运行通过 manual:dag:<name> emit 进入调度
+    - id: cap.data.data-models
+      intent: 共享数据模型覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本；DagRun.source 仅允许 manual、retry、trigger:<name>
+    - id: cap.web.edera-web-bff
+      intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，DAG 控制路由使用参数化 dag_name，不提供 hard-coded default DAG 专用路径
+
+REMOVED:
+  capabilities: []

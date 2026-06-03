@@ -204,8 +204,8 @@ class TriggerExecutor:
         await self._record_emit(event, payload, source, depth)
         if event.startswith("manual:"):
             target = _manual_target(event)
-            await self.fire(target, payload, depth + 1, "manual")
-            return [target]
+            result = await self.fire(target, payload, depth + 1, "manual")
+            return [str(result) if result is not None else target]
         if event.startswith("clear:"):
             await self.events.clear(event.removeprefix("clear:"))
             return []
@@ -243,16 +243,14 @@ class TriggerExecutor:
         tokens = expr.matched_tokens(active)
         return await self._latest_payload(tokens), tokens
 
-    async def fire(self, target: str, payload: object | None = None, depth: int = 0, source: str = "manual") -> None:
+    async def fire(self, target: str, payload: object | None = None, depth: int = 0, source: str = "manual") -> object | None:
         if target.startswith("clear:"):
             await self.events.clear(target.removeprefix("clear:"))
             return
         if target.startswith("dag:") and self.run_dag is not None:
-            await self.run_dag(target.removeprefix("dag:"), payload, source)
-            return
+            return await self.run_dag(target.removeprefix("dag:"), payload, source)
         if target.startswith("node:") and self.run_node is not None:
-            await self.run_node(target.removeprefix("node:"), payload, source)
-            return
+            return await self.run_node(target.removeprefix("node:"), payload, source)
         raise ConfigError(f"unsupported trigger target: {target}")
 
     def entity_changed(self, ref: str) -> str:

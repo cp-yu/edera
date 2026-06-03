@@ -26,6 +26,7 @@ class BootstrapResult:
     manifests: list[ExtensionManifest]
     storage_tables: dict[str, list[StorageTableDescriptor]]
     table_names: dict[str, dict[str, str]]
+    extension_roots: dict[str, Path]
 
     def __iter__(self):
         return iter(self.manifests)
@@ -41,6 +42,7 @@ def scan_extensions(
     manifests: list[ExtensionManifest] = []
     storage_tables: dict[str, list[StorageTableDescriptor]] = {}
     table_names: dict[str, dict[str, str]] = {}
+    extension_roots: dict[str, Path] = {}
     for root in extensions_dirs:
         if not root.exists():
             continue
@@ -53,6 +55,7 @@ def scan_extensions(
                 manifest = parse_manifest(manifest_path)
                 _validate_dependencies(root, manifest)
                 manifests.append(manifest)
+                extension_roots[manifest.name] = child
                 storage_tables[manifest.name] = manifest.storage_tables
                 table_names[manifest.name] = {
                     table.name: extension_table_name(manifest.name, table.name) for table in manifest.storage_tables
@@ -66,7 +69,7 @@ def scan_extensions(
     merged = extension_entity_types
     if config_dir is not None:
         merged = {**merged, **load_entity_types(config_dir)}
-    return BootstrapResult(handlers.seal(), EntityTypeRegistry(merged), manifests, storage_tables, table_names)
+    return BootstrapResult(handlers.seal(), EntityTypeRegistry(merged), manifests, storage_tables, table_names, extension_roots)
 
 
 async def create_extension_tables(engine: AsyncEngine, tables: dict[str, list[StorageTableDescriptor]]) -> None:

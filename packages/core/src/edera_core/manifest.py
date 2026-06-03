@@ -54,6 +54,7 @@ class ExtensionManifest:
     handlers: list[NodeTypeDescriptor] = field(default_factory=list)
     entity_types: list[EntityTypeDescriptor] = field(default_factory=list)
     storage_tables: list[StorageTableDescriptor] = field(default_factory=list)
+    entity_imports: list[str] = field(default_factory=list)
 
 
 def parse_manifest(path: Path) -> ExtensionManifest:
@@ -66,6 +67,7 @@ def parse_manifest(path: Path) -> ExtensionManifest:
     handlers = [_parse_handler(item, path) for item in _list(raw.get("handlers"))]
     entity_types = [_parse_entity_type(item, path) for item in _list(raw.get("entity_types"))]
     storage_tables = [_parse_storage_table(item, path) for item in _list(raw.get("storage"), "tables")]
+    entity_imports = [_parse_entity_import(item, path) for item in _list(raw.get("imports"), "entities")]
     return ExtensionManifest(
         name=str(raw["name"]),
         version=str(raw["version"]),
@@ -74,6 +76,7 @@ def parse_manifest(path: Path) -> ExtensionManifest:
         handlers=handlers,
         entity_types=entity_types,
         storage_tables=storage_tables,
+        entity_imports=entity_imports,
     )
 
 
@@ -143,6 +146,15 @@ def _parse_storage_table(raw: Any, path: Path) -> StorageTableDescriptor:
             )
         )
     return StorageTableDescriptor(name=str(raw["name"]), columns=columns)
+
+
+def _parse_entity_import(raw: Any, path: Path) -> str:
+    if not isinstance(raw, str) or not raw:
+        raise ValueError(f"invalid entity import path in {path}: {raw}")
+    import_path = Path(raw)
+    if import_path.is_absolute() or ".." in import_path.parts:
+        raise ValueError(f"invalid entity import path in {path}: {raw}")
+    return raw
 
 
 def _float(value: Any) -> float | None:

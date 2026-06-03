@@ -206,11 +206,6 @@ def _event_stream(request: Request, node_id: str = "", dag_name: str = "") -> St
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-@router.post("/api/dags/default/run", response_model=None)
-async def api_default_dag_run(request: Request) -> Any:
-    return await _call(request, lambda client: client.dag_run("default"))
-
-
 @router.post("/api/system/pause-scheduler")
 async def api_system_pause_scheduler(request: Request) -> Any:
     return await _call(request, lambda client: client.system_pause_scheduler())
@@ -219,11 +214,6 @@ async def api_system_pause_scheduler(request: Request) -> Any:
 @router.post("/api/system/resume-scheduler")
 async def api_system_resume_scheduler(request: Request) -> Any:
     return await _call(request, lambda client: client.system_resume_scheduler())
-
-
-@router.post("/api/dags/default/stop")
-async def api_default_dag_stop(request: Request) -> Any:
-    return await _call(request, lambda client: client.dag_stop("default"))
 
 
 @router.get("/api/config")
@@ -475,14 +465,6 @@ async def api_graph_runtime_status(request: Request) -> Any:
 @router.get("/api/node-outputs")
 async def api_node_outputs(request: Request, node_id: str | None = None, run_id: str | None = None, limit: int = 100) -> Any:
     return await _call(request, lambda client: client.query_node_outputs(node_id or "", run_id or "", limit))
-
-
-@router.get("/api/nodes/{node_id}/history", response_model=None)
-async def api_default_node_history(request: Request, node_id: str, limit: int = 50) -> Any:
-    result = await _call(request, lambda client: client.query_node_history("default", node_id, limit))
-    if isinstance(result, dict) and isinstance(result.get("history"), list):
-        return result["history"]
-    return result
 
 
 @router.get("/api/history/dag/{dag_name}/nodes/{node_id}", response_model=None)

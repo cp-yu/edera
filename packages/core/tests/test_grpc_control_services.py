@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import grpc
 import pytest
+from types import SimpleNamespace
 
+from edera_core.config.entities import EntityStore
+from edera_core.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig, EntityTypeConfig
 from edera_core.dag_controller import DagRunNotFoundError, RunAlreadyActiveError
 from edera_core.event_service import _EventService
 from edera_core.proto import edera_pb2 as pb2
@@ -12,7 +15,10 @@ from service_fakes import AbortError, FakeContext, FakeDaemon
 
 
 class Controller:
-    async def start_run(self, source: str, dag_name: str, payload: object | None = None):
+    def runtime_snapshot(self):
+        return SimpleNamespace(config=SimpleNamespace(dags={"demo": object()}))
+
+    async def emit(self, event: str, payload: object | None = None, *, source: str = "rpc", depth: int = 0):
         raise RunAlreadyActiveError("active-run")
 
     async def retry_node(self, dag_name: str, run_id: str | None, node_ids: list[str], mode: str, payload: object):
@@ -93,16 +99,32 @@ async def test_repair_task_not_escalated(monkeypatch, tmp_path):
 
 
 class FactoryController:
+    def runtime_snapshot(self):
+        entity_type = EntityTypeConfig(
+            display_name="RSS",
+            business_id_field="name",
+            display_template="{name}",
+            schema_={"properties": {"name": {}}},
+        )
+        store = EntityStore(
+            EntitiesConfig(entities=[EntityConfig(id="s1", type="rss-source", attributes={"name": "rss"})]),
+            {"rss-source": entity_type},
+            EntityRelationsConfig(),
+            None,
+        )
+        return SimpleNamespace(entity_store=store)
+
     def _factory(self):
         return lambda: Session()
 
 
 class RunController:
-    async def start_run(self, source: str, dag_name: str, payload: object | None = None) -> str:
-        assert source == "manual"
-        assert dag_name == "default"
+    async def emit(self, event: str, payload: object | None = None, *, source: str = "rpc", depth: int = 0) -> list[str]:
+        assert event == "manual:dag:default"
         assert payload is None
-        return "run-1"
+        assert source == "dag-service"
+        assert depth == 0
+        return ["run-1"]
 
 
 class Session:

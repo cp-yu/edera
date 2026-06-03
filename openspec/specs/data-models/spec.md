@@ -181,7 +181,11 @@
 
 #### Scenario: source 字段合法值
 - **WHEN** 系统创建 DagRun 记录
-- **THEN** `source` 字段 SHALL 为以下值之一：`manual`、`startup`、`retry`、`trigger:<trigger_name>`
+- **THEN** `source` 字段 SHALL 为以下值之一：`manual`、`retry`、`trigger:<trigger_name>`
+
+#### Scenario: startup source rejected
+- **WHEN** 系统尝试创建 `source = "startup"` 的 DagRun
+- **THEN** 系统 MUST 拒绝该记录
 
 #### Scenario: Trigger Entity fire 时记录 source
 - **WHEN** Trigger Entity `morning-cron` fire 启动 DAG
@@ -193,7 +197,7 @@
 
 #### Scenario: 重试记录 source
 - **WHEN** 用户重试失败的 run
-- **THEN** 新 DagRun 记录的 `source` 字段 SHALL 为 `retry`，`retry_of` 字段关联原 run_id
+- **THEN** DagRun 记录的 `source` 字段 SHALL 为 `retry`
 
 ### Requirement: NodeRun 数据模型使用 run_id
 系统 SHALL 定义 NodeRun 模型存储节点执行记录，MUST 包含：run_id（外键关联 dag_runs.run_id）、node_name、status、started_at、ended_at、error、failure_kind。`cycle_id` 字段已废弃，改为 `run_id`。

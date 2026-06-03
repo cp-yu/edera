@@ -8,6 +8,8 @@ from edera_core.config.schema import (
     EntityTypeConfig,
 )
 from edera_core.server import _entity_payload
+from edera_core.storage.entities import DagRun
+import pytest
 
 
 def _stock_type() -> EntityTypeConfig:
@@ -61,3 +63,8 @@ def test_display_fallback_when_no_matching_entity_type():
     )
     result = _entity_payload(_store(entity_types={"other": other_type}), _entity())
     assert result["display"] == result["ref"]
+
+
+def test_dag_run_startup_source_rejected():
+    with pytest.raises(ValueError, match="source must be manual, retry, or trigger:<name>"):
+        DagRun.model_validate({"run_id": "run-1", "source": "startup", "status": "running"})

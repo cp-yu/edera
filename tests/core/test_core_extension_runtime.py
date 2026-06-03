@@ -43,6 +43,61 @@ def test_scan_extensions_maps_declared_table_names(tmp_path: Path) -> None:
     assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
 
 
+def test_scan_extensions_parses_manifest_entity_imports(tmp_path: Path) -> None:
+    extension = tmp_path / "demo"
+    extension.mkdir()
+    (extension / "handler.py").write_text("async def run(ctx):\n    return {}\n", encoding="utf-8")
+    (extension / "manifest.yaml").write_text(
+        "name: demo-extension\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "  - name: demo\n"
+        "    role: source\n"
+        "    input_type: Any\n"
+        "    entry: handler.py\n"
+        "entity_types:\n"
+        "  - name: article\n"
+        "    display_name: Article\n"
+        "    business_id_field: slug\n"
+        "storage:\n"
+        "  tables:\n"
+        "    - name: raw_items\n"
+        "      columns:\n"
+        "        - name: id\n"
+        "          type: integer\n"
+        "          primary_key: true\n"
+        "imports:\n"
+        "  entities:\n"
+        "    - dags/default/dag.yaml\n",
+        encoding="utf-8",
+    )
+
+    result = scan_extensions([tmp_path])
+    manifest = result.manifests[0]
+
+    assert manifest.entity_imports == ["dags/default/dag.yaml"]
+    assert "demo" in result.handler_registry
+    assert "article" in result.entity_type_registry
+    assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
+
+
+@pytest.mark.parametrize("import_path", ["/etc/passwd", "../dag.yaml", "dags/../dag.yaml"])
+def test_scan_extensions_rejects_invalid_entity_import_paths(tmp_path: Path, import_path: str) -> None:
+    extension = tmp_path / "demo"
+    extension.mkdir()
+    (extension / "manifest.yaml").write_text(
+        "name: demo-extension\n"
+        "version: 0.1.0\n"
+        "imports:\n"
+        "  entities:\n"
+        f"    - {import_path}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="invalid entity import path"):
+        scan_extensions([tmp_path])
+
+
 @pytest.mark.asyncio
 async def test_entity_and_extension_table_names_do_not_collide(tmp_path: Path) -> None:
     extension = tmp_path / "extensions" / "rss-fetcher"

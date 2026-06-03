@@ -272,6 +272,41 @@ class EmitRecord(SQLModel, table=True):
         return value
 
 
+class ExtensionImportRecord(SQLModel, table=True):
+    __tablename__ = "extension_imports"
+    __table_args__ = (UniqueConstraint("extension_name", "import_path", name="uq_extension_imports_path"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    extension_name: str = Field(index=True)
+    extension_version: str
+    import_path: str = Field(index=True)
+    entity_type: str = Field(index=True)
+    entity_id: str = Field(index=True)
+    entity_ref: str = Field(index=True)
+    content_digest: str
+    imported_entity_digest: str
+    status: str = Field(index=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator(
+        "extension_name",
+        "extension_version",
+        "import_path",
+        "entity_type",
+        "entity_id",
+        "entity_ref",
+        "content_digest",
+        "imported_entity_digest",
+        "status",
+    )
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
 class DagRun(SQLModel, table=True):
     __tablename__ = "dag_runs"
 
@@ -295,8 +330,8 @@ class DagRun(SQLModel, table=True):
     @field_validator("source")
     @classmethod
     def _valid_source(cls, value: str) -> str:
-        if value not in {"startup", "manual", "retry"} and not value.startswith("trigger:"):
-            raise ValueError("source must be startup, manual, retry, or trigger:<name>")
+        if value not in {"manual", "retry"} and not value.startswith("trigger:"):
+            raise ValueError("source must be manual, retry, or trigger:<name>")
         return value
 
     @field_validator("status")

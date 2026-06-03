@@ -427,9 +427,9 @@ async def test_daemon_dag_run_routes_through_emit(tmp_path: Path) -> None:
         def __init__(self) -> None:
             self.calls = []
 
-        async def start_run(self, source, dag_name, payload=None):
-            self.calls.append((source, dag_name, payload))
-            return "run-1"
+        async def emit(self, event, payload=None, *, source="rpc", depth=0):
+            self.calls.append((event, payload, source, depth))
+            return ["run-1"]
 
     controller = Controller()
     daemon.controller = controller
@@ -441,7 +441,7 @@ async def test_daemon_dag_run_routes_through_emit(tmp_path: Path) -> None:
     )
 
     assert response.run_id == "run-1"
-    assert controller.calls == [("manual", "default", {"symbol": "TEST"})]
+    assert controller.calls == [("manual:dag:default", {"symbol": "TEST"}, "dag-service", 0)]
 
 
 @pytest.mark.asyncio

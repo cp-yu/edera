@@ -194,7 +194,12 @@ def _load_runtime_base_config(config_dir: Path) -> AppConfig:
     )
 
 
-async def materialize_runtime_app_config(config_dir: Path, config: AppConfig, engine) -> AppConfig:
+async def materialize_runtime_app_config(
+    config_dir: Path,
+    config: AppConfig,
+    engine,
+    extension_imports: list[tuple[Path, object]] | None = None,
+) -> AppConfig:
     config.entity_types = _runtime_entity_types(config.entity_types)
     from edera_core.storage import session_factory
     from edera_core.storage.repository import (
@@ -207,11 +212,11 @@ async def materialize_runtime_app_config(config_dir: Path, config: AppConfig, en
     factory = session_factory(engine)
     async with factory() as session:
         config.entity_types = await seed_entity_type_records(session, config.entity_types)
-        for trigger in await _default_trigger_entities(session, config.entity_types):
-            from edera_core.storage.repository import get_core_entity, save_core_entity
+        if extension_imports:
+            from edera_core.extension_imports import import_manifest_entities
 
-            if await get_core_entity(session, trigger.id, config.entity_types) is None:
-                await save_core_entity(session, trigger)
+            for extension_root, manifest in extension_imports:
+                await import_manifest_entities(session, extension_root, manifest, config.entity_types)
         for entity in config.entities.entities:
             if entity.type in CORE_ENTITY_TYPES:
                 continue
@@ -498,39 +503,6 @@ def _core_entities_from_config(config: AppConfig, entity_type: str) -> list[Enti
             for dag in config.dags.values()
         ]
     return []
-
-
-async def _default_trigger_entities(session, entity_types: dict[str, EntityTypeConfig]) -> list[EntityConfig]:
-    from edera_core.storage.repository import list_core_entities
-
-    dags = await list_core_entities(session, "dag")
-    triggers = await list_core_entities(session, "trigger")
-    existing = {
-        str(trigger.attributes.get("target"))
-        for trigger in triggers
-        if str(trigger.attributes.get("wait_for")) == 'cron:"*/30 * * * *"'
-    }
-    if "trigger" not in entity_types:
-        return []
-    result: list[EntityConfig] = []
-    for dag in dags:
-        name = str(dag.attributes.get("name") or dag.id)
-        target = f"dag:{name}"
-        if target in existing:
-            continue
-        result.append(
-            EntityConfig(
-                id=f"{name}-default-cron",
-                type="trigger",
-                attributes={
-                    "name": f"{name}-default-cron",
-                    "wait_for": 'cron:"*/30 * * * *"',
-                    "target": target,
-                    "enabled": True,
-                },
-            )
-        )
-    return result
 
 
 def _entity_store_or_none(config_dir: Path):
