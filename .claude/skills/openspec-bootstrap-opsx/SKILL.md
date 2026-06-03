@@ -106,6 +106,11 @@ Treat `openspec/config.yaml` as the source of truth for authoring policy, but co
    - `full` on `raw`: writes the formal OPSX bundle plus one validated spec per mapped capability
    - `full` on `specs-based`: preserves existing specs, adds only missing capability specs, and fails fast on target-path conflicts
    - `refresh` on `formal-opsx`: merges the reviewed delta into the existing formal OPSX bundle, preserves existing specs, adds only missing specs for newly added capabilities, and fails fast on conflicts
+   Promote also runs the programmatic spec frontmatter backfill. After promote, run:
+   ```bash
+   openspec bootstrap backfill-specs --json
+   ```
+   For unmatched specs, spawn a subagent to read the spec content and OPSX capability intents, return semantic matches, then write the returned frontmatter mappings; report any specs that still have no match.
    Retains the bootstrap workspace on success for audit history.
    Start the next refresh run with `openspec bootstrap init --mode refresh --restart`, which snapshots the retained workspace into `openspec/bootstrap-history/`.
 

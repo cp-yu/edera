@@ -39,7 +39,8 @@ If projectRoot or concept is missing, stop and report the missing field instead 
 5. When optionalChangeName is provided, read only that change's proposal.md, design.md, tasks.md, specs/**/*.md, and opsx-delta.yaml if present. Do not inspect unrelated active changes.
 6. Use git ls-files as the repository search boundary when available. Exclude openspec/changes/archive/**.
 7. Perform repo-wide reverse search across tracked files for mapped project terms, exported symbols, workflow names, skill names, command names, configuration keys, template fragment names, and path references.
-8. Do not rely only on OPSX code-map paths. Classify findings into mustChange, mustCheck, coverageGaps, and questions.
+8. Scan openspec/specs/*/spec.md YAML frontmatter and build a cap→spec mapping from declared capabilities. Add specs linked to affected caps to mustCheck with the frontmatter path as evidence.
+9. Do not rely only on OPSX code-map paths. Classify findings into mustChange, mustCheck, coverageGaps, and questions.
 
 ## Write Boundary
 

@@ -114,6 +114,7 @@ Before Phase 0 implementation:
 For each pending coarse task:
 - Read Goal, Files, Requirements, and Checks from `tasks.md`.
 - Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
+- Before implementing a capability, run `openspec spec list --json`, build the cap→spec mapping from each spec's `capabilities` field, read every spec linked to the affected cap, and confirm whether the change-local delta spec must be updated.
 - For behavior or code Checks, add or update the targeted test before implementation.
 - Run the declared Check command or equivalent targeted command and confirm the expected failure before implementation.
 - Make the minimal implementation needed for that Check.

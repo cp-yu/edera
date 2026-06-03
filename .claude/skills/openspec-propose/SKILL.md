@@ -82,6 +82,12 @@ Before reading other context files, check whether `openspec/project.opsx.yaml` e
 
 4. **Create artifacts in sequence until apply-ready**
 
+   Before creating specs, run:
+   ```bash
+   openspec spec list --json
+   ```
+   Use each spec's `capabilities` field to compare proposed capabilities against existing specs. Reuse or modify the matching spec when it already covers the capability instead of creating a redundant spec.
+
    Use the **TodoWrite tool** to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):

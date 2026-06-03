@@ -31,9 +31,13 @@ openspec bootstrap validate
 
 # Promote to formal OPSX (after review)
 openspec bootstrap promote -y
+
+# Backfill spec frontmatter independently
+openspec bootstrap backfill-specs --json
 ```
 
 Each phase produces intermediate artifacts in `openspec/bootstrap/`.
+Promote also runs backfill-specs after promotion.
 The workspace is retained after promote as audit history.
 Use `openspec bootstrap init --mode refresh --restart` for the next run; it snapshots the retained workspace into `openspec/bootstrap-history/` before creating a fresh workspace.
 
@@ -43,4 +47,5 @@ Use `openspec bootstrap init --mode refresh --restart` for the next run; it snap
 - `openspec bootstrap status [--json]` — phase progress + per-domain status
 - `openspec bootstrap instructions [phase] [--json]` — phase-specific guidance
 - `openspec bootstrap validate [--json]` — gate validation + auto-advance
-- `openspec bootstrap promote [-y]` — re-validate, write formal OPSX, then retain the workspace as audit history
+- `openspec bootstrap promote [-y]` — re-validate, write formal OPSX, also runs backfill-specs after promotion, then retain the workspace as audit history
+- `openspec bootstrap backfill-specs [--json]` — backfill spec frontmatter capability mappings
