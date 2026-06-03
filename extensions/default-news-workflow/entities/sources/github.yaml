@@ -1,0 +1,7 @@
+id: source-github
+type: api-source
+attributes:
+  name: github
+  base_url: https://news.yltfspace.com/api/news
+  params:
+    platform: github

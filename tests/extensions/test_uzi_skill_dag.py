@@ -6,10 +6,11 @@ import pytest
 
 from edera_core.bootstrap import scan_extensions
 from edera_core.config.entities import EntityStore
-from edera_core.config.loader import load_app_config
+from edera_core.config.loader import load_runtime_app_config
 from edera_core.dag.loader import load_graph, topological_layers
 from edera_core.dag.runner import DagRunner
 from edera_core.node.executor import NodeExecutor
+from edera_core.storage import create_engine, init_db, sqlite_url
 from edera_types import NodeOutput
 
 
@@ -20,8 +21,9 @@ def test_extension_manifest_loads() -> None:
     assert any(item.name == "uzi-skill" for item in result.manifests)
 
 
-def test_uzi_skill_dag_loads() -> None:
-    config = load_app_config(Path("config"))
+@pytest.mark.asyncio
+async def test_uzi_skill_dag_loads(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
     graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
 
     assert len(graph.nodes) >= 45
@@ -29,8 +31,9 @@ def test_uzi_skill_dag_loads() -> None:
     assert topological_layers(graph)
 
 
-def test_uzi_skill_dag_uses_business_node_types() -> None:
-    config = load_app_config(Path("config"))
+@pytest.mark.asyncio
+async def test_uzi_skill_dag_uses_business_node_types(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
     instances = config.dags["uzi-skill-analysis"].nodes
     uzi_types = {name for name in config.nodes if name.startswith("uzi-")}
 
@@ -41,14 +44,17 @@ def test_uzi_skill_dag_uses_business_node_types() -> None:
     assert {config.nodes[instance.type].handler for instance in instances} == {"legacy-script-adapter"}
 
 
-def test_resource_entity_resolves() -> None:
-    resource = EntityStore().resolve("v8_isolate")
+@pytest.mark.asyncio
+async def test_resource_entity_resolves(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
+    resource = EntityStore(config.entities, config.entity_types, config.entity_relations).resolve("v8_isolate")
 
     assert resource.attributes["permits"] == 1
 
 
-def test_mini_racer_fetchers_use_v8_isolate_resource() -> None:
-    config = load_app_config(Path("config"))
+@pytest.mark.asyncio
+async def test_mini_racer_fetchers_use_v8_isolate_resource(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
     graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
 
     assert graph.instances["7_industry"].resource == "v8_isolate"
@@ -99,7 +105,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         "def assemble(payload): return {'report_path': '/tmp/uzi-skill-report.html'}\n",
         encoding="utf-8",
     )
-    config = load_app_config(Path("config"))
+    config = await _runtime_config(tmp_path)
     bootstrap = scan_extensions([Path("extensions")], Path("config"))
     graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
     _use_mock_script(graph, script)
@@ -130,8 +136,8 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
 
 
 @pytest.mark.asyncio
-async def test_full_dag_mock() -> None:
-    config = load_app_config(Path("config"))
+async def test_full_dag_mock(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
     bootstrap = scan_extensions([Path("extensions")], Path("config"))
     graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
     _use_mock_script(graph, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
@@ -151,3 +157,27 @@ async def test_full_dag_mock() -> None:
     assert result.failures == {}
     assert result.node_outputs["assemble_report"].ok is True
     assert result.node_outputs["assemble_report"].payload["report_path"]
+
+
+@pytest.mark.asyncio
+async def test_uzi_workflow_import_boundary(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
+    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
+    trigger = store.resolve("trigger:uzi-skill-analysis-default-cron")
+
+    assert not Path("config/dags/uzi-skill-analysis.yaml").exists()
+    assert not Path("config/triggers/uzi-skill-analysis-default-cron.yaml").exists()
+    assert not any(Path("config/nodes").glob("uzi-*.yaml"))
+    assert trigger.attributes["wait_for"] == 'cron:"*/30 * * * *"'
+    assert trigger.attributes["target"] == "dag:uzi-skill-analysis"
+    assert trigger.attributes["enabled"] is True
+
+
+async def _runtime_config(tmp_path: Path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    try:
+        await init_db(engine)
+        return await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
+    finally:
+        await engine.dispose()

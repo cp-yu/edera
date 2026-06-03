@@ -1,8 +1,64 @@
 name: uzi-skill
 version: 0.1.0
 handlers:
-  - name: legacy-script-adapter
-    entry: adapter.py
-    role: processor
-    input_type: Any
-    output_type: Any
+- name: legacy-script-adapter
+  entry: adapter.py
+  role: processor
+  input_type: Any
+  output_type: Any
+imports:
+  entities:
+  - entities/dags/uzi-skill-analysis.yaml
+  - entities/nodes/uzi-assemble-report.yaml
+  - entities/nodes/uzi-autofill-mx.yaml
+  - entities/nodes/uzi-autofill-playwright.yaml
+  - entities/nodes/uzi-fetch-basic.yaml
+  - entities/nodes/uzi-fetch-capital-flow.yaml
+  - entities/nodes/uzi-fetch-competitors.yaml
+  - entities/nodes/uzi-fetch-dividend.yaml
+  - entities/nodes/uzi-fetch-estimates.yaml
+  - entities/nodes/uzi-fetch-events.yaml
+  - entities/nodes/uzi-fetch-financials.yaml
+  - entities/nodes/uzi-fetch-futures.yaml
+  - entities/nodes/uzi-fetch-industry.yaml
+  - entities/nodes/uzi-fetch-insider.yaml
+  - entities/nodes/uzi-fetch-liquidity.yaml
+  - entities/nodes/uzi-fetch-macro.yaml
+  - entities/nodes/uzi-fetch-market.yaml
+  - entities/nodes/uzi-fetch-moneyflow.yaml
+  - entities/nodes/uzi-fetch-news.yaml
+  - entities/nodes/uzi-fetch-ownership.yaml
+  - entities/nodes/uzi-fetch-policy.yaml
+  - entities/nodes/uzi-fetch-regulatory.yaml
+  - entities/nodes/uzi-fetch-risk.yaml
+  - entities/nodes/uzi-fetch-sentiment.yaml
+  - entities/nodes/uzi-fetch-shareholder.yaml
+  - entities/nodes/uzi-fetch-technical.yaml
+  - entities/nodes/uzi-fetch-valuation.yaml
+  - entities/nodes/uzi-generate-panel.yaml
+  - entities/nodes/uzi-generate-synthesis.yaml
+  - entities/nodes/uzi-preflight.yaml
+  - entities/nodes/uzi-render-capital-flow.yaml
+  - entities/nodes/uzi-render-competitors.yaml
+  - entities/nodes/uzi-render-dividend.yaml
+  - entities/nodes/uzi-render-estimates.yaml
+  - entities/nodes/uzi-render-events.yaml
+  - entities/nodes/uzi-render-financials.yaml
+  - entities/nodes/uzi-render-futures.yaml
+  - entities/nodes/uzi-render-industry.yaml
+  - entities/nodes/uzi-render-insider.yaml
+  - entities/nodes/uzi-render-liquidity.yaml
+  - entities/nodes/uzi-render-macro.yaml
+  - entities/nodes/uzi-render-market.yaml
+  - entities/nodes/uzi-render-moneyflow.yaml
+  - entities/nodes/uzi-render-news.yaml
+  - entities/nodes/uzi-render-policy.yaml
+  - entities/nodes/uzi-render-risk.yaml
+  - entities/nodes/uzi-render-sentiment.yaml
+  - entities/nodes/uzi-render-shareholder.yaml
+  - entities/nodes/uzi-render-summary.yaml
+  - entities/nodes/uzi-render-technical.yaml
+  - entities/nodes/uzi-render-valuation.yaml
+  - entities/nodes/uzi-score-dimensions.yaml
+  - entities/triggers/uzi-skill-analysis-default-cron.yaml
+  - entities/resources/v8_isolate.yaml

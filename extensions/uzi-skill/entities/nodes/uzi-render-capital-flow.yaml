@@ -1,0 +1,14 @@
+id: uzi-render-capital-flow
+type: node
+attributes:
+  name: uzi-render-capital-flow
+  type: function
+  role: processor
+  handler: legacy-script-adapter
+  input_type: Any
+  output_type: Any
+  parameters:
+    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/lib/pipeline/renderer/capital_flow.py
+    function: render
+    args_map:
+    - source: input

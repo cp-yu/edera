@@ -1,0 +1,14 @@
+id: uzi-fetch-ownership
+type: node
+attributes:
+  name: uzi-fetch-ownership
+  type: function
+  role: processor
+  handler: legacy-script-adapter
+  input_type: Any
+  output_type: Any
+  parameters:
+    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/fetch_fund_holders.py
+    function: main
+    args_map:
+    - source: input.ticker

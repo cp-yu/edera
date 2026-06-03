@@ -9,5 +9,5 @@ def test_load_entities() -> None:
     refs = {f"{entity.type}:{entity.attributes[schemas[entity.type].business_id_field]}" for entity in entities.entities}
     assert "stock:00700.HK" in refs
     assert "stock:00100.HK" in refs
-    assert "rss-source:hn-rss" in refs
-    assert "api-source:cls-telegraph" in refs
+    assert "rss-source:hn-rss" not in refs
+    assert "api-source:cls-telegraph" not in refs

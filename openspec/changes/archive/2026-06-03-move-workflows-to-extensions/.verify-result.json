@@ -1,0 +1,351 @@
+{
+  "timestamp": "2026-06-03T08:50:39.200Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Manifest validation rejects invalid input, but no concrete error-log evidence was found for the required diagnostics.",
+      "requirement": "Manifest 文件解析",
+      "recommendation": "Add explicit logging around manifest required-field and handler-schema validation failures, or revise the requirement if exception text is the intended diagnostic.",
+      "evidenceCitations": [
+        "openspec/changes/move-workflows-to-extensions/specs/extension-manifest-system/spec.md:12-20",
+        "packages/core/src/edera_core/manifest.py:60-70",
+        "packages/core/src/edera_core/manifest.py:91-104",
+        "packages/core/src/edera_core/bootstrap.py:53-56"
+      ]
+    }
+  ],
+  "tasksFileHash": "8726ab68bd2c1440b968ab6b85d4beab23cf6536243c9c729bc01dcbf72e2836",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "config/entities.yaml",
+      "extensions/default-news-workflow/entities/dags/default.yaml",
+      "extensions/default-news-workflow/entities/triggers/default-default-cron.yaml",
+      "extensions/default-news-workflow/manifest.yaml",
+      "extensions/uzi-skill/entities/dags/uzi-skill-analysis.yaml",
+      "extensions/uzi-skill/entities/resources/v8_isolate.yaml",
+      "extensions/uzi-skill/entities/triggers/uzi-skill-analysis-default-cron.yaml",
+      "extensions/uzi-skill/manifest.yaml",
+      "openspec/changes/move-workflows-to-extensions/design.md",
+      "openspec/changes/move-workflows-to-extensions/opsx-delta.yaml",
+      "openspec/changes/move-workflows-to-extensions/proposal.md",
+      "openspec/changes/move-workflows-to-extensions/specs/default-news-workflow/spec.md",
+      "openspec/changes/move-workflows-to-extensions/specs/extension-manifest-system/spec.md",
+      "openspec/changes/move-workflows-to-extensions/specs/uzi-skill-dag-instance/spec.md",
+      "openspec/changes/move-workflows-to-extensions/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/bootstrap.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/extension_imports.py",
+      "packages/core/src/edera_core/manifest.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/test_core_extension_runtime.py",
+      "tests/core/unit/test_entities_config.py",
+      "tests/extensions/test_default_news_workflow.py",
+      "tests/extensions/test_uzi_skill_dag.py"
+    ],
+    "evidenceFingerprint": "5b8958bf46bf378cee20d23468791fa1c493c7334097e8d73dbd26da545e27f2",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "config/entities.yaml",
+        "hash": "d126eed4e34690891c5d1ab74d1121caf8ca650d3d349991ccb8e862122425e5"
+      },
+      {
+        "path": "extensions/default-news-workflow/entities/dags/default.yaml",
+        "hash": "1535674667ffed0b6fd110af2c9997390ac4b9cc2002e2ac7aa5d56c61ed9710"
+      },
+      {
+        "path": "extensions/default-news-workflow/entities/triggers/default-default-cron.yaml",
+        "hash": "0336f66d1935da58dd7c831a6342d68f29909119cd061164bcb323576c29024a"
+      },
+      {
+        "path": "extensions/default-news-workflow/manifest.yaml",
+        "hash": "6afe728690334f7f897ccc5303669f19b1c9e4bd58a07830a82d85585889c22f"
+      },
+      {
+        "path": "extensions/uzi-skill/entities/dags/uzi-skill-analysis.yaml",
+        "hash": "7bbaf5a4a5eaf77d490c9af2e2e0e62d13f0ab36feb35fe88a4a2e78d55caa4a"
+      },
+      {
+        "path": "extensions/uzi-skill/entities/resources/v8_isolate.yaml",
+        "hash": "fbe2751eb347ef4ddc54eb2a71f4e9beb0d305b93459865fb442f8fedff40237"
+      },
+      {
+        "path": "extensions/uzi-skill/entities/triggers/uzi-skill-analysis-default-cron.yaml",
+        "hash": "7286763d0f514f521ef9356de7040150604525d08347a8b887833e93299552ee"
+      },
+      {
+        "path": "extensions/uzi-skill/manifest.yaml",
+        "hash": "45aeeb4cd8c1ce2446bec793cfe8f2eb33594baf2c1a6464b58b791ea2754a14"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/design.md",
+        "hash": "941717470fd190aca54a8caea76dca1cc976077b7898b8415b7f8756a8c9f0b0"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/opsx-delta.yaml",
+        "hash": "e2c720f67088abf59175c83cf0e7d9b88b809453e275552f444ac4e509108433"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/proposal.md",
+        "hash": "95a0458cb6d0b2bdfc20e1fee15d30e41d772c7844a149dcfdb59747142b5390"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/specs/default-news-workflow/spec.md",
+        "hash": "325f910f785920b00b63af26db48ded55e69e1eda24f3b958dd217be1106aeac"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/specs/extension-manifest-system/spec.md",
+        "hash": "f0c273a428c36e1e6a43117ad976895faf019b05444689456be345c8dcefb950"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/specs/uzi-skill-dag-instance/spec.md",
+        "hash": "6cce92ae3461165e61b8af4e160c8502e044ee376e9e8d95f741ec0060ad8439"
+      },
+      {
+        "path": "openspec/changes/move-workflows-to-extensions/tasks.md",
+        "hash": "8726ab68bd2c1440b968ab6b85d4beab23cf6536243c9c729bc01dcbf72e2836"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "24011c5a373554d4114123c16b6281b8610b3948107db300f29d1663f22b34a4"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "74a28e24f6a25d458ecad651928bf88476ad9e858afc6dd81be52a876a35640e"
+      },
+      {
+        "path": "packages/core/src/edera_core/bootstrap.py",
+        "hash": "9b3a56eaa2c2df3cf0b3e9bfc0dd6d5372817fcee2ea894535da4beb9200da93"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "411a41da4cdc5c801708571a5cf26038de43ecca6ea84697b4eda2a34a46d207"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "be5897930b42b165edc09e886009c38cb2a407dd438cebb9e6b0a792f42fbbd9"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_imports.py",
+        "hash": "2614124e7680756c2b2d8fdc3036db1c5e1fc2cbc610db6887783186038a7778"
+      },
+      {
+        "path": "packages/core/src/edera_core/manifest.py",
+        "hash": "972864a544b256ea96891cfb97323472bc70d54d1625b2c61256f02f9eb49c07"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "daa973a54b7a85f10288aad0c8d7e2e141a39ecf3272b60e03a201ea6c7fea44"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "dc543db9ffa479f00043e25077d7a0d431f52840de637f30f0055b1c8dee9e53"
+      },
+      {
+        "path": "tests/core/test_core_extension_runtime.py",
+        "hash": "e77853cf1b6ba3e809ec2f4671371198f120d4000dd4e9d3adaf764eb25098c4"
+      },
+      {
+        "path": "tests/core/unit/test_entities_config.py",
+        "hash": "329af1b453dc49b52977f18f596b4c1b8af14c643081c7e5fccd3fbb7d65ed89"
+      },
+      {
+        "path": "tests/extensions/test_default_news_workflow.py",
+        "hash": "af1e079ad0c42724dc637a5a291bcdceb6314a690368b2d91fee4da599eda0eb"
+      },
+      {
+        "path": "tests/extensions/test_uzi_skill_dag.py",
+        "hash": "7dfe5931203581ca241ca30f71357c041f37e25795b8b84c5d90ede23488e097"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "6ddfc09d43ccb0199b5f8944d1d4213c4864ba89"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-03T08:52:58.502Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-03T08:50:39.200Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Manifest validation rejects invalid input, but no concrete error-log evidence was found for the required diagnostics.",
+          "requirement": "Manifest 文件解析",
+          "recommendation": "Add explicit logging around manifest required-field and handler-schema validation failures, or revise the requirement if exception text is the intended diagnostic.",
+          "evidenceCitations": [
+            "openspec/changes/move-workflows-to-extensions/specs/extension-manifest-system/spec.md:12-20",
+            "packages/core/src/edera_core/manifest.py:60-70",
+            "packages/core/src/edera_core/manifest.py:91-104",
+            "packages/core/src/edera_core/bootstrap.py:53-56"
+          ]
+        }
+      ],
+      "tasksFileHash": "8726ab68bd2c1440b968ab6b85d4beab23cf6536243c9c729bc01dcbf72e2836",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "config/entities.yaml",
+          "extensions/default-news-workflow/entities/dags/default.yaml",
+          "extensions/default-news-workflow/entities/triggers/default-default-cron.yaml",
+          "extensions/default-news-workflow/manifest.yaml",
+          "extensions/uzi-skill/entities/dags/uzi-skill-analysis.yaml",
+          "extensions/uzi-skill/entities/resources/v8_isolate.yaml",
+          "extensions/uzi-skill/entities/triggers/uzi-skill-analysis-default-cron.yaml",
+          "extensions/uzi-skill/manifest.yaml",
+          "openspec/changes/move-workflows-to-extensions/design.md",
+          "openspec/changes/move-workflows-to-extensions/opsx-delta.yaml",
+          "openspec/changes/move-workflows-to-extensions/proposal.md",
+          "openspec/changes/move-workflows-to-extensions/specs/default-news-workflow/spec.md",
+          "openspec/changes/move-workflows-to-extensions/specs/extension-manifest-system/spec.md",
+          "openspec/changes/move-workflows-to-extensions/specs/uzi-skill-dag-instance/spec.md",
+          "openspec/changes/move-workflows-to-extensions/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/bootstrap.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/extension_imports.py",
+          "packages/core/src/edera_core/manifest.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/test_core_extension_runtime.py",
+          "tests/core/unit/test_entities_config.py",
+          "tests/extensions/test_default_news_workflow.py",
+          "tests/extensions/test_uzi_skill_dag.py"
+        ],
+        "evidenceFingerprint": "f219439a836d0c76fc452af46b17afe57d6443b8fe84912b35cff9bbfa3af372",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "config/entities.yaml",
+            "hash": "d126eed4e34690891c5d1ab74d1121caf8ca650d3d349991ccb8e862122425e5"
+          },
+          {
+            "path": "extensions/default-news-workflow/entities/dags/default.yaml",
+            "hash": "1535674667ffed0b6fd110af2c9997390ac4b9cc2002e2ac7aa5d56c61ed9710"
+          },
+          {
+            "path": "extensions/default-news-workflow/entities/triggers/default-default-cron.yaml",
+            "hash": "0336f66d1935da58dd7c831a6342d68f29909119cd061164bcb323576c29024a"
+          },
+          {
+            "path": "extensions/default-news-workflow/manifest.yaml",
+            "hash": "6afe728690334f7f897ccc5303669f19b1c9e4bd58a07830a82d85585889c22f"
+          },
+          {
+            "path": "extensions/uzi-skill/entities/dags/uzi-skill-analysis.yaml",
+            "hash": "7bbaf5a4a5eaf77d490c9af2e2e0e62d13f0ab36feb35fe88a4a2e78d55caa4a"
+          },
+          {
+            "path": "extensions/uzi-skill/entities/resources/v8_isolate.yaml",
+            "hash": "fbe2751eb347ef4ddc54eb2a71f4e9beb0d305b93459865fb442f8fedff40237"
+          },
+          {
+            "path": "extensions/uzi-skill/entities/triggers/uzi-skill-analysis-default-cron.yaml",
+            "hash": "7286763d0f514f521ef9356de7040150604525d08347a8b887833e93299552ee"
+          },
+          {
+            "path": "extensions/uzi-skill/manifest.yaml",
+            "hash": "45aeeb4cd8c1ce2446bec793cfe8f2eb33594baf2c1a6464b58b791ea2754a14"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/design.md",
+            "hash": "941717470fd190aca54a8caea76dca1cc976077b7898b8415b7f8756a8c9f0b0"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/opsx-delta.yaml",
+            "hash": "e2c720f67088abf59175c83cf0e7d9b88b809453e275552f444ac4e509108433"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/proposal.md",
+            "hash": "95a0458cb6d0b2bdfc20e1fee15d30e41d772c7844a149dcfdb59747142b5390"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/specs/default-news-workflow/spec.md",
+            "hash": "325f910f785920b00b63af26db48ded55e69e1eda24f3b958dd217be1106aeac"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/specs/extension-manifest-system/spec.md",
+            "hash": "f0c273a428c36e1e6a43117ad976895faf019b05444689456be345c8dcefb950"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/specs/uzi-skill-dag-instance/spec.md",
+            "hash": "6cce92ae3461165e61b8af4e160c8502e044ee376e9e8d95f741ec0060ad8439"
+          },
+          {
+            "path": "openspec/changes/move-workflows-to-extensions/tasks.md",
+            "hash": "8726ab68bd2c1440b968ab6b85d4beab23cf6536243c9c729bc01dcbf72e2836"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "ba81e01970af4970a64f5a39e97e6d313e2d9d89c8ac22d913d1f278038d8c36"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "ec35856548147891771a766b71966ab6605d86eae876d7de0091a5b4e11ec269"
+          },
+          {
+            "path": "packages/core/src/edera_core/bootstrap.py",
+            "hash": "9b3a56eaa2c2df3cf0b3e9bfc0dd6d5372817fcee2ea894535da4beb9200da93"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "411a41da4cdc5c801708571a5cf26038de43ecca6ea84697b4eda2a34a46d207"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "be5897930b42b165edc09e886009c38cb2a407dd438cebb9e6b0a792f42fbbd9"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_imports.py",
+            "hash": "2614124e7680756c2b2d8fdc3036db1c5e1fc2cbc610db6887783186038a7778"
+          },
+          {
+            "path": "packages/core/src/edera_core/manifest.py",
+            "hash": "972864a544b256ea96891cfb97323472bc70d54d1625b2c61256f02f9eb49c07"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "daa973a54b7a85f10288aad0c8d7e2e141a39ecf3272b60e03a201ea6c7fea44"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "dc543db9ffa479f00043e25077d7a0d431f52840de637f30f0055b1c8dee9e53"
+          },
+          {
+            "path": "tests/core/test_core_extension_runtime.py",
+            "hash": "e77853cf1b6ba3e809ec2f4671371198f120d4000dd4e9d3adaf764eb25098c4"
+          },
+          {
+            "path": "tests/core/unit/test_entities_config.py",
+            "hash": "329af1b453dc49b52977f18f596b4c1b8af14c643081c7e5fccd3fbb7d65ed89"
+          },
+          {
+            "path": "tests/extensions/test_default_news_workflow.py",
+            "hash": "af1e079ad0c42724dc637a5a291bcdceb6314a690368b2d91fee4da599eda0eb"
+          },
+          {
+            "path": "tests/extensions/test_uzi_skill_dag.py",
+            "hash": "7dfe5931203581ca241ca30f71357c041f37e25795b8b84c5d90ede23488e097"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "6ddfc09d43ccb0199b5f8944d1d4213c4864ba89"
+      }
+    }
+  }
+}

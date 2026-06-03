@@ -125,7 +125,7 @@ capabilities:
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability
   - id: cap.core.extension-manifest-system
-    intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor、依赖校验和 imports.entities 导入声明解析；扫描阶段不写 DB 实例
+    intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor、依赖校验、imports.entities 导入声明解析和 workflow package 显式 ownership 边界
     type: capability
   - id: cap.core.core-bootstrap
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
@@ -174,7 +174,7 @@ capabilities:
     intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
     type: capability
   - id: cap.core.uzi-skill-dag-instance
-    intent: UZI-Skill 分析管道的 DAG 实例配置，覆盖节点声明、边拓扑、resource 引用和 fan-in 模式
+    intent: UZI-Skill 分析管道的 DAG 实例配置由 extensions/uzi-skill manifest imports 拥有，覆盖节点声明、边拓扑、resource 引用、cron trigger 和 fan-in 模式
     type: capability
   - id: cap.core.legacy-script-adapter
     intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
@@ -282,4 +282,7 @@ capabilities:
     type: capability
   - id: cap.core.extension-entity-imports
     intent: Extension manifest 声明 imports.entities 后由独立 importer 自动导入 Entity 实例一次，并通过 extension_imports 记录导入状态、digest 和未来卸载依据
+    type: capability
+  - id: cap.core.default-news-workflow
+    intent: 默认新闻工作流作为 extension-owned package 导入 default DAG、默认节点、默认 cron trigger 和 DAG 直接引用的信息源 seed Entity
     type: capability

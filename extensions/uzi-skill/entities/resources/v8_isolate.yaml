@@ -1,0 +1,5 @@
+id: v8_isolate
+type: resource
+attributes:
+  id: v8_isolate
+  permits: 1

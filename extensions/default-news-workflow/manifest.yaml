@@ -1,0 +1,25 @@
+name: default-news-workflow
+version: 0.1.0
+depends:
+- rss-fetcher
+- api-fetcher
+- reader
+- advisor
+- briefing-generator
+- notifier
+imports:
+  entities:
+  - entities/dags/default.yaml
+  - entities/nodes/rss-fetcher.yaml
+  - entities/nodes/api-fetcher.yaml
+  - entities/nodes/reader.yaml
+  - entities/nodes/advisor.yaml
+  - entities/nodes/briefing-generator.yaml
+  - entities/nodes/notifier.yaml
+  - entities/triggers/default-default-cron.yaml
+  - entities/sources/hn-rss.yaml
+  - entities/sources/cls-telegraph.yaml
+  - entities/sources/jqka.yaml
+  - entities/sources/solidot.yaml
+  - entities/sources/ithome.yaml
+  - entities/sources/github.yaml

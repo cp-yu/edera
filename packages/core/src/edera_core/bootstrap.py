@@ -68,7 +68,7 @@ def scan_extensions(
             _register_fallback_handlers(handlers, child)
     merged = extension_entity_types
     if config_dir is not None:
-        merged = {**merged, **load_entity_types(config_dir)}
+        merged = {**load_entity_types(config_dir), **merged}
     return BootstrapResult(handlers.seal(), EntityTypeRegistry(merged), manifests, storage_tables, table_names, extension_roots)
 
 
