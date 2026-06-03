@@ -1,0 +1,14 @@
+id: uzi-render-industry
+type: node
+attributes:
+  name: uzi-render-industry
+  type: function
+  role: processor
+  handler: legacy-script-adapter
+  input_type: Any
+  output_type: Any
+  parameters:
+    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/lib/pipeline/renderer/industry.py
+    function: render
+    args_map:
+    - source: input

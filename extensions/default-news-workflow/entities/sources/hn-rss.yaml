@@ -1,0 +1,5 @@
+id: source-hn-rss
+type: rss-source
+attributes:
+  name: hn-rss
+  url: https://news.ycombinator.com/rss

@@ -183,3 +183,12 @@ relations:
   - from: cap.core.extension-entity-imports
     type: depends_on
     to: cap.core.db-backed-core-entities
+  - from: cap.core.default-news-workflow
+    type: contains
+    to: dom.core
+  - from: cap.core.default-news-workflow
+    type: depends_on
+    to: cap.core.extension-manifest-system
+  - from: cap.core.default-news-workflow
+    type: depends_on
+    to: cap.trigger-system

@@ -12,7 +12,7 @@ entity_types:
     display_name: RSS 信息源
     business_id_field: name
     display_template: "{name}"
-    storage_tier: filesystem
+    storage_tier: database
     schema:
       type: object
       required: [name, url]

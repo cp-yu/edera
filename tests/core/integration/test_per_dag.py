@@ -8,7 +8,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 import edera_core.dag_controller as dag_controller_module
+from edera_core.bootstrap import scan_extensions
 from edera_core.config.schema import EntityConfig
+from edera_core.config.loader import _load_runtime_base_config
 from edera_core.errors import DagError
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
@@ -33,6 +35,7 @@ class FakeController(DagController):
         self.engine = create_engine(sqlite_url(self.config_dir / "test.db"))
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
+        await self.install_snapshot(_load_runtime_base_config(self.config_dir), scan_extensions(self.extensions_dirs, self.config_dir))
         self.scheduler.start()
 
     async def start_run(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
@@ -334,7 +337,7 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
             super().__init__(config_dir)
             self.calls = []
 
-        async def _run_single_node(self, run_id, source, dag_name, instance, payload, stop_event):
+        async def _run_single_node(self, run_id, source, dag_name, instance, payload, stop_event, snapshot=None):
             self.calls.append((run_id, source, dag_name, payload))
             await asyncio.sleep(60)
 
@@ -793,6 +796,8 @@ async def test_bff_grpc_client_initializes_web_console_certificate(monkeypatch: 
             return None
 
     monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setenv("EDERA_DATA_DIR", str(tmp_path))
+    (tmp_path / "bootstrap.json").write_text('{"host":"127.0.0.1","port":9091}', encoding="utf-8")
     monkeypatch.setattr(web_main, "GrpcClient", CertGrpcClient)
 
     grpc = await web_main._bff_grpc_client()
@@ -907,6 +912,8 @@ async def test_bff_lifespan_initializes_grpc_client_without_nested_event_loop(
             closed = True
 
     monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setenv("EDERA_DATA_DIR", str(tmp_path))
+    (tmp_path / "bootstrap.json").write_text('{"host":"127.0.0.1","port":9091}', encoding="utf-8")
     monkeypatch.setattr(web_main, "GrpcClient", CertGrpcClient)
     app = create_app(await web_main._bff_grpc_client())
 
@@ -989,6 +996,7 @@ async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
         blocker = asyncio.create_task(asyncio.sleep(0.2))
         default_dag = tmp_path / "dags" / "default.yaml"
         default_dag.write_text("name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n", encoding="utf-8")
+        await ctrl.install_snapshot(_load_runtime_base_config(tmp_path), scan_extensions(ctrl.extensions_dirs, tmp_path))
         ctrl.active_runs["default"] = DagRunContext("default", "run-default", blocker)
         pending = asyncio.create_task(ctrl.start_run("manual", "reflection", {"target": "node-a"}))
         await asyncio.sleep(0.05)

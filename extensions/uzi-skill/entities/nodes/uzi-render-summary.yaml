@@ -1,0 +1,14 @@
+id: uzi-render-summary
+type: node
+attributes:
+  name: uzi-render-summary
+  type: function
+  role: processor
+  handler: legacy-script-adapter
+  input_type: Any
+  output_type: Any
+  parameters:
+    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/lib/pipeline/renderer/basic_header.py
+    function: render
+    args_map:
+    - source: input

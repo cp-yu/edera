@@ -174,8 +174,19 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
     )
 
 
-async def load_runtime_app_config(config_dir: Path, engine) -> AppConfig:
-    return await materialize_runtime_app_config(config_dir, _load_runtime_base_config(config_dir), engine)
+async def load_runtime_app_config(config_dir: Path, engine, extensions_dirs: list[Path] | None = None) -> AppConfig:
+    config = _load_runtime_base_config(config_dir)
+    extensions_dirs = extensions_dirs if extensions_dirs is not None else _default_extensions_dirs(config_dir)
+    from edera_core.bootstrap import scan_extensions
+
+    bootstrap = scan_extensions(extensions_dirs, config_dir)
+    config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+    extension_imports = [
+        (bootstrap.extension_roots[manifest.name], manifest)
+        for manifest in bootstrap.manifests
+        if manifest.entity_imports
+    ]
+    return await materialize_runtime_app_config(config_dir, config, engine, extension_imports)
 
 
 def _load_runtime_base_config(config_dir: Path) -> AppConfig:
@@ -192,6 +203,12 @@ def _load_runtime_base_config(config_dir: Path) -> AppConfig:
         skills=load_skill_configs(config_dir / "skills"),
         dags={},
     )
+
+
+def _default_extensions_dirs(config_dir: Path) -> list[Path]:
+    local = config_dir / "extensions"
+    sibling = config_dir.parent / "extensions"
+    return [local, sibling] if local != sibling else [local]
 
 
 async def materialize_runtime_app_config(
@@ -212,6 +229,10 @@ async def materialize_runtime_app_config(
     factory = session_factory(engine)
     async with factory() as session:
         config.entity_types = await seed_entity_type_records(session, config.entity_types)
+        from edera_core.storage.repository import save_core_entity
+
+        for entity in _top_level_core_entities(config_dir):
+            await save_core_entity(session, entity)
         if extension_imports:
             from edera_core.extension_imports import import_manifest_entities
 
@@ -247,6 +268,21 @@ async def materialize_runtime_app_config(
     validate_sub_dag_nesting(config.dags, config.system.max_dag_depth)
     _validate_dag_entity_permissions(config.dags, config.entity_types)
     return config
+
+
+def _top_level_core_entities(config_dir: Path) -> list[EntityConfig]:
+    entities: list[EntityConfig] = []
+    for entity_type, directory_name in (
+        ("node", "nodes"),
+        ("dag", "dags"),
+        ("trigger", "triggers"),
+        ("resource", "resources"),
+    ):
+        directory = config_dir / directory_name
+        if not directory.exists():
+            continue
+        entities.extend(_entity_from_file(file, entity_type) for file in sorted(directory.glob("*.yaml")))
+    return entities
 
 
 def _load_non_core_entities_config(

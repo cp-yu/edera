@@ -504,13 +504,18 @@ def core_node_to_entity(row: CoreEntityNode) -> EntityConfig:
             "input_type": row.input_type,
             "output_type": row.output_type,
             "optional": row.optional,
-            "skills": row.skills,
-            "tools": row.tools,
-            "source_names": row.source_names,
-            "parameters": row.parameters,
-            "parameters_schema": row.parameters_schema,
         }
     )
+    if row.node_type in {"function", "agent"}:
+        attrs.update(
+            {
+                "skills": row.skills,
+                "tools": row.tools,
+                "parameters_schema": row.parameters_schema,
+            }
+        )
+    if row.node_type == "function":
+        attrs.update({"source_names": row.source_names, "parameters": row.parameters})
     _set_if_not_none(attrs, "timeout_seconds", row.timeout_seconds)
     _set_if_not_none(attrs, "handler", row.handler)
     _set_if_not_none(attrs, "system_prompt_file", row.system_prompt_file)

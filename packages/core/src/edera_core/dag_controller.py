@@ -11,7 +11,8 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from edera_core.config.loader import load_runtime_app_config, load_system_config, materialize_runtime_app_config
+from edera_core.config.loader import _load_runtime_base_config, load_runtime_app_config, load_system_config, materialize_runtime_app_config
+from edera_core.config.loader import _default_extensions_dirs
 from edera_core.config.entities import EntityStore
 from edera_core.config.git import commit_config_changes
 from edera_core.config.schema import AppConfig, DagNodeInstance
@@ -96,7 +97,7 @@ class DagController:
         daemon_data_dir: Path | None = None,
     ) -> None:
         self.config_dir = config_dir
-        self.extensions_dirs = extensions_dirs or [Path("extensions")]
+        self.extensions_dirs = extensions_dirs or _default_extensions_dirs(config_dir)
         self.scheduler = scheduler or _TriggerSchedulerState()
         self.engine: AsyncEngine | None = None
         self.factory: async_sessionmaker[AsyncSession] | None = None
@@ -116,7 +117,7 @@ class DagController:
         system = load_system_config(self.config_dir / "system.toml")
         self.engine = create_engine(system.database_url)
         await init_db(self.engine)
-        config = await load_runtime_app_config(self.config_dir, self.engine)
+        config = _load_runtime_base_config(self.config_dir)
         self.factory = session_factory(self.engine)
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
@@ -173,7 +174,7 @@ class DagController:
         if self.engine is None:
             raise RuntimeError("DAG controller has not been started")
         await self.install_snapshot(
-            await load_runtime_app_config(self.config_dir, self.engine),
+            _load_runtime_base_config(self.config_dir),
             scan_extensions(self.extensions_dirs, self.config_dir),
         )
 

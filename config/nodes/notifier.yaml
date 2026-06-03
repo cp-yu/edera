@@ -1,6 +1,0 @@
-name: notifier
-type: function
-role: sink
-handler: notify-ntfy
-input_type: Briefing
-output_type: list[NotificationResult]

@@ -1,0 +1,7 @@
+id: source-ithome
+type: api-source
+attributes:
+  name: ithome
+  base_url: https://news.yltfspace.com/api/news
+  params:
+    platform: ithome

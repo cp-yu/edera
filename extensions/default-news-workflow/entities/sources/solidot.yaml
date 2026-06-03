@@ -1,0 +1,7 @@
+id: source-solidot
+type: api-source
+attributes:
+  name: solidot
+  base_url: https://news.yltfspace.com/api/news
+  params:
+    platform: solidot

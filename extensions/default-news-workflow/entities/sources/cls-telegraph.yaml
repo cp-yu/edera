@@ -1,0 +1,7 @@
+id: source-cls-telegraph
+type: api-source
+attributes:
+  name: cls-telegraph
+  base_url: https://news.yltfspace.com/api/news
+  params:
+    platform: cls_telegraph

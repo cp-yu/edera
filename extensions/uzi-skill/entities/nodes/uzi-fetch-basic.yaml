@@ -1,0 +1,14 @@
+id: uzi-fetch-basic
+type: node
+attributes:
+  name: uzi-fetch-basic
+  type: function
+  role: processor
+  handler: legacy-script-adapter
+  input_type: Any
+  output_type: Any
+  parameters:
+    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/fetch_basic.py
+    function: main
+    args_map:
+    - source: input.ticker_info.full

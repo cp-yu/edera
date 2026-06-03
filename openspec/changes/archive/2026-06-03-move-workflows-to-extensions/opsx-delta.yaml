@@ -1,0 +1,26 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.default-news-workflow
+      type: capability
+      intent: 默认新闻工作流作为 extension-owned package 导入 default DAG、默认节点、默认 cron trigger 和 DAG 直接引用的信息源 seed Entity
+  relations:
+    - from: cap.core.default-news-workflow
+      type: contains
+      to: dom.core
+    - from: cap.core.default-news-workflow
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.default-news-workflow
+      type: depends_on
+      to: cap.trigger-system
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor、依赖校验、imports.entities 导入声明解析和 workflow package 显式 ownership 边界
+    - id: cap.core.uzi-skill-dag-instance
+      intent: UZI-Skill 分析管道的 DAG 实例配置由 extensions/uzi-skill manifest imports 拥有，覆盖节点声明、边拓扑、resource 引用、cron trigger 和 fan-in 模式
+
+REMOVED:
+  capabilities: []

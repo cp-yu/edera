@@ -1,0 +1,7 @@
+id: source-jqka
+type: api-source
+attributes:
+  name: jqka
+  base_url: https://news.yltfspace.com/api/news
+  params:
+    platform: jqka

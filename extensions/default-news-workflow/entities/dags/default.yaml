@@ -1,0 +1,154 @@
+id: default
+type: dag
+attributes:
+  name: default
+  inputs: []
+  nodes:
+  - id: 0194f7a6-7b17-7c01-b601-000000000001
+    type: rss-fetcher
+    alias: rss-fetcher
+    config:
+      entities:
+      - rss-source:hn-rss
+      parameters:
+        max_items_per_source: 8
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 0194f7a6-7b17-7c01-b601-000000000002
+    type: api-fetcher
+    alias: api-fetcher
+    config:
+      entities:
+      - api-source:cls-telegraph
+      - api-source:jqka
+      - api-source:solidot
+      - api-source:ithome
+      - api-source:github
+      parameters:
+        max_items_per_source: 8
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 0194f7a6-7b17-7c01-b601-000000000003
+    type: reader
+    alias: reader
+    config:
+      skills:
+      - summarize
+      - classify-sentiment
+      model: hf-share/deepseek-v4-flash
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 0194f7a6-7b17-7c01-b601-000000000004
+    type: advisor
+    alias: advisor
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 0194f7a6-7b17-7c01-b601-000000000005
+    type: briefing-generator
+    alias: briefing-generator
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 0194f7a6-7b17-7c01-b601-000000000006
+    type: notifier
+    alias: notifier
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  edges:
+  - from: 0194f7a6-7b17-7c01-b601-000000000001
+    to: 0194f7a6-7b17-7c01-b601-000000000003
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0194f7a6-7b17-7c01-b601-000000000002
+    to: 0194f7a6-7b17-7c01-b601-000000000003
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0194f7a6-7b17-7c01-b601-000000000003
+    to: 0194f7a6-7b17-7c01-b601-000000000004
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0194f7a6-7b17-7c01-b601-000000000004
+    to: 0194f7a6-7b17-7c01-b601-000000000005
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0194f7a6-7b17-7c01-b601-000000000005
+    to: 0194f7a6-7b17-7c01-b601-000000000006
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  ui:
+    nodes:
+      0194f7a6-7b17-7c01-b601-000000000001:
+        x: -60
+        y: -12
+      0194f7a6-7b17-7c01-b601-000000000002:
+        x: -60
+        y: 180
+      0194f7a6-7b17-7c01-b601-000000000003:
+        x: 500
+        y: 180
+      0194f7a6-7b17-7c01-b601-000000000004:
+        x: 756
+        y: 452
+      0194f7a6-7b17-7c01-b601-000000000005:
+        x: 1002
+        y: 666
+      0194f7a6-7b17-7c01-b601-000000000006:
+        x: 1380
+        y: 848
+    edges:
+      e-0194f7a6-7b17-7c01-b601-000000000001-0194f7a6-7b17-7c01-b601-000000000003-0:
+        sourceHandle: output-0
+        targetHandle: input-0
+      e-0194f7a6-7b17-7c01-b601-000000000002-0194f7a6-7b17-7c01-b601-000000000003-1:
+        sourceHandle: output-0
+        targetHandle: input-1
+      e-0194f7a6-7b17-7c01-b601-000000000003-0194f7a6-7b17-7c01-b601-000000000004-2:
+        sourceHandle: output-0
+        targetHandle: input-0
+      e-0194f7a6-7b17-7c01-b601-000000000004-0194f7a6-7b17-7c01-b601-000000000005-3:
+        sourceHandle: output-0
+        targetHandle: input-0
+      e-0194f7a6-7b17-7c01-b601-000000000005-0194f7a6-7b17-7c01-b601-000000000006-4:
+        sourceHandle: output-0
+        targetHandle: input-0
