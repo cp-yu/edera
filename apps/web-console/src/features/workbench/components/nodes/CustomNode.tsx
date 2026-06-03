@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
-import { CheckCircle2, Database, Cpu, GitMerge } from 'lucide-react'
+import { CheckCircle2, Database, Cpu, GitMerge, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { blendEntityColors } from '@/lib/colors'
 import { getNodeEdgeColor, getRuntimeState, type HandleSpec, type WorkbenchNodeData } from '../../lib/graph'
+import { AgentInterventionDialog } from '../AgentInterventionDialog'
 
 const handleBase = {
   width: 12,
@@ -120,6 +121,7 @@ function HandleRail({
 }
 
 export function CustomNode({ id, data, selected }: NodeProps) {
+  const [interventionOpen, setInterventionOpen] = useState(false)
   const updateNodeInternals = useUpdateNodeInternals()
   const node = data as unknown as WorkbenchNodeData
   const kindStyle = KIND_STYLES[node.visualKind]
@@ -127,6 +129,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
   const edgeColor = getNodeEdgeColor(node.visualKind)
   const entityBorderColor = node.entities?.length ? blendEntityColors(node.entities) : undefined
   const title = node.alias || node.type_name
+  const canIntervene = node.type === 'agent'
 
   useEffect(() => {
     updateNodeInternals(id)
@@ -162,8 +165,24 @@ export function CustomNode({ id, data, selected }: NodeProps) {
         </div>
       </div>
       <div className="space-y-3 px-4 py-3">
-        <div data-node-title className="pr-4 text-sm font-semibold">
-          {title}
+        <div className="flex items-start gap-2">
+          <div data-node-title className="min-w-0 flex-1 pr-2 text-sm font-semibold">
+            {title}
+          </div>
+          {canIntervene ? (
+            <button
+              type="button"
+              title="Agent 交互"
+              aria-label="Agent 交互"
+              onClick={(event) => {
+                event.stopPropagation()
+                setInterventionOpen(true)
+              }}
+              className="nodrag flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+            >
+              <MessageSquare size={14} strokeWidth={2.2} />
+            </button>
+          ) : null}
         </div>
         <div className={cn('text-[11px] uppercase tracking-[0.14em]', kindStyle.accent)}>
           {node.input_type || 'none'} {'->'} {node.output_type || 'none'}
@@ -181,6 +200,15 @@ export function CustomNode({ id, data, selected }: NodeProps) {
           </div>
         ) : null}
       </div>
+      {canIntervene ? (
+        <AgentInterventionDialog
+          open={interventionOpen}
+          nodeId={id}
+          nodeLabel={title}
+          initialStatus={node.status}
+          onClose={() => setInterventionOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }

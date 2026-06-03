@@ -276,3 +276,7 @@ capabilities:
     intent: wait 节点类型、waiting 运行状态、WaitRegistry 与 emit 解锁通道、信号先到/后到/超时三态、run 隔离命名约定与重启重放恢复
     status: draft
     type: capability
+  - id: cap.web.agent-intervention-web
+    intent: Web Console agent 交互弹窗、运行中中断+注入与已结束直接发送两种干预编排、前端干预 hooks 与实时状态展示
+    status: draft
+    type: capability
