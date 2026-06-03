@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.dag-cycle-detection-ui
+---
 # dag-cycle-detection-ui Specification
 
 ## Purpose

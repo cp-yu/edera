@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.dag-creation
+---
 # dag-creation Specification
 
 ## Purpose

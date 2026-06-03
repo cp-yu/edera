@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.dag-node-wait-input
+---
 # dag-node-wait-input Specification
 
 ## Purpose

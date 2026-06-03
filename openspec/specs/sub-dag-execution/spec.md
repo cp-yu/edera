@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.sub-dag-execution
+---
 # sub-dag-execution Specification
 
 ## Purpose

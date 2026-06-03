@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.agent-executor
+---
 # agent-executor Specification
 
 ## Purpose

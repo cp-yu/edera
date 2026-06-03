@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.extension-declarative-storage
+---
 # extension-declarative-storage Specification
 
 ## Purpose

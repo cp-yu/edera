@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.default-news-workflow
+---
 # default-news-workflow Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.cron-emitter
+---
 # cron-emitter Specification
 
 ## Purpose

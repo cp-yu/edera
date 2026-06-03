@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.source-health-monitoring
+---
 # source-health-monitoring Specification
 
 ## Purpose

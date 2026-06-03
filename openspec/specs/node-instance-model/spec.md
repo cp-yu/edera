@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.node-instance-model
+---
 # node-instance-model Specification
 
 ## Purpose

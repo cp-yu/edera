@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-relation-crud-api
+---
 # entity-relations Specification
 
 ## Purpose

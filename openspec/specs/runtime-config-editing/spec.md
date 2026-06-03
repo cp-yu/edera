@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.config.runtime-config-editing
+---
 ## Purpose
 
 定义运行时配置编辑能力，包括读取、展示、校验、原子保存 config 与 skills 文档，并保持运行中周期使用启动时配置快照。

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.local-web-console
+---
 # spa-shell Specification
 
 ## Purpose

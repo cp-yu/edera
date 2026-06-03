@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.data.data-models
+---
 # data-models Specification
 
 ## Purpose

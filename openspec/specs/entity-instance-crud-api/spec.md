@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-instance-crud-api
+---
 # entity-instance-crud-api Specification
 
 ## Purpose

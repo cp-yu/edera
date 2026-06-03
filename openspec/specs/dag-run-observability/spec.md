@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.dag-run-observability
+---
 # dag-run-observability Specification
 
 ## Purpose

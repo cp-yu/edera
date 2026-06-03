@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.runtime-input-context
+---
 # runtime-input-context Specification
 
 ## Purpose

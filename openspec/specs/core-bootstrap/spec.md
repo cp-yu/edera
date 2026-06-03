@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.extension-manifest-system
+---
 # core-bootstrap Specification
 
 ## Purpose

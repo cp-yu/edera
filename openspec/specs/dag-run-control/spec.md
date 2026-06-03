@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.dag-run-control
+---
 # dag-run-control Specification
 
 ## Purpose

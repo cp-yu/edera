@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.db-backed-core-entities
+---
 # db-backed-core-entities Specification
 
 ## Purpose

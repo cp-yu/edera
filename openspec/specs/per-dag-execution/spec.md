@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.dag-control
+---
 # per-dag-execution Specification
 
 ## Purpose

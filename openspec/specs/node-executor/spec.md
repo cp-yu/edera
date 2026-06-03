@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.node-executor
+---
 # node-executor Specification
 
 ## Purpose

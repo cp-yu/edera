@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.unified-entity-model
+---
 # unified-entity-model Specification
 
 ## Purpose

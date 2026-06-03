@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.node-visual-system
+---
 ## Purpose
 
 定义 Workbench 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和节点分组可视化。

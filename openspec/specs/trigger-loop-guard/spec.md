@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.trigger-loop-guard
+---
 # trigger-loop-guard Specification
 
 ## Purpose

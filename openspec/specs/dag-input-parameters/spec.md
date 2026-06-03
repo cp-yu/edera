@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.dag-input-parameters
+---
 # dag-input-parameters Specification
 
 ## Purpose

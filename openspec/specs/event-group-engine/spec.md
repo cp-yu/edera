@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.event-group-engine
+---
 # event-group-engine Specification
 
 ## Purpose

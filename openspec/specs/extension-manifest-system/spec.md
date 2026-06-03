@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.extension-manifest-system
+---
 # extension-manifest-system Specification
 
 ## Purpose

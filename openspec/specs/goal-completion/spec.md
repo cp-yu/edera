@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.grpc-control-services
+---
 # goal-completion Specification
 
 ## Purpose

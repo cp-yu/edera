@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.edera-web-bff
+---
 # edera-web-bff Specification
 
 ## Purpose

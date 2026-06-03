@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.project-identity
+---
 # project-identity Specification
 
 ## Purpose

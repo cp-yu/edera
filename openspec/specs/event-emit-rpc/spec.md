@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.event-emit-rpc
+---
 # event-emit-rpc Specification
 
 ## Purpose

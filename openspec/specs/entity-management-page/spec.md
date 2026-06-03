@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-management-page
+---
 # entity-management-page Specification
 
 ## Purpose

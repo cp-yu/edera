@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.advisory.trade-advisory
+---
 # source-collection Specification
 
 ## Purpose

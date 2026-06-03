@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.result-explorer
+---
 ## Purpose
 
 定义本机 Web 控制台的结果浏览能力，包括最新简报、建议列表、建议详情证据链、失败源展示，以及外部公开源进入管道后的可追溯证据查看。

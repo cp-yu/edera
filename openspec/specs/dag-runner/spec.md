@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.node-executor
+---
 # dag-runner Specification
 
 ## Purpose

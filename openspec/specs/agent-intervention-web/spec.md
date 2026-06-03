@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.agent-intervention-web
+---
 # agent-intervention-web Specification
 
 ## Purpose

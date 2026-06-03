@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.multi-node-retry
+---
 # multi-node-retry Specification
 
 ## Purpose

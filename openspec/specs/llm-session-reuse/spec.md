@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.llm-session-reuse
+---
 # llm-session-reuse Specification
 
 ## Purpose

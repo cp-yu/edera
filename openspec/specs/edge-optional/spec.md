@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.edge-optional
+---
 # edge-optional Specification
 
 ## Purpose

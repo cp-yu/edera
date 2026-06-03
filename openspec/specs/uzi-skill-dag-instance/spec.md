@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.uzi-skill-dag-instance
+---
 # uzi-skill-dag-instance Specification
 
 ## Purpose

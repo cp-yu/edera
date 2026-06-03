@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.agent-realtime-observability
+---
 # agent-realtime-observability Specification
 
 ## Purpose

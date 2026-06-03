@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.legacy-script-adapter
+---
 # legacy-script-adapter Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.grpc-graph-service
+---
 # grpc-graph-service Specification
 
 ## Purpose

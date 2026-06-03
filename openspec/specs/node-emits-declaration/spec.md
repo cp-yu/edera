@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.node-emits-declaration
+---
 # node-emits-declaration Specification
 
 ## Purpose

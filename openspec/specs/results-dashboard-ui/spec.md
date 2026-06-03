@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.result-explorer
+---
 # results-dashboard-ui Specification
 
 ## Purpose

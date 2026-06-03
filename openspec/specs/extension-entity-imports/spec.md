@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.extension-entity-imports
+---
 # extension-entity-imports Specification
 
 ## Purpose

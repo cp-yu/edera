@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-management-page
+---
 # node-management-page Specification
 
 ## Purpose

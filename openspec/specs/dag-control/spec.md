@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.dag-control
+---
 ## Purpose
 
 定义 DAG 运行控制能力，包括运行记录、节点状态记录、手动运行、并发拒绝、调度暂停恢复、停止当前运行和状态展示。

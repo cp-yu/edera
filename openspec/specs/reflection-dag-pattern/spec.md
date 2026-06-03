@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.reflection-dag-pattern
+---
 # reflection-dag-pattern Specification
 
 ## Purpose

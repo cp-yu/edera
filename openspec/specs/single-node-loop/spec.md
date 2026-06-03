@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.single-node-loop
+---
 # single-node-loop Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.edera-cli
+---
 # edera-cli Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.dag-resource-semaphore
+---
 # dag-resource-semaphore Specification
 
 ## Purpose

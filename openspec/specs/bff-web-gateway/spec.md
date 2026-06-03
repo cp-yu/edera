@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.bff-web-gateway
+---
 # bff-web-gateway Specification
 
 ## Purpose

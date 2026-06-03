@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.dag-condition-branch
+---
 # dag-condition-branch Specification
 
 ## Purpose

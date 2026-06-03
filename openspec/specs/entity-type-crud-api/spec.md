@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-type-crud-api
+---
 # entity-type-crud-api Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.canvas-interaction-enhancement
+---
 ## Purpose
 
 定义 Workbench 画布交互增强能力，覆盖连线视觉、右键菜单、网格吸附、对齐辅助线和撤销重做。

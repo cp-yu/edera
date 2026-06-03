@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.daemon-data-directory
+---
 # daemon-data-directory Specification
 
 ## Purpose

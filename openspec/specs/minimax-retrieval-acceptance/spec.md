@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.agent-executor
+---
 # minimax-retrieval-acceptance Specification
 
 ## Purpose

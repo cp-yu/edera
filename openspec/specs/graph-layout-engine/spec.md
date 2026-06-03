@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.graph-layout-engine
+---
 ## Purpose
 
 定义 Workbench 图布局与视口能力，覆盖 ELK 自动布局、全图视口拟合、缩放边界和执行路径高亮。

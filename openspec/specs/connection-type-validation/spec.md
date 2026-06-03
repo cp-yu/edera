@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.node-graph-dag-editor
+---
 # connection-type-validation Specification
 
 ## Purpose

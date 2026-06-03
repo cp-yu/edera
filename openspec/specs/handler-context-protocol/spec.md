@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.handler-context-protocol
+---
 # handler-context-protocol Specification
 
 ## Purpose

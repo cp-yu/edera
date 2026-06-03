@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.grpc-query-service
+---
 # grpc-query-service Specification
 
 ## Purpose

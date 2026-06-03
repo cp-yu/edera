@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.llm-node-intervention
+---
 # llm-node-intervention Specification
 
 ## Purpose

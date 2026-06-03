@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.node-type-discriminated-union
+---
 # node-type-discriminated-union Specification
 
 ## Purpose

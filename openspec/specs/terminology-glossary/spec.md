@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.terminology-glossary
+---
 # terminology-glossary Specification
 
 ## Purpose

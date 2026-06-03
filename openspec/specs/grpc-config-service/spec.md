@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.grpc-config-service
+---
 # grpc-config-service Specification
 
 ## Purpose

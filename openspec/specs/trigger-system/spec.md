@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.trigger-system
+---
 # trigger-system Specification
 
 ## Purpose

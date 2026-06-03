@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.lazy-entity-type-materialization
+---
 # lazy-entity-type-materialization Specification
 
 ## Purpose

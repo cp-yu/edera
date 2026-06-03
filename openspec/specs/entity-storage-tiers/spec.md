@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-storage-tiers
+---
 # entity-storage-tiers Specification
 
 ## Purpose

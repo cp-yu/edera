@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.config.runtime-config-editing
+---
 # config-management Specification
 
 ## Purpose

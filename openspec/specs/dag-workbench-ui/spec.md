@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.dag-workbench-ui
+---
 # dag-workbench-ui Specification
 
 ## Purpose

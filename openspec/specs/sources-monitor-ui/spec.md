@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.sources-monitor-ui
+---
 # sources-monitor-ui Specification
 
 ## Purpose

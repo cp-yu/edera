@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.grpc-graph-service
+---
 # node-type-registry Specification
 
 ## Purpose

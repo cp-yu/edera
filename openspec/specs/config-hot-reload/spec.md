@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.config-hot-reload
+---
 # config-hot-reload Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.trigger-expression-language
+---
 # trigger-expression-language Specification
 
 ## Purpose

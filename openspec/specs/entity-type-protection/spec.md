@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.entity-type-protection
+---
 # entity-type-protection Specification
 
 ## Purpose

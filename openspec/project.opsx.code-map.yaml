@@ -1,3 +1,431 @@
 schema_version: 1
-generated_at: 2026-06-03T13:23:03.408Z
-nodes: []
+generated_at: 2026-06-03T15:19:13.371Z
+nodes:
+  - id: cap.advisory.trade-advisory
+    refs:
+      - path: extensions/advisor/handler.py
+      - path: extensions/briefing-generator/handler.py
+      - path: packages/core/src/edera_core/query_service.py
+  - id: cap.config-git-safety
+    refs:
+      - path: packages/core/src/edera_core/config/git.py
+  - id: cap.config.runtime-config-editing
+    refs:
+      - path: apps/web-console/src/features/config/ConfigPage.tsx
+      - path: packages/core/src/edera_core/config_service.py
+      - path: packages/core/src/edera_core/config/editor.py
+      - path: packages/core/src/edera_core/config/loader.py
+  - id: cap.core.agent-executor
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/node/executor.py
+  - id: cap.core.agent-realtime-observability
+    refs:
+      - path: packages/core/src/edera_core/node/executor.py
+      - path: packages/core/src/edera_core/server.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.core.bff-web-gateway
+    refs:
+      - path: packages/core/src/edera_core/cert.py
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: packages/core/src/edera_core/web/__main__.py
+  - id: cap.core.config-hot-reload
+    refs:
+      - path: packages/core/src/edera_core/hot_reload.py
+      - path: packages/core/src/edera_core/server.py
+  - id: cap.core.core-bootstrap
+    refs:
+      - path: packages/core/src/edera_core/bootstrap.py
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/server.py
+  - id: cap.core.cron-emitter
+    refs:
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.daemon-data-directory
+    refs:
+      - path: packages/core/src/edera_core/bootstrap.py
+      - path: packages/core/src/edera_core/server.py
+  - id: cap.core.dag-input-parameters
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag/models.py
+      - path: packages/core/src/edera_core/dag/runner.py
+  - id: cap.core.dag-resource-semaphore
+    refs:
+      - path: packages/core/src/edera_core/dag/resources.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: schemas/entity-types/resource.yaml
+  - id: cap.core.db-backed-core-entities
+    refs:
+      - path: alembic/versions/0009_db_backed_core_entities.py
+      - path: packages/core/src/edera_core/config/schema.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/storage/materialization.py
+  - id: cap.core.default-news-workflow
+    refs:
+      - path: extensions/default-news-workflow/entities/dags/default.yaml
+      - path: extensions/default-news-workflow/manifest.yaml
+  - id: cap.core.edera-cli
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/grpc_client.py
+  - id: cap.core.edera-server-grpc
+    refs:
+      - path: packages/core/src/edera_core/bootstrap.py
+      - path: packages/core/src/edera_core/cert.py
+      - path: packages/core/src/edera_core/server.py
+      - path: proto/edera.proto
+  - id: cap.core.edge-optional
+    refs:
+      - path: packages/core/src/edera_core/dag/models.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/graph_service.py
+  - id: cap.core.event-emit-rpc
+    refs:
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.event-group-engine
+    refs:
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.extension-declarative-storage
+    refs:
+      - path: packages/core/src/edera_core/manifest.py
+      - path: packages/core/src/edera_core/storage/materialization.py
+  - id: cap.core.extension-entity-imports
+    refs:
+      - path: packages/core/src/edera_core/extension_imports.py
+      - path: packages/core/src/edera_core/manifest.py
+  - id: cap.core.extension-manifest-system
+    refs:
+      - path: extensions
+      - path: packages/core/src/edera_core/manifest.py
+      - path: packages/core/src/edera_core/registry.py
+  - id: cap.core.grpc-config-service
+    refs:
+      - path: packages/core/src/edera_core/config_service.py
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: proto/edera.proto
+  - id: cap.core.grpc-control-services
+    refs:
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/server.py
+      - path: proto/edera.proto
+  - id: cap.core.grpc-graph-service
+    refs:
+      - path: packages/core/src/edera_core/graph_service.py
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: proto/edera.proto
+  - id: cap.core.grpc-query-service
+    refs:
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: packages/core/src/edera_core/query_service.py
+      - path: proto/edera.proto
+  - id: cap.core.handler-context-protocol
+    refs:
+      - path: packages/core-types/src/edera_types/__init__.py
+      - path: packages/core/src/edera_core/node/executor.py
+  - id: cap.core.lazy-entity-type-materialization
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/storage/materialization.py
+  - id: cap.core.legacy-script-adapter
+    refs:
+      - path: extensions/uzi-skill/adapter.py
+      - path: packages/core-types/src/edera_types/__init__.py
+  - id: cap.core.manual-trigger-prefix
+    refs:
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.node-emits-declaration
+    refs:
+      - path: packages/core/src/edera_core/config/schema.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.node-type-discriminated-union
+    refs:
+      - path: packages/core/src/edera_core/config/schema.py
+      - path: packages/core/src/edera_core/dag/models.py
+  - id: cap.core.project-identity
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/server.py
+      - path: README.md
+  - id: cap.core.runtime-input-context
+    refs:
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/query_service.py
+      - path: packages/core/src/edera_core/storage/entities.py
+  - id: cap.core.sub-dag-execution
+    refs:
+      - path: packages/core/src/edera_core/dag/models.py
+      - path: packages/core/src/edera_core/dag/runner.py
+  - id: cap.core.terminology-glossary
+    refs:
+      - path: GLOSSARY.md
+      - path: scripts/check_terms.py
+  - id: cap.core.trigger-expression-language
+    refs:
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.trigger-loop-guard
+    refs:
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.core.uzi-skill-dag-instance
+    refs:
+      - path: extensions/uzi-skill/adapter.py
+      - path: extensions/uzi-skill/entities/dags/uzi-skill-analysis.yaml
+      - path: extensions/uzi-skill/manifest.yaml
+  - id: cap.dag-condition-branch
+    refs:
+      - path: packages/core/src/edera_core/dag/conditions.py
+      - path: packages/core/src/edera_core/dag/runner.py
+  - id: cap.data.data-models
+    refs:
+      - path: alembic/versions
+      - path: packages/core/src/edera_core/query_service.py
+      - path: packages/core/src/edera_core/storage/database.py
+      - path: packages/core/src/edera_core/storage/entities.py
+  - id: cap.entity-instance-crud-api
+    refs:
+      - path: apps/web-console/src/features/entities/EntitiesPage.tsx
+      - path: packages/core/src/edera_core/config_service.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+  - id: cap.entity-management-page
+    refs:
+      - path: apps/web-console/src/features/entities/EntitiesPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.entity-relation-crud-api
+    refs:
+      - path: apps/web-console/src/features/entities/EntitiesPage.tsx
+      - path: config/entity-relations.yaml
+      - path: packages/core/src/edera_core/config_service.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+  - id: cap.entity-storage-tiers
+    refs:
+      - path: packages/core/src/edera_core/config/schema.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/storage/materialization.py
+  - id: cap.entity-type-crud-api
+    refs:
+      - path: apps/web-console/src/features/entities/EntitiesPage.tsx
+      - path: packages/core/src/edera_core/config_service.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: schemas/entity-types
+  - id: cap.entity-type-protection
+    refs:
+      - path: apps/web-console/src/features/entities/EntitiesPage.tsx
+      - path: packages/core/src/edera_core/config_service.py
+      - path: packages/core/src/edera_core/config/schema.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+  - id: cap.operations.dag-control
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/node/executor.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.operations.dag-event-driven-executor
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/node/executor.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.operations.dag-node-wait-input
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/node/executor.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.operations.dag-run-control
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: packages/core/src/edera_core/node/executor.py
+  - id: cap.operations.llm-node-intervention
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.operations.llm-session-reuse
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/node/executor.py
+  - id: cap.operations.multi-node-retry
+    refs:
+      - path: apps/web-console/src/features/history/NodeHistoryPage.tsx
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/node/executor.py
+  - id: cap.operations.node-executor
+    refs:
+      - path: packages/core/src/edera_core/dag/runner.py
+      - path: packages/core/src/edera_core/node/executor.py
+      - path: packages/core/src/edera_core/node/models.py
+  - id: cap.operations.reflection-dag-pattern
+    refs:
+      - path: packages/core/src/edera_core/cli.py
+      - path: packages/core/src/edera_core/dag/runner.py
+  - id: cap.single-node-loop
+    refs:
+      - path: packages/core/src/edera_core/dag/models.py
+      - path: packages/core/src/edera_core/dag/runner.py
+  - id: cap.sub-dag-execution
+    refs:
+      - path: packages/core/src/edera_core/dag/models.py
+      - path: packages/core/src/edera_core/dag/runner.py
+  - id: cap.trigger-system
+    refs:
+      - path: config/schemas/trigger.yaml
+      - path: packages/core/src/edera_core/event_service.py
+      - path: packages/core/src/edera_core/events.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: packages/core/src/edera_core/trigger.py
+  - id: cap.unified-entity-model
+    refs:
+      - path: packages/core/src/edera_core/config/schema.py
+      - path: packages/core/src/edera_core/service_common.py
+      - path: packages/core/src/edera_core/storage/entities.py
+      - path: schemas/entity-types
+  - id: cap.web.agent-intervention-web
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.canvas-interaction-enhancement
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.dag-creation
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/graph_service.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.dag-cycle-detection-ui
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.dag-run-observability
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/history/NodeHistoryPage.tsx
+      - path: packages/core/src/edera_core/query_service.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.dag-workbench-ui
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.edera-web-bff
+    refs:
+      - path: packages/core/src/edera_core/grpc_client.py
+      - path: packages/core/src/edera_core/web/__main__.py
+      - path: packages/core/src/edera_core/web/app.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.graph-layout-engine
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.local-web-console
+    refs:
+      - path: packages/core/src/edera_core/web/__main__.py
+      - path: packages/core/src/edera_core/web/app.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.node-graph-dag-editor
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/graph_service.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.node-instance-model
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/dag/models.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.node-visual-system
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.result-explorer
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/results/AdviceDetail.tsx
+      - path: apps/web-console/src/features/results/BriefingDetail.tsx
+      - path: apps/web-console/src/features/results/ResultsPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.source-health-monitoring
+    refs:
+      - path: apps/web-console/src/api
+      - path: packages/core/src/edera_core/query_service.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.sources-monitor-ui
+    refs:
+      - path: apps/web-console/src/features/sources/SourcesPage.tsx
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: cap.web.trigger-workbench-inspector
+    refs:
+      - path: apps/web-console/src/api
+      - path: apps/web-console/src/features/workbench/WorkbenchPage.tsx
+      - path: packages/core/src/edera_core/trigger.py
+      - path: packages/core/src/edera_core/web/routes.py
+  - id: dom.advisory
+    refs:
+      - path: extensions/_lib
+      - path: extensions/advisor
+      - path: extensions/briefing-generator
+  - id: dom.config
+    refs:
+      - path: config
+      - path: packages/core/src/edera_core/config
+      - path: packages/core/src/edera_core/config_service.py
+  - id: dom.core
+    refs:
+      - path: packages/core-types/src/edera_types
+      - path: packages/core/src/edera_core
+      - path: proto/edera.proto
+  - id: dom.data
+    refs:
+      - path: alembic/versions
+      - path: packages/core/src/edera_core/query_service.py
+      - path: packages/core/src/edera_core/storage
+  - id: dom.operations
+    refs:
+      - path: packages/core/src/edera_core/dag
+      - path: packages/core/src/edera_core/dag_controller.py
+      - path: packages/core/src/edera_core/node
+  - id: dom.web
+    refs:
+      - path: apps/web-console/src
+      - path: packages/core/src/edera_core/web

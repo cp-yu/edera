@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.operations.dag-event-driven-executor
+---
 # dag-event-driven-executor Specification
 
 ## Purpose

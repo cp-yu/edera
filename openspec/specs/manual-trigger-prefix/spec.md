@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.manual-trigger-prefix
+---
 # manual-trigger-prefix Specification
 
 ## Purpose

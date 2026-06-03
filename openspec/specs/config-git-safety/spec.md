@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.config-git-safety
+---
 # config-git-safety Specification
 
 ## Purpose

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.trigger-workbench-inspector
+---
 # trigger-workbench-inspector Specification
 
 ## Purpose

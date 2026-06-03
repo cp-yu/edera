@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.web.node-graph-dag-editor
+---
 # node-graph-dag-editor Specification
 
 ## Purpose

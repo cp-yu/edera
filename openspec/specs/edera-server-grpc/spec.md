@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.edera-server-grpc
+---
 # edera-server-grpc Specification
 
 ## Purpose
