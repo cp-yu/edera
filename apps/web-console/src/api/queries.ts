@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { Advice, Briefing, DagState, DagStatus, EntityItem, NodeHistoryItem, NodeOutputEntity, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
+import type { Advice, Briefing, DagState, DagStatus, EntityItem, NodeControlStatus, NodeHistoryItem, NodeOutputEntity, NodeResumeResponse, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
 
 export function useDag(name: string) {
   return useQuery({
@@ -136,6 +136,37 @@ export function useNodeOutputs(nodeId: string | null, runId?: string | null) {
     queryKey: ['nodeOutputs', nodeId, runId],
     queryFn: () => apiFetch<{ outputs: NodeOutputEntity[] }>(`/api/node-outputs${qs ? `?${qs}` : ''}`),
     enabled: !!nodeId,
+  })
+}
+
+export function useNodeStatus(nodeId: string | null, polling = false) {
+  return useQuery({
+    queryKey: ['nodeStatus', nodeId],
+    queryFn: () => apiFetch<NodeControlStatus>(`/api/node/${nodeId}/status`),
+    enabled: !!nodeId,
+    refetchInterval: polling ? 2000 : false,
+  })
+}
+
+export function useNodeStop(nodeId: string) {
+  return useMutation({
+    mutationFn: () => apiFetch<NodeControlStatus>(`/api/node/${nodeId}/stop`, { method: 'POST' }),
+  })
+}
+
+export function useNodeResume(nodeId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, prompt }: { runId: string; prompt: string }) =>
+      apiFetch<NodeResumeResponse>(`/api/node/${nodeId}/resume`, {
+        method: 'POST',
+        body: JSON.stringify({ run_id: runId, prompt }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['nodeOutputs', nodeId] })
+      qc.invalidateQueries({ queryKey: ['nodeStatus', nodeId] })
+      qc.invalidateQueries({ queryKey: ['runtimeStatus'] })
+    },
   })
 }
 

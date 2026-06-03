@@ -171,3 +171,6 @@ relations:
   - from: cap.operations.dag-node-wait-input
     type: contains
     to: dom.operations
+  - from: cap.web.agent-intervention-web
+    type: contains
+    to: dom.web
