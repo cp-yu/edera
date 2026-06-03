@@ -16,7 +16,7 @@ from edera_core.bootstrap import BootstrapResult
 from edera_core.cert import CertificateAuthority, IssuedCertificate
 from edera_core.config_service import _ConfigService
 from edera_core.config.entities import EntityStore, can_read, can_write, field_permission
-from edera_core.config.loader import CORE_ENTITY_TYPES, load_app_config, load_runtime_app_config
+from edera_core.config.loader import CORE_ENTITY_TYPES, _load_runtime_base_config, load_app_config
 from edera_core.config.schema import AppConfig, DagConfig, EntitiesConfig, EntityConfig, MaterializedFieldConfig, entity_ref
 from edera_core.events import event_bus
 from edera_core.graph_service import _GraphService
@@ -157,7 +157,7 @@ class Server:
     async def _load_runtime_config(self) -> AppConfig:
         if self.controller.engine is None:
             raise RuntimeError("DAG controller has not been started")
-        return await load_runtime_app_config(self.config_dir, self.controller.engine)
+        return _load_runtime_base_config(self.config_dir)
 
     async def _emit_config_changed(self, event: str) -> object:
         return await self.controller.emit(event, source="hot-reload")
@@ -335,7 +335,7 @@ class _EntityService:
     async def _refresh_runtime_snapshot(self) -> None:
         if not _controller_started(self.daemon) or self.daemon.controller.engine is None:
             return
-        config = await load_runtime_app_config(self.daemon.config_dir, self.daemon.controller.engine)
+        config = _load_runtime_base_config(self.daemon.config_dir)
         await self.daemon.controller.install_snapshot(config, self.daemon.controller.runtime_snapshot().bootstrap)
 
     async def _emit_entity_changed(self, store: EntityStore, entity: EntityConfig) -> None:
@@ -909,7 +909,7 @@ async def _edit_runtime_dag(daemon: Server, dag_name: str, operation: str, paylo
         await session.commit()
     if daemon.controller.engine is None:
         raise RuntimeError("DAG controller has not been started")
-    config = await load_runtime_app_config(daemon.config_dir, daemon.controller.engine)
+    config = _load_runtime_base_config(daemon.config_dir)
     await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
     return {"updated": True, "dag": dag_name}
 

@@ -6,7 +6,7 @@ import grpc
 import yaml
 
 from edera_core.config.entities import validate_permission_overrides
-from edera_core.config.loader import load_runtime_app_config, load_skill_configs
+from edera_core.config.loader import _load_runtime_base_config, load_skill_configs
 from edera_core.config.schema import DagConfig, EntityConfig, SkillConfig
 from edera_core.errors import ConfigError
 from edera_core.service_common import (
@@ -216,7 +216,7 @@ async def _save_core_and_refresh(daemon, entity: EntityConfig) -> None:
 
 
 async def _refresh_runtime_snapshot(daemon) -> None:
-    config = await load_runtime_app_config(daemon.config_dir, daemon.controller.engine)
+    config = _load_runtime_base_config(daemon.config_dir)
     await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
 
 
