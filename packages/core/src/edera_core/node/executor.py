@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -24,7 +24,9 @@ from edera_core.config.schema import (
     NodeConfigBase,
     RuntimeSettings,
     SystemConfig,
+    WaitNodeConfig,
 )
+from edera_core.events import event_bus
 from edera_core.errors import ConfigError, NodeExecutionError
 from edera_core.node.models import NodeContext
 from edera_core.registry import HandlerRegistry
@@ -34,6 +36,14 @@ StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
 RawLogRecorder = Callable[[str, str, str, str, int], Awaitable[None]]
 DagExecutor = Callable[[DagNodeConfig, str, NodeInput, NodeContext], Awaitable[NodeOutput]]
 AgentCertificateIssuer = Callable[[str, int], object]
+WaitPayloadReader = Callable[[str], Awaitable[tuple[object | None, set[str]] | None]]
+WaitRegister = Callable[[str, bool], asyncio.Future[object | None]]
+WaitUnregister = Callable[[asyncio.Future[object | None]], None]
+WaitMatchedTokens = Callable[[asyncio.Future[object | None]], set[str]]
+WaitConsumer = Callable[[Iterable[str]], Awaitable[None]]
+WaitRecorder = Callable[[str, str, str, str | None, str | None, dict[str, object] | None], Awaitable[None]]
+_WAIT_TIMEOUT = object()
+_WAIT_STOPPED = object()
 
 
 class NodeExecutor:
@@ -53,6 +63,13 @@ class NodeExecutor:
         extension_tables: dict[str, dict[str, str]] | None = None,
         daemon_data_dir: Path | None = None,
         source_recovery_recorder: RuntimeSourceRecoveryRecorder | None = None,
+        wait_payload_reader: WaitPayloadReader | None = None,
+        wait_register: WaitRegister | None = None,
+        wait_unregister: WaitUnregister | None = None,
+        wait_matched_tokens: WaitMatchedTokens | None = None,
+        wait_consumer: WaitConsumer | None = None,
+        wait_recorder: WaitRecorder | None = None,
+        wait_stop_event: asyncio.Event | None = None,
         **legacy_kwargs: object,
     ) -> None:
         if handler_registry is None:
@@ -80,6 +97,13 @@ class NodeExecutor:
         self.extension_tables = extension_tables or {}
         self.daemon_data_dir = daemon_data_dir
         self.source_recovery_recorder = source_recovery_recorder
+        self.wait_payload_reader = wait_payload_reader
+        self.wait_register = wait_register
+        self.wait_unregister = wait_unregister
+        self.wait_matched_tokens = wait_matched_tokens
+        self.wait_consumer = wait_consumer
+        self.wait_recorder = wait_recorder
+        self.wait_stop_event = wait_stop_event
         self._modules: dict[str, ModuleType] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
 
@@ -96,6 +120,8 @@ class NodeExecutor:
             config = self._node(type_name)
         except NodeExecutionError as exc:
             return _failed(node_name, node_input, str(exc))
+        if isinstance(config, WaitNodeConfig):
+            return await self._execute_wait(node_name, node_input, context, config)
         if isinstance(config, AgentNodeConfig):
             return await self._execute_agent(node_name, node_input, context, config, instance)
         if isinstance(config, DagNodeConfig):
@@ -126,6 +152,80 @@ class NodeExecutor:
             return payload
         await self._record_output(effective_input, node_name, effective, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+
+    async def _execute_wait(
+        self,
+        node_name: str,
+        node_input: NodeInput,
+        context: NodeContext,
+        config: WaitNodeConfig,
+    ) -> NodeOutput:
+        if (
+            self.wait_payload_reader is None
+            or self.wait_register is None
+            or self.wait_unregister is None
+            or self.wait_matched_tokens is None
+            or self.wait_consumer is None
+        ):
+            return _failed(node_name, node_input, "wait executor not configured")
+        metadata = _output_metadata(node_input)
+        current = await self.wait_payload_reader(config.wait_for)
+        if current is not None:
+            payload, tokens = current
+            await self._record_output(node_input, node_name, config, payload, metadata)
+            if config.consume:
+                await self.wait_consumer(tokens)
+            return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+        future = self.wait_register(config.wait_for, config.consume)
+        try:
+            current = await self.wait_payload_reader(config.wait_for)
+            if current is not None:
+                payload, tokens = current
+                await self._record_output(node_input, node_name, config, payload, metadata)
+                if config.consume:
+                    await self.wait_consumer(tokens)
+                return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+            if self.wait_recorder is not None:
+                await self.wait_recorder(node_input.run_id, node_name, "waiting", None, None, None)
+            await event_bus.publish("node.waiting", run_id=node_input.run_id, node=node_name, node_id=node_name, wait_for=config.wait_for)
+            payload = await self._await_waiter(future, config.timeout_seconds)
+            if payload is _WAIT_STOPPED:
+                return NodeOutput(node_name=node_name, ok=False, metadata={"runtime_status": "cancelled"}, error="cancelled")
+            if payload is _WAIT_TIMEOUT:
+                return NodeOutput(
+                    node_name=node_name,
+                    ok=False,
+                    metadata={"failure_kind": "wait_timeout"},
+                    error="wait timeout",
+                )
+            if self.wait_recorder is not None:
+                await self.wait_recorder(node_input.run_id, node_name, "running", None, None, None)
+            tokens = self.wait_matched_tokens(future)
+            await self._record_output(node_input, node_name, config, payload, metadata)
+            if config.consume:
+                await self.wait_consumer(tokens)
+            return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+        finally:
+            self.wait_unregister(future)
+
+    async def _await_waiter(self, future: asyncio.Future[object | None], timeout: float | None) -> object:
+        wait_items: set[asyncio.Future[object | None] | asyncio.Task[bool]] = {future}
+        stop_task: asyncio.Task[bool] | None = None
+        if self.wait_stop_event is not None:
+            stop_task = asyncio.create_task(self.wait_stop_event.wait())
+            wait_items.add(stop_task)
+        done, pending = await asyncio.wait(wait_items, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            if task is stop_task:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        if not done:
+            future.cancel()
+            return _WAIT_TIMEOUT
+        if stop_task is not None and stop_task in done:
+            future.cancel()
+            return _WAIT_STOPPED
+        return future.result()
 
     async def _record_output(
         self,
@@ -461,7 +561,7 @@ def _output_metadata(node_input: NodeInput) -> dict[str, object]:
 def _node_from_entity(entity: EntityConfig) -> NodeConfig:
     attrs = dict(entity.attributes)
     attrs.setdefault("name", entity.id)
-    if attrs.get("handler"):
+    if attrs.get("handler") or attrs.get("type") == "wait":
         return NodeConfig.model_validate(attrs)
     return NodeConfig.model_construct(
         name=str(attrs.get("name") or entity.id),

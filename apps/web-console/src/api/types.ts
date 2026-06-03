@@ -33,7 +33,7 @@ export interface InspectorSchema {
 
 export interface NodeType {
   name: string
-  type: 'function'
+  type: 'function' | 'agent' | 'dag' | 'wait'
   role: NodeRole
   input_type: string
   output_type: string
@@ -161,6 +161,15 @@ export interface NodeStatus {
   run_id: string
   started_at?: string | null
   ended_at?: string | null
+}
+
+export interface NodeControlStatus {
+  node_id: string
+  status: string
+}
+
+export interface NodeResumeResponse {
+  run_id: string
 }
 
 export interface RuntimeStatus {

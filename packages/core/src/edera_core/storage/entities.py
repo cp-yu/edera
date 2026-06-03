@@ -330,13 +330,13 @@ class NodeRun(SQLModel, table=True):
     @field_validator("status")
     @classmethod
     def _valid_status(cls, value: str) -> str:
-        if value not in {"pending", "running", "succeeded", "failed", "skipped", "cancelled"}:
+        if value not in {"pending", "running", "waiting", "succeeded", "failed", "skipped", "cancelled"}:
             raise ValueError("invalid node run status")
         return value
 
     @field_validator("failure_kind")
     @classmethod
     def _valid_failure_kind(cls, value: str | None) -> str | None:
-        if value is not None and value not in {"execution_failed", "upstream_failed"}:
+        if value is not None and value not in {"execution_failed", "upstream_failed", "wait_timeout"}:
             raise ValueError("invalid node run failure kind")
         return value

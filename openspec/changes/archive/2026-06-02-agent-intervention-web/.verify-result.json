@@ -1,0 +1,215 @@
+{
+  "timestamp": "2026-06-02T15:09:03.521Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "0d450155c297110737455a030a64d7e6816e5859d37ff4467dbf7767487006ac",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "apps/web-console/src/api/queries.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/features/workbench/components/AgentInterventionDialog.tsx",
+      "apps/web-console/src/features/workbench/components/NewSourceDialog.tsx",
+      "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+      "apps/web-console/src/features/workbench/lib/graph.ts",
+      "openspec/changes/agent-intervention-web/.apply-isolation.json",
+      "openspec/changes/agent-intervention-web/design.md",
+      "openspec/changes/agent-intervention-web/opsx-delta.yaml",
+      "openspec/changes/agent-intervention-web/specs/agent-intervention-web/spec.md",
+      "openspec/changes/agent-intervention-web/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/web/routes.py"
+    ],
+    "evidenceFingerprint": "2fd4be5b857e0fd44ad9f612ee577cf2c1a75828f5d8b994c0a06d0d04c778ef",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/api/queries.ts",
+        "hash": "37b16dc92f15b76e3e4489964c949cb82761a4c5830fbb1277851d4ec5ac9c09"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "f6acd086ee4da5195e3d06e866cb7e107d5727bfb0c11f0ba4c064e8f74c9342"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/AgentInterventionDialog.tsx",
+        "hash": "6d306e3a11106c6312a55247c84f8ff93b072813bc4a80d46c9cdd3f653b70c9"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/NewSourceDialog.tsx",
+        "hash": "3201095220419f14c40854544affafc17d8da3e886393fcecd80076b79a96df5"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+        "hash": "79c73161e7af48e39ef569c2b216d30a1af32e74dce2fb6dd3a8e836ceaa4602"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+        "hash": "d5935b9796870d7cf3dcf17a7f01ea8b2a566587cbc7691fc7dcd6ddf8c58e07"
+      },
+      {
+        "path": "openspec/changes/agent-intervention-web/.apply-isolation.json",
+        "hash": "7512b759481acd6f0b30c2de26eed5c1bd88b97aee8ecdaf3e925a399ec13820"
+      },
+      {
+        "path": "openspec/changes/agent-intervention-web/design.md",
+        "hash": "8be8162b255a0d57d4b955b6ec1ce702bc7ee88d599047253dba7921df02e308"
+      },
+      {
+        "path": "openspec/changes/agent-intervention-web/opsx-delta.yaml",
+        "hash": "248b5cb3065a48a555a89316525f5e7f32843619dc8f70a71ac549701f7ce345"
+      },
+      {
+        "path": "openspec/changes/agent-intervention-web/specs/agent-intervention-web/spec.md",
+        "hash": "9e35598aadd7923139623445324ee3fefc68c4f29b4654783a350483adec8f77"
+      },
+      {
+        "path": "openspec/changes/agent-intervention-web/tasks.md",
+        "hash": "0d450155c297110737455a030a64d7e6816e5859d37ff4467dbf7767487006ac"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "803a51e3d45a659bc4e1e9cabb1fc1f114f31f6516a6a90fa7dc8055571efa2a"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "ae4cbd411301ef5d25cb06b5e6ab5619b6344173b178992c32606286f5bc1048"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "61616382639372ffa3357f2930bbc24551b0461fd3593669954a9bd822a2a212"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "e57889d2b58f37623d6c022eae104f4687eb44ec75d108a923e417d0c6d73ef5"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "390c5804a6db4bec72f030ba0186e5987588a5d73ce4fa57dc8beee22bbdf32d"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "6d5ba9682957242e342d2a33fc8d55de30dcadf2148138ff64883d8d6a833bf0"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "60e029de51bf338de35840ed5718439ef810cc65"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-02T15:11:29.380Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-02T15:09:03.521Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "0d450155c297110737455a030a64d7e6816e5859d37ff4467dbf7767487006ac",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "apps/web-console/src/api/queries.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/features/workbench/components/AgentInterventionDialog.tsx",
+          "apps/web-console/src/features/workbench/components/NewSourceDialog.tsx",
+          "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+          "apps/web-console/src/features/workbench/lib/graph.ts",
+          "openspec/changes/agent-intervention-web/.apply-isolation.json",
+          "openspec/changes/agent-intervention-web/design.md",
+          "openspec/changes/agent-intervention-web/opsx-delta.yaml",
+          "openspec/changes/agent-intervention-web/specs/agent-intervention-web/spec.md",
+          "openspec/changes/agent-intervention-web/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/web/routes.py"
+        ],
+        "evidenceFingerprint": "9ec0778858f110be6389c4ed3e909eea2d0aafb0323f637fcbfa00c0f65d00dd",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/api/queries.ts",
+            "hash": "37b16dc92f15b76e3e4489964c949cb82761a4c5830fbb1277851d4ec5ac9c09"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "f6acd086ee4da5195e3d06e866cb7e107d5727bfb0c11f0ba4c064e8f74c9342"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/AgentInterventionDialog.tsx",
+            "hash": "6d306e3a11106c6312a55247c84f8ff93b072813bc4a80d46c9cdd3f653b70c9"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/NewSourceDialog.tsx",
+            "hash": "3201095220419f14c40854544affafc17d8da3e886393fcecd80076b79a96df5"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+            "hash": "79c73161e7af48e39ef569c2b216d30a1af32e74dce2fb6dd3a8e836ceaa4602"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+            "hash": "d5935b9796870d7cf3dcf17a7f01ea8b2a566587cbc7691fc7dcd6ddf8c58e07"
+          },
+          {
+            "path": "openspec/changes/agent-intervention-web/.apply-isolation.json",
+            "hash": "7512b759481acd6f0b30c2de26eed5c1bd88b97aee8ecdaf3e925a399ec13820"
+          },
+          {
+            "path": "openspec/changes/agent-intervention-web/design.md",
+            "hash": "8be8162b255a0d57d4b955b6ec1ce702bc7ee88d599047253dba7921df02e308"
+          },
+          {
+            "path": "openspec/changes/agent-intervention-web/opsx-delta.yaml",
+            "hash": "248b5cb3065a48a555a89316525f5e7f32843619dc8f70a71ac549701f7ce345"
+          },
+          {
+            "path": "openspec/changes/agent-intervention-web/specs/agent-intervention-web/spec.md",
+            "hash": "9e35598aadd7923139623445324ee3fefc68c4f29b4654783a350483adec8f77"
+          },
+          {
+            "path": "openspec/changes/agent-intervention-web/tasks.md",
+            "hash": "0d450155c297110737455a030a64d7e6816e5859d37ff4467dbf7767487006ac"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "658413c2aa641b498e8cb2acefb332cb0bcb7a98f55dabbe6e5a6e99050435f5"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "7b7a222aa6a389cc9264518de80aacee35760523d760ef910d607df798140438"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "61616382639372ffa3357f2930bbc24551b0461fd3593669954a9bd822a2a212"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "e57889d2b58f37623d6c022eae104f4687eb44ec75d108a923e417d0c6d73ef5"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "390c5804a6db4bec72f030ba0186e5987588a5d73ce4fa57dc8beee22bbdf32d"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "6d5ba9682957242e342d2a33fc8d55de30dcadf2148138ff64883d8d6a833bf0"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "60e029de51bf338de35840ed5718439ef810cc65"
+      }
+    }
+  }
+}

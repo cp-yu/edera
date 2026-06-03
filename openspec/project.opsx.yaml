@@ -137,7 +137,7 @@ capabilities:
     intent: 扩展声明表继续使用 ext_ 命名空间，并与普通 EntityType 的 entity_ per-type table DDL 和列类型契约保持兼容
     type: capability
   - id: cap.operations.dag-event-driven-executor
-    intent: DAG dispatcher 在目标节点调度决策点生成所有直接入边 facts，并用 node failure_kind 区分执行失败和上游失败，统一使用 run_id
+    intent: dispatcher 将 wait 节点作为常规 Task 调度，挂起不阻塞主循环与独立路径，stop 时可取消挂起
     type: capability
   - id: cap.operations.dag-run-control
     intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断，统一使用 run_id
@@ -180,7 +180,7 @@ capabilities:
     intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
     type: capability
   - id: cap.core.node-type-discriminated-union
-    intent: NodeConfig Discriminated Union 模型，新增可选 emits 字段声明事件产出
+    intent: NodeConfig discriminated union 在 function/agent/dag 基础上新增 wait variant
     type: capability
   - id: cap.core.agent-executor
     intent: Agent 节点默认获得简短 runtime context，并通过 CLI export 按需获取 payload 文件
@@ -248,7 +248,7 @@ capabilities:
     intent: 内置 cron 时钟 emitter，按 trigger 表达式中声明的 cron token 自动 emit 事件，错过即跳过
     type: capability
   - id: cap.core.event-emit-rpc
-    intent: EventService.Emit RPC 与 emit 记录持久化，作为唯一事件注入入口
+    intent: emit 路径在置位 bit 后额外驱动 WaitRegistry 求值，作为 run 内挂起 wait 节点的唤醒入口
     type: capability
   - id: cap.core.trigger-loop-guard
     intent: emit 深度计数器与可配阈值（max_trigger_depth），循环触发防护机制
@@ -271,4 +271,12 @@ capabilities:
     type: capability
   - id: cap.core.lazy-entity-type-materialization
     intent: 普通 EntityType 支持 per-type table、attributes_json 承接新增字段、lazy materialized columns、deprecated 字段生命周期和维护命令
+    type: capability
+  - id: cap.operations.dag-node-wait-input
+    intent: wait 节点类型、waiting 运行状态、WaitRegistry 与 emit 解锁通道、信号先到/后到/超时三态、run 隔离命名约定与重启重放恢复
+    status: draft
+    type: capability
+  - id: cap.web.agent-intervention-web
+    intent: Web Console agent 交互弹窗、运行中中断+注入与已结束直接发送两种干预编排、前端干预 hooks 与实时状态展示
+    status: draft
     type: capability

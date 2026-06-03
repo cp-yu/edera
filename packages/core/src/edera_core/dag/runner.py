@@ -14,6 +14,7 @@ from edera_core.errors import DagError
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeContext, NodeInput, NodeOutput
 from edera_core.config.schema import DagConfig, DagNodeInstance, DagNodeConfig, EmitDeclaration, NodeConfig
+from edera_core.trigger import TriggerExecutor
 
 NodeRunRecorder = Callable[[str, str, str, str | None, str | None, dict[str, object] | None], Awaitable[None]]
 EdgeInputRecorder = Callable[["EdgeInputFact"], Awaitable[None]]
@@ -50,6 +51,7 @@ class DagRunner:
         nodes: dict[str, NodeConfig] | None = None,
         emit: EmitCallback | None = None,
         dag_lifecycle: DagRunLifecycle | None = None,
+        trigger_executor: TriggerExecutor | None = None,
         depth: int = 1,
         path: tuple[str, ...] = (),
     ) -> None:
@@ -60,6 +62,7 @@ class DagRunner:
         self.nodes = nodes or executor.nodes
         self.emit = emit
         self.dag_lifecycle = dag_lifecycle
+        self.trigger_executor = trigger_executor
         self.depth = depth
         self.path = path
         if self.executor.dag_executor is None:
@@ -78,6 +81,7 @@ class DagRunner:
             self.executor.instances = graph.instances
         topological_layers(graph)
         stop_event = stop_event or asyncio.Event()
+        self._configure_wait_executor(stop_event)
         outputs: dict[str, NodeOutput] = {}
         failures: dict[str, str] = {}
         payloads: dict[str, object] = {}
@@ -271,6 +275,7 @@ class DagRunner:
         source_nodes = [node for node in graph.nodes if node in allowed and not graph.reverse_edges[node]]
         if (
             source_nodes
+            and not stop_event.is_set()
             and all(node in outputs and not outputs[node].ok for node in source_nodes)
             and not any(graph.instances[node].type in self.dags for node in source_nodes)
         ):
@@ -611,6 +616,17 @@ class DagRunner:
                     logger.warning("node emit condition failed for %s: %s", declaration.event, exc)
                     continue
             await self.emit(declaration.event, payload)
+
+    def _configure_wait_executor(self, stop_event: asyncio.Event) -> None:
+        if self.trigger_executor is None:
+            return
+        self.executor.wait_payload_reader = self.trigger_executor.wait_payload
+        self.executor.wait_register = lambda wait_for, consume: self.trigger_executor.register_waiter(wait_for, consume=consume)
+        self.executor.wait_unregister = self.trigger_executor.unregister_waiter
+        self.executor.wait_matched_tokens = self.trigger_executor.matched_waiter_tokens
+        self.executor.wait_consumer = self.trigger_executor.events.consume
+        self.executor.wait_recorder = self._record
+        self.executor.wait_stop_event = stop_event
 
     async def _execute_serial_loop(
         self,
@@ -1233,6 +1249,9 @@ def collect(values: Sequence[object]) -> list[object]:
 
 
 def _failure_kind(output: NodeOutput) -> str | None:
+    value = output.metadata.get("failure_kind")
+    if isinstance(value, str):
+        return value
     return None if output.ok else "execution_failed"
 
 
