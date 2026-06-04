@@ -1,0 +1,560 @@
+id: uzi-data-collection
+type: dag
+attributes:
+  name: uzi-data-collection
+  nodes:
+  - id: 0_basic
+    type: uzi-fetch-basic
+    alias: 基础信息
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 1_financials
+    type: uzi-fetch-financials
+    alias: 财务数据
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 2_news
+    type: uzi-fetch-news
+    alias: 新闻研报
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 4_market
+    type: uzi-fetch-market
+    alias: 市场行情
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 5_shareholder
+    type: uzi-fetch-shareholder
+    alias: 股东结构
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 6_technical
+    type: uzi-fetch-technical
+    alias: 技术面
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 8_sentiment
+    type: uzi-fetch-sentiment
+    alias: 市场情绪
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 10_valuation
+    type: uzi-fetch-valuation
+    alias: 估值
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: v8_isolate
+  - id: 11_moneyflow
+    type: uzi-fetch-moneyflow
+    alias: 资金异动
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 12_capital_flow
+    type: uzi-fetch-capital-flow
+    alias: 资金流
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: v8_isolate
+  - id: 14_events
+    type: uzi-fetch-events
+    alias: 事件
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 15_competitors
+    type: uzi-fetch-competitors
+    alias: 竞争对手
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 16_risk
+    type: uzi-fetch-risk
+    alias: 风险信号
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 17_estimates
+    type: uzi-fetch-estimates
+    alias: 盈利预测
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 18_insider
+    type: uzi-fetch-insider
+    alias: 治理内幕
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 19_dividend
+    type: uzi-fetch-dividend
+    alias: 分红
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 20_liquidity
+    type: uzi-fetch-liquidity
+    alias: 流动性
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 21_regulatory
+    type: uzi-fetch-regulatory
+    alias: 监管政策
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 22_ownership
+    type: uzi-fetch-ownership
+    alias: 机构持仓
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 3_macro
+    type: uzi-fetch-macro
+    alias: 宏观
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 7_industry
+    type: uzi-fetch-industry
+    alias: 行业
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: v8_isolate
+  - id: 9_futures
+    type: uzi-fetch-futures
+    alias: 期货
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: 13_policy
+    type: uzi-fetch-policy
+    alias: 政策
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: autofill_mx
+    type: uzi-autofill-mx
+    alias: MX 定性补全
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: autofill_playwright
+    type: uzi-autofill-playwright
+    alias: Playwright 定性补全
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: aggregate_results
+    type: uzi-aggregate-collection-results
+    alias: 聚合采集结果
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  edges:
+  - from: 0_basic
+    to: 1_financials
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 2_news
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 4_market
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 5_shareholder
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 6_technical
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 8_sentiment
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 10_valuation
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 11_moneyflow
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 12_capital_flow
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 14_events
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 15_competitors
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 16_risk
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 17_estimates
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 18_insider
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 19_dividend
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 20_liquidity
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 21_regulatory
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 22_ownership
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 3_macro
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 7_industry
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 9_futures
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: 13_policy
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: autofill_mx
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: autofill_playwright
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 0_basic
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 1_financials
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 2_news
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 3_macro
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 4_market
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 5_shareholder
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 6_technical
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 7_industry
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 8_sentiment
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 9_futures
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 10_valuation
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 11_moneyflow
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 12_capital_flow
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 13_policy
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 14_events
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 15_competitors
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 16_risk
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 17_estimates
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 18_insider
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 19_dividend
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 20_liquidity
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 21_regulatory
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: 22_ownership
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: autofill_mx
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: autofill_playwright
+    to: aggregate_results
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier

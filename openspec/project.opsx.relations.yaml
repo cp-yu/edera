@@ -186,3 +186,6 @@ relations:
   - from: cap.core.default-news-workflow
     type: depends_on
     to: cap.trigger-system
+  - from: cap.core.uzi-subdag-structure
+    type: contains
+    to: dom.core

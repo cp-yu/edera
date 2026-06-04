@@ -1,0 +1,48 @@
+id: uzi-scoring-synthesis
+type: dag
+attributes:
+  name: uzi-scoring-synthesis
+  nodes:
+  - id: score_dimensions
+    type: uzi-score-dimensions
+    alias: 维度评分
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: generate_panel
+    type: uzi-generate-panel
+    alias: 生成面板
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: generate_synthesis
+    type: uzi-generate-synthesis
+    alias: 综合结论
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  edges:
+  - from: score_dimensions
+    to: generate_panel
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier

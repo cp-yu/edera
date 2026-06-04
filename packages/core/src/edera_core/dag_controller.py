@@ -777,7 +777,7 @@ class DagController:
                 output_run_id, node_id, path, digest, size
             ),
             execution_summary_recorder=lambda output_run_id, node_id, summary: self._record_execution_summary(
-                output_run_id, node_id, summary, config.system.workspace_root
+                output_run_id, node_id, summary, snapshot.config.system.workspace_root
             ),
             agent_certificate_issuer=self.agent_certificate_issuer,
             daemon_data_dir=self.daemon_data_dir,

@@ -1,0 +1,41 @@
+id: uzi-aggregate-collection-results
+type: node
+attributes:
+  name: uzi-aggregate-collection-results
+  type: function
+  role: processor
+  handler: legacy-script-adapter
+  input_type: Any
+  output_type: Any
+  parameters:
+    module_path: extensions/uzi-skill/adapter.py
+    function: aggregate_collection_results
+    args_map:
+    - source: input
+    - default:
+      - 0_basic
+      - 1_financials
+      - 2_news
+      - 3_macro
+      - 4_market
+      - 5_shareholder
+      - 6_technical
+      - 7_industry
+      - 8_sentiment
+      - 9_futures
+      - 10_valuation
+      - 11_moneyflow
+      - 12_capital_flow
+      - 13_policy
+      - 14_events
+      - 15_competitors
+      - 16_risk
+      - 17_estimates
+      - 18_insider
+      - 19_dividend
+      - 20_liquidity
+      - 21_regulatory
+      - 22_ownership
+      - autofill_mx
+      - autofill_playwright
+    - source: metadata.edge_inputs

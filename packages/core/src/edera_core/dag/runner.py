@@ -77,82 +77,43 @@ class DagRunner:
         retry_nodes: set[str] | None = None,
         prefilled_outputs: dict[str, NodeOutput] | None = None,
     ) -> DagRunResult:
-        if not self.executor.instances:
-            self.executor.instances = graph.instances
-        topological_layers(graph)
-        stop_event = stop_event or asyncio.Event()
-        self._configure_wait_executor(stop_event)
-        outputs: dict[str, NodeOutput] = {}
-        failures: dict[str, str] = {}
-        payloads: dict[str, object] = {}
-        routed_edges: set[tuple[str, str]] = set()
-        warnings: list[str] = []
-        for node, output in (prefilled_outputs or {}).items():
-            if node not in graph.instances:
-                continue
-            outputs[node] = output
-            if output.ok and output.payload is not None:
-                payloads[node] = output.payload
-                routed_edges.update(self._routed_edges(graph, node, output.payload, warnings))
-        queue: asyncio.Queue[_NodeDone] = asyncio.Queue()
-        running: dict[str, asyncio.Task[tuple[str, NodeOutput]]] = {}
-        accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]] = {}
-        accumulated_edges: set[tuple[str, str]] = set()
-        acquired: dict[str, ResourceSemaphore] = {}
-        started: set[str] = set(outputs)
-        allowed = retry_nodes or set(graph.nodes)
-        for node in graph.nodes:
-            if node in outputs:
-                continue
-            if node in allowed and not graph.reverse_edges[node]:
-                if not self._acquire_resource(graph.instances[node], acquired):
-                    continue
-                self._start_node(running, graph, node, run_id, initial_payload, outputs, payloads, routed_edges, warnings)
-                started.add(node)
+        previous_instances = self.executor.instances
+        self.executor.instances = graph.instances
         try:
-            while self._can_continue(
-                running,
-                accumulate_tasks,
-                graph,
-                started,
-                allowed,
-                outputs,
-                routed_edges,
-                accumulated_edges,
-            ):
-                if stop_event.is_set() and not running:
-                    break
-                if not running:
-                    await self._start_ready_nodes(
-                        running,
-                        graph,
-                        run_id,
-                        initial_payload,
-                        outputs,
-                        payloads,
-                        failures,
-                        routed_edges,
-                        warnings,
-                        started,
-                        allowed,
-                        stop_event,
-                        acquired,
-                    )
-                    if not running and not self._pending_accumulate_tasks(accumulate_tasks):
-                        await self._wait_for_resource_release(
-                            graph,
-                            started,
-                            allowed,
-                            outputs,
-                            routed_edges,
-                            accumulated_edges,
-                            stop_event,
-                        )
+            topological_layers(graph)
+            stop_event = stop_event or asyncio.Event()
+            self._configure_wait_executor(stop_event)
+            outputs: dict[str, NodeOutput] = {}
+            failures: dict[str, str] = {}
+            payloads: dict[str, object] = {}
+            routed_edges: set[tuple[str, str]] = set()
+            warnings: list[str] = []
+            for node, output in (prefilled_outputs or {}).items():
+                if node not in graph.instances:
+                    continue
+                outputs[node] = output
+                if output.ok and output.payload is not None:
+                    payloads[node] = output.payload
+                    routed_edges.update(self._routed_edges(graph, node, output.payload, warnings))
+            queue: asyncio.Queue[_NodeDone] = asyncio.Queue()
+            running: dict[str, asyncio.Task[tuple[str, NodeOutput]]] = {}
+            accumulate_tasks: dict[str, list[asyncio.Task[tuple[str, NodeOutput]]]] = {}
+            accumulated_edges: set[tuple[str, str]] = set()
+            acquired: dict[str, ResourceSemaphore] = {}
+            started: set[str] = set(outputs)
+            allowed = retry_nodes or set(graph.nodes)
+            for node in graph.nodes:
+                if node in outputs:
+                    continue
+                if node in allowed and not graph.reverse_edges[node]:
+                    if not self._acquire_resource(graph.instances[node], acquired):
                         continue
-                wait_tasks = [*running.values(), *self._pending_accumulate_tasks(accumulate_tasks)]
-                running_tasks = set(running.values())
-                release_task: asyncio.Task[None] | None = None
-                if self._has_blocked_startable(graph, started, allowed, outputs, routed_edges) or self._has_blocked_accumulate(
+                    self._start_node(running, graph, node, run_id, initial_payload, outputs, payloads, routed_edges, warnings)
+                    started.add(node)
+            try:
+                while self._can_continue(
+                    running,
+                    accumulate_tasks,
                     graph,
                     started,
                     allowed,
@@ -160,133 +121,175 @@ class DagRunner:
                     routed_edges,
                     accumulated_edges,
                 ):
-                    release_task = asyncio.create_task(
-                        self._wait_for_resource_release(
+                    if stop_event.is_set() and not running:
+                        break
+                    if not running:
+                        await self._start_ready_nodes(
+                            running,
                             graph,
+                            run_id,
+                            initial_payload,
+                            outputs,
+                            payloads,
+                            failures,
+                            routed_edges,
+                            warnings,
                             started,
                             allowed,
-                            outputs,
-                            routed_edges,
-                            accumulated_edges,
                             stop_event,
+                            acquired,
                         )
-                    )
-                    wait_tasks.append(release_task)
-                done, _pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
-                if release_task is not None and release_task not in done:
-                    release_task.cancel()
-                    await asyncio.gather(release_task, return_exceptions=True)
-                for task in done:
-                    if task not in running_tasks:
-                        continue
-                    result = task.result()
-                    if result is None:
-                        continue
-                    node, output = result
-                    running.pop(node, None)
-                    await queue.put(_NodeDone(node, output))
-                completed_accumulate = await self._complete_accumulate_tasks(
-                    graph,
-                    outputs,
-                    payloads,
-                    failures,
-                    routed_edges,
-                    warnings,
-                    accumulate_tasks,
-                    started,
-                    acquired,
-                )
-                while not queue.empty():
-                    event = await queue.get()
-                    self._store_result(
+                        if not running and not self._pending_accumulate_tasks(accumulate_tasks):
+                            await self._wait_for_resource_release(
+                                graph,
+                                started,
+                                allowed,
+                                outputs,
+                                routed_edges,
+                                accumulated_edges,
+                                stop_event,
+                            )
+                            continue
+                    wait_tasks = [*running.values(), *self._pending_accumulate_tasks(accumulate_tasks)]
+                    running_tasks = set(running.values())
+                    release_task: asyncio.Task[None] | None = None
+                    if self._has_blocked_startable(graph, started, allowed, outputs, routed_edges) or self._has_blocked_accumulate(
                         graph,
-                        event.node,
-                        event.output,
+                        started,
+                        allowed,
+                        outputs,
+                        routed_edges,
+                        accumulated_edges,
+                    ):
+                        release_task = asyncio.create_task(
+                            self._wait_for_resource_release(
+                                graph,
+                                started,
+                                allowed,
+                                outputs,
+                                routed_edges,
+                                accumulated_edges,
+                                stop_event,
+                            )
+                        )
+                        wait_tasks.append(release_task)
+                    done, _pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
+                    if release_task is not None and release_task not in done:
+                        release_task.cancel()
+                        await asyncio.gather(release_task, return_exceptions=True)
+                    for task in done:
+                        if task not in running_tasks:
+                            continue
+                        result = task.result()
+                        if result is None:
+                            continue
+                        node, output = result
+                        running.pop(node, None)
+                        await queue.put(_NodeDone(node, output))
+                    completed_accumulate = await self._complete_accumulate_tasks(
+                        graph,
                         outputs,
                         payloads,
                         failures,
                         routed_edges,
                         warnings,
+                        accumulate_tasks,
+                        started,
                         acquired,
                     )
-                    if event.output.ok:
-                        await self._emit_node_events(graph, event.node, event.output.payload)
-                        await self._run_accumulate_downstreams(
+                    while not queue.empty():
+                        event = await queue.get()
+                        self._store_result(
                             graph,
                             event.node,
-                            run_id,
                             event.output,
                             outputs,
                             payloads,
                             failures,
                             routed_edges,
                             warnings,
-                            accumulate_tasks,
-                            accumulated_edges,
+                            acquired,
+                        )
+                        if event.output.ok:
+                            await self._emit_node_events(graph, event.node, event.output.payload)
+                            await self._run_accumulate_downstreams(
+                                graph,
+                                event.node,
+                                run_id,
+                                event.output,
+                                outputs,
+                                payloads,
+                                failures,
+                                routed_edges,
+                                warnings,
+                                accumulate_tasks,
+                                accumulated_edges,
+                                started,
+                                allowed,
+                                stop_event,
+                                acquired,
+                            )
+                            completed_accumulate = True
+                        await self._start_ready_nodes(
+                            running,
+                            graph,
+                            run_id,
+                            initial_payload,
+                            outputs,
+                            payloads,
+                            failures,
+                            routed_edges,
+                            warnings,
                             started,
                             allowed,
                             stop_event,
                             acquired,
                         )
-                        completed_accumulate = True
-                    await self._start_ready_nodes(
-                        running,
-                        graph,
-                        run_id,
-                        initial_payload,
-                        outputs,
-                        payloads,
-                        failures,
-                        routed_edges,
-                        warnings,
-                        started,
-                        allowed,
-                        stop_event,
-                        acquired,
-                    )
-                if completed_accumulate:
-                    await self._start_ready_nodes(
-                        running,
-                        graph,
-                        run_id,
-                        initial_payload,
-                        outputs,
-                        payloads,
-                        failures,
-                        routed_edges,
-                        warnings,
-                        started,
-                        allowed,
-                        stop_event,
-                        acquired,
-                    )
-        except asyncio.CancelledError:
-            for task in running.values():
-                task.cancel()
-            await asyncio.gather(*running.values(), return_exceptions=True)
-            self._release_all(acquired)
-            raise
-        except Exception:
-            for task in running.values():
-                task.cancel()
-            await asyncio.gather(*running.values(), return_exceptions=True)
-            self._release_all(acquired)
-            raise
-        source_nodes = [node for node in graph.nodes if node in allowed and not graph.reverse_edges[node]]
-        if (
-            source_nodes
-            and not stop_event.is_set()
-            and all(node in outputs and not outputs[node].ok for node in source_nodes)
-            and not any(graph.instances[node].type in self.dags for node in source_nodes)
-        ):
-            raise DagError("all source nodes failed")
-        return DagRunResult(
-            run_id=run_id,
-            node_outputs=outputs,
-            failures=failures,
-            payload=self._last_payload(graph, payloads),
-            warnings=warnings,
-        )
+                    if completed_accumulate:
+                        await self._start_ready_nodes(
+                            running,
+                            graph,
+                            run_id,
+                            initial_payload,
+                            outputs,
+                            payloads,
+                            failures,
+                            routed_edges,
+                            warnings,
+                            started,
+                            allowed,
+                            stop_event,
+                            acquired,
+                        )
+            except asyncio.CancelledError:
+                for task in running.values():
+                    task.cancel()
+                await asyncio.gather(*running.values(), return_exceptions=True)
+                self._release_all(acquired)
+                raise
+            except Exception:
+                for task in running.values():
+                    task.cancel()
+                await asyncio.gather(*running.values(), return_exceptions=True)
+                self._release_all(acquired)
+                raise
+            source_nodes = [node for node in graph.nodes if node in allowed and not graph.reverse_edges[node]]
+            if (
+                source_nodes
+                and not stop_event.is_set()
+                and all(node in outputs and not outputs[node].ok for node in source_nodes)
+                and not any(self._is_sub_dag_instance(graph.instances[node]) for node in source_nodes)
+            ):
+                raise DagError("all source nodes failed")
+            return DagRunResult(
+                run_id=run_id,
+                node_outputs=outputs,
+                failures=failures,
+                payload=self._last_payload(graph, payloads),
+                warnings=warnings,
+            )
+        finally:
+            self.executor.instances = previous_instances
 
     def _store_result(
         self,
@@ -535,6 +538,8 @@ class DagRunner:
         context: NodeContext,
     ) -> NodeOutput:
         if instance.loop is None:
+            if instance.type == "dag" and instance.dag_ref:
+                return await self._execute_sub_dag(instance, instance.dag_ref, instance.input_mapping, node_input)
             if instance.type in self.dags:
                 return await self._execute_sub_dag(instance, instance.type, {}, node_input)
             output = await self.executor.execute(node, node_input, context)
@@ -668,7 +673,7 @@ class DagRunner:
             return NodeOutput(node_name=instance.id, ok=False, error=f"sub DAG cycle: {' -> '.join(chain)}")
         if self.depth >= limit:
             return NodeOutput(node_name=instance.id, ok=False, error=f"max DAG depth exceeded: {' -> '.join(chain)}")
-        graph = load_graph(self.dags[dag_ref], self.nodes)
+        graph = load_graph(self.dags[dag_ref], self.nodes, self.dags)
         runner = DagRunner(
             self.executor,
             recorder=self.recorder,
@@ -727,6 +732,9 @@ class DagRunner:
         if config.dag_ref not in self.dags:
             return NodeOutput(node_name=node_name, ok=False, error=f"missing dag config: {config.dag_ref}")
         return await self._execute_sub_dag(instance, config.dag_ref, config.input_mapping, node_input)
+
+    def _is_sub_dag_instance(self, instance: DagNodeInstance) -> bool:
+        return (instance.type == "dag" and instance.dag_ref in self.dags) or instance.type in self.dags
 
     async def _record(
         self,
@@ -1235,7 +1243,7 @@ class DagRunner:
             return None
         if len(sinks) == 1:
             return payloads.get(sinks[0])
-        return [payloads.get(node) for node in sinks]
+        return [payloads[node] for node in sinks if node in payloads]
 
 
 def collect(values: Sequence[object]) -> list[object]:

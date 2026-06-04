@@ -1,0 +1,216 @@
+id: uzi-rendering
+type: dag
+attributes:
+  name: uzi-rendering
+  nodes:
+  - id: render_01_summary
+    type: uzi-render-summary
+    alias: 渲染-摘要
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_02_financials
+    type: uzi-render-financials
+    alias: 渲染-财务
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_03_macro
+    type: uzi-render-macro
+    alias: 渲染-宏观
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_04_market
+    type: uzi-render-market
+    alias: 渲染-行情
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_05_news
+    type: uzi-render-news
+    alias: 渲染-新闻
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_06_shareholder
+    type: uzi-render-shareholder
+    alias: 渲染-股东
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_07_technical
+    type: uzi-render-technical
+    alias: 渲染-技术
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_08_industry
+    type: uzi-render-industry
+    alias: 渲染-行业
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_09_sentiment
+    type: uzi-render-sentiment
+    alias: 渲染-情绪
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_10_futures
+    type: uzi-render-futures
+    alias: 渲染-期货
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_11_valuation
+    type: uzi-render-valuation
+    alias: 渲染-估值
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_12_moneyflow
+    type: uzi-render-moneyflow
+    alias: 渲染-资金异动
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_13_capital_flow
+    type: uzi-render-capital-flow
+    alias: 渲染-资金流
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_14_policy
+    type: uzi-render-policy
+    alias: 渲染-政策
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_15_events
+    type: uzi-render-events
+    alias: 渲染-事件
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_16_competitors
+    type: uzi-render-competitors
+    alias: 渲染-竞争对手
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_17_risk
+    type: uzi-render-risk
+    alias: 渲染-风险
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_18_estimates
+    type: uzi-render-estimates
+    alias: 渲染-预测
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_19_insider
+    type: uzi-render-insider
+    alias: 渲染-治理内幕
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_20_dividend
+    type: uzi-render-dividend
+    alias: 渲染-分红
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: render_21_liquidity
+    type: uzi-render-liquidity
+    alias: 渲染-流动性
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  edges: []
