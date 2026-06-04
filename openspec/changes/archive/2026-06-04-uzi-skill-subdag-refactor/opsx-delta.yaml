@@ -1,0 +1,15 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.uzi-subdag-structure
+      type: capability
+      intent: UZI-Skill 分层 Sub DAG 结构，定义数据采集、评分综合、渲染三阶段的子图组织和数据流契约
+  relations:
+    - from: cap.core.uzi-subdag-structure
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.uzi-skill-dag-instance
+      intent: UZI-Skill DAG 实例配置从扁平化 53 节点结构改为 3 层 Sub DAG 嵌套结构（data-collection、scoring-synthesis、rendering），保持原有数据采集、评分、渲染逻辑不变

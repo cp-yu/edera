@@ -9,6 +9,10 @@ handlers:
 imports:
   entities:
   - entities/dags/uzi-skill-analysis.yaml
+  - entities/dags/uzi-data-collection.yaml
+  - entities/dags/uzi-scoring-synthesis.yaml
+  - entities/dags/uzi-rendering.yaml
+  - entities/nodes/uzi-aggregate-collection-results.yaml
   - entities/nodes/uzi-assemble-report.yaml
   - entities/nodes/uzi-autofill-mx.yaml
   - entities/nodes/uzi-autofill-playwright.yaml

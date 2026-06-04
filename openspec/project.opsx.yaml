@@ -174,7 +174,7 @@ capabilities:
     intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
     type: capability
   - id: cap.core.uzi-skill-dag-instance
-    intent: UZI-Skill 分析管道的 DAG 实例配置由 extensions/uzi-skill manifest imports 拥有，覆盖节点声明、边拓扑、resource 引用、cron trigger 和 fan-in 模式
+    intent: UZI-Skill DAG 实例配置从扁平化 53 节点结构改为 3 层 Sub DAG 嵌套结构（data-collection、scoring-synthesis、rendering），保持原有数据采集、评分、渲染逻辑不变
     type: capability
   - id: cap.core.legacy-script-adapter
     intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
@@ -279,4 +279,7 @@ capabilities:
     type: capability
   - id: cap.core.default-news-workflow
     intent: 默认新闻工作流作为 extension-owned package 导入 default DAG、默认节点、默认 cron trigger 和 DAG 直接引用的信息源 seed Entity
+    type: capability
+  - id: cap.core.uzi-subdag-structure
+    intent: UZI-Skill 分层 Sub DAG 结构，定义数据采集、评分综合、渲染三阶段的子图组织和数据流契约
     type: capability

@@ -2,11 +2,13 @@
 capabilities:
   - cap.core.uzi-skill-dag-instance
 ---
-# uzi-skill-dag-instance Specification
+# uzi-skill-dag-instance Specification (Delta)
 
 ## Purpose
 定义 UZI-Skill 分析管道 DAG 实例拓扑、并发波次、optional 节点、资源约束和 extension imports 边界。
-## Requirements
+
+## MODIFIED Requirements
+
 ### Requirement: DAG 拓扑声明
 
 系统 SHALL 在 `extensions/uzi-skill/` package 的 manifest imports 中声明 UZI-Skill 分析管道 Entity。主 DAG `uzi-skill-analysis` MUST 包含 5 个节点：`preflight`、3 个 Sub DAG 引用节点（`data_collection`, `scoring_synthesis`, `rendering`）和 `assemble_report`。
@@ -161,4 +163,3 @@ UZI workflow 的 DAG、Sub DAG、node、trigger 和 resource instances SHALL 由
 - **WHEN** runtime materialization 在 extension imports 后构建 DAG registry
 - **THEN** `uzi-skill-analysis` 主 DAG 和 3 个 Sub DAG MUST 从 DB-backed Entity storage 解析
 - **AND** runtime MUST NOT 读取 workflow YAML 文件作为 fallback runtime sources
-

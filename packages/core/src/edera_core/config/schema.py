@@ -351,6 +351,8 @@ class DagNodeInstance(BaseModel):
 
     id: str
     type: str
+    dag_ref: str | None = None
+    input_mapping: dict[str, str] = Field(default_factory=dict)
     alias: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
     optional: bool = False
@@ -373,6 +375,11 @@ class DagNodeInstance(BaseModel):
                 raise ValueError("config.tools must be a list")
             value["tools"] = _validate_tools([str(item) for item in tools])
         return value
+
+    @field_validator("input_mapping")
+    @classmethod
+    def _json_like_input_mapping(cls, value: dict[str, str]) -> dict[str, str]:
+        return {str(key): str(item) for key, item in value.items()}
 
 
 class DagInputConfig(BaseModel):

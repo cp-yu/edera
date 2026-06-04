@@ -107,6 +107,7 @@ def _roots(ctx: HandlerContext) -> dict[str, Any]:
     return {
         "params": ctx.input.payload if isinstance(ctx.input.payload, dict) else {},
         "input": _input_payload(ctx),
+        "metadata": ctx.input.metadata,
     }
 
 
@@ -158,3 +159,19 @@ def _error(ctx: HandlerContext, message: str) -> NodeOutput:
 
 
 _MISSING = object()
+
+
+def aggregate_collection_results(payload: Any, fields: list[str], edge_inputs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    if isinstance(payload, dict):
+        return {field: payload.get(field) for field in fields}
+    values = list(payload) if isinstance(payload, list) else [payload]
+    status = {str(item.get("from_node_id")): item.get("status") for item in edge_inputs or [] if isinstance(item, dict)}
+    result: dict[str, Any] = {}
+    index = 0
+    for field in fields:
+        if status.get(field) == "failed":
+            result[field] = None
+            continue
+        result[field] = values[index] if index < len(values) else None
+        index += 1
+    return result

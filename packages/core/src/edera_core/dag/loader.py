@@ -3,11 +3,12 @@ from edera_core.dag.models import DagGraph
 from edera_core.errors import DagError
 
 
-def load_graph(config: DagConfig, nodes: dict[str, NodeConfig]) -> DagGraph:
+def load_graph(config: DagConfig, nodes: dict[str, NodeConfig], dags: dict[str, DagConfig] | None = None) -> DagGraph:
     instances = {node.id: node for node in config.nodes}
     if len(instances) != len(config.nodes):
         raise DagError("DAG contains duplicate node instance ids")
-    missing = [node.type for node in config.nodes if node.type not in nodes]
+    sub_dag_instances = {node.id for node in config.nodes if _is_sub_dag_node(node, dags)}
+    missing = [node.type for node in config.nodes if node.id not in sub_dag_instances and node.type not in nodes]
     if missing:
         raise DagError(f"missing node config: {', '.join(missing)}")
     instance_ids = [node.id for node in config.nodes]
@@ -22,15 +23,18 @@ def load_graph(config: DagConfig, nodes: dict[str, NodeConfig]) -> DagGraph:
         edge = raw_edge if isinstance(raw_edge, DagEdge) else DagEdge.model_validate(raw_edge)
         if edge.from_ not in edges or edge.to not in reverse:
             raise DagError(f"edge references unknown node: {edge.from_}->{edge.to}")
-        _check_role(nodes[instances[edge.from_].type], nodes[instances[edge.to].type])
-        _check_io(nodes[instances[edge.from_].type], nodes[instances[edge.to].type])
+        if edge.from_ not in sub_dag_instances and edge.to not in sub_dag_instances:
+            _check_role(nodes[instances[edge.from_].type], nodes[instances[edge.to].type])
+            _check_io(nodes[instances[edge.from_].type], nodes[instances[edge.to].type])
         edges[edge.from_].append(edge.to)
         reverse[edge.to].append(edge.from_)
         if edge.fan_out:
             fan_out.add((edge.from_, edge.to))
         if edge.fan_in:
             fan_in.add((edge.from_, edge.to))
-        if edge.optional or nodes[instances[edge.from_].type].optional or instances[edge.from_].optional:
+        upstream = instances[edge.from_]
+        upstream_node_optional = False if edge.from_ in sub_dag_instances else nodes[upstream.type].optional
+        if edge.optional or upstream_node_optional or upstream.optional:
             optional.add((edge.from_, edge.to))
         if edge.condition:
             conditions[(edge.from_, edge.to)] = edge.condition
@@ -115,12 +119,20 @@ def _visit_sub_dag(
         raise DagError(f"max DAG depth exceeded: {' -> '.join(chain)}")
     dag = dags[dag_name]
     for node in dag.nodes:
-        ref = _dag_ref(dags, node.type)
+        ref = _dag_ref(dags, node.type, node.dag_ref)
         if ref is not None:
             _visit_sub_dag(dags, ref, max_depth, chain)
 
 
-def _dag_ref(dags: dict[str, DagConfig], node_type: str) -> str | None:
+def _dag_ref(dags: dict[str, DagConfig], node_type: str, dag_ref: str | None = None) -> str | None:
+    if node_type == "dag" and dag_ref in dags:
+        return dag_ref
     if node_type in dags:
         return node_type
     return None
+
+
+def _is_sub_dag_node(node, dags: dict[str, DagConfig] | None) -> bool:
+    if node.type == "dag" and node.dag_ref:
+        return dags is None or node.dag_ref in dags
+    return dags is not None and node.type in dags
