@@ -27,5 +27,5 @@ def render(payload: Any) -> dict[str, Any]:
     return {"html": "<section>ok</section>", "payload": payload}
 
 
-def assemble(payload: Any) -> dict[str, Any]:
+def assemble(payload: Any, *_args: Any) -> dict[str, Any]:
     return {"report_path": "/tmp/uzi-skill-report.html", "sections": payload}

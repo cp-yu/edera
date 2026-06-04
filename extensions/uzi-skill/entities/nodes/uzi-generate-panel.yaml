@@ -8,7 +8,7 @@ attributes:
   input_type: Any
   output_type: Any
   parameters:
-    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/run_real_test.py
-    function: generate_panel
+    module_path: extensions/uzi-skill/adapter.py
+    function: generate_panel_from_scored
     args_map:
     - source: input

@@ -8,9 +8,9 @@ attributes:
   input_type: Any
   output_type: Any
   parameters:
-    module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/run_real_test.py
-    function: main
-    env:
-      UZI_CLI_ONLY: '1'
+    module_path: extensions/uzi-skill/adapter.py
+    function: assemble_rendered_report
     args_map:
-    - source: input.preflight.ticker_info.full
+    - source: input
+    - source: run_id
+    - source: metadata.edge_inputs

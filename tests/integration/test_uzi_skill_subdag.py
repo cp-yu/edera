@@ -28,8 +28,9 @@ async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
     }
     assert len(scoring.nodes) == 3
     assert sum(len(edges) for edges in scoring.edges.values()) == 2
-    assert config.dags["uzi-rendering"].edges == []
-    assert len(config.dags["uzi-rendering"].nodes) == 21
+    assert len(config.dags["uzi-rendering"].nodes) == 22
+    assert len(config.dags["uzi-rendering"].edges) == 21
+    assert {edge.to for edge in config.dags["uzi-rendering"].edges} == {"assemble_report"}
     validate_sub_dag_nesting(config.dags, 3)
 
 
