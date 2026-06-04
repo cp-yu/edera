@@ -143,7 +143,7 @@ capabilities:
     intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断，统一使用 run_id
     type: capability
   - id: cap.web.dag-run-observability
-    intent: Web/CLI 运行观察能力消费 runtime tables 投影出的 edge input 与 source recovery facts
+    intent: Web/CLI 运行观察能力消费 runtime tables、node outputs 和 execution logs，并统一覆盖已执行节点日志、agent stdout 历史、log index 边界和 Runtime/History 展示
     type: capability
   - id: cap.web.dag-creation
     intent: DAG 创建能力，覆盖前端 dialog 交互和后端 API 创建空 DAG 配置文件
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 增加普通 EntityType 字段物化的 plan/apply/inspect 维护命令
+    intent: edera CLI 提供 Entity、DAG、Event、System、Node 控制能力，并支持按 run_id 查询节点 execution logs
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -202,7 +202,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.web.edera-web-bff
-    intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，覆盖 HTTP/SSE 网关、token 认证、静态文件服务和参数化 DAG 控制路由，不提供 hard-coded default DAG 专用路径
+    intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，覆盖 HTTP/SSE 网关、节点 execution logs 查询、token 认证和静态文件服务
     type: capability
     domain: dom.web
   - id: cap.core.agent-realtime-observability

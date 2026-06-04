@@ -467,6 +467,11 @@ async def api_node_outputs(request: Request, node_id: str | None = None, run_id:
     return await _call(request, lambda client: client.query_node_outputs(node_id or "", run_id or "", limit))
 
 
+@router.get("/api/node-logs")
+async def api_node_logs(request: Request, node_id: str | None = None, run_id: str | None = None, limit: int = 100) -> Any:
+    return await _call(request, lambda client: client.query_node_logs(node_id or "", run_id or "", limit))
+
+
 @router.get("/api/history/dag/{dag_name}/nodes/{node_id}", response_model=None)
 async def api_node_history(request: Request, dag_name: str, node_id: str, limit: int = 50) -> Any:
     return await _call(request, lambda client: client.query_node_history(dag_name, node_id, limit))

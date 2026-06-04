@@ -8,7 +8,7 @@ import pytest
 from edera_core.query_service import _QueryService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import store_node_output_entities
+from edera_core.storage.repository import record_log_index, store_node_output_entities
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
@@ -52,6 +52,24 @@ async def test_results_summary(tmp_path):
 
     assert {"briefing", "briefings", "advices", "events", "event_details", "summary_items", "metadata_bar", "failed_sources"}.issubset(payload)
     assert payload["advices"][0]["stock_code"] == "AAPL"
+    await daemon.controller.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_node_logs_filters_run_and_node(tmp_path):
+    daemon = await _daemon(tmp_path)
+    async with daemon.controller._factory()() as session:
+        await record_log_index(session, "run-1", "node-a", "/tmp/summary.json", "digest-a", 12, kind="summary")
+        await record_log_index(session, "run-1", "node-b", "/tmp/other.json", "digest-b", 10, kind="summary")
+        await record_log_index(session, "run-2", "node-a", "/tmp/raw.log", "digest-c", 8, kind="raw")
+        await session.commit()
+    service = _QueryService(daemon)
+
+    result = await service.NodeLogs(pb2.NodeOutputsRequest(run_id="run-1", node_id="node-a", limit=10), FakeContext())
+    payload = json.loads(result.json)
+
+    assert [item["path"] for item in payload["logs"]] == ["/tmp/summary.json"]
+    assert payload["logs"][0]["kind"] == "summary"
     await daemon.controller.engine.dispose()
 
 

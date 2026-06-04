@@ -243,7 +243,7 @@ async function verifyQuickAddAndMultiInstance(cdp) {
 
   const aliasSearch = await evaluate(cdp, `
     (async () => {
-      const input = document.querySelector('input')
+      const input = quickAddInput()
       setInput(input, 'market-reader')
       await tick()
       const buttons = [...document.querySelectorAll('button')].map((button) => button.textContent.trim())
@@ -257,11 +257,9 @@ async function verifyQuickAddAndMultiInstance(cdp) {
       (async () => {
         openQuickAdd()
         await tick()
-        setInput(document.querySelector('input'), 'reader')
+        setInput(quickAddInput(), 'reader')
         await tick()
-        ;[...document.querySelectorAll('button')]
-          .find((button) => button.textContent.includes('reader'))
-          .click()
+        quickAddButton('reader').click()
       })()
     `)
     await waitFor(cdp, `document.querySelectorAll('.react-flow__node').length >= ${4 + index}`)
@@ -607,6 +605,7 @@ function freePort() {
 
 function installFetchMock(data) {
   const originalFetch = window.fetch.bind(window)
+  let savedDag = data.dag
   const json = (body, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
@@ -620,6 +619,12 @@ function installFetchMock(data) {
       .find((button) => button.textContent.includes('Cmd/Ctrl+K'))
       ?.click()
   }
+  window.quickAddInput = () =>
+    [...document.querySelectorAll('input')]
+      .find((input) => input.placeholder === '搜索节点并添加到画布中心')
+  window.quickAddButton = (text) =>
+    [...document.querySelectorAll('button')]
+      .find((button) => button.closest('.absolute.left-1\\/2') && button.textContent.includes(text))
   window.setInput = (input, value) => {
     input.focus()
     input.value = value
@@ -635,10 +640,11 @@ function installFetchMock(data) {
     if (url.pathname.startsWith('/api/graph/node-types/') && ['PUT', 'DELETE'].includes(method)) return json({ ok: true })
     if (url.pathname === '/api/graph/skills' && method === 'POST') return json({ skill: JSON.parse(init.body ?? '{}') })
     if (url.pathname.startsWith('/api/graph/skills/') && ['PUT', 'DELETE'].includes(method)) return json({ ok: true })
-    if (url.pathname === '/api/graph/dag/default' && method === 'GET') return json(data.dag)
+    if (url.pathname === '/api/graph/dag/default' && method === 'GET') return json(savedDag)
     if (url.pathname === '/api/graph/dag/default' && method === 'PUT') {
       window.__lastDagPut = JSON.parse(init.body ?? '{}')
-      return json({ dag: data.dag })
+      savedDag = { ...savedDag, ...window.__lastDagPut }
+      return json({ dag: savedDag })
     }
     if (url.pathname === '/api/dags/default/status') {
       return json({
@@ -650,6 +656,24 @@ function installFetchMock(data) {
       })
     }
     if (url.pathname === '/api/graph/runtime-status') return json(data.runtimeStatus)
+    if (url.pathname === '/api/node-outputs') return json({ outputs: [] })
+    if (url.pathname === '/api/node-logs') {
+      return json({
+        logs: [
+          {
+            id: 1,
+            run_id: 'run-browser',
+            node_id: readerId,
+            kind: 'summary',
+            path: '/tmp/run-browser-reader-summary.json',
+            digest: 'digest-summary',
+            size: 128,
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+      })
+    }
     return originalFetch(input, init)
   }
 }

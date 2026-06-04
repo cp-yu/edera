@@ -29,6 +29,7 @@ async def init_db(engine: AsyncEngine) -> None:
         await _ensure_dag_retry_of(conn)
         await _ensure_node_run_failure_kind(conn)
         await _ensure_node_run_metadata(conn)
+        await _ensure_log_index_kind(conn)
         await _ensure_entity_type_materialization_metadata(conn)
         result = await conn.execute(text("PRAGMA journal_mode"))
         mode = result.scalar_one()
@@ -79,6 +80,12 @@ async def _ensure_node_run_metadata(conn) -> None:
     if await _has_column(conn, "node_runs", "metadata"):
         return
     await conn.execute(text("ALTER TABLE node_runs ADD COLUMN metadata JSON NOT NULL DEFAULT '{}'"))
+
+
+async def _ensure_log_index_kind(conn) -> None:
+    if await _has_column(conn, "log_index", "kind"):
+        return
+    await conn.execute(text("ALTER TABLE log_index ADD COLUMN kind VARCHAR NOT NULL DEFAULT 'raw'"))
 
 
 async def _ensure_entity_type_materialization_metadata(conn) -> None:

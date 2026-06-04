@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from edera_core.config.loader import load_app_config
-from edera_core.config.schema import NodeConfig
+from edera_core.config.schema import DagConfig, NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
 from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.errors import DagError
@@ -454,6 +454,56 @@ async def test_soft_stop_finishes_running_node_without_starting_downstream() -> 
     result = await task
 
     assert set(result.node_outputs) == {"source"}
+
+
+@pytest.mark.asyncio
+async def test_required_upstream_failure_does_not_record_summary_for_unstarted_node() -> None:
+    nodes = {
+        "source-type": NodeConfig(name="source-type", handler="source", input_type="Any", output_type="Any"),
+        "other-type": NodeConfig(name="other-type", handler="other", input_type="Any", output_type="Any"),
+        "sink-type": NodeConfig(name="sink-type", handler="sink", input_type="Any", output_type="Any"),
+    }
+    graph = load_graph(
+        DagConfig.model_validate(
+            {
+                "name": "upstream-failed-summary-test",
+                "nodes": [
+                    {"id": "source", "type": "source-type"},
+                    {"id": "other", "type": "other-type"},
+                    {"id": "sink", "type": "sink-type"},
+                ],
+                "edges": [{"from": "source", "to": "sink"}],
+            }
+        ),
+        nodes,
+    )
+    summaries: list[tuple[str, str]] = []
+
+    async def source(_node_input: NodeInput) -> object:
+        raise RuntimeError("source failed")
+
+    async def sink(_node_input: NodeInput) -> object:
+        return "unused"
+
+    async def other(_node_input: NodeInput) -> object:
+        return "ok"
+
+    async def summary_recorder(run_id: str, node_id: str, _summary: dict[str, object]) -> None:
+        summaries.append((run_id, node_id))
+
+    executor = NodeExecutor(
+        nodes,
+        SystemConfig(),
+        RuntimeSettings(),
+        {"source": source, "other": other, "sink": sink},
+        graph.instances,
+        execution_summary_recorder=summary_recorder,
+    )
+    result = await DagRunner(executor).run(graph, "run", {})
+
+    assert result.failures["source"] == "source failed"
+    assert result.failures["sink"].startswith("required upstream failed")
+    assert set(summaries) == {("run", "source"), ("run", "other")}
 
 
 @pytest.mark.asyncio

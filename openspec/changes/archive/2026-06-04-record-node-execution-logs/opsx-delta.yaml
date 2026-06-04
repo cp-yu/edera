@@ -1,0 +1,14 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+MODIFIED:
+  capabilities:
+    - id: cap.web.dag-run-observability
+      intent: Web/CLI 运行观察能力消费 runtime tables、node outputs 和 execution logs，并统一覆盖已执行节点日志、agent stdout 历史、log index 边界和 Runtime/History 展示
+    - id: cap.web.edera-web-bff
+      intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，覆盖 HTTP/SSE 网关、节点 execution logs 查询、token 认证和静态文件服务
+    - id: cap.core.edera-cli
+      intent: edera CLI 提供 Entity、DAG、Event、System、Node 控制能力，并支持按 run_id 查询节点 execution logs
+REMOVED:
+  capabilities: []

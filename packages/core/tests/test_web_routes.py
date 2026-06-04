@@ -48,12 +48,32 @@ async def test_node_history_requires_dag_name():
     assert "api_default_node_history" not in endpoints
 
 
+@pytest.mark.asyncio
+async def test_node_execution_logs_route_uses_grpc_filters():
+    app = create_app(FakeClient())
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/node-logs", params={"run_id": "run-1", "node_id": "node-a", "limit": 5})
+        outputs = await client.get("/api/node-outputs", params={"run_id": "run-1", "node_id": "node-a", "limit": 5})
+
+    assert response.status_code == 200
+    assert response.json() == {"logs": [{"run_id": "run-1", "node_id": "node-a", "kind": "summary", "limit": 5}]}
+    assert outputs.status_code == 200
+    assert outputs.json() == {"outputs": [{"run_id": "run-1", "node_id": "node-a", "payload": {"value": 1}}]}
+
+
 class FakeClient:
     async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
         return {"run_id": f"run-{name}-manual"}
 
     async def query_node_history(self, dag_name: str, node_id: str, limit: int = 50) -> dict[str, object]:
         return {"history": [{"dag_name": dag_name, "node_id": node_id, "run_id": "run-1", "limit": limit}]}
+
+    async def query_node_logs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+        return {"logs": [{"run_id": run_id, "node_id": node_id, "kind": "summary", "limit": limit}]}
+
+    async def query_node_outputs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+        return {"outputs": [{"run_id": run_id, "node_id": node_id, "payload": {"value": 1}}]}
 
     async def query_results_summary(self, stock_code="", direction="", created_from="", created_to=""):
         return {

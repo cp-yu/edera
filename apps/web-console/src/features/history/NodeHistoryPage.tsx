@@ -16,7 +16,9 @@ export function NodeHistoryPage() {
         {items.length === 0 && (
           <div className="rounded-md border p-4 text-sm text-muted-foreground">暂无历史记录</div>
         )}
-        {items.map((item) => (
+        {items.map((item) => {
+          const logs = item.logs ?? []
+          return (
           <details key={`${item.node_run.run_id}-${item.node_run.id}`} className="rounded-md border bg-card p-4">
             <summary className="cursor-pointer text-sm">
               <span className="font-medium">{item.node_run.status}</span>
@@ -28,6 +30,7 @@ export function NodeHistoryPage() {
               <HistoryRow label="ended" value={item.node_run.ended_at ?? '-'} />
               {item.node_run.error && <HistoryRow label="error" value={item.node_run.error} />}
               <div className="mt-2 space-y-2">
+                <div className="text-xs font-medium">Outputs</div>
                 {item.outputs.length === 0 ? (
                   <p className="text-muted-foreground">暂无输出</p>
                 ) : item.outputs.map((output) => (
@@ -36,9 +39,25 @@ export function NodeHistoryPage() {
                   </pre>
                 ))}
               </div>
+              <div className="mt-2 space-y-2">
+                <div className="text-xs font-medium">Logs</div>
+                {logs.length === 0 ? (
+                  <p className="text-muted-foreground">暂无日志</p>
+                ) : logs.map((log) => (
+                  <div key={log.id} className="rounded-md border p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{log.kind}</span>
+                      <span className="text-[11px] text-muted-foreground">{log.size} bytes</span>
+                    </div>
+                    <div className="mt-1 break-all text-[11px] text-muted-foreground">{log.path}</div>
+                    <div className="mt-1 break-all text-[11px] text-muted-foreground">{log.digest}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </details>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

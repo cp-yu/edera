@@ -2,6 +2,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_app_config
@@ -11,8 +12,10 @@ from edera_core.config.schema import (
     EntityRelationsConfig,
     EntityTypeConfig,
     NodeConfig,
+    RuntimeSettings,
+    SystemConfig,
 )
-from edera_core.dag_controller import _record_raw_log
+from edera_core.dag_controller import _record_raw_log, _record_summary_log
 from edera_core.node.executor import NodeExecutor, _apply_instance_config
 from edera_core.node.models import NodeContext, NodeInput
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
@@ -50,8 +53,8 @@ async def test_node_executor_function_handler_returns_json_payload() -> None:
 
 @pytest.mark.asyncio
 async def test_node_executor_records_handler_node_output() -> None:
-    config = load_app_config(Path("config"))
     recorded: list[tuple[str, str, str, object, str | None]] = []
+    summaries: list[tuple[str, str, dict[str, object]]] = []
 
     async def handler(_node_input: NodeInput) -> NodeOutput:
         return NodeOutput(node_name="report", ok=True, payload={"report_path": "/tmp/report.html"})
@@ -65,6 +68,9 @@ async def test_node_executor_records_handler_node_output() -> None:
     ) -> None:
         recorded.append((run_id, node_id, entity_type, payload, session_id))
 
+    async def summary_recorder(run_id: str, node_id: str, summary: dict[str, object]) -> None:
+        summaries.append((run_id, node_id, summary))
+
     node = NodeConfig(
         name="report-node",
         type="function",
@@ -74,10 +80,11 @@ async def test_node_executor_records_handler_node_output() -> None:
     )
     executor = NodeExecutor(
         {"report-node": node},
-        config.system,
-        config.runtime,
+        SystemConfig(),
+        RuntimeSettings(),
         handlers={"report": handler},
         output_recorder=recorder,
+        execution_summary_recorder=summary_recorder,
     )
 
     output = await executor.execute("report-node", NodeInput(run_id="run", payload={}))
@@ -85,6 +92,113 @@ async def test_node_executor_records_handler_node_output() -> None:
     assert output.ok
     assert output.payload == {"report_path": "/tmp/report.html"}
     assert recorded == [("run", "report-node", "any", {"report_path": "/tmp/report.html"}, None)]
+    assert summaries == [
+        (
+            "run",
+            "report-node",
+            {
+                "run_id": "run",
+                "node_id": "report-node",
+                "ok": True,
+                "status": "succeeded",
+                "error": None,
+                "failure_kind": None,
+                "payload_empty": False,
+                "session_id": None,
+                "raw_log_path": None,
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_node_executor_records_empty_payload_summary_without_output() -> None:
+    recorded: list[tuple[str, str, str, object, str | None]] = []
+    summaries: list[tuple[str, str, dict[str, object]]] = []
+
+    async def handler(_node_input: NodeInput) -> None:
+        return None
+
+    async def output_recorder(
+        run_id: str,
+        node_id: str,
+        entity_type: str,
+        payload: object,
+        session_id: str | None,
+    ) -> None:
+        recorded.append((run_id, node_id, entity_type, payload, session_id))
+
+    async def summary_recorder(run_id: str, node_id: str, summary: dict[str, object]) -> None:
+        summaries.append((run_id, node_id, summary))
+
+    node = NodeConfig(
+        name="empty-node",
+        type="function",
+        handler="empty",
+        input_type="Any",
+        output_type="Any",
+    )
+    executor = NodeExecutor(
+        {"empty-node": node},
+        SystemConfig(),
+        RuntimeSettings(),
+        handlers={"empty": handler},
+        output_recorder=output_recorder,
+        execution_summary_recorder=summary_recorder,
+    )
+
+    output = await executor.execute("empty-node", NodeInput(run_id="run", payload={}))
+
+    assert output.ok
+    assert output.payload is None
+    assert recorded == []
+    assert summaries[0][2]["payload_empty"] is True
+
+
+@pytest.mark.asyncio
+async def test_node_executor_records_failed_summary_without_output() -> None:
+    recorded: list[tuple[str, str, str, object, str | None]] = []
+    summaries: list[tuple[str, str, dict[str, object]]] = []
+
+    async def handler(_node_input: NodeInput) -> object:
+        raise RuntimeError("boom")
+
+    async def output_recorder(
+        run_id: str,
+        node_id: str,
+        entity_type: str,
+        payload: object,
+        session_id: str | None,
+    ) -> None:
+        recorded.append((run_id, node_id, entity_type, payload, session_id))
+
+    async def summary_recorder(run_id: str, node_id: str, summary: dict[str, object]) -> None:
+        summaries.append((run_id, node_id, summary))
+
+    node = NodeConfig(
+        name="failing-node",
+        type="function",
+        handler="failing",
+        input_type="Any",
+        output_type="Any",
+    )
+    executor = NodeExecutor(
+        {"failing-node": node},
+        SystemConfig(),
+        RuntimeSettings(),
+        handlers={"failing": handler},
+        output_recorder=output_recorder,
+        execution_summary_recorder=summary_recorder,
+    )
+
+    output = await executor.execute("failing-node", NodeInput(run_id="run", payload={}))
+
+    assert not output.ok
+    assert output.error == "boom"
+    assert recorded == []
+    assert summaries[0][2]["ok"] is False
+    assert summaries[0][2]["status"] == "failed"
+    assert summaries[0][2]["error"] == "boom"
 
 
 @pytest.mark.asyncio
@@ -360,7 +474,6 @@ async def test_instance_config_sets_model_tools_and_session_dir() -> None:
 
 @pytest.mark.asyncio
 async def test_agent_executor_records_raw_log_file(tmp_path: Path) -> None:
-    config = load_app_config(Path("config"))
     pi = tmp_path / "pi"
     pi.write_text("#!/bin/sh\nprintf 'line one\\nline two\\n'\n", encoding="utf-8")
     pi.chmod(0o755)
@@ -373,24 +486,32 @@ async def test_agent_executor_records_raw_log_file(tmp_path: Path) -> None:
             "output_type": "Any",
         }
     )
-    runtime = config.runtime.model_copy(update={"pi_bin": str(pi)})
+    runtime = RuntimeSettings(pi_bin=str(pi))
     records: list[tuple[str, str, str, str, int]] = []
+    stdout: list[str] = []
+    summaries: list[dict[str, object]] = []
 
     async def recorder(run_id: str, node_id: str, path: str, digest: str, size: int) -> None:
         records.append((run_id, node_id, path, digest, size))
 
+    async def summary_recorder(_run_id: str, _node_id: str, summary: dict[str, object]) -> None:
+        summaries.append(summary)
+
     executor = NodeExecutor(
         {"agent-node": node},
-        config.system,
+        SystemConfig(),
         runtime,
         daemon_data_dir=tmp_path / "data",
+        stdout_recorder=lambda _run, _node, line: _append(stdout, line),
         raw_log_recorder=recorder,
+        execution_summary_recorder=summary_recorder,
     )
 
     output = await executor.execute("agent-node", NodeInput(run_id="run-1", payload={}))
 
     assert output.ok
     assert output.payload["stdout"] == "line one\nline two"
+    assert stdout == ["line one", "line two"]
     assert len(records) == 1
     run_id, node_id, log_path, digest, size = records[0]
     content = Path(log_path).read_bytes()
@@ -399,6 +520,69 @@ async def test_agent_executor_records_raw_log_file(tmp_path: Path) -> None:
     assert content == b"line one\nline two\n"
     assert digest == hashlib.sha256(content).hexdigest()
     assert size == len(content)
+    assert summaries[0]["ok"] is True
+    assert summaries[0]["session_id"] == output.metadata["session_id"]
+    assert summaries[0]["raw_log_path"] == log_path
+
+
+@pytest.mark.asyncio
+async def test_agent_executor_records_failed_and_silent_summary(tmp_path: Path) -> None:
+    failed_pi = tmp_path / "failed-pi"
+    failed_pi.write_text("#!/bin/sh\nprintf 'partial\\n'\nexit 3\n", encoding="utf-8")
+    failed_pi.chmod(0o755)
+    silent_pi = tmp_path / "silent-pi"
+    silent_pi.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    silent_pi.chmod(0o755)
+    node = NodeConfig.model_validate(
+        {
+            "name": "agent-node",
+            "type": "agent",
+            "model": "test-model",
+            "input_type": "Any",
+            "output_type": "Any",
+        }
+    )
+    records: list[tuple[str, str, str, str, int]] = []
+    stdout: list[str] = []
+    summaries: list[dict[str, object]] = []
+
+    async def recorder(run_id: str, node_id: str, path: str, digest: str, size: int) -> None:
+        records.append((run_id, node_id, path, digest, size))
+
+    async def summary_recorder(_run_id: str, _node_id: str, summary: dict[str, object]) -> None:
+        summaries.append(summary)
+
+    failed = NodeExecutor(
+        {"agent-node": node},
+        SystemConfig(),
+        RuntimeSettings(pi_bin=str(failed_pi)),
+        daemon_data_dir=tmp_path / "failed-data",
+        stdout_recorder=lambda _run, _node, line: _append(stdout, line),
+        raw_log_recorder=recorder,
+        execution_summary_recorder=summary_recorder,
+    )
+    silent = NodeExecutor(
+        {"agent-node": node},
+        SystemConfig(),
+        RuntimeSettings(pi_bin=str(silent_pi)),
+        daemon_data_dir=tmp_path / "silent-data",
+        raw_log_recorder=recorder,
+        execution_summary_recorder=summary_recorder,
+    )
+
+    failed_output = await failed.execute("agent-node", NodeInput(run_id="run-failed", payload={}))
+    silent_output = await silent.execute("agent-node", NodeInput(run_id="run-silent", payload={}))
+
+    assert not failed_output.ok
+    assert "pi exited with code 3" == failed_output.error
+    assert stdout == ["partial"]
+    assert summaries[0]["ok"] is False
+    assert summaries[0]["error"] == "pi exited with code 3"
+    assert summaries[0]["raw_log_path"] == records[0][2]
+    assert silent_output.ok
+    assert silent_output.payload["stdout"] == ""
+    assert summaries[1]["ok"] is True
+    assert summaries[1]["raw_log_path"] == records[1][2]
 
 
 @pytest.mark.asyncio
@@ -414,11 +598,76 @@ async def test_raw_log_index_is_queryable(tmp_path: Path) -> None:
 
         assert len(rows) == 1
         assert rows[0].path == "/tmp/stdout.log"
+        assert rows[0].kind == "raw"
         assert rows[0].digest == "digest"
         assert rows[0].size == 12
     finally:
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_summary_log_index_is_queryable(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        summary = {
+            "run_id": "run-1",
+            "node_id": "node-1",
+            "ok": True,
+            "status": "succeeded",
+            "error": None,
+            "failure_kind": None,
+            "payload_empty": False,
+            "session_id": None,
+            "raw_log_path": None,
+        }
+        path = tmp_path / "summary.json"
+        await _record_summary_log(factory, "run-1", "node-1", path, summary)
+
+        async with factory() as session:
+            rows = await query_log_index(session, run_id="run-1", node_id="node-1")
+
+        content = path.read_bytes()
+        assert rows[0].kind == "summary"
+        assert rows[0].path == str(path)
+        assert rows[0].digest == hashlib.sha256(content).hexdigest()
+        assert rows[0].size == len(content)
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_log_index_kind_migrates_existing_table(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "CREATE TABLE log_index ("
+                    "id INTEGER PRIMARY KEY, "
+                    "run_id VARCHAR NOT NULL, "
+                    "node_id VARCHAR NOT NULL, "
+                    "path VARCHAR NOT NULL, "
+                    "digest VARCHAR NOT NULL, "
+                    "size INTEGER NOT NULL, "
+                    "created_at DATETIME NOT NULL, "
+                    "updated_at DATETIME NOT NULL)"
+                )
+            )
+        await init_db(engine)
+
+        async with engine.begin() as conn:
+            result = await conn.execute(text("PRAGMA table_info(log_index)"))
+
+        assert "kind" in {row[1] for row in result.fetchall()}
+    finally:
+        await engine.dispose()
+
+
 async def _unused_handler(_node_input: NodeInput) -> dict[str, object]:
     return {}
+
+
+async def _append(items: list[str], value: str) -> None:
+    items.append(value)

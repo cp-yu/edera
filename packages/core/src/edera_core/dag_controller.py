@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+import os
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -713,6 +716,18 @@ class DagController:
         async with self._db_write_lock:
             await _record_raw_log(self._factory(), run_id, node_id, path, digest, size)
 
+    async def _record_execution_summary(
+        self,
+        run_id: str,
+        node_id: str,
+        summary: dict[str, object],
+        workspace_root: str,
+    ) -> None:
+        root = self.daemon_data_dir or Path(os.environ.get("EDERA_DATA_DIR", workspace_root))
+        path = root / "sessions" / "summaries" / _safe_path_token(run_id) / f"{_safe_path_token(node_id)}.json"
+        async with self._db_write_lock:
+            await _record_summary_log(self._factory(), run_id, node_id, path, summary)
+
     async def _record_source_recovery(
         self,
         run_id: str,
@@ -760,6 +775,9 @@ class DagController:
             ),
             raw_log_recorder=lambda output_run_id, node_id, path, digest, size: self._record_raw_log(
                 output_run_id, node_id, path, digest, size
+            ),
+            execution_summary_recorder=lambda output_run_id, node_id, summary: self._record_execution_summary(
+                output_run_id, node_id, summary, config.system.workspace_root
             ),
             agent_certificate_issuer=self.agent_certificate_issuer,
             daemon_data_dir=self.daemon_data_dir,
@@ -838,6 +856,21 @@ async def _record_raw_log(
         await session.commit()
 
 
+async def _record_summary_log(
+    factory: async_sessionmaker[AsyncSession],
+    run_id: str,
+    node_id: str,
+    path: Path,
+    summary: dict[str, object],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = json.dumps(summary, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    path.write_bytes(data)
+    async with factory() as session:
+        await record_log_index(session, run_id, node_id, str(path), hashlib.sha256(data).hexdigest(), len(data), kind="summary")
+        await session.commit()
+
+
 def _build_executor(
     app_config: AppConfig,
     handler_registry,
@@ -847,6 +880,7 @@ def _build_executor(
     output_recorder=None,
     stdout_recorder=None,
     raw_log_recorder=None,
+    execution_summary_recorder=None,
     agent_certificate_issuer=None,
     daemon_data_dir: Path | None = None,
     source_recovery_recorder=None,
@@ -869,6 +903,7 @@ def _build_executor(
         output_recorder=output_recorder,
         stdout_recorder=stdout_recorder,
         raw_log_recorder=raw_log_recorder,
+        execution_summary_recorder=execution_summary_recorder,
         agent_certificate_issuer=agent_certificate_issuer,
         extension_tables=extension_tables,
         daemon_data_dir=daemon_data_dir,
@@ -885,6 +920,11 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
         if isinstance(name, str):
             refs.append(f"{entity.type}:{name}")
     return refs
+
+
+def _safe_path_token(value: str) -> str:
+    cleaned = "".join(item if item.isalnum() or item in {"-", "_", "."} else "_" for item in value)
+    return cleaned or "default"
 
 
 class _TriggerSchedulerState:

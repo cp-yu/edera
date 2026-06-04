@@ -149,13 +149,14 @@ class LogIndex(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     run_id: str = Field(index=True)
     node_id: str = Field(index=True)
+    kind: str = Field(default="raw", index=True)
     path: str
     digest: str = Field(index=True)
     size: int
     created_at: datetime = Field(default_factory=utc_now, index=True)
     updated_at: datetime = Field(default_factory=utc_now, index=True)
 
-    @field_validator("run_id", "node_id", "path", "digest")
+    @field_validator("run_id", "node_id", "kind", "path", "digest")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():

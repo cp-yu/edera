@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { useDag, useEntities, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
+import { useDag, useEntities, useNodeLogs, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
 import { useCreateEntity, useDeleteEntity, useSaveDag, useUpdateEntity } from '@/api/mutations'
-import type { DagEdge, DagNodeRecord, EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeInstance, NodeOutputEntity, NodeStatus, TriggerAttributes } from '@/api/types'
+import type { DagEdge, DagNodeRecord, EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeExecutionLog, NodeInstance, NodeOutputEntity, NodeStatus, TriggerAttributes } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
 import { SchemaForm } from './SchemaForm'
 
@@ -30,6 +30,7 @@ export function Inspector() {
   const runtimeNodeId = edge?.from ?? node?.id ?? null
   const runtimeStatus = runtimeNodeId ? runtime.data?.node_statuses?.[runtimeNodeId] : undefined
   const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.run_id)
+  const logs = useNodeLogs(runtimeNodeId, runtimeStatus?.run_id)
   const stdout = useNodeStdout(runtimeNodeId)
   const [alias, setAlias] = useState('')
   const [instanceOptional, setInstanceOptional] = useState(false)
@@ -74,7 +75,7 @@ export function Inspector() {
           <h2 className="text-sm font-medium">数据流</h2>
           <p className="text-xs text-muted-foreground">{edge.from} → {edge.to}</p>
         </div>
-        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} stdout={stdout} />
+        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} logs={logs.data?.logs ?? []} stdout={stdout} />
         <a
           href={`/history/dag/${selectedDagName}/nodes/${edge.from}`}
           className="block rounded-md border px-3 py-2 text-center text-xs hover:bg-accent"
@@ -154,7 +155,7 @@ export function Inspector() {
         </div>
         <InspectorTabs active={inspectorTab} onChange={setInspectorTab} />
         {inspectorTab === 'runtime' ? (
-          <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} stdout={stdout} />
+          <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} logs={logs.data?.logs ?? []} stdout={stdout} />
         ) : inspectorTab === 'triggers' ? (
           <TriggersPanel dagName={selectedDagName} dag={dag} node={node} />
         ) : (
@@ -546,7 +547,7 @@ function EventPicker({
   )
 }
 
-function RuntimeStatusView({ status, outputs, stdout }: { status?: NodeStatus; outputs: NodeOutputEntity[]; stdout: string[] }) {
+function RuntimeStatusView({ status, outputs, logs, stdout }: { status?: NodeStatus; outputs: NodeOutputEntity[]; logs: NodeExecutionLog[]; stdout: string[] }) {
   return (
     <div className="space-y-3">
       <div className="space-y-2 rounded-md border p-3 text-xs">
@@ -573,12 +574,37 @@ function RuntimeStatusView({ status, outputs, stdout }: { status?: NodeStatus; o
           </div>
         )}
       </div>
+      <LogList logs={logs} />
       <div className="space-y-2">
         <div className="text-xs font-medium">stdout</div>
         <pre className="max-h-36 overflow-auto rounded-md border bg-muted/30 p-2 text-[11px] whitespace-pre-wrap">
           {stdout.length > 0 ? stdout.join('\n') : '暂无输出'}
         </pre>
       </div>
+    </div>
+  )
+}
+
+function LogList({ logs }: { logs: NodeExecutionLog[] }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-medium">Logs</div>
+      {logs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">暂无日志</p>
+      ) : (
+        <div className="space-y-2">
+          {logs.map((log) => (
+            <div key={log.id} className="rounded-md border p-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">{log.kind}</span>
+                <span className="text-[11px] text-muted-foreground">{log.size} bytes</span>
+              </div>
+              <div className="mt-1 break-all text-[11px] text-muted-foreground">{log.path}</div>
+              <div className="mt-1 break-all text-[11px] text-muted-foreground">{log.digest}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

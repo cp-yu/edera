@@ -25,6 +25,7 @@ from edera_core.storage.repository import (
     list_briefings,
     list_event_records,
     node_runs_for_run,
+    query_log_index,
     query_node_output_entities,
     raw_items_for_analyses,
     recent_dag_runs,
@@ -141,6 +142,16 @@ class _QueryService:
             )
         return json_response(self.pb2, {"outputs": [output.model_dump(mode="json") for output in outputs]})
 
+    async def NodeLogs(self, request, context):
+        async with self.daemon.controller._factory()() as session:
+            logs = await query_log_index(
+                session,
+                run_id=request.run_id or None,
+                node_id=request.node_id or None,
+                limit=limit(request.limit, 100),
+            )
+        return json_response(self.pb2, {"logs": [item.model_dump(mode="json") for item in logs]})
+
     async def NodeHistory(self, request, context):
         if request.dag_name not in self.daemon.controller.runtime_snapshot().config.dags:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
@@ -150,12 +161,14 @@ class _QueryService:
             for run in recent:
                 runs = [item for item in await node_runs_for_run(session, run.run_id) if item.node_name == request.node_id]
                 outputs = await query_node_output_entities(session, run_id=run.run_id, node_id=request.node_id, limit=100)
+                logs = await query_log_index(session, run_id=run.run_id, node_id=request.node_id, limit=100)
                 for node_run in runs:
                     history.append(
                         {
                             "run": run.model_dump(mode="json"),
                             "node_run": node_run.model_dump(mode="json"),
                             "outputs": [output.model_dump(mode="json") for output in outputs],
+                            "logs": [log.model_dump(mode="json") for log in logs],
                         }
                     )
         return json_response(self.pb2, {"history": history})

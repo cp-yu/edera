@@ -347,8 +347,9 @@ async def record_log_index(
     path: str,
     digest: str,
     size: int,
+    kind: str = "raw",
 ) -> LogIndex:
-    row = LogIndex(run_id=run_id, node_id=node_id, path=path, digest=digest, size=size, updated_at=utc_now())
+    row = LogIndex(run_id=run_id, node_id=node_id, kind=kind, path=path, digest=digest, size=size, updated_at=utc_now())
     session.add(row)
     await session.flush()
     return row

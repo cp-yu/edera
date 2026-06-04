@@ -365,6 +365,64 @@ def test_cli_dag_status_uses_grpc(
     assert '"dag_name": "default"' in capsys.readouterr().out
 
 
+def test_cli_node_logs_uses_grpc_query(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls: list[str] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def query_node_logs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+            calls.append("logs")
+            assert node_id == "reader"
+            assert run_id == "run-1"
+            assert limit == 100
+            return {"logs": [{"kind": "summary", "path": "/tmp/summary.json"}]}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "node", "logs", "reader", "--run-id", "run-1"])
+
+    main()
+
+    assert calls == ["logs"]
+    assert "/tmp/summary.json" in capsys.readouterr().out
+
+
+def test_cli_node_output_remains_business_only(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls: list[str] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def node_output(self, node_id: str, run_id: str | None = None) -> list[dict[str, object]]:
+            calls.append("output")
+            assert node_id == "reader"
+            assert run_id == "run-1"
+            return [{"payload": {"value": 1}}]
+
+        async def query_node_logs(self, *_args, **_kwargs) -> dict[str, object]:
+            raise AssertionError("node output must not query logs")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "node", "output", "reader", "--run-id", "run-1"])
+
+    main()
+
+    assert calls == ["output"]
+    assert '"payload": {"value": 1}' in capsys.readouterr().out
+
+
 def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     class FakeClient:
         def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:

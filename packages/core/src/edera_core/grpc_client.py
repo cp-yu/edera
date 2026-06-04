@@ -169,6 +169,9 @@ class GrpcClient:
     async def query_node_outputs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
         return _json_response(await self.query.NodeOutputs(pb2.NodeOutputsRequest(node_id=node_id, run_id=run_id, limit=limit)))
 
+    async def query_node_logs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+        return _json_response(await self.query.NodeLogs(pb2.NodeOutputsRequest(node_id=node_id, run_id=run_id, limit=limit)))
+
     async def query_node_history(self, dag_name: str, node_id: str, limit: int = 50) -> dict[str, object]:
         return _json_response(await self.query.NodeHistory(pb2.NodeHistoryRequest(dag_name=dag_name, node_id=node_id, limit=limit)))
 

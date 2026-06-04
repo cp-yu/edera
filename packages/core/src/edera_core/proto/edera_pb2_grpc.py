@@ -2749,6 +2749,11 @@ class QueryServiceStub(object):
                 request_serializer=edera__pb2.NodeOutputsRequest.SerializeToString,
                 response_deserializer=edera__pb2.JsonResponse.FromString,
                 _registered_method=True)
+        self.NodeLogs = channel.unary_unary(
+                '/edera.v1.QueryService/NodeLogs',
+                request_serializer=edera__pb2.NodeOutputsRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
         self.NodeHistory = channel.unary_unary(
                 '/edera.v1.QueryService/NodeHistory',
                 request_serializer=edera__pb2.NodeHistoryRequest.SerializeToString,
@@ -2813,6 +2818,12 @@ class QueryServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def NodeLogs(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def NodeHistory(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -2864,6 +2875,11 @@ def add_QueryServiceServicer_to_server(servicer, server):
             ),
             'NodeOutputs': grpc.unary_unary_rpc_method_handler(
                     servicer.NodeOutputs,
+                    request_deserializer=edera__pb2.NodeOutputsRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'NodeLogs': grpc.unary_unary_rpc_method_handler(
+                    servicer.NodeLogs,
                     request_deserializer=edera__pb2.NodeOutputsRequest.FromString,
                     response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
@@ -3114,6 +3130,33 @@ class QueryService(object):
             request,
             target,
             '/edera.v1.QueryService/NodeOutputs',
+            edera__pb2.NodeOutputsRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def NodeLogs(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.QueryService/NodeLogs',
             edera__pb2.NodeOutputsRequest.SerializeToString,
             edera__pb2.JsonResponse.FromString,
             options,

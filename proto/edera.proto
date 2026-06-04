@@ -90,6 +90,7 @@ service QueryService {
   rpc SourceHealth(EmptyRequest) returns (JsonResponse);
   rpc SourceLogs(SourceLogsRequest) returns (JsonResponse);
   rpc NodeOutputs(NodeOutputsRequest) returns (JsonResponse);
+  rpc NodeLogs(NodeOutputsRequest) returns (JsonResponse);
   rpc NodeHistory(NodeHistoryRequest) returns (JsonResponse);
 }
 

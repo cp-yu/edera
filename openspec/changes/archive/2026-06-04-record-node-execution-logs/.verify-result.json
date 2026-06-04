@@ -1,0 +1,251 @@
+{
+  "timestamp": "2026-06-04T07:40:19.703Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "The declared broad Web verification command is still blocked by the existing quick-add wait path, not by the execution-log UI behavior.",
+      "requirement": "Runtime views show execution logs",
+      "task": "Task 5: Web Runtime 与历史展示",
+      "recommendation": "Fix or isolate verifyQuickAddAndMultiInstance before treating npm run verify as a clean archive gate; current execution-log behavior is covered by targeted Playwright fixtures and component code."
+    }
+  ],
+  "tasksFileHash": "37f9ce8dd2c8918cd6c03b0ba9adcfa887e445f25a7a8bedc895b95ddc614bfb",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent:openspec-reviewer",
+    "evidenceFiles": [
+      "apps/web-console/src/api/queries.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+      "apps/web-console/src/features/workbench/components/Inspector.tsx",
+      "apps/web-console/tests/workbench-usability.spec.ts",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/node/executor.py",
+      "packages/core/src/edera_core/query_service.py",
+      "packages/core/src/edera_core/storage/database.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "packages/core/tests/test_query_service.py",
+      "packages/core/tests/test_web_routes.py",
+      "proto/edera.proto",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_node_executor.py"
+    ],
+    "evidenceFingerprint": "9eed37fc59ae4d5628d07a8f494cc6925e540d63a62cf83001d8698b91521cbb",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/api/queries.ts",
+        "hash": "34b00188660cf2d89939037ff51672b01c6c01fe13e7be7dac55c5d268280abe"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "4c79dcf7845ba73efcbd4f08e7bc26bc8e3a4baa18e8a0af32c6ed507105597e"
+      },
+      {
+        "path": "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+        "hash": "0cda89c4c7b0d0324beb04d0704c24f664889e5e104e95db94110e317fe88961"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+        "hash": "732d11f874f331b8f9536ad0c8e18d3f2e53c4e81254f6d964ac41e967369402"
+      },
+      {
+        "path": "apps/web-console/tests/workbench-usability.spec.ts",
+        "hash": "6e5e208d0045b866cf41fe0a745a95cbd297210f46f56961abbf2aed4890d5e7"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "004aa2307bbe21fe7810477560f2384dd25ecfaa4692d20e765acd8cc7defabf"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "9da05e0c35dac4f990adc3ef6336805d464e9c69773d31b7cf744c6d8997da74"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "36bb324fcab796b3dffa4f8a41930d2364e2e92d6315e3acc55665a23358be15"
+      },
+      {
+        "path": "packages/core/src/edera_core/node/executor.py",
+        "hash": "350b91ed4a2a9325184326c0bf4524706d3da3cc3319dd2f33e053465afba2e9"
+      },
+      {
+        "path": "packages/core/src/edera_core/query_service.py",
+        "hash": "15f28ee3404705634b98dd4294f0e0955b0c3eba3ea1f5c50d9d5b98dd0e6efa"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/database.py",
+        "hash": "2794dbf1cba353867aaad3d6f9dc5d2ca924bde5ee4f42dd2d8093e131d8ad6b"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "60d9adc51d9cf9a2622e6acbe5b6c5eafc500eb195bad71d68e8bbfbc8fb1d36"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "8a1f4c085db9966470df1b59c0560f39506b0ee301cdfb4b3819a9f052d155bb"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "f8adf279f4661d8f6104d9fe7128828e7d390e83a545484d52727da3f37c615b"
+      },
+      {
+        "path": "packages/core/tests/test_query_service.py",
+        "hash": "d27ba8225f5410252e6f3578c07849f7b4074ff80646584fe54a15b54d5378b9"
+      },
+      {
+        "path": "packages/core/tests/test_web_routes.py",
+        "hash": "591530ac50785725d5fa711beaff618fc095ba8cde5c6edd5e56dfca7e4b4818"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "0357d519d93fbdf034febd5b44261507a5f0404ec395ccfc8b663719429fe417"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "f5011c692e90312605f1bb2e7f5b24013e8c6f681fe874eea5d757969e53b65e"
+      },
+      {
+        "path": "tests/core/unit/test_node_executor.py",
+        "hash": "537666d2dabbfb1bdc74d441177145825bd524a74fcfef416727955ddab1424a"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "a2eb6425074f9da05b97155e8011a14aa901704f"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-04T07:44:28.817Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-04T07:40:19.703Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "The declared broad Web verification command is still blocked by the existing quick-add wait path, not by the execution-log UI behavior.",
+          "requirement": "Runtime views show execution logs",
+          "task": "Task 5: Web Runtime 与历史展示",
+          "recommendation": "Fix or isolate verifyQuickAddAndMultiInstance before treating npm run verify as a clean archive gate; current execution-log behavior is covered by targeted Playwright fixtures and component code."
+        }
+      ],
+      "tasksFileHash": "37f9ce8dd2c8918cd6c03b0ba9adcfa887e445f25a7a8bedc895b95ddc614bfb",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent:openspec-reviewer",
+        "evidenceFiles": [
+          "apps/web-console/src/api/queries.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+          "apps/web-console/src/features/workbench/components/Inspector.tsx",
+          "apps/web-console/tests/workbench-usability.spec.ts",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/node/executor.py",
+          "packages/core/src/edera_core/query_service.py",
+          "packages/core/src/edera_core/storage/database.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "packages/core/tests/test_query_service.py",
+          "packages/core/tests/test_web_routes.py",
+          "proto/edera.proto",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_node_executor.py"
+        ],
+        "evidenceFingerprint": "9eed37fc59ae4d5628d07a8f494cc6925e540d63a62cf83001d8698b91521cbb",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/api/queries.ts",
+            "hash": "34b00188660cf2d89939037ff51672b01c6c01fe13e7be7dac55c5d268280abe"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "4c79dcf7845ba73efcbd4f08e7bc26bc8e3a4baa18e8a0af32c6ed507105597e"
+          },
+          {
+            "path": "apps/web-console/src/features/history/NodeHistoryPage.tsx",
+            "hash": "0cda89c4c7b0d0324beb04d0704c24f664889e5e104e95db94110e317fe88961"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Inspector.tsx",
+            "hash": "732d11f874f331b8f9536ad0c8e18d3f2e53c4e81254f6d964ac41e967369402"
+          },
+          {
+            "path": "apps/web-console/tests/workbench-usability.spec.ts",
+            "hash": "6e5e208d0045b866cf41fe0a745a95cbd297210f46f56961abbf2aed4890d5e7"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "004aa2307bbe21fe7810477560f2384dd25ecfaa4692d20e765acd8cc7defabf"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "9da05e0c35dac4f990adc3ef6336805d464e9c69773d31b7cf744c6d8997da74"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "36bb324fcab796b3dffa4f8a41930d2364e2e92d6315e3acc55665a23358be15"
+          },
+          {
+            "path": "packages/core/src/edera_core/node/executor.py",
+            "hash": "350b91ed4a2a9325184326c0bf4524706d3da3cc3319dd2f33e053465afba2e9"
+          },
+          {
+            "path": "packages/core/src/edera_core/query_service.py",
+            "hash": "15f28ee3404705634b98dd4294f0e0955b0c3eba3ea1f5c50d9d5b98dd0e6efa"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/database.py",
+            "hash": "2794dbf1cba353867aaad3d6f9dc5d2ca924bde5ee4f42dd2d8093e131d8ad6b"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "60d9adc51d9cf9a2622e6acbe5b6c5eafc500eb195bad71d68e8bbfbc8fb1d36"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "8a1f4c085db9966470df1b59c0560f39506b0ee301cdfb4b3819a9f052d155bb"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "f8adf279f4661d8f6104d9fe7128828e7d390e83a545484d52727da3f37c615b"
+          },
+          {
+            "path": "packages/core/tests/test_query_service.py",
+            "hash": "d27ba8225f5410252e6f3578c07849f7b4074ff80646584fe54a15b54d5378b9"
+          },
+          {
+            "path": "packages/core/tests/test_web_routes.py",
+            "hash": "591530ac50785725d5fa711beaff618fc095ba8cde5c6edd5e56dfca7e4b4818"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "0357d519d93fbdf034febd5b44261507a5f0404ec395ccfc8b663719429fe417"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "f5011c692e90312605f1bb2e7f5b24013e8c6f681fe874eea5d757969e53b65e"
+          },
+          {
+            "path": "tests/core/unit/test_node_executor.py",
+            "hash": "537666d2dabbfb1bdc74d441177145825bd524a74fcfef416727955ddab1424a"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "a2eb6425074f9da05b97155e8011a14aa901704f"
+      }
+    }
+  }
+}

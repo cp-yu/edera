@@ -99,6 +99,9 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     output = subparsers.add_parser("output")
     output.add_argument("output_args", nargs="*")
     output.add_argument("--run-id")
+    logs = subparsers.add_parser("logs")
+    logs.add_argument("node_id")
+    logs.add_argument("--run-id", required=True)
 
 
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
@@ -268,6 +271,8 @@ async def _grpc_node(args: argparse.Namespace) -> object:
             if not node_id:
                 raise ValueError("node_id is required")
             return await client.node_output(node_id, args.run_id)
+        if args.node_command == "logs":
+            return await client.query_node_logs(args.node_id, args.run_id)
     finally:
         await client.close()
     raise ValueError(f"unknown node command: {args.node_command}")

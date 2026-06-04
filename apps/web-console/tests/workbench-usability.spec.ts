@@ -76,6 +76,29 @@ test('selected node highlights connected edges and dims unrelated edges without 
   await expect(edgePath(page, 'A', 'B')).toHaveCSS('stroke', 'rgb(22, 163, 74)')
 })
 
+test('runtime tab shows execution logs when outputs are empty', async ({ page }) => {
+  await page.goto('/workbench')
+
+  await page.locator('.react-flow__node').filter({ hasText: 'Node B' }).click()
+  await page.getByRole('button', { name: 'Runtime' }).click()
+
+  await expect(page.getByText('Output entities')).toBeVisible()
+  await expect(page.getByText('Logs')).toBeVisible()
+  await expect(page.getByText('/tmp/run-1-node-b-summary.json')).toBeVisible()
+  await expect(page.getByText('summary', { exact: true })).toBeVisible()
+})
+
+test('node history expands execution logs', async ({ page }) => {
+  await page.goto('/history/dag/default/nodes/B')
+
+  await page.getByText('failed').click()
+
+  await expect(page.getByText('Outputs')).toBeVisible()
+  await expect(page.getByText('Logs')).toBeVisible()
+  await expect(page.getByText('/tmp/run-1-node-b-summary.json')).toBeVisible()
+  await expect(page.getByText('boom')).toBeVisible()
+})
+
 function palettePanel(page: Page) {
   return page.locator('aside').filter({ hasText: '节点面板' })
 }
@@ -148,6 +171,68 @@ async function mockWorkbench(page: Page) {
   })
   await page.route(/\/api\/node-outputs.*$/, async (route) => {
     await route.fulfill({ json: { outputs: [] } })
+  })
+  await page.route(/\/api\/node-logs.*$/, async (route) => {
+    await route.fulfill({
+      json: {
+        logs: [
+          {
+            id: 1,
+            run_id: 'run-1',
+            node_id: 'B',
+            kind: 'summary',
+            path: '/tmp/run-1-node-b-summary.json',
+            digest: 'digest-summary',
+            size: 128,
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+      },
+    })
+  })
+  await page.route(/\/api\/history\/dag\/default\/nodes\/B$/, async (route) => {
+    await route.fulfill({
+      json: {
+        history: [
+          {
+            run: {
+              id: 1,
+              run_id: 'run-1',
+              dag_name: 'default',
+              source: 'manual',
+              status: 'failed',
+              started_at: '2026-01-01T00:00:00Z',
+              ended_at: '2026-01-01T00:00:10Z',
+              error: 'boom',
+            },
+            node_run: {
+              id: 1,
+              run_id: 'run-1',
+              node_name: 'B',
+              status: 'failed',
+              started_at: '2026-01-01T00:00:00Z',
+              ended_at: '2026-01-01T00:00:10Z',
+              error: 'boom',
+            },
+            outputs: [],
+            logs: [
+              {
+                id: 1,
+                run_id: 'run-1',
+                node_id: 'B',
+                kind: 'summary',
+                path: '/tmp/run-1-node-b-summary.json',
+                digest: 'digest-summary',
+                size: 128,
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-01T00:00:00Z',
+              },
+            ],
+          },
+        ],
+      },
+    })
   })
   await page.route(/\/api\/events\/node\/.*$/, async (route) => {
     await route.fulfill({ status: 204, body: '' })

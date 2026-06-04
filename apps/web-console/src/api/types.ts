@@ -182,6 +182,18 @@ export interface NodeOutputEntity {
   attributes: Record<string, unknown>
 }
 
+export interface NodeExecutionLog {
+  id: number
+  run_id: string
+  node_id: string
+  kind: string
+  path: string
+  digest: string
+  size: number
+  created_at: string
+  updated_at: string
+}
+
 export interface NodeHistoryItem {
   run: DagRun
   node_run: {
@@ -194,6 +206,7 @@ export interface NodeHistoryItem {
     error: string | null
   }
   outputs: NodeOutputEntity[]
+  logs: NodeExecutionLog[]
 }
 
 export interface Briefing {

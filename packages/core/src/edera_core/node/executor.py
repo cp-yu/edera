@@ -34,6 +34,7 @@ from edera_core.registry import HandlerRegistry
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
 StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
 RawLogRecorder = Callable[[str, str, str, str, int], Awaitable[None]]
+ExecutionSummaryRecorder = Callable[[str, str, dict[str, object]], Awaitable[None]]
 DagExecutor = Callable[[DagNodeConfig, str, NodeInput, NodeContext], Awaitable[NodeOutput]]
 AgentCertificateIssuer = Callable[[str, int], object]
 WaitPayloadReader = Callable[[str], Awaitable[tuple[object | None, set[str]] | None]]
@@ -58,6 +59,7 @@ class NodeExecutor:
         output_recorder: OutputRecorder | None = None,
         stdout_recorder: StdoutRecorder | None = None,
         raw_log_recorder: RawLogRecorder | None = None,
+        execution_summary_recorder: ExecutionSummaryRecorder | None = None,
         dag_executor: DagExecutor | None = None,
         agent_certificate_issuer: AgentCertificateIssuer | None = None,
         extension_tables: dict[str, dict[str, str]] | None = None,
@@ -92,6 +94,7 @@ class NodeExecutor:
         self.output_recorder = output_recorder
         self.stdout_recorder = stdout_recorder
         self.raw_log_recorder = raw_log_recorder
+        self.execution_summary_recorder = execution_summary_recorder
         self.dag_executor = dag_executor
         self.agent_certificate_issuer = agent_certificate_issuer
         self.extension_tables = extension_tables or {}
@@ -108,6 +111,16 @@ class NodeExecutor:
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
 
     async def execute(
+        self,
+        node_name: str,
+        node_input: NodeInput,
+        context: NodeContext | None = None,
+    ) -> NodeOutput:
+        output = await self._execute(node_name, node_input, context)
+        await self._record_execution_summary(node_name, node_input, output)
+        return output
+
+    async def _execute(
         self,
         node_name: str,
         node_input: NodeInput,
@@ -237,6 +250,8 @@ class NodeExecutor:
     ) -> None:
         if self.output_recorder is None:
             return
+        if _payload_empty(payload):
+            return
         await self.output_recorder(
             node_input.run_id,
             node_name,
@@ -314,6 +329,7 @@ class NodeExecutor:
             self._agent_processes.pop((node_input.run_id, node_name), None)
         metadata = _output_metadata(node_input)
         metadata["session_id"] = str(session_dir)
+        metadata["raw_log_path"] = str(session_dir / "stdout.log")
         if code != 0:
             return NodeOutput(node_name=node_name, ok=False, metadata=metadata, error=f"pi exited with code {code}")
         payload = {"stdout": "\n".join(lines), "session_id": str(session_dir)}
@@ -358,6 +374,27 @@ class NodeExecutor:
         if self.raw_log_recorder is not None:
             await self.raw_log_recorder(run_id, node_name, str(log_path), digest.hexdigest(), size)
         return lines
+
+    async def _record_execution_summary(
+        self,
+        node_name: str,
+        node_input: NodeInput,
+        output: NodeOutput,
+    ) -> None:
+        if self.execution_summary_recorder is None:
+            return
+        summary = {
+            "run_id": node_input.run_id,
+            "node_id": node_name,
+            "ok": output.ok,
+            "status": "succeeded" if output.ok else "failed",
+            "error": output.error,
+            "failure_kind": _summary_failure_kind(output),
+            "payload_empty": _payload_empty(output.payload),
+            "session_id": output.metadata.get("session_id") if isinstance(output.metadata.get("session_id"), str) else None,
+            "raw_log_path": output.metadata.get("raw_log_path") if isinstance(output.metadata.get("raw_log_path"), str) else None,
+        }
+        await self.execution_summary_recorder(node_input.run_id, node_name, summary)
 
     def _node(self, node_name: str) -> NodeConfigBase:
         if self.entity_store is not None and "node" in self.entity_store.entity_types:
@@ -445,6 +482,17 @@ class _RuntimeContext:
 
 def _failed(node_name: str, node_input: NodeInput, error: str) -> NodeOutput:
     return NodeOutput(node_name=node_name, ok=False, metadata=_output_metadata(node_input), error=error)
+
+
+def _payload_empty(payload: object) -> bool:
+    return payload is None or payload == [] or payload == {}
+
+
+def _summary_failure_kind(output: NodeOutput) -> str | None:
+    if output.ok:
+        return None
+    failure_kind = output.metadata.get("failure_kind")
+    return failure_kind if isinstance(failure_kind, str) and failure_kind else "executor_error"
 
 
 def _apply_instance_config(config: NodeConfigBase, instance: DagNodeInstance | None) -> NodeConfigBase:
