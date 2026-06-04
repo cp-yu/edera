@@ -53,11 +53,10 @@ Implement tasks from an OpenSpec change.
 
 4. **Read context files**
 
-   Before reading other context files, check whether `openspec/project.opsx.yaml` exists.
-- If it exists, read it first for domains → capabilities structure
-- Check `openspec/project.opsx.code-map.yaml` for code location references
-- Check `openspec/specs/` for behavior documentation
-- Treat it as navigation context, not as a replacement for change artifacts
+   Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX YAML files directly.
+- Run `openspec list --specs --json` to get specs and their `capabilities` string arrays.
+- For known or affected OPSX node IDs, run `openspec opsx query <node-id> --json` to get node details, relations, and code-map refs.
+- Treat CLI output as navigation context, not as a replacement for change artifacts.
 
    Read the files listed in `contextFiles` from the apply instructions output.
    The files depend on the schema being used:
@@ -118,7 +117,7 @@ Before Phase 0 implementation:
 For each pending coarse task:
 - Read Goal, Files, Requirements, and Checks from `tasks.md`.
 - Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
-- Before implementing a capability, run `openspec spec list --json`, build the cap→spec mapping from each spec's `capabilities` field, read every spec linked to the affected cap, and confirm whether the change-local delta spec must be updated.
+- Before implementing a capability, run `openspec list --specs --json`, build the cap→spec mapping from each spec's `capabilities` string array, read every spec linked to the affected cap, and confirm whether the change-local delta spec must be updated. Specs without frontmatter return `capabilities: []`.
 - For behavior or code Checks, add or update the targeted test before implementation.
 - Run the declared Check command or equivalent targeted command and confirm the expected failure before implementation.
 - Make the minimal implementation needed for that Check.

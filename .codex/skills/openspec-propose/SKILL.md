@@ -74,19 +74,18 @@ Tasks output:
    - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
    - `artifacts`: list of all artifacts with their status and dependencies
 
-Before reading other context files, check whether `openspec/project.opsx.yaml` exists.
-- If it exists, read it first for domains → capabilities structure
-- Check `openspec/project.opsx.code-map.yaml` for code location references
-- Check `openspec/specs/` for behavior documentation
-- Treat it as navigation context, not as a replacement for change artifacts
+Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX YAML files directly.
+- Run `openspec list --specs --json` to get specs and their `capabilities` string arrays.
+- For known or affected OPSX node IDs, run `openspec opsx query <node-id> --json` to get node details, relations, and code-map refs.
+- Treat CLI output as navigation context, not as a replacement for change artifacts.
 
 4. **Create artifacts in sequence until apply-ready**
 
    Before creating specs, run:
    ```bash
-   openspec spec list --json
+   openspec list --specs --json
    ```
-   Use each spec's `capabilities` field to compare proposed capabilities against existing specs. Reuse or modify the matching spec when it already covers the capability instead of creating a redundant spec.
+   Use each spec's `capabilities` string array to compare proposed capabilities against existing specs. Specs without frontmatter return `capabilities: []`. Reuse or modify the matching spec when it already covers the capability instead of creating a redundant spec.
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
@@ -124,7 +123,7 @@ Before reading other context files, check whether `openspec/project.opsx.yaml` e
 - Use the returned `template`, `instruction`, and `outputPath` to generate `opsx-delta.yaml`
 - Read `proposal.md` to extract the capability list
 - Read all delta specs in `openspec/changes/<name>/specs/*/spec.md`
-- Read `openspec/project.opsx.yaml` if it exists for current-system context
+- For existing capability or domain IDs, run `openspec opsx query <node-id> --json` for current-system context
 - Treat `ADDED`, `MODIFIED`, and `REMOVED` as YAML object keys, not Markdown headings
 - Follow a concrete YAML object structure such as:
   ```yaml
