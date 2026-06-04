@@ -118,9 +118,11 @@ For each pending coarse task:
 - Read Goal, Files, Requirements, and Checks from `tasks.md`.
 - Explore project context by reading listed files, nearby existing patterns, related tests, and relevant specs/design.
 - Before implementing a capability, run `openspec list --specs --json`, build the cap→spec mapping from each spec's `capabilities` string array, read every spec linked to the affected cap, and confirm whether the change-local delta spec must be updated. Specs without frontmatter return `capabilities: []`.
+- **TDD Checkpoint 1: Interface Design for Testability** — Before writing tests, evaluate whether dependencies are injected through parameters, behavior returns values or observable results instead of hidden side effects, and the public interface area is minimal. If the target interface violates these principles, adjust the interface design before continuing instead of forcing tests around untestable code.
 - For behavior or code Checks, add or update the targeted test before implementation.
+- **TDD Checkpoint 2: Test Quality Standards** — Before entering RED, confirm each test verifies behavior through public interfaces, avoids mocking internal project collaborators, keeps one logical assertion per test, and survives internal refactoring because it depends on behavior rather than implementation details. Rewrite tests that fail these standards before running the RED check.
 - Run the declared Check command or equivalent targeted command and confirm the expected failure before implementation.
-- Make the minimal implementation needed for that Check.
+- Make the minimal implementation needed for that Check. **TDD Checkpoint 3: Mock Boundary Enforcement** applies during implementation: mocks are allowed only at system boundaries such as external APIs, databases, time sources, or the file system; internal classes, modules, and project-owned collaborators MUST NOT be mocked; mockable boundaries must be passed through dependency injection. If implementation appears to require an internal mock, stop and refactor the interface to accept the dependency before continuing.
 - Rerun the same or equivalent Check command and confirm pass before updating task or remediation checkboxes.
 - Non-runtime text or artifact Checks do not require artificial red failures.
 - For non-runtime text or artifact Checks, run the declared verification command or inspect the declared `Evidence:` / `Expect:` fields.
