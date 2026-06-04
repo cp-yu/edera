@@ -378,11 +378,13 @@ nodes:
       - path: apps/web-console/src/features/results/AdviceDetail.tsx
       - path: apps/web-console/src/features/results/BriefingDetail.tsx
       - path: apps/web-console/src/features/results/ResultsPage.tsx
+      - path: apps/web-console/src/lib/utils.ts
       - path: packages/core/src/edera_core/web/routes.py
   - id: cap.web.source-health-monitoring
     refs:
       - path: apps/web-console/src/features/sources/SourcesPage.tsx
       - path: apps/web-console/src/api
+      - path: apps/web-console/src/lib/utils.ts
       - path: packages/core/src/edera_core/query_service.py
       - path: packages/core/src/edera_core/web/routes.py
   - id: cap.web.trigger-workbench-inspector

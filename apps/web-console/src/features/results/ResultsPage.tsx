@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useResults } from '@/api/queries'
+import { formatLocalDateTime } from '@/lib/utils'
 import type { Advice } from '@/api/types'
 
 type SummaryItem = Advice & { degraded?: unknown; direction_label?: unknown }
@@ -36,8 +37,8 @@ export function ResultsPage() {
         <h2 className="text-sm font-medium">当前周期</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
           <MetadataItem label="Run" value={String(data.metadata_bar.run_id ?? '无')} />
-          <MetadataItem label="创建时间" value={String(data.metadata_bar.created_at ?? '') || '无'} />
-          <MetadataItem label="数据窗口" value={String(data.metadata_bar.window ?? '无数据窗口')} />
+          <MetadataItem label="创建时间" value={formatLocalDateTime(String(data.metadata_bar.created_at ?? ''))} />
+          <MetadataItem label="数据窗口" value={formatWindow(data.metadata_bar.window)} />
           <MetadataItem label="失败源" value={String(data.metadata_bar.failed_count ?? 0)} />
         </div>
         <p className="text-xs text-muted-foreground">{String(data.metadata_bar.disclaimer ?? '')}</p>
@@ -52,7 +53,7 @@ export function ResultsPage() {
             </Link>
           </div>
           <p className="text-sm text-muted-foreground line-clamp-3">{data.briefing.content}</p>
-          <p className="text-xs text-muted-foreground">{data.briefing.created_at}</p>
+          <p className="text-xs text-muted-foreground">{formatLocalDateTime(data.briefing.created_at)}</p>
         </section>
       )}
 
@@ -67,7 +68,7 @@ export function ResultsPage() {
                 className="block p-3 text-sm hover:bg-muted/30"
               >
                 <div className="font-medium line-clamp-1">{briefing.content}</div>
-                <div className="text-xs text-muted-foreground">{briefing.created_at}</div>
+                <div className="text-xs text-muted-foreground">{formatLocalDateTime(briefing.created_at)}</div>
               </Link>
             ))}
           </div>
@@ -146,7 +147,7 @@ export function ResultsPage() {
                       </td>
                       <td className="px-4 py-2">{advice.direction}</td>
                       <td className="px-4 py-2">{(advice.confidence * 100).toFixed(0)}%</td>
-                      <td className="px-4 py-2 text-muted-foreground">{advice.created_at.slice(0, 10)}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{formatLocalDateTime(advice.created_at)}</td>
                     </tr>
                   )
                 })}
@@ -206,10 +207,17 @@ function SummaryCardContent({ item }: { item: SummaryItem }) {
       <p className="text-xs text-muted-foreground line-clamp-2">{item.reason}</p>
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>置信度 {(item.confidence * 100).toFixed(0)}%</span>
-        <span>{item.created_at.slice(0, 10)}</span>
+        <span>{formatLocalDateTime(item.created_at)}</span>
       </div>
     </>
   )
+}
+
+function formatWindow(value: unknown) {
+  const text = String(value ?? '')
+  const [start, end] = text.split(' 至 ')
+  if (!start || !end) return text || '无数据窗口'
+  return `${formatLocalDateTime(start)} 至 ${formatLocalDateTime(end)}`
 }
 
 function summaryStateLabel(item: SummaryItem) {

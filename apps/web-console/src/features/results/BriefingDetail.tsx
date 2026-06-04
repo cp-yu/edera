@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useBriefingDetail } from '@/api/queries'
+import { formatLocalDateTime } from '@/lib/utils'
 
 export function BriefingDetail() {
   const { id } = useParams<{ id: string }>()
@@ -14,7 +15,7 @@ export function BriefingDetail() {
     <div className="p-6 space-y-4 max-w-3xl">
       <Link to="/results" className="text-xs text-blue-500 hover:underline">&larr; 返回</Link>
       <h1 className="text-xl font-semibold">简报 {briefing.run_id}</h1>
-      <p className="text-xs text-muted-foreground">{briefing.created_at}</p>
+      <p className="text-xs text-muted-foreground">{formatLocalDateTime(briefing.created_at)}</p>
       <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
         {briefing.content}
       </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSourcesHealth, useSourceLogs } from '@/api/queries'
+import { formatLocalDateTime } from '@/lib/utils'
 
 export function SourcesPage() {
   const [selectedSource, setSelectedSource] = useState<string | undefined>()
@@ -94,7 +95,7 @@ export function SourcesPage() {
 }
 
 function formatLogTime(startedAt: string | null, endedAt: string | null) {
-  return (startedAt ?? endedAt)?.slice(0, 19) ?? '无开始时间'
+  return formatLocalDateTime(startedAt ?? endedAt)
 }
 
 function StatusBadge({ status }: { status: string }) {

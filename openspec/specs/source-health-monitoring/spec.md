@@ -102,7 +102,7 @@ capabilities:
 - **THEN** 系统 SHALL 在 source health API 和页面中展示最近 repair task 的 task_id、created_at 和 task_path
 
 ### Requirement: Source monitor page display
-Source health UI SHALL display source health summaries, execution logs, error states and user-readable mutation feedback by consuming the source health/log APIs defined in this capability.
+Source health UI SHALL display source health summaries, execution logs, error states and user-readable mutation feedback by consuming the source health/log APIs defined in this capability. Source health UI SHALL periodically refresh health summaries and execution logs while the page is open. Source health UI SHALL render execution log timestamps in the user's local timezone.
 
 #### Scenario: View source health cards
 - **WHEN** 用户进入信息源页面
@@ -114,7 +114,7 @@ Source health UI SHALL display source health summaries, execution logs, error st
 
 #### Scenario: View execution logs in UI
 - **WHEN** 用户查看信息源页面且日志 payload 包含 `status`
-- **THEN** 系统 SHALL 展示最近的执行日志，包含时间、状态和错误信息
+- **THEN** 系统 SHALL 展示最近的执行日志，包含本地化时间、状态和错误信息
 
 #### Scenario: Filter logs by source in UI
 - **WHEN** 用户选择特定信息源
@@ -126,7 +126,15 @@ Source health UI SHALL display source health summaries, execution logs, error st
 
 #### Scenario: Display fallback time for source logs
 - **WHEN** 信息源日志 payload 的 `started_at` 为空且 `ended_at` 非空
-- **THEN** 信息源页面 SHALL 在时间列显示 `ended_at`
+- **THEN** 信息源页面 SHALL 在时间列以用户本地时区显示 `ended_at`
+
+#### Scenario: Auto refresh source health
+- **WHEN** 用户打开信息源页面
+- **THEN** 系统 SHALL 周期性重新请求 source health 和 source logs 数据，并更新页面内容
+
+#### Scenario: Display local source log timestamps
+- **WHEN** 信息源日志 payload 包含 `started_at` 或 `ended_at`
+- **THEN** 信息源页面 SHALL 将该时间转换为用户本地时区展示
 
 #### Scenario: Source health API returns error
 - **WHEN** `GET /api/sources/health` 请求失败

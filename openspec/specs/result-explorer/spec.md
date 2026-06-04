@@ -9,11 +9,11 @@ capabilities:
 定义本机 Web 控制台的结果浏览能力，包括最新简报、建议列表、建议详情证据链、失败源展示，以及外部公开源进入管道后的可追溯证据查看。
 ## Requirements
 ### Requirement: Latest briefing display
-系统 SHALL 展示最近一次生成的简报内容、run_id、创建时间和元数据，并提供进入历史简报列表和简报详情的入口。结果浏览首页还 SHALL 展示当前周期 metadata bar，包含 run_id、created_at、数据时间窗口、失败源数量和免责声明。结果浏览首页 SHALL 消费 `/api/results` 返回的 `metadata_bar` 和 `briefings` 字段；当存在历史简报但 `briefing` 为空时，页面仍 SHALL 展示可进入历史简报的入口。结果浏览 API SHALL 从统一输出 Entity 的 `attributes` 读取简报字段，并返回包含字符串 `id`、`run_id`、`content`、`metadata` 和 `created_at` 的扁平 `Briefing` payload。
+系统 SHALL 展示最近一次生成的简报内容、run_id、本地化创建时间和元数据，并提供进入历史简报列表和简报详情的入口。结果浏览首页还 SHALL 展示当前周期 metadata bar，包含 run_id、本地化 created_at、本地化数据时间窗口、失败源数量和免责声明。结果浏览首页 SHALL 消费 `/api/results` 返回的 `metadata_bar` 和 `briefings` 字段；当存在历史简报但 `briefing` 为空时，页面仍 SHALL 展示可进入历史简报的入口。结果浏览 API SHALL 从统一输出 Entity 的 `attributes` 读取简报字段，并返回包含字符串 `id`、`run_id`、`content`、`metadata` 和 `created_at` 的扁平 `Briefing` payload。
 
 #### Scenario: View latest briefing
 - **WHEN** 用户打开结果浏览首页
-- **THEN** 系统 SHALL 显示最新 `Briefing` 的正文、run_id、created_at 和 metadata
+- **THEN** 系统 SHALL 显示最新 `Briefing` 的正文、run_id、本地化 created_at 和 metadata
 
 #### Scenario: No briefing exists
 - **WHEN** 数据库中没有任何 `Briefing`
@@ -21,7 +21,7 @@ capabilities:
 
 #### Scenario: View current metadata bar
 - **WHEN** 用户打开结果浏览首页且 `/api/results` 返回 `metadata_bar`
-- **THEN** 系统 SHALL 显示 run_id、created_at、数据时间窗口、失败源数量和“不构成投资建议”免责声明
+- **THEN** 系统 SHALL 显示 run_id、本地化 created_at、本地化数据时间窗口、失败源数量和“不构成投资建议”免责声明
 
 #### Scenario: View briefing history from results summary
 - **WHEN** `/api/results` 返回一个或多个 `briefings`
@@ -114,19 +114,30 @@ capabilities:
 - **THEN** 系统 SHALL 显示“不构成投资建议”免责声明
 
 ### Requirement: Result auto refresh
-系统 SHALL 在结果浏览首页自动检测最新 `Briefing` 版本，并在新结果到达时刷新页面以展示新结果。
+系统 SHALL 在结果浏览首页周期性重新拉取 `/api/results`，并在新结果到达时更新页面内容以展示新结果。
 
-#### Scenario: Refresh when latest briefing changes
-- **WHEN** 用户打开结果浏览首页且之后 `GET /api/briefings/latest` 返回的 `Briefing.id` 或 `created_at` 与页面初始版本不同
-- **THEN** 系统 SHALL 自动刷新当前结果浏览页面，并保留当前 URL 查询参数
+#### Scenario: Refresh results summary
+- **WHEN** 用户打开结果浏览首页
+- **THEN** 系统 SHALL 周期性重新请求 `/api/results`，并保留当前 URL 查询参数
 
 #### Scenario: Keep empty state while waiting for first briefing
 - **WHEN** 用户打开结果浏览首页且数据库中没有任何 `Briefing`
-- **THEN** 系统 SHALL 显示既有空状态，并继续检测直到新 `Briefing` 到达
+- **THEN** 系统 SHALL 显示既有空状态，并继续重新拉取直到新 `Briefing` 到达
 
 #### Scenario: Tolerate refresh check failure
-- **WHEN** 自动刷新检查请求失败或返回非 2xx 响应
-- **THEN** 系统 MUST 保持当前页面内容可用，并在后续检查周期继续检测
+- **WHEN** 自动刷新请求失败或返回非 2xx 响应
+- **THEN** 系统 MUST 保持当前页面内容可用，并在后续周期继续请求
+
+### Requirement: Result timestamp display
+系统 SHALL 在结果浏览 WebUI 中将 API 返回的 UTC 或无时区 ISO 时间转换为用户本地时间显示，避免用户把 UTC 日期误判为本地日期。
+
+#### Scenario: Display local result timestamps
+- **WHEN** `/api/results` 返回 briefing、metadata_bar、summary_items 或 advices 的时间字段
+- **THEN** 结果浏览首页 SHALL 以用户本地时区展示这些时间字段
+
+#### Scenario: Display local briefing detail timestamp
+- **WHEN** 用户打开 `/results/briefings/{id}` 且 briefing 包含 `created_at`
+- **THEN** 简报详情页 SHALL 以用户本地时区展示该创建时间
 
 ### Requirement: Advice comparison API display
 系统 SHALL 在结果浏览 API 中为建议记录展示基于本地价格历史计算的 comparison 字段，覆盖列表、结果摘要和建议详情。

@@ -86,6 +86,7 @@ export function useResults(params?: { stock_code?: string; direction?: string })
   return useQuery({
     queryKey: ['results', params],
     queryFn: () => apiFetch<ResultsSummary>(`/api/results${qs ? `?${qs}` : ''}`),
+    refetchInterval: 10000,
   })
 }
 
@@ -116,6 +117,7 @@ export function useSourcesHealth() {
   return useQuery({
     queryKey: ['sourcesHealth'],
     queryFn: () => apiFetch<{ sources: SourceHealth[] }>('/api/sources/health'),
+    refetchInterval: 10000,
   })
 }
 
@@ -124,6 +126,7 @@ export function useSourceLogs(sourceName?: string) {
   return useQuery({
     queryKey: ['sourceLogs', sourceName],
     queryFn: () => apiFetch<{ logs: SourceLog[] }>(`/api/sources/logs${qs}`),
+    refetchInterval: 10000,
   })
 }
 
