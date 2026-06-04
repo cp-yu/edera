@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import importlib.util
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -106,21 +107,157 @@ async def test_nested_lib_import_path(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_nested_package_relative_import(tmp_path: Path) -> None:
+    scripts = tmp_path / "scripts"
+    renderer = scripts / "lib" / "pipeline" / "renderer"
+    renderer.mkdir(parents=True)
+    for path in (scripts / "lib", scripts / "lib" / "pipeline", renderer):
+        _write(path / "__init__.py", "")
+    _write(renderer / "base.py", "VALUE = 'ok'\n")
+    _write(renderer / "section.py", "from .base import VALUE\n\ndef main():\n    return VALUE\n")
+
+    output = await adapter.run(_ctx(renderer, "section", [], {}))
+
+    assert output.payload == "ok"
+
+
+@pytest.mark.asyncio
+async def test_subprocess_call_preserves_nested_package_import(tmp_path: Path) -> None:
+    scripts = tmp_path / "scripts"
+    renderer = scripts / "lib" / "pipeline" / "renderer"
+    renderer.mkdir(parents=True)
+    for path in (scripts / "lib", scripts / "lib" / "pipeline", renderer):
+        _write(path / "__init__.py", "")
+    _write(renderer / "base.py", "VALUE = 'ok'\n")
+    _write(renderer / "section.py", "from .base import VALUE\n\ndef main():\n    return VALUE\n")
+    ctx = _ctx(renderer, "section", [], {})
+    ctx.params["timeout_seconds"] = 5.0
+
+    output = await adapter.run(ctx)
+
+    assert output.payload == "ok"
+
+
+@pytest.mark.asyncio
+async def test_subprocess_call_times_out(tmp_path: Path) -> None:
+    _write(tmp_path / "slow.py", "import time\n\ndef main():\n    time.sleep(5)\n")
+    ctx = _ctx(tmp_path, "slow", [], {})
+    ctx.params["timeout_seconds"] = 0.2
+
+    started = time.monotonic()
+    output = await adapter.run(ctx)
+
+    assert time.monotonic() - started < 2
+    assert output.ok is True
+    assert output.payload["quality"] == "ERROR"
+    assert "legacy script timeout" in output.payload["error"]
+
+
+@pytest.mark.asyncio
+async def test_renderer_class_fallback(tmp_path: Path) -> None:
+    scripts = tmp_path / "scripts"
+    renderer = scripts / "lib" / "pipeline" / "renderer"
+    renderer.mkdir(parents=True)
+    for path in (scripts / "lib", scripts / "lib" / "pipeline", renderer):
+        _write(path / "__init__.py", "")
+    _write(
+        renderer / "base.py",
+        "from dataclasses import dataclass, field\n"
+        "@dataclass\n"
+        "class RenderContext:\n"
+        "    ticker: str\n"
+        "    name: str\n"
+        "    market: str = 'A'\n"
+        "    data: dict = field(default_factory=dict)\n"
+        "    meta: dict = field(default_factory=dict)\n"
+        "    quality: str = 'full'\n"
+        "class SectionRenderer:\n"
+        "    section_id = ''\n"
+        "    def render(self, ctx):\n"
+        "        return self.render_full(ctx)\n",
+    )
+    _write(
+        renderer / "basic_header.py",
+        "from .base import SectionRenderer\n"
+        "class BasicHeaderRenderer(SectionRenderer):\n"
+        "    section_id = 'basic_header'\n"
+        "    def render_full(self, ctx):\n"
+        "        return f\"<h1>{ctx.name}:{ctx.data['name']}</h1>\"\n",
+    )
+    payload = {
+        "raw": {"ticker": "00100.HK", "dimensions": {"0_basic": {"data": {"name": "X"}}}},
+        "synthesis": {"ticker": "00100.HK", "name": "Y"},
+    }
+    ctx = _ctx(renderer, "basic_header", [{"source": "input"}], payload)
+    ctx.params["function"] = "render"
+
+    output = await adapter.run(ctx)
+
+    assert output.payload == {"section_id": "basic_header", "html": "<h1>Y:X</h1>"}
+
+
+@pytest.mark.asyncio
 async def test_json_safe_payload(tmp_path: Path) -> None:
     _write(
         tmp_path / "dataclass_output.py",
         "from dataclasses import dataclass\n"
+        "from datetime import date\n"
         "from pathlib import Path\n"
         "@dataclass\n"
         "class Item:\n"
         "    path: Path\n"
         "def main():\n"
-        "    return {'item': Item(Path('report.html'))}\n",
+        "    return {'item': Item(Path('report.html')), 'date': date(2026, 6, 4)}\n",
     )
 
     output = await adapter.run(_ctx(tmp_path, "dataclass_output", [], {}))
 
-    assert output.payload == {"item": {"path": "report.html"}}
+    assert output.payload == {"item": {"path": "report.html"}, "date": "2026-06-04"}
+
+
+def test_score_dimensions_wrapper_normalizes_collection_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_call(name, raw):
+        seen["name"] = name
+        seen["raw"] = raw
+        return {"fundamental_score": 60}
+
+    monkeypatch.setattr(adapter, "_call_run_real_test", fake_call)
+
+    output = adapter.score_dimensions_from_raw({
+        "0_basic": {"data": {"ticker": "300470.SZ", "market": "A"}},
+        "4_market": {"data": {"stage": "Stage 2"}},
+        "15_competitors": {"data": {"peer_table": []}},
+    })
+
+    assert output["dims_scored"] == {"fundamental_score": 60}
+    assert seen["name"] == "score_dimensions"
+    assert seen["raw"]["ticker"] == "300470.SZ"
+    assert "dimensions" in seen["raw"]
+    assert seen["raw"]["dimensions"]["2_kline"] == {"data": {"stage": "Stage 2"}}
+    assert seen["raw"]["dimensions"]["4_peers"] == {"data": {"peer_table": []}}
+
+
+def test_assemble_rendered_report_writes_single_html(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(adapter, "__file__", str(tmp_path / "extensions" / "uzi-skill" / "adapter.py"))
+    payload = {
+        "render_b": {"section_id": "b", "html": "<section>B</section>"},
+        "render_a": {"section_id": "a", "html": "<section>A</section>"},
+    }
+    edge_inputs = [
+        {"from_node_id": "render_a", "status": "available", "has_payload": True},
+        {"from_node_id": "render_b", "status": "available", "has_payload": True},
+    ]
+
+    output = adapter.assemble_rendered_report(payload, "run-1", edge_inputs)
+
+    report_path = Path(output["report_path"])
+    assert output["section_count"] == 2
+    assert report_path.exists()
+    assert "<!doctype html>" in output["html"]
+    text = report_path.read_text(encoding="utf-8")
+    assert text.index("<section>A</section>") < text.index("<section>B</section>")
 
 
 def _ctx(

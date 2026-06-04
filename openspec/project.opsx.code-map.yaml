@@ -185,7 +185,9 @@ nodes:
   - id: cap.core.uzi-skill-dag-instance
     refs:
       - path: extensions/uzi-skill/adapter.py
-      - path: extensions/uzi-skill/entities/dags/uzi-skill-analysis.yaml
+      - path: extensions/uzi-skill/entities/dags/uzi-data-collection.yaml
+      - path: extensions/uzi-skill/entities/dags/uzi-scoring-synthesis.yaml
+      - path: extensions/uzi-skill/entities/dags/uzi-rendering.yaml
       - path: extensions/uzi-skill/manifest.yaml
   - id: cap.dag-condition-branch
     refs:

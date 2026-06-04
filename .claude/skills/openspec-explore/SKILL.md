@@ -345,6 +345,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 ## Guardrails
 
 - **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
+- **File modification whitelist** - ONLY modify files under `openspec/sweeper/`. All other paths are read-only.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Do follow the brainstorming checklist** - Complete the six steps before proposal readiness

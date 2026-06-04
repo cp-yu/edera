@@ -15,3 +15,4 @@ logs/
 test-results/
 .runtime-run.vdRdxQ
 .claude/settings.local.json
+extensions/uzi-skill/.cache/_global/api_cache

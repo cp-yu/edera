@@ -13,3 +13,5 @@ attributes:
     args_map:
     - source: input.0_basic.data.industry
       default: 综合
+    timeout_seconds: 70.0
+  timeout_seconds: 75.0

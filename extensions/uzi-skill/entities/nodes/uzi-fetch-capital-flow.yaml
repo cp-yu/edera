@@ -12,3 +12,5 @@ attributes:
     function: main
     args_map:
     - source: input.ticker
+    timeout_seconds: 70.0
+  timeout_seconds: 75.0

@@ -11,4 +11,6 @@ attributes:
     module_path: /home/yunxin/Software/skills/UZI-Skill-instance/skills/deep-analysis/scripts/fetch_basic.py
     function: main
     args_map:
-    - source: input.ticker_info.full
+    - source: input.ticker
+    timeout_seconds: 70.0
+  timeout_seconds: 75.0

@@ -213,4 +213,140 @@ attributes:
     fallback: null
     fallback_model: null
     resource: null
-  edges: []
+  - id: assemble_report
+    type: uzi-assemble-report
+    alias: 组装报告
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  edges:
+  - from: render_01_summary
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_02_financials
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_03_macro
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_04_market
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_05_news
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_06_shareholder
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_07_technical
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_08_industry
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_09_sentiment
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_10_futures
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_11_valuation
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_12_moneyflow
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_13_capital_flow
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_14_policy
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_15_events
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_16_competitors
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_17_risk
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_18_estimates
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_19_insider
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_20_dividend
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: render_21_liquidity
+    to: assemble_report
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier

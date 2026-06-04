@@ -1,7 +1,0 @@
-id: 2dd1368b158e4e0394d382997197e604
-type: trigger
-attributes:
-  name: uzi-skill-analysis-default-cron
-  wait_for: cron:"*/30 * * * *"
-  target: dag:uzi-skill-analysis
-  enabled: true

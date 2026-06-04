@@ -7,7 +7,7 @@ import pytest
 from edera_core.bootstrap import scan_extensions
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_runtime_app_config
-from edera_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
+from edera_core.dag.loader import load_graph, validate_sub_dag_nesting
 from edera_core.dag.runner import DagRunner
 from edera_core.node.executor import NodeExecutor
 from edera_core.storage import create_engine, init_db, sqlite_url
@@ -22,17 +22,17 @@ def test_extension_manifest_loads() -> None:
 
 
 @pytest.mark.asyncio
-async def test_uzi_skill_dag_loads(tmp_path: Path) -> None:
+async def test_uzi_stage_dags_load(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
-    graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
+    graphs = {
+        dag_name: load_graph(config.dags[dag_name], config.nodes)
+        for dag_name in ("uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering")
+    }
 
-    assert len(graph.nodes) == 5
-    assert graph.instances["data_collection"].type == "dag"
-    assert graph.instances["data_collection"].dag_ref == "uzi-data-collection"
-    assert graph.instances["scoring_synthesis"].dag_ref == "uzi-scoring-synthesis"
-    assert graph.instances["rendering"].dag_ref == "uzi-rendering"
-    assert "assemble_report" in graph.nodes
-    assert topological_layers(graph)
+    assert "uzi-skill-analysis" not in config.dags
+    assert len(graphs["uzi-data-collection"].nodes) == 26
+    assert len(graphs["uzi-scoring-synthesis"].nodes) == 3
+    assert len(graphs["uzi-rendering"].nodes) == 22
 
 
 @pytest.mark.asyncio
@@ -40,7 +40,7 @@ async def test_uzi_skill_dag_uses_business_node_types(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
     instances = [
         instance
-        for dag_name in ("uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering")
+        for dag_name in ("uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering")
         for instance in config.dags[dag_name].nodes
         if instance.type != "dag"
     ]
@@ -87,14 +87,16 @@ async def test_uzi_sub_dag_topology(tmp_path: Path) -> None:
     assert sum(len(edges) for edges in scoring_graph.edges.values()) == 2
     assert scoring_graph.reverse_edges["score_dimensions"] == []
     assert scoring_graph.edges["generate_synthesis"] == []
-    assert len(rendering.nodes) == 21
-    assert all(node.optional for node in rendering.nodes)
-    assert rendering.edges == []
+    assert len(rendering.nodes) == 22
+    assert all(node.optional for node in rendering.nodes if node.id.startswith("render_"))
+    assert not next(node for node in rendering.nodes if node.id == "assemble_report").optional
+    assert len(rendering.edges) == 21
+    assert {edge.to for edge in rendering.edges} == {"assemble_report"}
     validate_sub_dag_nesting(config.dags, 3)
 
 
 def _use_mock_script(config, script: Path | str) -> None:
-    for dag_name in ("uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"):
+    for dag_name in ("uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"):
         for instance in config.dags[dag_name].nodes:
             if instance.type in {"dag", "uzi-aggregate-collection-results"}:
                 continue
@@ -149,56 +151,74 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
     )
     config = await _runtime_config(tmp_path)
     bootstrap = scan_extensions([Path("extensions")], Path("config"))
-    graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
+    data_graph = load_graph(config.dags["uzi-data-collection"], config.nodes)
+    scoring_graph = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
     _use_mock_script(config, script)
     store = EntityStore(config.entities, config.entity_types, config.entity_relations)
-    executor = NodeExecutor(
+    data_executor = NodeExecutor(
         config.nodes,
         config.system,
         config.runtime,
         bootstrap.handler_registry,
-        graph.instances,
+        data_graph.instances,
         store,
         extension_tables=bootstrap.table_names,
     )
-    original_execute = executor.execute
+    original_execute = data_executor.execute
 
     async def execute_with_failure(node_name, node_input, context=None):
         if node_name == "1_financials":
             return NodeOutput(node_name=node_name, ok=False, error="fetch failed")
         return await original_execute(node_name, node_input, context)
 
-    executor.execute = execute_with_failure
+    data_executor.execute = execute_with_failure
 
-    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"ticker": "00100.HK"})
-
-    assert result.node_outputs["data_collection"].metadata["sub_dag_failures"]["1_financials"] == "fetch failed"
-    assert result.node_outputs["scoring_synthesis"].ok is True
-    assert score_log.read_text(encoding="utf-8") == "True"
-
-
-@pytest.mark.asyncio
-async def test_full_dag_mock(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    bootstrap = scan_extensions([Path("extensions")], Path("config"))
-    graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes)
-    _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
-    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
-    executor = NodeExecutor(
+    data_result = await DagRunner(data_executor, dags=config.dags, nodes=config.nodes).run(
+        data_graph, "run", {"ticker": "00100.HK"}
+    )
+    scoring_executor = NodeExecutor(
         config.nodes,
         config.system,
         config.runtime,
         bootstrap.handler_registry,
-        graph.instances,
+        scoring_graph.instances,
         store,
         extension_tables=bootstrap.table_names,
     )
+    scoring_result = await DagRunner(scoring_executor, dags=config.dags, nodes=config.nodes).run(
+        scoring_graph, "run", data_result.payload
+    )
 
-    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"ticker": "00100.HK"})
+    assert data_result.failures["1_financials"] == "fetch failed"
+    assert scoring_result.failures == {}
+    assert score_log.read_text(encoding="utf-8") == "True"
 
-    assert result.failures == {}
-    assert result.node_outputs["assemble_report"].ok is True
-    assert result.node_outputs["assemble_report"].payload["report_path"]
+
+@pytest.mark.asyncio
+async def test_stage_dags_mock(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
+    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
+    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
+    payload = {"ticker": "00100.HK"}
+
+    for dag_name in ("uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"):
+        graph = load_graph(config.dags[dag_name], config.nodes)
+        executor = NodeExecutor(
+            config.nodes,
+            config.system,
+            config.runtime,
+            bootstrap.handler_registry,
+            graph.instances,
+            store,
+            extension_tables=bootstrap.table_names,
+        )
+        result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", payload)
+        assert result.failures == {}
+        payload = result.payload
+
+    assert payload["report_path"] == "/tmp/uzi-skill-report.html"
+    assert len(payload["sections"]) == 21
 
 
 @pytest.mark.asyncio
@@ -229,23 +249,21 @@ async def test_rendering_sub_dag_omits_failed_optional_sink(tmp_path: Path) -> N
     result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"score": 1})
 
     assert result.failures["render_01_summary"] == "render failed"
-    assert len(result.payload) == 20
-    assert None not in result.payload
+    assert len(result.payload["sections"]) == 20
+    assert None not in result.payload["sections"]
 
 
 @pytest.mark.asyncio
 async def test_uzi_workflow_import_boundary(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
     store = EntityStore(config.entities, config.entity_types, config.entity_relations)
-    trigger = store.resolve("trigger:uzi-skill-analysis-default-cron")
 
     assert not Path("config/dags/uzi-skill-analysis.yaml").exists()
     assert not Path("config/triggers/uzi-skill-analysis-default-cron.yaml").exists()
     assert not any(Path("config/nodes").glob("uzi-*.yaml"))
-    assert trigger.attributes["wait_for"] == 'cron:"*/30 * * * *"'
-    assert trigger.attributes["target"] == "dag:uzi-skill-analysis"
-    assert trigger.attributes["enabled"] is True
     imported = {entity.id for entity in store.query()}
+    assert "uzi-skill-analysis" not in imported
+    assert "trigger:uzi-skill-analysis-default-cron" not in imported
     assert {"uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering", "uzi-aggregate-collection-results"}.issubset(imported)
 
 
