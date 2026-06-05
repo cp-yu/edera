@@ -41,11 +41,11 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.dag-workbench-ui
-    intent: DAG 工作台 UI 支持恢复上次选中的 DAG、节点面板搜索与临时折叠，并保留既有三栏、Inspector、Triggers tab 和 React Flow 图编辑交互
+    intent: DAG 工作台 UI 支持将 DAG 作为可拖入节点候选，并支持保留父节点实例上下文的 sub-DAG 导航。
     type: capability
     domain: dom.web
   - id: cap.web.canvas-interaction-enhancement
-    intent: 画布交互增强，覆盖连线视觉、右键菜单、对齐辅助线、细粒度网格吸附、撤销重做和选中节点一跳连线高亮及无关连线弱化
+    intent: 画布右键菜单支持对 sub-DAG 节点执行实例作用域的“进入 Sub DAG”操作。
     type: capability
     domain: dom.web
   - id: cap.web.node-visual-system
@@ -61,7 +61,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.node-instance-model
-    intent: 节点实例化模型，覆盖 UUID 标识、别名、实例级配置（含 session_dir、tools、model）和多实例支持
+    intent: 节点实例化模型覆盖 sub-DAG 实例的 dag_ref/input_mapping 持久化与多实例引用同一 DAG。
     type: capability
     domain: dom.web
   - id: cap.operations.dag-control
@@ -143,7 +143,7 @@ capabilities:
     intent: retry/resume 通过历史 runtime facts 和 node outputs 重建输入上下文，optional 历史缺失允许继续，required 历史缺失阻断，统一使用 run_id
     type: capability
   - id: cap.web.dag-run-observability
-    intent: Web/CLI 运行观察能力消费 runtime tables、node outputs 和 execution logs，并统一覆盖已执行节点日志、agent stdout 历史、log index 边界和 Runtime/History 展示
+    intent: Web 运行观察能力支持按 child run_id 展示 sub-DAG 内部节点状态，避免同名子 DAG 在不同父实例间状态串线。
     type: capability
   - id: cap.web.dag-creation
     intent: DAG 创建能力，覆盖前端 dialog 交互和后端 API 创建空 DAG 配置文件
@@ -186,7 +186,7 @@ capabilities:
     intent: Agent 节点默认获得简短 runtime context，并通过 CLI export 按需获取 payload 文件
     type: capability
   - id: cap.core.sub-dag-execution
-    intent: 子 DAG 作为节点嵌套执行，覆盖独立 run_id、parent_run_id 关联、source/sink 接口映射和递归上限
+    intent: 子 DAG 执行支持从父 DAG run 和父节点实例解析对应 child run。
     type: capability
   - id: cap.core.dag-input-parameters
     intent: DAG 输入参数声明，覆盖 inputs schema 定义、source 节点 input_binding、运行时参数注入和 CLI/API/Web 触发
@@ -221,7 +221,7 @@ capabilities:
     intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态、信息源日志契约、监控页面展示和错误反馈
     type: capability
   - id: cap.core.grpc-graph-service
-    intent: GraphService 提供 DB-backed DAG/node type/skill/handler CRUD 和 runtime-status；ListHandlers 从 handler_registry 返回 handler 列表；GetHandler/SaveHandler 通过 registry 查找 handler 路径；DagNodeInstance.optional 与 DagEdge.optional 在 round-trip 中保留
+    intent: GraphService DAG graph payload 保留 sub-DAG 实例字段，并支持 run_id-scoped runtime status 查询。
     type: capability
   - id: cap.core.grpc-config-service
     intent: gRPC ConfigService，覆盖 system config、entity-types config 和通用配置文件的读写，验证逻辑在 server 端执行

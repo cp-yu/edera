@@ -1,0 +1,95 @@
+{
+  "timestamp": "2026-06-05T07:01:56.887Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "fbeab18357aa84557b58bb61f7fa77a7a3b174779544669c10ce2157a101efcf",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "archive-subagent-review",
+    "evidenceFiles": [
+      "apps/web-console/scripts/verify-node-instance-model.mjs",
+      "apps/web-console/tests/workbench-usability.spec.ts",
+      "packages/core/tests/test_graph_service.py",
+      "packages/core/tests/test_query_service.py",
+      "packages/core/tests/test_web_routes.py"
+    ],
+    "evidenceFingerprint": "a1f055a2eae265b76a3932e757125786ca4d4353aba711c877f5300f1b79359d",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+        "hash": "3b0fcc4dec5d675c5a7d42688bc1542fab54eba1a4c411fab2c436ccac5df497"
+      },
+      {
+        "path": "apps/web-console/tests/workbench-usability.spec.ts",
+        "hash": "2353146e49a028814ff3465629efef9dadb8ee5515f3e01886ad086cc59c7f66"
+      },
+      {
+        "path": "packages/core/tests/test_graph_service.py",
+        "hash": "aecec33a7aeac791975ce8880ce8f88e6ec9e6962569dc7b4b16c5029abf1b18"
+      },
+      {
+        "path": "packages/core/tests/test_query_service.py",
+        "hash": "bb22e315608b63313dde3c893fa29e2ede8cdc79d8f0bbef9305bfb846c35472"
+      },
+      {
+        "path": "packages/core/tests/test_web_routes.py",
+        "hash": "8421058bd03a3d3f4697a4bf42228061936826e87b1ef900c280aeb49970ab43"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "05f0b8b7a73d611285b0de181dbcbb1cf0e53842"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-05T07:04:14.738Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Archive-time optimizer found no behavior-preserving optimization opportunities after fresh Phase 1 PASS."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-05T07:01:56.887Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "fbeab18357aa84557b58bb61f7fa77a7a3b174779544669c10ce2157a101efcf",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "archive-subagent-review",
+        "evidenceFiles": [
+          "apps/web-console/scripts/verify-node-instance-model.mjs",
+          "apps/web-console/tests/workbench-usability.spec.ts",
+          "packages/core/tests/test_graph_service.py",
+          "packages/core/tests/test_query_service.py",
+          "packages/core/tests/test_web_routes.py"
+        ],
+        "evidenceFingerprint": "a1f055a2eae265b76a3932e757125786ca4d4353aba711c877f5300f1b79359d",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+            "hash": "3b0fcc4dec5d675c5a7d42688bc1542fab54eba1a4c411fab2c436ccac5df497"
+          },
+          {
+            "path": "apps/web-console/tests/workbench-usability.spec.ts",
+            "hash": "2353146e49a028814ff3465629efef9dadb8ee5515f3e01886ad086cc59c7f66"
+          },
+          {
+            "path": "packages/core/tests/test_graph_service.py",
+            "hash": "aecec33a7aeac791975ce8880ce8f88e6ec9e6962569dc7b4b16c5029abf1b18"
+          },
+          {
+            "path": "packages/core/tests/test_query_service.py",
+            "hash": "bb22e315608b63313dde3c893fa29e2ede8cdc79d8f0bbef9305bfb846c35472"
+          },
+          {
+            "path": "packages/core/tests/test_web_routes.py",
+            "hash": "8421058bd03a3d3f4697a4bf42228061936826e87b1ef900c280aeb49970ab43"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "05f0b8b7a73d611285b0de181dbcbb1cf0e53842"
+      }
+    }
+  }
+}

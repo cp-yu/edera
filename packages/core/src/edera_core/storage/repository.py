@@ -973,6 +973,11 @@ async def node_runs_for_run(session: AsyncSession, run_id: str) -> list[NodeRun]
     return list(result.all())
 
 
+async def node_run_for_run_node(session: AsyncSession, run_id: str, node_name: str) -> NodeRun | None:
+    result = await session.exec(select(NodeRun).where(NodeRun.run_id == run_id, NodeRun.node_name == node_name))
+    return result.first()
+
+
 async def source_execution_logs(
     session: AsyncSession,
     source_name: str | None = None,

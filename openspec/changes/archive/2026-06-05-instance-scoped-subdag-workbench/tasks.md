@@ -18,12 +18,12 @@
 
 #### Checks
 
-- [ ] C1 Verify sub-DAG graph round-trip
+- [x] C1 Verify sub-DAG graph round-trip
   - Verifies: `specs/grpc-graph-service/spec.md` / Requirement "GraphService DAG CRUD" / Scenario "sub-DAG instance round-trip"
   - Command: `uv run pytest packages/core/tests/test_graph_service.py`
   - Expect: graph service test proves `dag_ref` and `input_mapping` survive GET/SAVE
 
-- [ ] C2 Verify Workbench draft serialization
+- [x] C2 Verify Workbench draft serialization
   - Verifies: `specs/node-instance-model/spec.md` / Requirement "Sub-DAG instance fields" / Scenario "Preserve sub-DAG instance fields in draft save"
   - Command: `npm --prefix apps/web-console run verify`
   - Expect: web console verification covers `toDagDraft()` preserving `dag_ref/input_mapping`
@@ -47,12 +47,12 @@
 
 #### Checks
 
-- [ ] C3 Verify DAG palette entries
+- [x] C3 Verify DAG palette entries
   - Verifies: `specs/dag-workbench-ui/spec.md` / Requirement "DAG palette entries" / Scenario "DAG appears in palette"
   - Command: `npm --prefix apps/web-console exec playwright test tests/workbench-usability.spec.ts`
   - Expect: Workbench shows existing DAG as a distinct palette candidate
 
-- [ ] C4 Verify DAG drag creates sub-DAG instance
+- [x] C4 Verify DAG drag creates sub-DAG instance
   - Verifies: `specs/dag-workbench-ui/spec.md` / Requirement "DAG palette entries" / Scenario "Drag DAG into canvas"
   - Command: `npm --prefix apps/web-console exec playwright test tests/workbench-usability.spec.ts`
   - Expect: drag/drop saves node instance with `type: "dag"` and `dag_ref`
@@ -76,12 +76,12 @@
 
 #### Checks
 
-- [ ] C5 Verify context menu entry
+- [x] C5 Verify context menu entry
   - Verifies: `specs/canvas-interaction-enhancement/spec.md` / Requirement "Sub-DAG node context menu entry" / Scenario "Show enter action for sub-DAG node"
   - Command: `npm --prefix apps/web-console exec playwright test tests/workbench-usability.spec.ts`
   - Expect: sub-DAG node context menu contains enter action and regular nodes do not
 
-- [ ] C6 Verify instance-scoped navigation
+- [x] C6 Verify instance-scoped navigation
   - Verifies: `specs/dag-workbench-ui/spec.md` / Requirement "Instance-scoped sub-DAG navigation" / Scenario "Enter sub-DAG view"
   - Command: `npm --prefix apps/web-console exec playwright test tests/workbench-usability.spec.ts`
   - Expect: entering sub-DAG renders child DAG while preserving parent context
@@ -110,12 +110,12 @@
 
 #### Checks
 
-- [ ] C7 Verify run-scoped runtime status API
+- [x] C7 Verify run-scoped runtime status API
   - Verifies: `specs/grpc-graph-service/spec.md` / Requirement "GraphService runtime-status" / Scenario "查询指定 run runtime status"
   - Command: `uv run pytest packages/core/tests/test_graph_service.py packages/core/tests/test_web_routes.py`
   - Expect: API returns statuses only for requested `run_id`
 
-- [ ] C8 Verify no sibling status leakage
+- [x] C8 Verify no sibling status leakage
   - Verifies: `specs/dag-run-observability/spec.md` / Requirement "Instance-scoped sub-DAG runtime view" / Scenario "Do not leak sibling parent status"
   - Command: `npm --prefix apps/web-console exec playwright test tests/workbench-usability.spec.ts`
   - Expect: entering `dagA.nodeX` sub-DAG view does not show `dagB.nodeY` child run status
@@ -140,12 +140,12 @@
 
 #### Checks
 
-- [ ] C9 Verify parent instance child run lookup
+- [x] C9 Verify parent instance child run lookup
   - Verifies: `specs/sub-dag-execution/spec.md` / Requirement "Parent instance to child run association" / Scenario "Parent node records child run"
   - Command: `uv run pytest packages/core/tests/test_query_service.py packages/core/tests/test_web_routes.py`
   - Expect: lookup returns the child run associated with the requested parent node instance
 
-- [ ] C10 Verify unexecuted sub-DAG empty state
+- [x] C10 Verify unexecuted sub-DAG empty state
   - Verifies: `specs/dag-run-observability/spec.md` / Requirement "Instance-scoped sub-DAG runtime view" / Scenario "No child run yet"
   - Command: `npm --prefix apps/web-console exec playwright test tests/workbench-usability.spec.ts`
   - Expect: Workbench shows no-child-run empty state and does not fallback to latest same-name DAG run

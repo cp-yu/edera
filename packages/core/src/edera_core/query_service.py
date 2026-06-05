@@ -25,6 +25,7 @@ from edera_core.storage.repository import (
     list_briefings,
     list_event_records,
     node_runs_for_run,
+    node_run_for_run_node,
     query_log_index,
     query_node_output_entities,
     raw_items_for_analyses,
@@ -172,3 +173,12 @@ class _QueryService:
                         }
                     )
         return json_response(self.pb2, {"history": history})
+
+    async def ChildRunForParent(self, request, context):
+        if not request.parent_run_id or not request.parent_node_id:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "parent_run_id and parent_node_id are required")
+        async with self.daemon.controller._factory()() as session:
+            node_run = await node_run_for_run_node(session, request.parent_run_id, request.parent_node_id)
+        metadata = node_run.metadata_ if node_run is not None else {}
+        child_run_id = metadata.get("sub_dag_run_id") if isinstance(metadata, dict) else None
+        return json_response(self.pb2, {"child_run_id": child_run_id if isinstance(child_run_id, str) else None})

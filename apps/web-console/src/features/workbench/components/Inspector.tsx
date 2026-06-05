@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { useDag, useEntities, useNodeLogs, useNodeOutputs, useRuntimeStatus } from '@/api/queries'
+import { useEntities, useNodeLogs, useNodeOutputs } from '@/api/queries'
 import { useCreateEntity, useDeleteEntity, useSaveDag, useUpdateEntity } from '@/api/mutations'
-import type { DagEdge, DagNodeRecord, EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeExecutionLog, NodeInstance, NodeOutputEntity, NodeStatus, TriggerAttributes } from '@/api/types'
+import type { DagEdge, DagNodeRecord, DagState, EntityItem, EntityRelation, EntityTypeDefinition, InspectorSchema, NodeExecutionLog, NodeInstance, NodeOutputEntity, NodeStatus, RuntimeStatus, TriggerAttributes } from '@/api/types'
 import { useAppStore } from '@/store/useAppStore'
 import { SchemaForm } from './SchemaForm'
 
@@ -20,15 +20,23 @@ const ALLOWED_PERMISSION_OVERRIDES: Record<FieldPermission, FieldPermission[]> =
   'read-write': ['read-write'],
 }
 
-export function Inspector() {
-  const { inspectorTab, selectedDagName, selectedEdgeId, selectedNodeId, setInspectorTab } = useAppStore()
-  const { data: dag } = useDag(selectedDagName)
-  const runtime = useRuntimeStatus(true)
-  const saveDag = useSaveDag(selectedDagName)
+export function Inspector({
+  dagName,
+  dag,
+  runtimeStatus: runtime,
+  subDagRuntimeEmpty = false,
+}: {
+  dagName: string
+  dag: DagState | null
+  runtimeStatus: RuntimeStatus | null
+  subDagRuntimeEmpty?: boolean
+}) {
+  const { inspectorTab, selectedEdgeId, selectedNodeId, setInspectorTab } = useAppStore()
+  const saveDag = useSaveDag(dagName)
   const node = dag?.nodes.find((item) => item.id === selectedNodeId)
   const edge = dag?.edges.find((item, index) => `e-${item.from}-${item.to}-${index}` === selectedEdgeId)
   const runtimeNodeId = edge?.from ?? node?.id ?? null
-  const runtimeStatus = runtimeNodeId ? runtime.data?.node_statuses?.[runtimeNodeId] : undefined
+  const runtimeStatus = runtimeNodeId ? runtime?.node_statuses?.[runtimeNodeId] : undefined
   const outputs = useNodeOutputs(runtimeNodeId, runtimeStatus?.run_id)
   const logs = useNodeLogs(runtimeNodeId, runtimeStatus?.run_id)
   const stdout = useNodeStdout(runtimeNodeId)
@@ -63,6 +71,8 @@ export function Inspector() {
       const nodes: DagNodeRecord[] = dag.nodes.map((item) => ({
         id: item.id,
         type: item.type_name,
+        dag_ref: item.dag_ref,
+        input_mapping: item.input_mapping,
         alias: item.alias,
         config: item.config ?? {},
         optional: Boolean(item.optional),
@@ -75,9 +85,15 @@ export function Inspector() {
           <h2 className="text-sm font-medium">数据流</h2>
           <p className="text-xs text-muted-foreground">{edge.from} → {edge.to}</p>
         </div>
-        <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} logs={logs.data?.logs ?? []} stdout={stdout} />
+        <RuntimeStatusView
+          status={runtimeStatus}
+          outputs={outputs.data?.outputs ?? []}
+          logs={logs.data?.logs ?? []}
+          stdout={stdout}
+          subDagRuntimeEmpty={subDagRuntimeEmpty}
+        />
         <a
-          href={`/history/dag/${selectedDagName}/nodes/${edge.from}`}
+          href={`/history/dag/${dagName}/nodes/${edge.from}`}
           className="block rounded-md border px-3 py-2 text-center text-xs hover:bg-accent"
         >
           查看历史
@@ -122,12 +138,12 @@ export function Inspector() {
     return (
       <aside className="w-[300px] space-y-4 overflow-y-auto border-l bg-card p-4">
         <div>
-          <h2 className="text-sm font-medium">{selectedDagName}</h2>
+          <h2 className="text-sm font-medium">{dagName}</h2>
           <p className="text-xs text-muted-foreground">DAG</p>
         </div>
         <InspectorTabs active={inspectorTab} onChange={setInspectorTab} />
         {inspectorTab === 'triggers' ? (
-          <TriggersPanel dagName={selectedDagName} dag={dag} node={null} />
+          <TriggersPanel dagName={dagName} dag={dag} node={null} />
         ) : (
           <p className="text-sm text-muted-foreground">选择节点或连线查看详情</p>
         )}
@@ -138,10 +154,10 @@ export function Inspector() {
   const save = () => {
     const nodes: DagNodeRecord[] = dag.nodes.map((item) => {
       if (item.id !== node.id) {
-        return { id: item.id, type: item.type_name, alias: item.alias, config: item.config ?? {}, optional: Boolean(item.optional) }
+        return { id: item.id, type: item.type_name, dag_ref: item.dag_ref, input_mapping: item.input_mapping, alias: item.alias, config: item.config ?? {}, optional: Boolean(item.optional) }
       }
       const config = buildConfig(item, formValues, typeDefaults)
-      return { id: item.id, type: item.type_name, alias: alias || item.type_name, config, optional: instanceOptional }
+      return { id: item.id, type: item.type_name, dag_ref: item.dag_ref, input_mapping: item.input_mapping, alias: alias || item.type_name, config, optional: instanceOptional }
     })
     saveDag.mutate({ nodes, edges: dag.edges, ui: dag.ui })
   }
@@ -155,9 +171,15 @@ export function Inspector() {
         </div>
         <InspectorTabs active={inspectorTab} onChange={setInspectorTab} />
         {inspectorTab === 'runtime' ? (
-          <RuntimeStatusView status={runtimeStatus} outputs={outputs.data?.outputs ?? []} logs={logs.data?.logs ?? []} stdout={stdout} />
+          <RuntimeStatusView
+            status={runtimeStatus}
+            outputs={outputs.data?.outputs ?? []}
+            logs={logs.data?.logs ?? []}
+            stdout={stdout}
+            subDagRuntimeEmpty={subDagRuntimeEmpty}
+          />
         ) : inspectorTab === 'triggers' ? (
-          <TriggersPanel dagName={selectedDagName} dag={dag} node={node} />
+          <TriggersPanel dagName={dagName} dag={dag} node={node} />
         ) : (
           <>
             <div className="space-y-4">
@@ -547,9 +569,26 @@ function EventPicker({
   )
 }
 
-function RuntimeStatusView({ status, outputs, logs, stdout }: { status?: NodeStatus; outputs: NodeOutputEntity[]; logs: NodeExecutionLog[]; stdout: string[] }) {
+function RuntimeStatusView({
+  status,
+  outputs,
+  logs,
+  stdout,
+  subDagRuntimeEmpty = false,
+}: {
+  status?: NodeStatus
+  outputs: NodeOutputEntity[]
+  logs: NodeExecutionLog[]
+  stdout: string[]
+  subDagRuntimeEmpty?: boolean
+}) {
   return (
     <div className="space-y-3">
+      {subDagRuntimeEmpty && (
+        <div className="rounded-md border p-3 text-xs text-muted-foreground">
+          当前 Sub DAG 实例还没有 child run
+        </div>
+      )}
       <div className="space-y-2 rounded-md border p-3 text-xs">
         <RuntimeRow label="status" value={status?.status ?? 'unknown'} />
         <RuntimeRow label="run" value={status?.run_id ?? '-'} />

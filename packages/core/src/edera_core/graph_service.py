@@ -52,7 +52,9 @@ class _GraphService:
     async def SaveDag(self, request, context):
         try:
             payload = graph_dag_payload(request.name, parse_json(request.json))
-            _validate_graph_entity_permissions(self.daemon.controller.runtime_snapshot().config.entity_types, payload)
+            app = self.daemon.controller.runtime_snapshot().config
+            _validate_graph_node_refs(app, payload)
+            _validate_graph_entity_permissions(app.entity_types, payload)
             dag_config = DagConfig.model_validate(payload)
             await _save_core_and_refresh(self.daemon, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
         except (ConfigError, KeyError, ValueError) as exc:
@@ -191,20 +193,23 @@ class _GraphService:
 
     async def RuntimeStatus(self, request, context):
         factory = self.daemon.controller._factory()
-        async with factory() as session:
-            recent = await recent_dag_runs(session)
-        node_statuses: dict[str, dict[str, object]] = {}
-        if recent:
+        run_id = request.run_id or ""
+        if not run_id:
             async with factory() as session:
-                for run in recent[:1]:
-                    for node_run in await node_runs_for_run(session, run.run_id):
-                        node_statuses[node_run.node_name] = {
-                            "status": node_run.status,
-                            "started_at": node_run.started_at.isoformat() if node_run.started_at else None,
-                            "ended_at": node_run.ended_at.isoformat() if node_run.ended_at else None,
-                            "error": node_run.error,
-                            "run_id": node_run.run_id,
-                        }
+                recent = await recent_dag_runs(session)
+            run_id = recent[0].run_id if recent else ""
+        node_statuses: dict[str, dict[str, object]] = {}
+        if run_id:
+            async with factory() as session:
+                for node_run in await node_runs_for_run(session, run_id):
+                    node_statuses[node_run.node_name] = {
+                        "status": node_run.status,
+                        "started_at": node_run.started_at.isoformat() if node_run.started_at else None,
+                        "ended_at": node_run.ended_at.isoformat() if node_run.ended_at else None,
+                        "error": node_run.error,
+                        "run_id": node_run.run_id,
+                        "metadata": node_run.metadata_,
+                    }
         return json_response(self.pb2, {"node_statuses": node_statuses})
 
 
@@ -233,3 +238,19 @@ def _validate_graph_entity_permissions(entity_types: dict[str, object], payload:
         permissions = config.get("entity_permissions")
         if isinstance(permissions, dict):
             validate_permission_overrides(entity_types, permissions)
+
+
+def _validate_graph_node_refs(app, payload: dict[str, object]) -> None:
+    nodes = payload.get("nodes", [])
+    if not isinstance(nodes, list):
+        return
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_type = str(node.get("type") or "")
+        dag_ref = node.get("dag_ref")
+        if node_type in app.nodes or node_type in app.dags:
+            continue
+        if node_type == "dag" and isinstance(dag_ref, str) and dag_ref in app.dags:
+            continue
+        raise ConfigError(f"node type '{node_type}' not found")

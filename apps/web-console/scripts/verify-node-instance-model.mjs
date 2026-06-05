@@ -190,6 +190,22 @@ async function verifyGraphLogic(cdp) {
         'alias-hit',
       )
       const enriched = graph.enrichNodeData(reader, [], ${JSON.stringify(fixtures.runtimeStatus)})
+      const subDagDraft = graph.toDagDraft([
+        {
+          id: 'sub-a',
+          position: { x: 0, y: 0 },
+          data: {
+            ...reader,
+            id: 'sub-a',
+            type_name: 'dag',
+            dag_ref: 'common-subdag',
+            input_mapping: { topic: 'payload.topic' },
+            visualKind: 'processor',
+            inputHandles: [],
+            outputHandles: [],
+          },
+        },
+      ], [])
       return {
         sourceRoleHandles: sourceHandles.inputHandles.length === 0 && sourceHandles.outputHandles.length === 1,
         processorHandles: readerHandles.inputHandles.length === 1 && readerHandles.outputHandles.length === 1,
@@ -203,6 +219,8 @@ async function verifyGraphLogic(cdp) {
         listDoesNotFlatten: graph.isValidConnection(source, listToItemTarget) === false,
         aliasSearch: search.length === 1 && search[0].name === 'reader',
         uuidRuntimeStatus: enriched.status === 'running',
+        subDagDraftFields: subDagDraft.nodes[0].dag_ref === 'common-subdag'
+          && subDagDraft.nodes[0].input_mapping.topic === 'payload.topic',
       }
     })()
   `)

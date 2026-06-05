@@ -55,6 +55,8 @@ export interface NodeType {
 export interface NodeInstance extends NodeType {
   id: string
   type_name: string
+  dag_ref?: string | null
+  input_mapping?: Record<string, string>
   alias?: string | null
   config?: Record<string, unknown>
   optional?: boolean
@@ -99,6 +101,8 @@ export interface EntityRelation {
 export interface DagNodeRecord {
   id: string
   type: string
+  dag_ref?: string | null
+  input_mapping?: Record<string, string>
   alias?: string | null
   config?: Record<string, unknown>
   optional?: boolean
@@ -161,6 +165,7 @@ export interface NodeStatus {
   run_id: string
   started_at?: string | null
   ended_at?: string | null
+  metadata?: Record<string, unknown>
 }
 
 export interface NodeControlStatus {
