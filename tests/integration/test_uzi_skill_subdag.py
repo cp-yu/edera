@@ -13,10 +13,14 @@ from edera_core.storage import create_engine, init_db, sqlite_url
 @pytest.mark.asyncio
 async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
+    main = load_graph(config.dags["uzi-skill-analysis"], config.nodes, config.dags)
     data = load_graph(config.dags["uzi-data-collection"], config.nodes)
     scoring = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
 
-    assert "uzi-skill-analysis" not in config.dags
+    assert list(main.nodes) == ["data_collection", "scoring_synthesis", "rendering"]
+    assert main.edges["data_collection"] == ["scoring_synthesis"]
+    assert main.edges["scoring_synthesis"] == ["rendering"]
+    assert main.edges["rendering"] == []
     assert len(data.nodes) == 26
     assert data.reverse_edges["autofill_mx"] == ["0_basic"]
     assert data.reverse_edges["autofill_playwright"] == ["0_basic"]
@@ -42,7 +46,7 @@ async def test_uzi_subdag_imports_aggregate_node(tmp_path: Path) -> None:
 
     assert aggregate.attributes["type"] == "function"
     assert aggregate.attributes["handler"] == "legacy-script-adapter"
-    assert {"uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"}.issubset(config.dags)
+    assert {"uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"}.issubset(config.dags)
 
 
 async def _runtime_config(tmp_path: Path):

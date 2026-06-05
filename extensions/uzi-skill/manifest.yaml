@@ -8,6 +8,7 @@ handlers:
   output_type: Any
 imports:
   entities:
+  - entities/dags/uzi-skill-analysis.yaml
   - entities/dags/uzi-data-collection.yaml
   - entities/dags/uzi-scoring-synthesis.yaml
   - entities/dags/uzi-rendering.yaml
