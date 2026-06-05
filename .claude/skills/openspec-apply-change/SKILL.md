@@ -11,6 +11,15 @@ metadata:
 
 Implement tasks from an OpenSpec change.
 
+## Skill Delegation Protocol
+
+**Internal Skills** — The following skills are subagent-only and MUST NOT be read directly by this agent:
+- `openspec-impact-sweeper` — Invoke via Agent tool, subagent loads via Skill tool
+- `openspec-reviewer` — Invoke via Agent tool, subagent loads via Skill tool
+- `openspec-optimizer` — Invoke via Agent tool, subagent loads via Skill tool
+
+**Never** use the Read tool on `.claude/skills/openspec-impact-sweeper/SKILL.md`, `.claude/skills/openspec-reviewer/SKILL.md`, or `.claude/skills/openspec-optimizer/SKILL.md`.
+
 ## Flow
 
 1. Select the change. If no clear name is provided, infer only from explicit context; otherwise run `openspec list --json` and ask. Always announce "Using change: <name>".
