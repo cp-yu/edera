@@ -1,0 +1,18 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.subdag-cycle-error-detail
+      type: capability
+      intent: 增强 Sub DAG 循环检测错误消息，提供节点级路径追踪和具体修复建议
+  relations:
+    - from: cap.core.subdag-cycle-error-detail
+      type: depends_on
+      to: dom.core
+    - from: cap.core.grpc-graph-service
+      type: depends_on
+      to: cap.core.subdag-cycle-error-detail
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.grpc-graph-service
+      intent: 提供 GraphService gRPC 接口，包含 DAG CRUD、Node-type CRUD、Skill CRUD、Handler CRUD 和增强的 Sub DAG 循环检测错误详情

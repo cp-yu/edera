@@ -334,6 +334,51 @@ test('node history expands execution logs', async ({ page }) => {
   await expect(page.getByText('boom')).toBeVisible()
 })
 
+test('sub-DAG cycle error shows node ID and fix suggestion in alert', async ({ page }) => {
+  const cycleErrorMessage = `无法保存 DAG 'default'：检测到 Sub DAG 循环 (Sub DAG cycle detected)
+
+循环路径：
+  default
+    -> [节点 'self-ref'] -> default
+
+问题：Sub DAG 引用形成了循环。
+修复建议：请移除或修改以下任一节点的引用：
+  • default 中的节点 'self-ref'`
+
+  await page.route(/\/api\/graph\/dag\/default$/, async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({
+        status: 400,
+        json: { error: { type: 'INVALID_ARGUMENT', message: cycleErrorMessage } },
+      })
+      return
+    }
+    await route.fulfill({
+      json: dag('default', [
+        node('A', 'source-alpha', 'Node A'),
+        node('B', 'processor-transform', 'Node B'),
+      ], [{ from: 'A', to: 'B' }]),
+    })
+  })
+
+  page.on('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('Sub DAG cycle detected')
+    expect(dialog.message()).toContain("节点 'self-ref'")
+    expect(dialog.message()).toContain('修复建议')
+    await dialog.accept()
+  })
+
+  await page.goto('/workbench')
+
+  await page.evaluate(() => {
+    const saveBtn = document.querySelector<HTMLButtonElement>('button[aria-label="保存"]')
+      ?? Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes('保存'))
+    saveBtn?.click()
+  })
+
+  await page.waitForTimeout(500)
+})
+
 function palettePanel(page: Page) {
   return page.locator('aside').filter({ hasText: '节点面板' })
 }

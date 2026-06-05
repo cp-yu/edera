@@ -189,3 +189,9 @@ relations:
   - from: cap.core.uzi-subdag-structure
     type: contains
     to: dom.core
+  - from: cap.core.subdag-cycle-error-detail
+    type: depends_on
+    to: dom.core
+  - from: cap.core.grpc-graph-service
+    type: depends_on
+    to: cap.core.subdag-cycle-error-detail

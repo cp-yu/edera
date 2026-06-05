@@ -7,7 +7,7 @@ import logging
 from uuid import uuid4
 
 from edera_core.dag.conditions import evaluate_condition
-from edera_core.dag.loader import load_graph, topological_layers
+from edera_core.dag.loader import DagPathStep, _format_cycle_error, load_graph, topological_layers
 from edera_core.dag.models import DagGraph, DagRunResult
 from edera_core.dag.resources import ResourceSemaphore, get_semaphore
 from edera_core.errors import DagError
@@ -53,7 +53,7 @@ class DagRunner:
         dag_lifecycle: DagRunLifecycle | None = None,
         trigger_executor: TriggerExecutor | None = None,
         depth: int = 1,
-        path: tuple[str, ...] = (),
+        path: tuple[DagPathStep, ...] = (),
     ) -> None:
         self.executor = executor
         self.recorder = recorder
@@ -670,11 +670,14 @@ class DagRunner:
         node_input: NodeInput,
     ) -> NodeOutput:
         limit = self.executor.system.max_dag_depth
-        chain = (*self.path, dag_ref)
-        if dag_ref in self.path:
-            return NodeOutput(node_name=instance.id, ok=False, error=f"sub DAG cycle: {' -> '.join(chain)}")
+        step = DagPathStep(dag_name=dag_ref, via_node_id=instance.id)
+        chain = (*self.path, step)
+        seen_names = {s.dag_name for s in self.path}
+        if dag_ref in seen_names:
+            return NodeOutput(node_name=instance.id, ok=False, error=_format_cycle_error(chain, self.path[0].dag_name if self.path else dag_ref))
         if self.depth >= limit:
-            return NodeOutput(node_name=instance.id, ok=False, error=f"max DAG depth exceeded: {' -> '.join(chain)}")
+            name_chain = " -> ".join(s.dag_name for s in chain)
+            return NodeOutput(node_name=instance.id, ok=False, error=f"max DAG depth exceeded: {name_chain}")
         graph = load_graph(self.dags[dag_ref], self.nodes, self.dags)
         runner = DagRunner(
             self.executor,
@@ -684,7 +687,7 @@ class DagRunner:
             nodes=self.nodes,
             dag_lifecycle=self.dag_lifecycle,
             depth=self.depth + 1,
-            path=chain,
+            path=(*self.path, step),
         )
         child_run_id = uuid4().hex
         payload = _mapped_input(node_input.payload, input_mapping)
