@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.subdag-cycle-error-detail
+---
 # subdag-cycle-error-detail Specification
 
 ## Purpose
@@ -86,4 +90,3 @@
 
 - **WHEN** 同一个 Sub DAG 循环在保存时和运行时均被检测到
 - **THEN** 两次错误消息的循环路径和修复建议 MUST 完全相同
-

@@ -1,3 +1,7 @@
+---
+capabilities:
+  - cap.core.uzi-subdag-structure
+---
 # uzi-subdag-structure Specification
 
 ## Purpose
@@ -114,4 +118,3 @@
 
 - **WHEN** Sub DAG 执行完成
 - **THEN** Sub DAG 的 sink 节点输出 SHALL 作为 Sub DAG 引用节点的输出传递给下游节点
-

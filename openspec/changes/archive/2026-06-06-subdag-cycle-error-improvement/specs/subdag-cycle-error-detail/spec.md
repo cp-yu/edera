@@ -7,7 +7,7 @@ capabilities:
 ## Purpose
 定义 Sub DAG 循环检测的增强错误消息格式，包含节点级路径追踪和具体修复建议。
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Sub DAG 循环检测追踪节点实例路径
 

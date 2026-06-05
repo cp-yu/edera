@@ -113,8 +113,8 @@
 
 - [x] C11 验证运行时和保存时消息一致性
   - Verifies: `specs/subdag-cycle-error-detail/spec.md` / Requirement "运行时循环检测消息一致性" / Scenario "运行时和保存时消息一致"
-  - Command: `pytest packages/core/tests/test_dag_runner.py::test_runtime_save_error_consistency -v`
-  - Expect: 测试通过，同一循环在两处的错误消息完全相同
+  - Command: `uv run pytest packages/core/tests/test_dag_runner.py::test_runtime_save_error_consistency packages/core/tests/test_dag_runner.py::test_runtime_save_error_consistency_multilayer_run packages/core/tests/test_dag_runner.py::test_runtime_save_error_consistency_nested_non_root_cycle -v`
+  - Expect: 测试通过，同一循环在保存时和实际运行时的错误消息完全相同
 
 ### Task 5: 端到端验证
 
@@ -122,6 +122,7 @@
 
 **Files**:
 - Test: `apps/web-console/tests/workbench-usability.spec.ts`
+- Test: `packages/core/tests/test_grpc_control_services.py`
 
 **Requirements**:
 - 验证前端 window.alert 正确显示多行错误消息
@@ -132,9 +133,10 @@
 
 - [x] C12 验证前端错误消息显示
   - Verifies: `specs/subdag-cycle-error-detail/spec.md` / Requirement "Sub DAG 循环检测追踪节点实例路径" / Scenario "直接自引用检测"
-  - Command: `npm test -- workbench-usability.spec.ts -g "sub-DAG cycle error"`
+  - Command: `cd apps/web-console && npx playwright test tests/workbench-usability.spec.ts -g "sub-DAG cycle error"`
   - Expect: 测试通过，alert 显示包含节点 ID 和修复建议的详细消息
 
 - [x] C13 验证 CLI 错误消息输出
   - Verifies: `specs/subdag-cycle-error-detail/spec.md` / Requirement "Sub DAG 循环检测追踪节点实例路径" / Scenario "直接自引用检测"
-  - Evidence: CLI `dag save` 子命令不存在；CLI 通过 `dag edit add-node` 触发 `SaveDag` gRPC 调用，错误路径已由 C9 (GraphService 集成测试) 完整覆盖
+  - Command: `uv run pytest packages/core/tests/test_grpc_control_services.py::test_dag_edit_sub_dag_cycle_rejected -v`
+  - Expect: CLI 使用的 `DagService.Edit` gRPC 路径拒绝 sub-DAG 循环，错误详情包含节点实例 ID 和修复建议
