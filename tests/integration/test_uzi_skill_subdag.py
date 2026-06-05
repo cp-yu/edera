@@ -16,6 +16,7 @@ async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
     main = load_graph(config.dags["uzi-skill-analysis"], config.nodes, config.dags)
     data = load_graph(config.dags["uzi-data-collection"], config.nodes)
     scoring = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
+    rendering = load_graph(config.dags["uzi-rendering"], config.nodes)
 
     assert list(main.nodes) == ["data_collection", "scoring_synthesis", "rendering"]
     assert main.edges["data_collection"] == ["scoring_synthesis"]
@@ -32,9 +33,8 @@ async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
     }
     assert len(scoring.nodes) == 3
     assert sum(len(edges) for edges in scoring.edges.values()) == 2
-    assert len(config.dags["uzi-rendering"].nodes) == 22
-    assert len(config.dags["uzi-rendering"].edges) == 21
-    assert {edge.to for edge in config.dags["uzi-rendering"].edges} == {"assemble_report"}
+    assert list(rendering.nodes) == ["assemble_report"]
+    assert rendering.edges["assemble_report"] == []
     validate_sub_dag_nesting(config.dags, 3)
 
 

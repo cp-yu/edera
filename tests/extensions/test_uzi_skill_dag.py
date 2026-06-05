@@ -29,7 +29,7 @@ async def test_uzi_stage_dags_load(tmp_path: Path) -> None:
     assert list(graphs["uzi-skill-analysis"].nodes) == ["data_collection", "scoring_synthesis", "rendering"]
     assert len(graphs["uzi-data-collection"].nodes) == 26
     assert len(graphs["uzi-scoring-synthesis"].nodes) == 3
-    assert len(graphs["uzi-rendering"].nodes) == 22
+    assert len(graphs["uzi-rendering"].nodes) == 1
 
 
 @pytest.mark.asyncio
@@ -73,7 +73,7 @@ async def test_uzi_sub_dag_topology(tmp_path: Path) -> None:
     main_graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes, config.dags)
     data_graph = load_graph(config.dags["uzi-data-collection"], config.nodes)
     scoring_graph = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
-    rendering = config.dags["uzi-rendering"]
+    rendering_graph = load_graph(config.dags["uzi-rendering"], config.nodes)
 
     assert main_graph.edges["data_collection"] == ["scoring_synthesis"]
     assert main_graph.edges["scoring_synthesis"] == ["rendering"]
@@ -94,11 +94,8 @@ async def test_uzi_sub_dag_topology(tmp_path: Path) -> None:
     assert sum(len(edges) for edges in scoring_graph.edges.values()) == 2
     assert scoring_graph.reverse_edges["score_dimensions"] == []
     assert scoring_graph.edges["generate_synthesis"] == []
-    assert len(rendering.nodes) == 22
-    assert all(node.optional for node in rendering.nodes if node.id.startswith("render_"))
-    assert not next(node for node in rendering.nodes if node.id == "assemble_report").optional
-    assert len(rendering.edges) == 21
-    assert {edge.to for edge in rendering.edges} == {"assemble_report"}
+    assert list(rendering_graph.nodes) == ["assemble_report"]
+    assert rendering_graph.edges["assemble_report"] == []
     validate_sub_dag_nesting(config.dags, 3)
 
 
@@ -225,7 +222,7 @@ async def test_stage_dags_mock(tmp_path: Path) -> None:
         payload = result.payload
 
     assert payload["report_path"] == "/tmp/uzi-skill-report.html"
-    assert len(payload["sections"]) == 21
+    assert payload["sections"]["score"] == 80
 
 
 @pytest.mark.asyncio
@@ -249,11 +246,11 @@ async def test_main_dag_runs_all_uzi_stages(tmp_path: Path) -> None:
 
     assert result.failures == {}
     assert result.payload["report_path"] == "/tmp/uzi-skill-report.html"
-    assert len(result.payload["sections"]) == 21
+    assert result.payload["sections"]["score"] == 80
 
 
 @pytest.mark.asyncio
-async def test_rendering_sub_dag_omits_failed_optional_sink(tmp_path: Path) -> None:
+async def test_rendering_assembles_report(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
     bootstrap = scan_extensions([Path("extensions")], Path("config"))
     graph = load_graph(config.dags["uzi-rendering"], config.nodes)
@@ -268,20 +265,11 @@ async def test_rendering_sub_dag_omits_failed_optional_sink(tmp_path: Path) -> N
         store,
         extension_tables=bootstrap.table_names,
     )
-    original_execute = executor.execute
-
-    async def execute_with_failure(node_name, node_input, context=None):
-        if node_name == "render_01_summary":
-            return NodeOutput(node_name=node_name, ok=False, error="render failed")
-        return await original_execute(node_name, node_input, context)
-
-    executor.execute = execute_with_failure
-
     result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"score": 1})
 
-    assert result.failures["render_01_summary"] == "render failed"
-    assert len(result.payload["sections"]) == 20
-    assert None not in result.payload["sections"]
+    assert result.failures == {}
+    assert result.payload["report_path"] == "/tmp/uzi-skill-report.html"
+    assert result.payload["sections"] == {"score": 1}
 
 
 @pytest.mark.asyncio
