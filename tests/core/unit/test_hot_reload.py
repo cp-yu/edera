@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import pytest
+import yaml
 
-from edera_core.bootstrap import scan_extensions
+from edera_core.bootstrap import BootstrapResult
 from edera_core.config.loader import load_app_config
 from edera_core.config.schema import EntityConfig
 from edera_core.dag.models import DagGraph
 from edera_core.dag_controller import DagController
 from edera_core.hot_reload import HotReloader
-from edera_core.storage.repository import save_core_entity
+from edera_core.registry import EntityTypeRegistry, HandlerRegistry
+from edera_core.storage.repository import save_core_entity, save_installed_extension
 
 
 @pytest.mark.asyncio
@@ -24,7 +27,7 @@ async def test_snapshot_commit_success(tmp_path: Path) -> None:
 
     snapshot = await controller.install_snapshot(
         load_app_config(tmp_path),
-        scan_extensions([extensions], tmp_path),
+        await _install_extensions(controller, extensions),
     )
 
     assert controller.runtime_snapshot() is snapshot
@@ -50,7 +53,7 @@ async def test_snapshot_commit_failure(monkeypatch: pytest.MonkeyPatch, tmp_path
 
     monkeypatch.setattr("edera_core.dag_controller.create_extension_tables", fail_create_extension_tables)
     with pytest.raises(RuntimeError, match="table failure"):
-        await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+        await controller.install_snapshot(load_app_config(tmp_path), await _install_extensions(controller, extensions))
 
     assert controller.runtime_snapshot() is old_snapshot
     assert "failed-handler" not in controller.runtime_snapshot().bootstrap.handler_registry
@@ -65,7 +68,7 @@ async def test_snapshot_commit_serialized(monkeypatch: pytest.MonkeyPatch, tmp_p
     await controller.start(run_startup=False)
     _write_extension(extensions, "serial-handler")
     candidate = load_app_config(tmp_path)
-    bootstrap = scan_extensions([extensions], tmp_path)
+    bootstrap = await _install_extensions(controller, extensions)
     active = 0
     max_active = 0
 
@@ -109,7 +112,7 @@ async def test_active_run_snapshot_isolation(monkeypatch: pytest.MonkeyPatch, tm
     await controller.start_run("manual")
     await started.wait()
     _write_dag(tmp_path, nodes=["changed"])
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await _install_extensions(controller, extensions))
 
     assert captured == [old_snapshot]
     assert controller.runtime_snapshot() is not old_snapshot
@@ -125,7 +128,7 @@ async def test_new_run_uses_committed_snapshot(monkeypatch: pytest.MonkeyPatch, 
     controller = DagController(tmp_path, extensions_dirs=[extensions])
     await controller.start(run_startup=False)
     await _save_core_dag(controller, [])
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     captured: list[list[str]] = []
 
     async def fake_run(*_args, snapshot=None, **_kwargs):
@@ -136,7 +139,7 @@ async def test_new_run_uses_committed_snapshot(monkeypatch: pytest.MonkeyPatch, 
     _write_dag(tmp_path, nodes=["changed"])
     await _save_core_node(controller, "changed", "changed")
     await _save_core_dag(controller, ["changed"])
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     await controller.run_now("manual")
 
     assert captured == [[], ["changed"]]
@@ -160,7 +163,7 @@ async def test_handler_reload_new_executor_only(tmp_path: Path) -> None:
     _write_dag(tmp_path, nodes=["second-handler"])
     _write_extension(extensions, "second-handler")
 
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await _install_extensions(controller, extensions))
     new_executor = controller._build_run_executor(
         controller.runtime_snapshot(),
         graph,
@@ -179,14 +182,13 @@ async def test_handler_manifest_deletion_rebuilds_registry(tmp_path: Path) -> No
     _write_extension(extensions, "removed-handler")
     controller = DagController(tmp_path, extensions_dirs=[extensions])
     await controller.start(run_startup=False)
+    await _save_installed_handler(controller, "removed-handler", handlers=True)
+    await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     assert "removed-handler" in controller.runtime_snapshot().bootstrap.handler_registry
 
-    (extensions / "removed-handler" / "manifest.yaml").write_text(
-        'name: removed-handler\nversion: "1.0"\nhandlers: []\n',
-        encoding="utf-8",
-    )
+    await _save_installed_handler(controller, "removed-handler", handlers=False)
 
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
 
     assert "removed-handler" not in controller.runtime_snapshot().bootstrap.handler_registry
     await controller.shutdown()
@@ -213,6 +215,7 @@ async def test_config_parse_failure_preserves_snapshot(tmp_path: Path) -> None:
             controller.install_snapshot,
             emit=emit,
             config_loader=lambda: load_app_config(tmp_path),
+            bootstrap_loader=controller.load_bootstrap,
         ).reload_once()
 
     assert controller.runtime_snapshot() is old_snapshot
@@ -252,18 +255,18 @@ async def test_cron_registry_update_and_preservation(monkeypatch: pytest.MonkeyP
     await controller.start(run_startup=False)
     await _save_core_dag(controller, [])
     await _save_core_trigger(controller, "trigger-0", 'cron:"0 9 * * *"')
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     old_emitter = controller.cron_emitter
     assert old_emitter is not None
-    assert old_emitter.cron_tokens() == {'cron:"0 9 * * *"', 'cron:"*/30 * * * *"'}
+    assert old_emitter.cron_tokens() == {'cron:"0 9 * * *"'}
 
     _write_triggers(tmp_path, ['cron:"0 10 * * *"'])
     await _save_core_trigger(controller, "trigger-0", 'cron:"0 10 * * *"')
-    await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+    await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     updated_emitter = controller.cron_emitter
     assert updated_emitter is not None
     assert updated_emitter is not old_emitter
-    assert updated_emitter.cron_tokens() == {'cron:"0 10 * * *"', 'cron:"*/30 * * * *"'}
+    assert updated_emitter.cron_tokens() == {'cron:"0 10 * * *"'}
 
     async def fail_create_extension_tables(*_args, **_kwargs) -> None:
         raise RuntimeError("table failure")
@@ -272,10 +275,10 @@ async def test_cron_registry_update_and_preservation(monkeypatch: pytest.MonkeyP
     await _save_core_trigger(controller, "trigger-0", 'cron:"0 11 * * *"')
     monkeypatch.setattr("edera_core.dag_controller.create_extension_tables", fail_create_extension_tables)
     with pytest.raises(RuntimeError, match="table failure"):
-        await controller.install_snapshot(load_app_config(tmp_path), scan_extensions([extensions], tmp_path))
+        await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
 
     assert controller.cron_emitter is updated_emitter
-    assert controller.cron_emitter.cron_tokens() == {'cron:"0 10 * * *"', 'cron:"*/30 * * * *"'}
+    assert controller.cron_emitter.cron_tokens() == {'cron:"0 10 * * *"'}
     await controller.shutdown()
 
 
@@ -290,7 +293,14 @@ async def test_emit_config_changed(tmp_path: Path) -> None:
         calls.append(f"emit:{event}")
 
     _write_config(tmp_path)
-    reloader = HotReloader(tmp_path, [], callback, emit=emit, config_loader=lambda: load_app_config(tmp_path))
+    reloader = HotReloader(
+        tmp_path,
+        [],
+        callback,
+        emit=emit,
+        config_loader=lambda: load_app_config(tmp_path),
+        bootstrap_loader=_empty_bootstrap,
+    )
 
     await reloader.reload_once()
 
@@ -318,7 +328,14 @@ async def test_failure_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     _write_config(tmp_path)
     monkeypatch.setitem(__import__("sys").modules, "watchfiles", type("Watchfiles", (), {"awatch": fake_awatch}))
 
-    await HotReloader(tmp_path, [], callback, emit=emit, config_loader=lambda: load_app_config(tmp_path)).watch()
+    await HotReloader(
+        tmp_path,
+        [],
+        callback,
+        emit=emit,
+        config_loader=lambda: load_app_config(tmp_path),
+        bootstrap_loader=_empty_bootstrap,
+    ).watch()
 
     assert attempts == 2
     assert events == ["event:config-changed"]
@@ -441,3 +458,58 @@ async def _save_core_trigger(controller: DagController, trigger_id: str, wait_fo
             ),
         )
         await session.commit()
+
+
+async def _save_installed_handler(controller: DagController, name: str, handlers: bool) -> None:
+    manifest: dict[str, object] = {"name": name, "version": "1.0", "handlers": []}
+    if handlers:
+        manifest["handlers"] = [
+            {
+                "name": name,
+                "role": "processor",
+                "input_type": "Any",
+                "output_type": "Any",
+                "entry": "handler.py",
+            }
+        ]
+    async with controller._factory()() as session:
+        await save_installed_extension(
+            session,
+            name=name,
+            version="1.0",
+            manifest_snapshot=manifest,
+            import_records=[],
+        )
+        await session.commit()
+
+
+async def _install_extensions(controller: DagController, extensions_dir: Path) -> BootstrapResult:
+    for manifest_path in sorted(extensions_dir.glob("*/manifest.yaml")):
+        root = manifest_path.parent
+        target = controller.handlers_dir / root.name
+        if target.exists():
+            shutil.rmtree(target)
+        target.mkdir(parents=True)
+        for item in root.iterdir():
+            if item.name in {"manifest.yaml", "entities", "_lib"}:
+                continue
+            destination = target / item.name
+            if item.is_dir():
+                shutil.copytree(item, destination)
+            else:
+                shutil.copy2(item, destination)
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        async with controller._factory()() as session:
+            await save_installed_extension(
+                session,
+                name=str(manifest["name"]),
+                version=str(manifest["version"]),
+                manifest_snapshot=manifest,
+                import_records=[],
+            )
+            await session.commit()
+    return await controller.load_bootstrap()
+
+
+def _empty_bootstrap() -> BootstrapResult:
+    return BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})

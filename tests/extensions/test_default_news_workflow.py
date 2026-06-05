@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.bootstrap import scan_extensions
+from edera_core.bootstrap import discover_available_extensions
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_runtime_app_config
 from edera_core.dag.loader import load_graph
@@ -61,9 +61,9 @@ def test_default_news_manifest_imports() -> None:
 
 
 def test_default_news_dependencies_are_declared() -> None:
-    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    manifests = discover_available_extensions([Path("extensions")])
 
-    assert any(manifest.name == "default-news-workflow" for manifest in bootstrap.manifests)
+    assert any(manifest.name == "default-news-workflow" for manifest in manifests)
 
 
 def test_default_workflow_top_level_sources_removed() -> None:

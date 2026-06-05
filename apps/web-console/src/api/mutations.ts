@@ -213,3 +213,32 @@ export function useCreateSource() {
     },
   })
 }
+
+export function useInstallExtension() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch(`/api/extensions/${encodeURIComponent(name)}/install`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['extensions', 'available'] })
+      qc.invalidateQueries({ queryKey: ['extensions', 'installed'] })
+    },
+    onError: alertMutationError,
+  })
+}
+
+export function useUninstallExtension() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, strategy }: { name: string; strategy: 'purge' | 'keep-modified' | 'deactivate' }) =>
+      apiFetch(`/api/extensions/${encodeURIComponent(name)}/uninstall`, {
+        method: 'POST',
+        body: JSON.stringify({ strategy }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['extensions', 'available'] })
+      qc.invalidateQueries({ queryKey: ['extensions', 'installed'] })
+    },
+    onError: alertMutationError,
+  })
+}

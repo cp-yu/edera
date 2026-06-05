@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import field_validator
-from sqlalchemy import Boolean, Column, UniqueConstraint
+from sqlalchemy import Boolean, Column, Text, UniqueConstraint, text
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
 
@@ -273,34 +274,30 @@ class EmitRecord(SQLModel, table=True):
         return value
 
 
-class ExtensionImportRecord(SQLModel, table=True):
-    __tablename__ = "extension_imports"
-    __table_args__ = (UniqueConstraint("extension_name", "import_path", name="uq_extension_imports_path"),)
+class InstalledExtension(SQLModel, table=True):
+    __tablename__ = "installed_extensions"
 
     id: int | None = Field(default=None, primary_key=True)
-    extension_name: str = Field(index=True)
-    extension_version: str
-    import_path: str = Field(index=True)
-    entity_type: str = Field(index=True)
-    entity_id: str = Field(index=True)
-    entity_ref: str = Field(index=True)
-    content_digest: str
-    imported_entity_digest: str
-    status: str = Field(index=True)
-    created_at: datetime = Field(default_factory=utc_now, index=True)
-    updated_at: datetime = Field(default_factory=utc_now, index=True)
+    name: str = Field(sa_column=Column(Text, unique=True, nullable=False))
+    version: str = Field(sa_column=Column(Text, nullable=False))
+    manifest_snapshot: str = Field(sa_column=Column(Text, nullable=False))
+    import_records: str = Field(default="[]", sa_column=Column(Text, nullable=False, server_default="[]"))
+    enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default=text("1")))
+    installed_by: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    created_at: str = Field(default_factory=lambda: utc_now().isoformat(), sa_column=Column(Text, nullable=False, index=True))
+    updated_at: str = Field(default_factory=lambda: utc_now().isoformat(), sa_column=Column(Text, nullable=False, index=True))
 
-    @field_validator(
-        "extension_name",
-        "extension_version",
-        "import_path",
-        "entity_type",
-        "entity_id",
-        "entity_ref",
-        "content_digest",
-        "imported_entity_digest",
-        "status",
-    )
+    @property
+    def manifest_data(self) -> dict[str, Any]:
+        value = json.loads(self.manifest_snapshot)
+        return value if isinstance(value, dict) else {}
+
+    @property
+    def import_record_data(self) -> list[dict[str, Any]]:
+        value = json.loads(self.import_records)
+        return value if isinstance(value, list) else []
+
+    @field_validator("name", "version", "manifest_snapshot", "import_records")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():

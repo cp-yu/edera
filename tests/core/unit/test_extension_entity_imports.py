@@ -7,7 +7,6 @@ from edera_core.extension_imports import import_manifest_entities
 from edera_core.manifest import ExtensionManifest
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
-    get_extension_import_record,
     get_ordinary_entity,
     save_ordinary_entity,
     seed_entity_type_records,
@@ -24,21 +23,21 @@ async def test_extension_entity_import_records_imported(tmp_path: Path) -> None:
 
         async with factory() as session:
             entity_types = await seed_entity_type_records(session, {"stock": _stock_type()})
-            await import_manifest_entities(session, root, _manifest(), entity_types)
+            records = await import_manifest_entities(session, root, _manifest(), entity_types)
             await session.commit()
 
         async with factory() as session:
             entity_types = {"stock": _stock_type()}
             entity = await get_ordinary_entity(session, "stock", "stock-1", entity_types)
-            record = await get_extension_import_record(session, "demo", "entities/stock.yaml")
 
         assert entity is not None
         assert entity.attributes["name"] == "Tencent"
+        record = records[0]
         assert record is not None
-        assert record.entity_ref == "stock:00700"
-        assert record.status == "imported"
-        assert record.content_digest
-        assert record.imported_entity_digest
+        assert record["entity_ref"] == "stock:00700"
+        assert record["status"] == "imported"
+        assert record["content_digest"]
+        assert record["imported_entity_digest"]
     finally:
         await engine.dispose()
 
@@ -59,17 +58,15 @@ async def test_extension_entity_import_records_existing_without_overwrite(tmp_pa
                 EntityConfig(id="stock-1", type="stock", attributes={"code": "00700", "name": "Existing"}),
                 stock,
             )
-            await import_manifest_entities(session, root, _manifest(), entity_types)
+            records = await import_manifest_entities(session, root, _manifest(), entity_types)
             await session.commit()
 
         async with factory() as session:
             entity = await get_ordinary_entity(session, "stock", "stock-1", {"stock": _stock_type()})
-            record = await get_extension_import_record(session, "demo", "entities/stock.yaml")
 
         assert entity is not None
         assert entity.attributes["name"] == "Existing"
-        assert record is not None
-        assert record.status == "skipped_existing"
+        assert records[0]["status"] == "skipped_existing"
     finally:
         await engine.dispose()
 
@@ -84,13 +81,13 @@ async def test_extension_entity_import_skips_recorded_path(tmp_path: Path) -> No
 
         async with factory() as session:
             entity_types = await seed_entity_type_records(session, {"stock": _stock_type()})
-            await import_manifest_entities(session, root, _manifest(), entity_types)
+            records = await import_manifest_entities(session, root, _manifest(), entity_types)
             await session.commit()
 
         (root / "entities" / "stock.yaml").write_text("not: an entity\n", encoding="utf-8")
 
         async with factory() as session:
-            await import_manifest_entities(session, root, _manifest(), {"stock": _stock_type()})
+            await import_manifest_entities(session, root, _manifest(), {"stock": _stock_type()}, existing_records=records)
             entity = await get_ordinary_entity(session, "stock", "stock-1", {"stock": _stock_type()})
 
         assert entity is not None

@@ -143,7 +143,7 @@ def _visit_sub_dag(
     chain = (*path, step)
     seen = {s.dag_name: s for s in path}
     if dag_name in seen:
-        raise DagError(_format_cycle_error(chain, dag_name))
+        raise DagError(_format_cycle_error(chain, chain[0].dag_name))
     if len(chain) > max_depth:
         name_chain = " -> ".join(s.dag_name for s in chain)
         raise DagError(f"max DAG depth exceeded: {name_chain}")

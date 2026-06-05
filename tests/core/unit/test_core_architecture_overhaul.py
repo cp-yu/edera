@@ -404,18 +404,22 @@ async def test_daemon_dag_edit_persists_config(tmp_path: Path) -> None:
     (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
     daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir)
     service = _DagService(daemon)
-
-    response = await service.Edit(
-        daemon.pb2.DagEditRequest(
-            name="default",
-            operation="add-node",
-            json='{"id":"reader-1","type":"reader","config":{}}',
-        ),
-        _FakeGrpcContext(),
-    )
+    await daemon.start()
+    try:
+        response = await service.Edit(
+            daemon.pb2.DagEditRequest(
+                name="default",
+                operation="add-node",
+                json='{"id":"reader-1","type":"reader","config":{}}',
+            ),
+            _FakeGrpcContext(),
+        )
+        nodes = daemon.controller.runtime_snapshot().config.dags["default"].nodes
+    finally:
+        await daemon.stop()
 
     assert json.loads(response.json) == {"updated": True, "dag": "default"}
-    assert "reader-1" in (config_dir / "dags" / "default.yaml").read_text(encoding="utf-8")
+    assert any(node.id == "reader-1" for node in nodes)
 
 
 @pytest.mark.asyncio
@@ -467,6 +471,17 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
             assert node_id == "reader-1"
             assert payload == {"resume_session": "sandbox:reader-1:run-1", "prompt": "adjust"}
             return run_id
+
+        def runtime_snapshot(self):
+            return SimpleNamespace(
+                config=SimpleNamespace(
+                    dags={
+                        "default": DagConfig.model_validate(
+                            {"name": "default", "nodes": [{"id": "reader-1", "type": "reader"}], "edges": []}
+                        )
+                    }
+                )
+            )
 
     daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir, controller=Controller())  # type: ignore[arg-type]
     service = _NodeService(daemon)

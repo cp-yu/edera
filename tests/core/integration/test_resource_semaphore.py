@@ -1,22 +1,68 @@
 import asyncio
+import tempfile
 from pathlib import Path
+from threading import Thread
 
 import pytest
 
+from edera_core.bootstrap import load_installed_extensions
 from edera_core.config.entities import EntityStore
-from edera_core.config.loader import _validate_entities, load_app_config
+from edera_core.config.loader import _load_runtime_base_config, _validate_entities, materialize_runtime_app_config
 from edera_core.config.schema import EntitiesConfig, EntityConfig
 from edera_core.dag.loader import load_graph
 from edera_core.dag.resources import clear_semaphore_cache, get_semaphore
 from edera_core.dag.runner import DagRunner
 from edera_core.errors import ConfigError
+from edera_core.migration.migrate_extensions import migrate_existing_extensions
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeInput
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 
 
 @pytest.fixture(autouse=True)
 def _clear_resource_semaphores() -> None:
     clear_semaphore_cache()
+
+
+def _load_config():
+    result: dict[str, object] = {}
+
+    def run() -> None:
+        try:
+            result["config"] = asyncio.run(_load_runtime_config())
+        except BaseException as exc:
+            result["error"] = exc
+
+    thread = Thread(target=run)
+    thread.start()
+    thread.join()
+    error = result.get("error")
+    if isinstance(error, BaseException):
+        raise error
+    return result["config"]
+
+
+async def _load_runtime_config():
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        engine = create_engine(sqlite_url(root / "edera.db"))
+        try:
+            await init_db(engine)
+            config = _load_runtime_base_config(Path("config"))
+            factory = session_factory(engine)
+            async with factory() as session:
+                await migrate_existing_extensions(
+                    session,
+                    [Path("extensions")],
+                    handlers_dir=root / "handlers",
+                    entity_types=config.entity_types,
+                )
+                bootstrap = await load_installed_extensions(session, root / "handlers")
+                await session.commit()
+            config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+            return await materialize_runtime_app_config(Path("config"), config, engine)
+        finally:
+            await engine.dispose()
 
 
 def test_get_semaphore_caches() -> None:
@@ -30,7 +76,7 @@ def test_get_semaphore_caches() -> None:
 
 @pytest.mark.parametrize("permits", [0, "one", True])
 def test_invalid_permits_rejected(permits: object) -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     entities = EntitiesConfig(
         entities=[EntityConfig(id="v8_isolate", type="resource", attributes={"permits": permits})]
     )
@@ -63,7 +109,7 @@ async def test_permits_two() -> None:
 
 @pytest.mark.asyncio
 async def test_release_on_failure() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _nodes(config)
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -100,7 +146,7 @@ async def test_release_on_failure() -> None:
 
 @pytest.mark.asyncio
 async def test_cross_dag_sharing() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     store = _resource_store(1)
     started = asyncio.Event()
     finish = asyncio.Event()
@@ -145,7 +191,7 @@ async def test_different_resources_do_not_block() -> None:
 
 @pytest.mark.asyncio
 async def test_cancel_releases_resource() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _nodes(config)
     graph = _single_resource_graph(config, "cancel-resource", "rss-fetcher")
     started = asyncio.Event()
@@ -181,7 +227,7 @@ async def test_cancel_releases_resource() -> None:
 
 @pytest.mark.asyncio
 async def test_accumulate_resource_nodes_are_limited() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _nodes(config)
     nodes["advisor"] = config.nodes["advisor"].model_copy(update={"input_type": "Any"})
     graph = load_graph(
@@ -231,7 +277,7 @@ async def test_accumulate_resource_nodes_are_limited() -> None:
 
 @pytest.mark.asyncio
 async def test_accumulate_resource_waits_for_running_holder() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _nodes(config)
     nodes["advisor"] = config.nodes["advisor"].model_copy(update={"input_type": "Any"})
     graph = load_graph(
@@ -286,7 +332,7 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
 
 
 def _resource_store(permits: int, resource_ids: list[str] | None = None) -> EntityStore:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     entities = config.entities.model_copy(deep=True)
     resource_ids = resource_ids or ["v8_isolate"]
     entities.entities = [
@@ -311,7 +357,7 @@ def _nodes(config):
 
 
 async def _run_resource_dag(resources: list[str | None], permits: int) -> tuple[list[str], int]:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _nodes(config)
     graph = load_graph(
         config.dags["default"].model_validate(

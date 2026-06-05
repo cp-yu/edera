@@ -20,9 +20,12 @@ from edera_core.config.loader import CORE_ENTITY_TYPES, _load_runtime_base_confi
 from edera_core.config.schema import AppConfig, DagConfig, EntitiesConfig, EntityConfig, MaterializedFieldConfig, entity_ref
 from edera_core.events import event_bus
 from edera_core.graph_service import _GraphService
+from edera_core.grpc_extension_service import _ExtensionService
 from edera_core.event_service import _EventService
 from edera_core.hot_reload import HotReloader
+from edera_core.dag.loader import validate_sub_dag_nesting
 from edera_core.dag_controller import DagController, DagRunNotFoundError, RunAlreadyActiveError
+from edera_core.errors import DagError
 from edera_core.proto import edera_pb2 as pb2, edera_pb2_grpc as pb2_grpc
 from edera_core.query_service import _QueryService
 from edera_core.service_common import (
@@ -138,6 +141,7 @@ class Server:
             self._reload_config,
             emit=self._emit_config_changed,
             config_loader=self._load_runtime_config,
+            bootstrap_loader=self.controller.load_bootstrap,
         )
         self._hot_reload_task = asyncio.create_task(reloader.watch())
 
@@ -171,6 +175,7 @@ class Server:
         self.pb2_grpc.add_ConfigServiceServicer_to_server(_ConfigService(self), self.server)
         self.pb2_grpc.add_QueryServiceServicer_to_server(_QueryService(self), self.server)
         self.pb2_grpc.add_EventServiceServicer_to_server(_EventService(self), self.server)
+        self.pb2_grpc.add_ExtensionServiceServicer_to_server(_ExtensionService(self), self.server)
         self.pb2_grpc.add_SystemServiceServicer_to_server(_SystemService(self, bootstrap=True), self.bootstrap_server)
 
     def _add_bootstrap_port(self) -> int:
@@ -372,7 +377,7 @@ class _DagService:
             result = await _edit_runtime_dag(self.daemon, request.name, request.operation, payload)
         except KeyError:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.name}' not found")
-        except ValueError as exc:
+        except (DagError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return self.pb2.DagStatus(name=request.name, json=json.dumps(result, ensure_ascii=False, default=str))
 
@@ -904,6 +909,8 @@ async def _edit_runtime_dag(daemon: Server, dag_name: str, operation: str, paylo
     else:
         raise ValueError(f"unknown dag edit operation: {operation}")
     dag_config = DagConfig.model_validate(attrs)
+    app = daemon.controller.runtime_snapshot().config
+    validate_sub_dag_nesting({**app.dags, dag_name: dag_config}, app.system.max_dag_depth)
     async with daemon.controller._factory()() as session:
         await save_core_entity(session, EntityConfig(id=dag_name, type="dag", attributes=dag_config.model_dump(mode="json", by_alias=True)))
         await session.commit()

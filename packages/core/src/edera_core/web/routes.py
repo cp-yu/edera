@@ -97,6 +97,34 @@ async def api_scheduler_status(request: Request) -> Any:
     return await _call(request, lambda client: client.system_scheduler_status())
 
 
+@router.get("/api/extensions/available")
+async def api_extensions_available(request: Request) -> Any:
+    return await _call(request, lambda client: client.extension_list_available())
+
+
+@router.get("/api/extensions/installed")
+async def api_extensions_installed(request: Request) -> Any:
+    return await _call(request, lambda client: client.extension_list_installed())
+
+
+@router.get("/api/extensions/{name}", response_model=None)
+async def api_extension_show(request: Request, name: str) -> Any:
+    return await _call(request, lambda client: client.extension_show(name))
+
+
+@router.post("/api/extensions/{name}/install", response_model=None)
+async def api_extension_install(request: Request, name: str) -> Any:
+    return await _call(request, lambda client: client.extension_install(name))
+
+
+@router.post("/api/extensions/{name}/uninstall", response_model=None)
+async def api_extension_uninstall(request: Request, name: str, body: dict[str, object]) -> Any:
+    strategy = body.get("strategy")
+    if not isinstance(strategy, str):
+        return error_response(400, "invalid_request", "strategy is required")
+    return await _call(request, lambda client: client.extension_uninstall(name, strategy))
+
+
 @router.get("/api/sources/health")
 async def api_source_health(request: Request) -> Any:
     return await _call(request, lambda client: client.query_source_health())

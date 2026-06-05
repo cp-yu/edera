@@ -4,6 +4,9 @@ import argparse
 import asyncio
 import json
 import os
+import shutil
+import tarfile
+import tempfile
 from pathlib import Path
 
 import grpc
@@ -27,6 +30,7 @@ def main() -> None:
     _event_parser(subparsers.add_parser("event"))
     _system_parser(subparsers.add_parser("system"))
     _client_parser(subparsers.add_parser("client"))
+    _extension_parser(subparsers.add_parser("extension"))
     handler_validate = subparsers.add_parser("handler-validate")
     handler_validate.add_argument("path", type=Path)
     args = parser.parse_args()
@@ -162,6 +166,36 @@ def _client_parser(parser: argparse.ArgumentParser) -> None:
     init.add_argument("--common-name", default=os.environ.get("EDERA_IDENTITY", "human:default"))
 
 
+def _extension_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="extension_command", required=True)
+    list_ = subparsers.add_parser("list")
+    list_.add_argument("--available", action="store_true")
+    list_.add_argument("--installed", action="store_true")
+    show = subparsers.add_parser("show")
+    show.add_argument("name")
+    show.add_argument("--extensions-dir", type=Path, default=Path("extensions"))
+    install = subparsers.add_parser("install")
+    install.add_argument("name")
+    uninstall = subparsers.add_parser("uninstall")
+    uninstall.add_argument("name")
+    uninstall.add_argument("--strategy", required=True, choices=["purge", "keep-modified", "deactivate"])
+    reactivate = subparsers.add_parser("reactivate")
+    reactivate.add_argument("name")
+    import_ = subparsers.add_parser("import")
+    import_.add_argument("path", type=Path)
+    import_.add_argument("--extensions-dir", type=Path, default=Path("extensions"))
+    import_.add_argument("--install", action="store_true")
+    export = subparsers.add_parser("export")
+    export.add_argument("name")
+    export.add_argument("-o", "--file", required=True, type=Path)
+    export.add_argument("--handlers-dir", type=Path, default=Path("handlers"))
+    export_entities = subparsers.add_parser("export-entities")
+    export_entities.add_argument("-o", "--file", required=True, type=Path)
+    export_entities.add_argument("--entities", required=True)
+    export_entities.add_argument("--name", required=True)
+    export_entities.add_argument("--version", required=True)
+
+
 def _dispatch(args: argparse.Namespace) -> object:
     if args.command == "entity":
         return _run_grpc(_grpc_entity(args))
@@ -175,6 +209,8 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _run_grpc(_grpc_event(args))
     if args.command == "system":
         return _run_grpc(_grpc_system(args))
+    if args.command == "extension":
+        return _run_grpc(_grpc_extension(args))
     if args.command == "client":
         return _client(args)
     if args.command == "handler-validate":
@@ -319,6 +355,59 @@ async def _grpc_system(args: argparse.Namespace) -> object:
     raise ValueError(f"unknown system command: {args.system_command}")
 
 
+async def _grpc_extension(args: argparse.Namespace) -> object:
+    if args.extension_command == "import":
+        imported = _extension_import(args.path, args.extensions_dir)
+        if not args.install:
+            return imported
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.extension_command == "list":
+            if args.available and not args.installed:
+                return await client.extension_list_available()
+            if args.installed and not args.available:
+                return await client.extension_list_installed()
+            available = (await client.extension_list_available()).get("extensions", [])
+            installed = (await client.extension_list_installed()).get("extensions", [])
+            return {
+                "available": _available_not_installed(available, installed),
+                "installed": installed,
+            }
+        if args.extension_command == "show":
+            try:
+                return await client.extension_show(args.name)
+            except grpc.RpcError:
+                return _extension_show_available(args.extensions_dir, args.name)
+        if args.extension_command == "install":
+            return await client.extension_install(args.name)
+        if args.extension_command == "uninstall":
+            return await client.extension_uninstall(args.name, args.strategy)
+        if args.extension_command == "reactivate":
+            return await client.extension_reactivate(args.name)
+        if args.extension_command == "import":
+            return await client.extension_install(str(imported["name"]))
+        if args.extension_command == "export":
+            detail = await client.extension_show(args.name)
+            exported_entities = []
+            for record in _extension_import_records(detail):
+                exported_entities.append(
+                    {
+                        "import_path": record["import_path"],
+                        "entity": await client.entity_get(record["entity_ref"]),
+                    }
+                )
+            warnings = _extension_export(args.file, args.handlers_dir, args.name, detail, exported_entities)
+            return {"exported": args.name, "file": str(args.file), "warnings": warnings}
+        if args.extension_command == "export-entities":
+            refs = [item.strip() for item in args.entities.split(",") if item.strip()]
+            entities = [await client.entity_get(ref) for ref in refs]
+            _extension_export_entities(args.file, args.name, args.version, entities)
+            return {"exported": args.name, "file": str(args.file), "entities": refs}
+    finally:
+        await client.close()
+    raise ValueError(f"unknown extension command: {args.extension_command}")
+
+
 def _dag_run_payload(args: argparse.Namespace) -> object:
     if args.input:
         payload: dict[str, str] = {}
@@ -385,6 +474,156 @@ def _handler_validate(path: Path) -> object:
     if errors:
         raise ValueError("\n".join(errors))
     return {"ok": True}
+
+
+def _extension_import(path: Path, extensions_dir: Path) -> dict[str, object]:
+    from edera_core.manifest import parse_manifest
+
+    if path.is_dir():
+        source = path
+        manifest_path = source / "manifest.yaml"
+        if not manifest_path.exists():
+            raise ValueError("extension import path must contain manifest.yaml")
+        manifest = parse_manifest(manifest_path)
+        target = extensions_dir / manifest.name
+        if target.exists():
+            raise ValueError(f"extension already exists: {manifest.name}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, target)
+        return {"imported": True, "name": manifest.name, "path": str(target), "message": f"扩展已导入，使用 'edera extension install {manifest.name}' 安装"}
+    with tempfile.TemporaryDirectory() as tmp:
+        extract_dir = Path(tmp)
+        _extract_tar(path, extract_dir)
+        candidates = [item.parent for item in extract_dir.rglob("manifest.yaml")]
+        if len(candidates) != 1:
+            raise ValueError("extension package must contain exactly one manifest.yaml")
+        return _extension_import(candidates[0], extensions_dir)
+
+
+def _extension_show_available(extensions_dir: Path, name: str) -> dict[str, object]:
+    manifest_path = extensions_dir / name / "manifest.yaml"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"extension not found: {name}")
+    return yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+
+
+def _available_not_installed(available: object, installed: object) -> list[object]:
+    if not isinstance(available, list):
+        return []
+    if not isinstance(installed, list):
+        return available
+    installed_names = {item.get("name") for item in installed if isinstance(item, dict)}
+    return [item for item in available if not (isinstance(item, dict) and item.get("name") in installed_names)]
+
+
+def _extension_import_records(detail: dict[str, object]) -> list[dict[str, str]]:
+    records = detail.get("import_records")
+    if not isinstance(records, list):
+        return []
+    result: list[dict[str, str]] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        import_path = record.get("import_path")
+        entity_ref = record.get("entity_ref")
+        if isinstance(import_path, str) and import_path and isinstance(entity_ref, str) and entity_ref:
+            result.append({"import_path": import_path, "entity_ref": entity_ref})
+    return result
+
+
+def _extension_export(
+    path: Path,
+    handlers_dir: Path,
+    name: str,
+    detail: dict[str, object],
+    exported_entities: list[dict[str, object]] | None = None,
+) -> list[str]:
+    manifest = detail.get("manifest") if isinstance(detail.get("manifest"), dict) else detail
+    warnings: list[str] = []
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / name
+        root.mkdir()
+        (root / "manifest.yaml").write_text(yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        handler_root = handlers_dir / name
+        if handler_root.exists() and handler_root.is_dir():
+            shutil.copytree(handler_root, root, dirs_exist_ok=True)
+        elif _manifest_handler_entries(manifest):
+            warnings.append(f"handler code not included: {handlers_dir / name} is missing")
+        for entry in _manifest_handler_entries(manifest):
+            relative = Path(entry)
+            if relative.is_absolute() or ".." in relative.parts:
+                warnings.append(f"handler code not included: {entry} is outside handlers/")
+        for item in exported_entities or []:
+            import_path = item.get("import_path")
+            entity = item.get("entity")
+            if not isinstance(import_path, str) or not isinstance(entity, dict):
+                continue
+            _write_package_entity_yaml(root, import_path, _entity_document(entity))
+        import_records = detail.get("import_records")
+        if isinstance(import_records, list):
+            (root / "import_records.json").write_text(json.dumps(import_records, ensure_ascii=False), encoding="utf-8")
+        _write_tar(path, root)
+    return warnings
+
+
+def _manifest_handler_entries(manifest: object) -> list[str]:
+    if not isinstance(manifest, dict):
+        return []
+    handlers = manifest.get("handlers")
+    if not isinstance(handlers, list):
+        return []
+    entries: list[str] = []
+    for handler in handlers:
+        if isinstance(handler, dict) and isinstance(handler.get("entry"), str):
+            entries.append(str(handler["entry"]))
+        elif isinstance(handler, str):
+            entries.append(handler)
+    return entries
+
+
+def _write_package_entity_yaml(root: Path, import_path: str, document: dict[str, object]) -> None:
+    relative = Path(import_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError("unsafe extension import path")
+    _write_entity_yaml(root / relative, document)
+
+
+def _extension_export_entities(path: Path, name: str, version: str, entities: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / name
+        entity_dir = root / "entities"
+        entity_dir.mkdir(parents=True)
+        imports: list[str] = []
+        for entity in entities:
+            entity_type = str(entity.get("type") or "")
+            entity_id = str(entity.get("id") or "")
+            if not entity_type or not entity_id:
+                raise ValueError("entity response must include type and id")
+            import_path = f"entities/{entity_type}-{entity_id}.yaml"
+            imports.append(import_path)
+            document = {"type": entity_type, "id": entity_id, "attributes": entity.get("attributes") or {}}
+            (root / import_path).write_text(yaml.safe_dump(document, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        manifest = {"name": name, "version": version, "imports": {"entities": imports}}
+        (root / "manifest.yaml").write_text(yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        _write_tar(path, root)
+
+
+def _extract_tar(path: Path, target: Path) -> None:
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    with tarfile.open(path, "r:gz") as archive:
+        for member in archive.getmembers():
+            member_path = Path(member.name)
+            if member_path.is_absolute() or ".." in member_path.parts:
+                raise ValueError("unsafe extension package path")
+        archive.extractall(target)
+
+
+def _write_tar(path: Path, root: Path) -> None:
+    with tarfile.open(path, "w:gz") as archive:
+        archive.add(root, arcname=root.name)
 
 
 def _run_grpc(coro):

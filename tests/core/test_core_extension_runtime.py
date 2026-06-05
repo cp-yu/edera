@@ -4,25 +4,41 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import inspect
+import yaml
 
-from edera_core.bootstrap import scan_extensions
+from edera_core.bootstrap import create_extension_tables, discover_available_extensions, extension_table_name, load_installed_extensions
 from edera_core.config.schema import EntityConfig, EntityTypeConfig
 from edera_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.engine import Engine
 from edera_core.node.executor import NodeExecutor
 from edera_core.registry import HandlerRegistry
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
-from edera_core.storage.repository import save_ordinary_entity, seed_entity_type_records
+from edera_core.storage.repository import save_installed_extension, save_ordinary_entity, seed_entity_type_records
 from edera_types import NodeInput
 
 
-def test_scan_extensions_registers_manifest_handlers() -> None:
-    result = scan_extensions([Path("extensions")], Path("config"))
-    assert "fetch-rss" in result.handler_registry
-    assert "rss-source" in result.entity_type_registry
+@pytest.mark.asyncio
+async def test_load_installed_extensions_registers_manifest_handlers(tmp_path: Path) -> None:
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            await save_installed_extension(
+                session,
+                name="rss-fetcher",
+                version="0.1.0",
+                manifest_snapshot=_manifest_snapshot(Path("extensions/rss-fetcher/manifest.yaml")),
+                import_records=[],
+            )
+            result = await load_installed_extensions(session, Path("handlers"))
+        assert "fetch-rss" in result.handler_registry
+        assert "rss-source" in result.entity_type_registry
+    finally:
+        await engine.dispose()
 
 
-def test_scan_extensions_maps_declared_table_names(tmp_path: Path) -> None:
+def test_extension_table_name_maps_declared_table_names(tmp_path: Path) -> None:
     extension = tmp_path / "demo"
     extension.mkdir()
     (extension / "manifest.yaml").write_text(
@@ -38,12 +54,13 @@ def test_scan_extensions_maps_declared_table_names(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = scan_extensions([tmp_path])
+    manifest = discover_available_extensions([tmp_path])[0]
 
-    assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
+    assert extension_table_name(manifest.name, manifest.storage_tables[0].name) == "ext_demo_extension_raw_items"
 
 
-def test_scan_extensions_parses_manifest_entity_imports(tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_load_installed_extensions_parses_manifest_entity_imports(tmp_path: Path) -> None:
     extension = tmp_path / "demo"
     extension.mkdir()
     (extension / "handler.py").write_text("async def run(ctx):\n    return {}\n", encoding="utf-8")
@@ -72,17 +89,31 @@ def test_scan_extensions_parses_manifest_entity_imports(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = scan_extensions([tmp_path])
-    manifest = result.manifests[0]
+    manifest = discover_available_extensions([tmp_path])[0]
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            await save_installed_extension(
+                session,
+                name=manifest.name,
+                version=manifest.version,
+                manifest_snapshot=_manifest_snapshot(extension / "manifest.yaml"),
+                import_records=[],
+            )
+            result = await load_installed_extensions(session, tmp_path)
 
-    assert manifest.entity_imports == ["dags/default/dag.yaml"]
-    assert "demo" in result.handler_registry
-    assert "article" in result.entity_type_registry
-    assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
+        assert manifest.entity_imports == ["dags/default/dag.yaml"]
+        assert "demo" in result.handler_registry
+        assert "article" in result.entity_type_registry
+        assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.parametrize("import_path", ["/etc/passwd", "../dag.yaml", "dags/../dag.yaml"])
-def test_scan_extensions_rejects_invalid_entity_import_paths(tmp_path: Path, import_path: str) -> None:
+def test_discover_available_extensions_rejects_invalid_entity_import_paths(tmp_path: Path, import_path: str) -> None:
     extension = tmp_path / "demo"
     extension.mkdir()
     (extension / "manifest.yaml").write_text(
@@ -95,7 +126,7 @@ def test_scan_extensions_rejects_invalid_entity_import_paths(tmp_path: Path, imp
     )
 
     with pytest.raises(ValueError, match="invalid entity import path"):
-        scan_extensions([tmp_path])
+        discover_available_extensions([tmp_path])
 
 
 @pytest.mark.asyncio
@@ -114,14 +145,21 @@ async def test_entity_and_extension_table_names_do_not_collide(tmp_path: Path) -
         "          primary_key: true\n",
         encoding="utf-8",
     )
-    bootstrap = scan_extensions([tmp_path / "extensions"])
     engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
     try:
         await init_db(engine)
-        from edera_core.bootstrap import create_extension_tables
+        factory = session_factory(engine)
+        async with factory() as session:
+            await save_installed_extension(
+                session,
+                name="rss-fetcher",
+                version="0.1.0",
+                manifest_snapshot=_manifest_snapshot(extension / "manifest.yaml"),
+                import_records=[],
+            )
+            bootstrap = await load_installed_extensions(session, tmp_path / "handlers")
 
         await create_extension_tables(engine, bootstrap.storage_tables)
-        factory = session_factory(engine)
         async with factory() as session:
             rss_source = EntityTypeConfig.model_validate(
                 {
@@ -242,3 +280,9 @@ async def test_engine_provides_start_run_shutdown(monkeypatch: pytest.MonkeyPatc
 
     assert run_id == "run"
     assert calls == [("start", False, None), ("run", "manual", "default"), ("shutdown", None, None)]
+
+
+def _manifest_snapshot(path: Path) -> dict[str, object]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    assert isinstance(data, dict)
+    return data

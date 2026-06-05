@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.bootstrap import scan_extensions
+from edera_core.bootstrap import discover_available_extensions, load_installed_extensions
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_runtime_app_config
 from edera_core.dag.loader import load_graph, validate_sub_dag_nesting
@@ -15,10 +15,9 @@ from edera_types import NodeOutput
 
 
 def test_extension_manifest_loads() -> None:
-    result = scan_extensions([Path("extensions")], Path("config"))
+    manifests = discover_available_extensions([Path("extensions")])
 
-    assert "legacy-script-adapter" in result.handler_registry
-    assert any(item.name == "uzi-skill" for item in result.manifests)
+    assert any(item.name == "uzi-skill" for item in manifests)
 
 
 @pytest.mark.asyncio
@@ -153,8 +152,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         "def assemble(payload): return {'report_path': '/tmp/uzi-skill-report.html'}\n",
         encoding="utf-8",
     )
-    config = await _runtime_config(tmp_path)
-    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     data_graph = load_graph(config.dags["uzi-data-collection"], config.nodes)
     scoring_graph = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
     _use_mock_script(config, script)
@@ -200,8 +198,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
 
 @pytest.mark.asyncio
 async def test_stage_dags_mock(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
     store = EntityStore(config.entities, config.entity_types, config.entity_relations)
     payload = {"ticker": "00100.HK"}
@@ -227,8 +224,7 @@ async def test_stage_dags_mock(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_main_dag_runs_all_uzi_stages(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
     store = EntityStore(config.entities, config.entity_types, config.entity_relations)
     graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes, config.dags)
@@ -251,8 +247,7 @@ async def test_main_dag_runs_all_uzi_stages(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_rendering_assembles_report(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     graph = load_graph(config.dags["uzi-rendering"], config.nodes)
     _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
     store = EntityStore(config.entities, config.entity_types, config.entity_relations)
@@ -292,6 +287,21 @@ async def _runtime_config(tmp_path: Path):
     try:
         await init_db(engine)
         return await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
+    finally:
+        await engine.dispose()
+
+
+async def _runtime_config_with_bootstrap(tmp_path: Path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
+    try:
+        await init_db(engine)
+        config = await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
+        from edera_core.storage import session_factory
+
+        async with session_factory(engine)() as session:
+            bootstrap = await load_installed_extensions(session, Path("handlers"))
+        return config, bootstrap
     finally:
         await engine.dispose()
 

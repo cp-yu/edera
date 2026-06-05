@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from edera_core.config.schema import DagConfig, DagNodeInstance
-from edera_core.dag.loader import DagPathStep, validate_sub_dag_nesting, _visit_sub_dag, _format_cycle_error
+from edera_core.dag.loader import DagPathStep, validate_sub_dag_nesting
 from edera_core.errors import DagError
 
 

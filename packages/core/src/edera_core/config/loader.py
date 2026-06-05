@@ -176,17 +176,22 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
 
 async def load_runtime_app_config(config_dir: Path, engine, extensions_dirs: list[Path] | None = None) -> AppConfig:
     config = _load_runtime_base_config(config_dir)
-    extensions_dirs = extensions_dirs if extensions_dirs is not None else _default_extensions_dirs(config_dir)
-    from edera_core.bootstrap import scan_extensions
+    from edera_core.bootstrap import load_installed_extensions
+    from edera_core.migration.migrate_extensions import migrate_existing_extensions
+    from edera_core.storage import session_factory
 
-    bootstrap = scan_extensions(extensions_dirs, config_dir)
+    async with session_factory(engine)() as session:
+        if extensions_dirs is not None:
+            await migrate_existing_extensions(
+                session,
+                extensions_dirs,
+                handlers_dir=config_dir.parent / "handlers",
+                entity_types=config.entity_types,
+            )
+            await session.commit()
+        bootstrap = await load_installed_extensions(session, config_dir.parent / "handlers")
     config.entity_types.update(bootstrap.entity_type_registry.as_dict())
-    extension_imports = [
-        (bootstrap.extension_roots[manifest.name], manifest)
-        for manifest in bootstrap.manifests
-        if manifest.entity_imports
-    ]
-    return await materialize_runtime_app_config(config_dir, config, engine, extension_imports)
+    return await materialize_runtime_app_config(config_dir, config, engine)
 
 
 def _load_runtime_base_config(config_dir: Path) -> AppConfig:

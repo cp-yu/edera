@@ -96,6 +96,7 @@ async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Pa
         [],
         fail_reload,
         config_loader=lambda: load_app_config(tmp_path),
+        bootstrap_loader=ctrl.load_bootstrap,
         emit=emit_config_changed,
     )
 

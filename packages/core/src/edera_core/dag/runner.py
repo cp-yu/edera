@@ -78,7 +78,10 @@ class DagRunner:
         prefilled_outputs: dict[str, NodeOutput] | None = None,
     ) -> DagRunResult:
         previous_instances = self.executor.instances
+        previous_path = self.path
         self.executor.instances = graph.instances
+        if not self.path:
+            self.path = (DagPathStep(dag_name=graph.name),)
         try:
             topological_layers(graph)
             stop_event = stop_event or asyncio.Event()
@@ -290,6 +293,7 @@ class DagRunner:
             )
         finally:
             self.executor.instances = previous_instances
+            self.path = previous_path
 
     def _store_result(
         self,

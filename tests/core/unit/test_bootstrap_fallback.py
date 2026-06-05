@@ -6,12 +6,24 @@ from pathlib import Path
 
 import pytest
 
+from edera_core.bootstrap import BootstrapResult
+from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.server import BOOTSTRAP_HOST, BOOTSTRAP_PORT_END, BOOTSTRAP_PORT_START, Server
 
 
 class _Controller:
     agent_certificate_issuer = None
     daemon_data_dir = None
+
+    async def load_bootstrap(self) -> BootstrapResult:
+        return BootstrapResult(
+            HandlerRegistry().seal(),
+            EntityTypeRegistry(),
+            [],
+            {},
+            {},
+            {},
+        )
 
 
 @pytest.mark.asyncio

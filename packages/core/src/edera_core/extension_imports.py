@@ -12,9 +12,7 @@ from edera_core.config.schema import EntityConfig, EntityTypeConfig, entity_ref
 from edera_core.manifest import ExtensionManifest
 from edera_core.storage.repository import (
     get_core_entity,
-    get_extension_import_record,
     get_ordinary_entity,
-    record_extension_import,
     save_core_entity,
     save_ordinary_entity,
 )
@@ -25,9 +23,16 @@ async def import_manifest_entities(
     extension_root: Path,
     manifest: ExtensionManifest,
     entity_types: dict[str, EntityTypeConfig],
-) -> None:
+    existing_records: list[dict[str, object]] | None = None,
+) -> list[dict[str, str]]:
+    records: list[dict[str, str]] = []
+    imported_paths = {
+        str(record.get("import_path"))
+        for record in existing_records or []
+        if record.get("import_path") is not None
+    }
     for import_path in manifest.entity_imports:
-        if await get_extension_import_record(session, manifest.name, import_path) is not None:
+        if import_path in imported_paths:
             continue
         content = (extension_root / import_path).read_bytes()
         entity = EntityConfig.model_validate(yaml.safe_load(content) or {})
@@ -41,18 +46,18 @@ async def import_manifest_entities(
         else:
             saved = existing
             status = "skipped_existing"
-        await record_extension_import(
-            session,
-            extension_name=manifest.name,
-            extension_version=manifest.version,
-            import_path=import_path,
-            entity_type=entity.type,
-            entity_id=entity.id,
-            entity_ref=entity_ref(saved, entity_types),
-            content_digest=hashlib.sha256(content).hexdigest(),
-            imported_entity_digest=_entity_digest(saved),
-            status=status,
+        records.append(
+            {
+                "import_path": import_path,
+                "entity_type": entity.type,
+                "entity_id": entity.id,
+                "entity_ref": entity_ref(saved, entity_types),
+                "content_digest": hashlib.sha256(content).hexdigest(),
+                "imported_entity_digest": _entity_digest(saved),
+                "status": status,
+            }
         )
+    return records
 
 
 async def _get_entity(

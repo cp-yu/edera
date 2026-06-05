@@ -99,6 +99,15 @@ service EventService {
   rpc Emit(EmitRequest) returns (JsonResponse);
 }
 
+service ExtensionService {
+  rpc ListAvailable(EmptyRequest) returns (JsonResponse);
+  rpc ListInstalled(EmptyRequest) returns (JsonResponse);
+  rpc Show(NameRequest) returns (JsonResponse);
+  rpc Install(NameRequest) returns (JsonResponse);
+  rpc Uninstall(NamedJsonRequest) returns (JsonResponse);
+  rpc Reactivate(NameRequest) returns (JsonResponse);
+}
+
 message EmptyRequest {}
 
 message NameRequest {

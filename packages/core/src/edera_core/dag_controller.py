@@ -19,7 +19,8 @@ from edera_core.config.loader import _default_extensions_dirs
 from edera_core.config.entities import EntityStore
 from edera_core.config.git import commit_config_changes
 from edera_core.config.schema import AppConfig, DagNodeInstance
-from edera_core.bootstrap import BootstrapResult, create_extension_tables, scan_extensions
+from edera_core.bootstrap import BootstrapResult, create_extension_tables, load_installed_extensions
+from edera_core.migration.migrate_extensions import migrate_existing_extensions
 from edera_core.dag.loader import load_graph
 from edera_core.dag.models import DagGraph
 from edera_core.dag.runner import DagRunner, EdgeInputFact
@@ -100,6 +101,7 @@ class DagController:
     ) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or _default_extensions_dirs(config_dir)
+        self.handlers_dir = config_dir.parent / "handlers"
         self.scheduler = scheduler or _TriggerSchedulerState()
         self.engine: AsyncEngine | None = None
         self.factory: async_sessionmaker[AsyncSession] | None = None
@@ -115,12 +117,20 @@ class DagController:
         self._snapshot_lock = asyncio.Lock()
 
     async def start(self, run_startup: bool = True) -> None:
-        bootstrap = scan_extensions(self.extensions_dirs, self.config_dir)
         system = load_system_config(self.config_dir / "system.toml")
         self.engine = create_engine(system.database_url)
         await init_db(self.engine)
         config = _load_runtime_base_config(self.config_dir)
         self.factory = session_factory(self.engine)
+        async with self.factory() as session:
+            await migrate_existing_extensions(
+                session,
+                self.extensions_dirs,
+                handlers_dir=self.handlers_dir,
+                entity_types=config.entity_types,
+            )
+            await session.commit()
+        bootstrap = await self.load_bootstrap()
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
         self._cron_task = asyncio.create_task(self._cron_loop())
@@ -177,20 +187,21 @@ class DagController:
             raise RuntimeError("DAG controller has not been started")
         await self.install_snapshot(
             _load_runtime_base_config(self.config_dir),
-            scan_extensions(self.extensions_dirs, self.config_dir),
+            await self.load_bootstrap(),
         )
+
+    async def load_bootstrap(self) -> BootstrapResult:
+        if self.factory is None:
+            raise RuntimeError("DAG controller has not been started")
+        async with self.factory() as session:
+            return await load_installed_extensions(session, self.handlers_dir)
 
     async def install_snapshot(self, config: AppConfig, bootstrap: BootstrapResult) -> RuntimeSnapshot:
         if self.engine is None:
             raise RuntimeError("DAG controller has not been started")
         async with self._snapshot_lock:
             config.entity_types.update(bootstrap.entity_type_registry.as_dict())
-            extension_imports = [
-                (bootstrap.extension_roots[manifest.name], manifest)
-                for manifest in bootstrap.manifests
-                if manifest.entity_imports
-            ]
-            config = await materialize_runtime_app_config(self.config_dir, config, self.engine, extension_imports)
+            config = await materialize_runtime_app_config(self.config_dir, config, self.engine)
             await create_extension_tables(self.engine, bootstrap.storage_tables)
             store = EntityStore(
                 config.entities,

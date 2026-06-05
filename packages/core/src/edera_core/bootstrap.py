@@ -8,15 +8,16 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from edera_core.config.loader import load_entity_types
 from edera_core.config.schema import EntityTypeConfig
 from edera_core.manifest import (
     EntityTypeDescriptor,
     ExtensionManifest,
     StorageTableDescriptor,
+    manifest_from_mapping,
     parse_manifest,
 )
 from edera_core.registry import EntityTypeRegistry, HandlerRegistry
+from edera_core.storage.repository import list_enabled_extensions
 
 
 @dataclass(frozen=True)
@@ -32,44 +33,48 @@ class BootstrapResult:
         return iter(self.manifests)
 
 
-def scan_extensions(
-    extensions_dirs: list[Path] | None = None,
-    config_dir: Path | None = None,
-) -> BootstrapResult:
+def discover_available_extensions(extensions_dirs: list[Path] | None = None) -> list[ExtensionManifest]:
     extensions_dirs = extensions_dirs or [Path("extensions")]
+    manifests: list[ExtensionManifest] = []
+    for root in extensions_dirs:
+        if not root.exists():
+            continue
+        for child in sorted(item for item in root.iterdir() if item.is_dir() and not item.name.startswith("_")):
+            manifest_path = child / "manifest.yaml"
+            if manifest_path.exists():
+                manifests.append(parse_manifest(manifest_path))
+    return manifests
+
+
+async def load_installed_extensions(session, handlers_dir: Path = Path("handlers")) -> BootstrapResult:
+    _ensure_path(handlers_dir)
     handlers = HandlerRegistry()
-    extension_entity_types: dict[str, EntityTypeConfig] = {}
+    entity_types: dict[str, EntityTypeConfig] = {}
     manifests: list[ExtensionManifest] = []
     storage_tables: dict[str, list[StorageTableDescriptor]] = {}
     table_names: dict[str, dict[str, str]] = {}
     extension_roots: dict[str, Path] = {}
-    for root in extensions_dirs:
-        if not root.exists():
-            continue
-        _ensure_path(root)
-        for child in sorted(item for item in root.iterdir() if item.is_dir()):
-            if child.name.startswith("_"):
-                continue
-            manifest_path = child / "manifest.yaml"
-            if manifest_path.exists():
-                manifest = parse_manifest(manifest_path)
-                _validate_dependencies(root, manifest)
-                manifests.append(manifest)
-                extension_roots[manifest.name] = child
-                storage_tables[manifest.name] = manifest.storage_tables
-                table_names[manifest.name] = {
-                    table.name: extension_table_name(manifest.name, table.name) for table in manifest.storage_tables
-                }
-                for handler in manifest.handlers:
-                    handlers.register(handler.name, child / handler.entry, descriptor=handler)
-                for entity_type in manifest.entity_types:
-                    extension_entity_types[entity_type.name] = _entity_type_config(entity_type)
-                continue
-            _register_fallback_handlers(handlers, child)
-    merged = extension_entity_types
-    if config_dir is not None:
-        merged = {**load_entity_types(config_dir), **merged}
-    return BootstrapResult(handlers.seal(), EntityTypeRegistry(merged), manifests, storage_tables, table_names, extension_roots)
+    for record in await list_enabled_extensions(session):
+        manifest = manifest_from_mapping(record.manifest_data)
+        manifests.append(manifest)
+        root = handlers_dir / manifest.name
+        extension_roots[manifest.name] = root
+        storage_tables[manifest.name] = manifest.storage_tables
+        table_names[manifest.name] = {
+            table.name: extension_table_name(manifest.name, table.name) for table in manifest.storage_tables
+        }
+        for handler in manifest.handlers:
+            handlers.register(handler.name, root / handler.entry, descriptor=handler)
+        for entity_type in manifest.entity_types:
+            entity_types[entity_type.name] = _entity_type_config(entity_type)
+    return BootstrapResult(
+        handlers.seal(),
+        EntityTypeRegistry(entity_types),
+        manifests,
+        storage_tables,
+        table_names,
+        extension_roots,
+    )
 
 
 async def create_extension_tables(engine: AsyncEngine, tables: dict[str, list[StorageTableDescriptor]]) -> None:
@@ -93,26 +98,6 @@ def _ensure_path(path: Path) -> None:
     value = str(path.resolve())
     if value not in sys.path:
         sys.path.insert(0, value)
-
-
-def _validate_dependencies(root: Path, manifest: ExtensionManifest) -> None:
-    for dependency in manifest.depends:
-        if dependency.startswith("_lib/"):
-            path = root / f"{dependency}.py"
-            if not path.exists():
-                raise ValueError(f"missing extension dependency: {dependency}")
-            continue
-        if not (root / dependency).exists():
-            raise ValueError(f"missing extension dependency: {dependency}")
-
-
-def _register_fallback_handlers(registry: HandlerRegistry, directory: Path) -> None:
-    files = [file for file in directory.glob("*.py") if file.name != "__init__.py"]
-    if directory.joinpath("handler.py").exists():
-        registry.register(directory.name, directory / "handler.py")
-        return
-    for file in files:
-        registry.register(file.stem, file)
 
 
 def _entity_type_config(descriptor: EntityTypeDescriptor) -> EntityTypeConfig:

@@ -2,16 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from edera_core.bootstrap import BootstrapResult, scan_extensions
+from edera_core.bootstrap import BootstrapResult
 from edera_core.config.schema import AppConfig
 from edera_core.dag_controller import DagController
+from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 
 
 class Engine:
     def __init__(self, config_dir: Path = Path("config"), extensions_dirs: list[Path] | None = None) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or [Path("extensions")]
-        self.bootstrap: BootstrapResult = scan_extensions(self.extensions_dirs, self.config_dir)
+        self.bootstrap = BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})
         self.config: AppConfig | None = None
         self.controller = DagController(self.config_dir, extensions_dirs=self.extensions_dirs)
 

@@ -8,10 +8,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 import edera_core.dag_controller as dag_controller_module
-from edera_core.bootstrap import scan_extensions
+from edera_core.bootstrap import load_installed_extensions
 from edera_core.config.schema import EntityConfig
 from edera_core.config.loader import _load_runtime_base_config
 from edera_core.errors import DagError
+from edera_core.migration.migrate_extensions import migrate_existing_extensions
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
     create_dag_run,
@@ -35,7 +36,17 @@ class FakeController(DagController):
         self.engine = create_engine(sqlite_url(self.config_dir / "test.db"))
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
-        await self.install_snapshot(_load_runtime_base_config(self.config_dir), scan_extensions(self.extensions_dirs, self.config_dir))
+        config = _load_runtime_base_config(self.config_dir)
+        async with self.factory() as session:
+            await migrate_existing_extensions(
+                session,
+                self.extensions_dirs,
+                handlers_dir=self.handlers_dir,
+                entity_types=config.entity_types,
+            )
+            bootstrap = await load_installed_extensions(session, self.handlers_dir)
+            await session.commit()
+        await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
 
     async def start_run(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
@@ -166,6 +177,17 @@ def _write_entity_schemas(path: Path) -> None:
 def _write_retention_extension(path: Path) -> None:
     source = path / "retention-source"
     source.mkdir(parents=True)
+    source.joinpath("manifest.yaml").write_text(
+        "name: retention-source\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "- name: retention-source\n"
+        "  entry: handler.py\n"
+        "  role: source\n"
+        "  input_type: Any\n"
+        "  output_type: Any\n",
+        encoding="utf-8",
+    )
     source.joinpath("handler.py").write_text(
         "import asyncio\n"
         "async def run(ctx):\n"
@@ -178,6 +200,17 @@ def _write_retention_extension(path: Path) -> None:
     )
     sink = path / "retention-sink"
     sink.mkdir(parents=True)
+    sink.joinpath("manifest.yaml").write_text(
+        "name: retention-sink\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "- name: retention-sink\n"
+        "  entry: handler.py\n"
+        "  role: sink\n"
+        "  input_type: Any\n"
+        "  output_type: Any\n",
+        encoding="utf-8",
+    )
     sink.joinpath("handler.py").write_text(
         "async def run(ctx):\n"
         "    if ctx.params.get('fail'):\n"
@@ -996,7 +1029,17 @@ async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
         blocker = asyncio.create_task(asyncio.sleep(0.2))
         default_dag = tmp_path / "dags" / "default.yaml"
         default_dag.write_text("name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n", encoding="utf-8")
-        await ctrl.install_snapshot(_load_runtime_base_config(tmp_path), scan_extensions(ctrl.extensions_dirs, tmp_path))
+        async with ctrl._factory()() as session:
+            await save_core_entity(
+                session,
+                EntityConfig(
+                    id="default",
+                    type="dag",
+                    attributes={"name": "default", "nodes": [{"id": "node-a", "type": "node-a"}], "edges": []},
+                ),
+            )
+            await session.commit()
+        await ctrl.install_snapshot(_load_runtime_base_config(tmp_path), await ctrl.load_bootstrap())
         ctrl.active_runs["default"] = DagRunContext("default", "run-default", blocker)
         pending = asyncio.create_task(ctrl.start_run("manual", "reflection", {"target": "node-a"}))
         await asyncio.sleep(0.05)
@@ -1042,7 +1085,7 @@ async def test_dag_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.
         "edges: []\n",
         encoding="utf-8",
     )
-    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir, Path("extensions")])
+    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
         await ctrl.run_now("manual", "default")
@@ -1357,6 +1400,20 @@ def _write_trigger_schema(path: Path) -> None:
 def _write_run_pi_extension(path: Path) -> None:
     extension = path / "run-pi"
     extension.mkdir(parents=True)
+    lib = extension / "_lib"
+    lib.mkdir()
+    (lib / "llm.py").write_text(Path("extensions/_lib/llm.py").read_text(encoding="utf-8"), encoding="utf-8")
+    extension.joinpath("manifest.yaml").write_text(
+        "name: run-pi\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "- name: run-pi\n"
+        "  entry: handler.py\n"
+        "  role: processor\n"
+        "  input_type: Any\n"
+        "  output_type: Any\n",
+        encoding="utf-8",
+    )
     extension.joinpath("handler.py").write_text(
         "from _lib.llm import run_pi\n"
         "from edera_core.config.schema import NodeConfig\n"
@@ -1386,6 +1443,17 @@ def _write_run_pi_extension(path: Path) -> None:
 def _write_reflection_extension(path: Path) -> None:
     extension = path / "reflection-editor"
     extension.mkdir(parents=True)
+    extension.joinpath("manifest.yaml").write_text(
+        "name: reflection-editor\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "- name: reflection-editor\n"
+        "  entry: handler.py\n"
+        "  role: processor\n"
+        "  input_type: Any\n"
+        "  output_type: Any\n",
+        encoding="utf-8",
+    )
     extension.joinpath("handler.py").write_text(
         "from pathlib import Path\n"
         "async def run(ctx):\n"
@@ -1401,12 +1469,34 @@ def _write_reflection_extension(path: Path) -> None:
 def _write_node_b_extension(path: Path) -> None:
     extension = path / "node-b"
     extension.mkdir(parents=True)
+    extension.joinpath("manifest.yaml").write_text(
+        "name: node-b\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "- name: node-b\n"
+        "  entry: handler.py\n"
+        "  role: processor\n"
+        "  input_type: Any\n"
+        "  output_type: Any\n",
+        encoding="utf-8",
+    )
     extension.joinpath("handler.py").write_text("async def run(ctx):\n    return {'payload': ctx.input.payload}\n", encoding="utf-8")
 
 
 def _write_leaf_extension(path: Path) -> None:
     extension = path / "leaf"
     extension.mkdir(parents=True)
+    extension.joinpath("manifest.yaml").write_text(
+        "name: leaf\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "- name: leaf\n"
+        "  entry: handler.py\n"
+        "  role: processor\n"
+        "  input_type: Any\n"
+        "  output_type: Any\n",
+        encoding="utf-8",
+    )
     extension.joinpath("handler.py").write_text("async def run(ctx):\n    return {'leaf': ctx.run_id}\n", encoding="utf-8")
 
 

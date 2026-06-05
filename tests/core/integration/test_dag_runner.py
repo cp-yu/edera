@@ -1,20 +1,66 @@
 import asyncio
+import tempfile
 from pathlib import Path
+from threading import Thread
 
 import pytest
 
-from edera_core.config.loader import load_app_config
+from edera_core.bootstrap import load_installed_extensions
+from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
 from edera_core.config.schema import DagConfig, NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
 from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.errors import DagError
+from edera_core.migration.migrate_extensions import migrate_existing_extensions
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import FunctionHandler, NodeInput
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+
+
+def _load_config():
+    result: dict[str, object] = {}
+
+    def run() -> None:
+        try:
+            result["config"] = asyncio.run(_load_runtime_config())
+        except BaseException as exc:
+            result["error"] = exc
+
+    thread = Thread(target=run)
+    thread.start()
+    thread.join()
+    error = result.get("error")
+    if isinstance(error, BaseException):
+        raise error
+    return result["config"]
+
+
+async def _load_runtime_config():
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        engine = create_engine(sqlite_url(root / "edera.db"))
+        try:
+            await init_db(engine)
+            config = _load_runtime_base_config(Path("config"))
+            factory = session_factory(engine)
+            async with factory() as session:
+                await migrate_existing_extensions(
+                    session,
+                    [Path("extensions")],
+                    handlers_dir=root / "handlers",
+                    entity_types=config.entity_types,
+                )
+                bootstrap = await load_installed_extensions(session, root / "handlers")
+                await session.commit()
+            config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+            return await materialize_runtime_app_config(Path("config"), config, engine)
+        finally:
+            await engine.dispose()
 
 
 @pytest.mark.asyncio
 async def test_default_dag_runs_with_fake_handlers() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     handlers = {
         "fetch-rss": _handler([{"url": "a"}]),
         "fetch-api": _handler([{"url": "a"}, {"url": "b"}]),
@@ -34,7 +80,7 @@ async def test_default_dag_runs_with_fake_handlers() -> None:
 
 @pytest.mark.asyncio
 async def test_single_source_failure_does_not_block() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     handlers = {
         "fetch-rss": _failing_handler,
         "fetch-api": _handler([{"url": "b"}]),
@@ -53,7 +99,7 @@ async def test_single_source_failure_does_not_block() -> None:
 
 
 def test_topological_layers_have_parallel_sources() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     graph = load_graph(config.dags["default"], config.nodes)
     assert set(topological_layers(graph)[0]) == {
         _instance_id(graph, "rss-fetcher"),
@@ -63,7 +109,7 @@ def test_topological_layers_have_parallel_sources() -> None:
 
 @pytest.mark.asyncio
 async def test_node_entity_execution() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     handlers = {
         "fetch-rss": _handler([{"url": "a"}]),
         "fetch-api": _handler([]),
@@ -80,7 +126,7 @@ async def test_node_entity_execution() -> None:
 
 
 def test_dag_entity_loading() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     graph = load_graph(config.dags["default"], config.nodes)
     first_layer = topological_layers(graph)[0]
     assert graph.name == "default"
@@ -89,7 +135,7 @@ def test_dag_entity_loading() -> None:
 
 @pytest.mark.asyncio
 async def test_condition_branch() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     graph = load_graph(
         config.dags["default"].model_validate(
             {
@@ -120,7 +166,7 @@ async def test_condition_branch() -> None:
 
 @pytest.mark.asyncio
 async def test_dead_path_detection() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     graph = load_graph(
         config.dags["default"].model_validate(
             {
@@ -150,7 +196,7 @@ async def test_dead_path_detection() -> None:
 
 @pytest.mark.asyncio
 async def test_single_node_loop() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     graph = load_graph(
         config.dags["default"].model_validate(
             {
@@ -194,7 +240,7 @@ async def test_single_node_loop() -> None:
 
 @pytest.mark.asyncio
 async def test_fan_in_stream() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -243,7 +289,7 @@ async def test_fan_in_stream() -> None:
 
 @pytest.mark.asyncio
 async def test_event_driven_dispatch_does_not_wait_for_layer() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -288,7 +334,7 @@ async def test_event_driven_dispatch_does_not_wait_for_layer() -> None:
 
 @pytest.mark.asyncio
 async def test_fan_in_barrier_waits_for_all_upstreams() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -334,7 +380,7 @@ async def test_fan_in_barrier_waits_for_all_upstreams() -> None:
 
 @pytest.mark.asyncio
 async def test_fan_in_accumulate_spawns_per_upstream_task() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -380,7 +426,7 @@ async def test_fan_in_accumulate_spawns_per_upstream_task() -> None:
 
 @pytest.mark.asyncio
 async def test_fan_out_splits_list_payload_to_concurrent_downstream_runs() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -418,7 +464,7 @@ async def test_fan_out_splits_list_payload_to_concurrent_downstream_runs() -> No
 
 @pytest.mark.asyncio
 async def test_soft_stop_finishes_running_node_without_starting_downstream() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -508,7 +554,7 @@ async def test_required_upstream_failure_does_not_record_summary_for_unstarted_n
 
 @pytest.mark.asyncio
 async def test_retry_single_uses_prefilled_upstream_outputs() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -551,7 +597,7 @@ async def test_retry_single_uses_prefilled_upstream_outputs() -> None:
 
 @pytest.mark.asyncio
 async def test_retry_single_multiple_nodes_propagates_new_outputs() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -602,7 +648,7 @@ async def test_retry_single_multiple_nodes_propagates_new_outputs() -> None:
 
 @pytest.mark.asyncio
 async def test_retry_single_disconnected_nodes_run_independently() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -662,7 +708,7 @@ async def test_retry_single_disconnected_nodes_run_independently() -> None:
 
 @pytest.mark.asyncio
 async def test_retry_cascade_reruns_target_and_downstream_only() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     graph = load_graph(
         config.dags["default"].model_validate(
@@ -713,7 +759,7 @@ async def test_retry_cascade_reruns_target_and_downstream_only() -> None:
 
 @pytest.mark.asyncio
 async def test_sub_dag_execution() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     child = config.dags["default"].model_validate(
         {
@@ -800,7 +846,7 @@ async def test_explicit_sub_dag_execution_with_emit_callback() -> None:
 
 @pytest.mark.asyncio
 async def test_optional_failure_excluded_from_payload_and_required_failure_recorded() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = {
         **_condition_nodes(),
         "source-a": NodeConfig(name="source-a", type="function", role="source", handler="source-a", input_type="Any", output_type="Any"),
@@ -861,7 +907,7 @@ async def test_optional_failure_excluded_from_payload_and_required_failure_recor
 
 
 def test_fallback_skip_is_rejected() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
 
     with pytest.raises(ValueError):
         config.dags["default"].model_validate(
@@ -875,7 +921,7 @@ def test_fallback_skip_is_rejected() -> None:
 
 @pytest.mark.asyncio
 async def test_sub_dag_depth_and_cycle_rejected() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     nodes = _condition_nodes()
     child = config.dags["default"].model_validate(
         {"name": "child", "nodes": [{"id": "again", "type": "child"}], "edges": []}
@@ -889,18 +935,19 @@ async def test_sub_dag_depth_and_cycle_rejected() -> None:
     run = await DagRunner(executor, dags={"child": child}, nodes={**nodes, "child": nodes["rss-fetcher"]}).run(
         graph, "run", {}
     )
-    assert run.node_outputs["child-node"].error == "sub DAG cycle: child -> child"
+    assert "Sub DAG cycle detected" in run.node_outputs["child-node"].error
+    assert "child-node" in run.node_outputs["child-node"].error
 
     executor.system.max_dag_depth = 1
     depth = await DagRunner(executor, dags={"child": child}, nodes={**nodes, "child": nodes["rss-fetcher"]}).run(
         graph, "run", {}
     )
-    assert depth.node_outputs["child-node"].error == "max DAG depth exceeded: child"
+    assert depth.node_outputs["child-node"].error == "max DAG depth exceeded: parent -> child"
 
 
 @pytest.mark.asyncio
 async def test_node_emits() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     node = NodeConfig.model_validate(
         {
             "name": "sentiment",
@@ -931,7 +978,7 @@ async def test_node_emits() -> None:
 
 @pytest.mark.asyncio
 async def test_node_emits_skip_false_conditions() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     node = NodeConfig.model_validate(
         {
             "name": "sentiment",
@@ -967,7 +1014,7 @@ async def test_node_emits_skip_false_conditions() -> None:
 
 @pytest.mark.asyncio
 async def test_node_emits_evaluate_each_declaration() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     node = NodeConfig.model_validate(
         {
             "name": "sentiment",
@@ -1005,7 +1052,7 @@ async def test_node_emits_evaluate_each_declaration() -> None:
 
 @pytest.mark.asyncio
 async def test_node_emits_condition_error_does_not_fail_dag() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     node = NodeConfig.model_validate(
         {
             "name": "sentiment",
@@ -1044,7 +1091,7 @@ async def test_node_emits_condition_error_does_not_fail_dag() -> None:
 
 @pytest.mark.asyncio
 async def test_instance_emits_override_type_emits() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     node = NodeConfig.model_validate(
         {
             "name": "sentiment",
@@ -1084,21 +1131,21 @@ async def test_instance_emits_override_type_emits() -> None:
 
 
 def test_sub_dag_nesting_validation() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     child = config.dags["default"].model_validate(
         {"name": "child", "nodes": [{"id": "again", "type": "child"}], "edges": []}
     )
     parent = config.dags["default"].model_validate(
         {"name": "parent", "nodes": [{"id": "child-node", "type": "child"}], "edges": []}
     )
-    with pytest.raises(DagError, match="sub DAG cycle: parent -> child -> child"):
+    with pytest.raises(DagError, match="Sub DAG cycle detected"):
         validate_sub_dag_nesting({"parent": parent, "child": child}, 3)
     with pytest.raises(DagError, match="max DAG depth exceeded: parent -> child"):
         validate_sub_dag_nesting({"parent": parent, "child": child.model_copy(update={"nodes": []})}, 1)
 
 
 def test_cycle_rejected() -> None:
-    config = load_app_config(Path("config"))
+    config = _load_config()
     graph = load_graph(config.dags["default"], config.nodes)
     notifier_id = _instance_id(graph, "notifier")
     fetcher_id = _instance_id(graph, "rss-fetcher")

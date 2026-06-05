@@ -140,7 +140,47 @@ def _copy_config_tree(tmp_path: Path) -> Path:
     _copy_dir(source_root / "extensions", root / "extensions")
     _copy_dir(source_root / "prompts", root / "prompts")
     _copy_dir(source_root / "skills", root / "skills")
+    _write_editor_config(root / "config")
     return root
+
+
+def _write_editor_config(config_dir: Path) -> None:
+    (config_dir / "entity-relations.yaml").write_text("relations: []\n", encoding="utf-8")
+    for schema_name in ("node.yaml", "dag.yaml"):
+        (config_dir / "schemas" / schema_name).unlink(missing_ok=True)
+    (config_dir / "dags").mkdir(exist_ok=True)
+    (config_dir / "dags" / "default.yaml").write_text(
+        "name: default\n"
+        "nodes:\n"
+        "  - id: rss-fetcher\n"
+        "    type: rss-fetcher\n"
+        "  - id: reader\n"
+        "    type: reader\n"
+        "    config:\n"
+        "      model: hf-share/deepseek-v4-flash\n"
+        "  - id: notifier\n"
+        "    type: notifier\n"
+        "edges:\n"
+        "  - from: rss-fetcher\n"
+        "    to: reader\n"
+        "  - from: reader\n"
+        "    to: notifier\n",
+        encoding="utf-8",
+    )
+    nodes = {
+        "rss-fetcher": "fetch-rss",
+        "reader": "summarize",
+        "notifier": "notify-ntfy",
+    }
+    for name, handler in nodes.items():
+        (config_dir / "nodes" / f"{name}.yaml").write_text(
+            f"name: {name}\n"
+            "type: function\n"
+            f"handler: {handler}\n"
+            "input_type: Any\n"
+            "output_type: Any\n",
+            encoding="utf-8",
+        )
 
 
 def _copy_dir(source: Path, target: Path) -> None:

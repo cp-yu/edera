@@ -38,6 +38,7 @@ class GrpcClient:
         self.config = pb2_grpc.ConfigServiceStub(self._channel)
         self.query = pb2_grpc.QueryServiceStub(self._channel)
         self.event = pb2_grpc.EventServiceStub(self._channel)
+        self.extension = pb2_grpc.ExtensionServiceStub(self._channel)
 
     async def close(self) -> None:
         await self._channel.close()
@@ -307,6 +308,26 @@ class GrpcClient:
 
     async def config_delete_entity_relation(self, relation_id: str) -> dict[str, object]:
         return _json_response(await self.config.DeleteEntityRelation(pb2.NameRequest(name=relation_id)))
+
+    async def extension_list_available(self) -> dict[str, object]:
+        return _json_response(await self.extension.ListAvailable(pb2.EmptyRequest()))
+
+    async def extension_list_installed(self) -> dict[str, object]:
+        return _json_response(await self.extension.ListInstalled(pb2.EmptyRequest()))
+
+    async def extension_show(self, name: str) -> dict[str, object]:
+        return _json_response(await self.extension.Show(pb2.NameRequest(name=name)))
+
+    async def extension_install(self, name: str) -> dict[str, object]:
+        return _json_response(await self.extension.Install(pb2.NameRequest(name=name)))
+
+    async def extension_uninstall(self, name: str, strategy: str) -> dict[str, object]:
+        return _json_response(
+            await self.extension.Uninstall(pb2.NamedJsonRequest(name=name, json=json.dumps({"strategy": strategy})))
+        )
+
+    async def extension_reactivate(self, name: str) -> dict[str, object]:
+        return _json_response(await self.extension.Reactivate(pb2.NameRequest(name=name)))
 
 
 def _server_addr() -> str:

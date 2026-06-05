@@ -63,7 +63,7 @@ async def test_entity_routes_use_grpc_client() -> None:
         deleted = await client.delete("/api/entities/stock:09988.HK")
         queried = await client.get("/api/entity-relations?entity=stock:09988.HK&type=uses-source")
 
-    assert listed.json()[0]["type"] == "stock"
+    assert listed.json()["entities"][0]["type"] == "stock"
     assert created.json()["attributes"]["code"] == "09988.HK"
     assert updated.json()["entity"]["attributes"]["name"] == "Alibaba"
     assert deleted.json() == {"deleted": True}
@@ -139,5 +139,14 @@ class FakeGrpcClient:
     async def entity_delete(self, ref: str) -> dict[str, object]:
         return {"deleted": True}
 
-    async def entity_search(self, expression: str, identity: str) -> dict[str, object]:
-        return {"relations": [{"id": "rel-1", "expression": expression, "identity": identity}]}
+    async def entity_search(self, expression: str, identity: str) -> list[dict[str, object]]:
+        return [
+            {
+                "id": "rel-1",
+                "attributes": {
+                    "entities": ["stock:09988.HK", "source:rss"],
+                    "relation_type": "uses-source",
+                    "metadata": {"expression": expression, "identity": identity},
+                },
+            }
+        ]

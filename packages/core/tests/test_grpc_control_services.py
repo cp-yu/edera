@@ -5,7 +5,7 @@ import pytest
 from types import SimpleNamespace
 
 from edera_core.config.entities import EntityStore
-from edera_core.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig, EntityTypeConfig
+from edera_core.config.schema import DagConfig, DagNodeInstance, EntitiesConfig, EntityConfig, EntityRelationsConfig, EntityTypeConfig, SystemConfig
 from edera_core.dag_controller import DagRunNotFoundError, RunAlreadyActiveError
 from edera_core.event_service import _EventService
 from edera_core.proto import edera_pb2 as pb2
@@ -85,6 +85,26 @@ async def test_retry_run_not_found(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_dag_edit_sub_dag_cycle_rejected(tmp_path):
+    service = _DagService(FakeDaemon(tmp_path, EditController()))
+
+    with pytest.raises(AbortError) as exc:
+        await service.Edit(
+            pb2.DagEditRequest(
+                name="demo",
+                operation="add-node",
+                json='{"id":"self","type":"demo","config":{}}',
+            ),
+            FakeContext(),
+        )
+
+    assert exc.value.code == grpc.StatusCode.INVALID_ARGUMENT
+    assert "Sub DAG cycle detected" in exc.value.details
+    assert "节点 'self'" in exc.value.details
+    assert "修复建议" in exc.value.details
+
+
+@pytest.mark.asyncio
 async def test_repair_task_not_escalated(monkeypatch, tmp_path):
     _write_minimal_config(tmp_path)
     monkeypatch.setattr("edera_core.server.source_health_summary", _health)
@@ -116,6 +136,12 @@ class FactoryController:
 
     def _factory(self):
         return lambda: Session()
+
+
+class EditController:
+    def runtime_snapshot(self):
+        dag = DagConfig(name="demo", nodes=[DagNodeInstance(id="n1", type="source")], edges=[], ui={})
+        return SimpleNamespace(config=SimpleNamespace(dags={"demo": dag}, system=SystemConfig()))
 
 
 class RunController:

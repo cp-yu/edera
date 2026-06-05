@@ -260,6 +260,29 @@ export interface EventRecord {
   last_seen_at: string
 }
 
+export interface ExtensionSummary {
+  name: string
+  version: string
+  description?: string | null
+  depends?: string[]
+  enabled?: boolean
+  installed_by?: string | null
+  created_at?: string
+}
+
+export interface ExtensionDetail {
+  manifest: {
+    name: string
+    version: string
+    description?: string | null
+    depends?: string[]
+    handlers?: { name: string; entry?: string }[]
+    entity_types?: { name: string; display_name?: string }[]
+    imports?: { entities?: string[] }
+  }
+  import_records?: { import_path?: string; status?: string; entity_ref?: string }[]
+}
+
 export interface ResultsSummary {
   briefing: Briefing | null
   metadata_bar: Record<string, unknown>

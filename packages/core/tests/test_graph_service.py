@@ -7,8 +7,8 @@ import pytest
 
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
-from edera_core.registry import HandlerRegistry
-from edera_core.bootstrap import scan_extensions
+from edera_core.registry import EntityTypeRegistry, HandlerRegistry
+from edera_core.bootstrap import BootstrapResult
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
 from edera_core.dag_controller import RuntimeSnapshot
@@ -273,7 +273,7 @@ class GraphController:
         self.config_dir = config_dir
         self.engine = engine
         self.factory = session_factory(engine)
-        self.bootstrap = scan_extensions([config_dir / "extensions"], config_dir)
+        self.bootstrap = BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})
         self._snapshot = None
 
     def _factory(self):

@@ -59,15 +59,20 @@ class ExtensionManifest:
 
 def parse_manifest(path: Path) -> ExtensionManifest:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return manifest_from_mapping(raw, path)
+
+
+def manifest_from_mapping(raw: Any, path: Path | None = None) -> ExtensionManifest:
     if not isinstance(raw, dict):
         raise ValueError(f"invalid manifest: {path}")
     missing = [field for field in ("name", "version") if not isinstance(raw.get(field), str) or not raw.get(field)]
     if missing:
         raise ValueError(f"missing manifest field(s): {', '.join(missing)} in {path}")
-    handlers = [_parse_handler(item, path) for item in _list(raw.get("handlers"))]
-    entity_types = [_parse_entity_type(item, path) for item in _list(raw.get("entity_types"))]
-    storage_tables = [_parse_storage_table(item, path) for item in _list(raw.get("storage"), "tables")]
-    entity_imports = [_parse_entity_import(item, path) for item in _list(raw.get("imports"), "entities")]
+    source = path or Path("<manifest>")
+    handlers = [_parse_handler(item, source) for item in _list(raw.get("handlers"))]
+    entity_types = [_parse_entity_type(item, source) for item in _list(raw.get("entity_types"))]
+    storage_tables = [_parse_storage_table(item, source) for item in _list(raw.get("storage"), "tables")]
+    entity_imports = [_parse_entity_import(item, source) for item in _list(raw.get("imports"), "entities")]
     return ExtensionManifest(
         name=str(raw["name"]),
         version=str(raw["version"]),

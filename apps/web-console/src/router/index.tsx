@@ -9,6 +9,7 @@ import { ConfigPage } from '@/features/config/ConfigPage'
 import { NodesPage } from '@/features/nodes/NodesPage'
 import { EntitiesPage } from '@/features/entities/EntitiesPage'
 import { NodeHistoryPage } from '@/features/history/NodeHistoryPage'
+import { ExtensionPage } from '@/features/extensions/ExtensionPage'
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'results/briefings/:id', element: <BriefingDetail /> },
       { path: 'sources', element: <SourcesPage /> },
       { path: 'entities', element: <EntitiesPage /> },
+      { path: 'extensions', element: <ExtensionPage /> },
       { path: 'nodes', element: <NodesPage /> },
       { path: 'history/dag/:dagName/nodes/:nodeId', element: <NodeHistoryPage /> },
       { path: 'config', element: <ConfigPage /> },

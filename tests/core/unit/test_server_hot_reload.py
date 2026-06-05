@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.bootstrap import scan_extensions
+from edera_core.bootstrap import BootstrapResult
 from edera_core.config_service import _ConfigService
 from edera_core.config.loader import load_app_config
 from edera_core.config.schema import EntityConfig
@@ -15,6 +15,7 @@ from edera_core.errors import ConfigError
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.query_service import _QueryService
+from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.server import Server, _DagService, _EntityService, _NodeService
 from edera_core.storage.repository import save_core_entity
 
@@ -26,6 +27,9 @@ class _Controller:
 
     async def emit(self, event: str, payload: object | None = None, *, source: str = "rpc", depth: int = 0) -> list[str]:
         return [event]
+
+    async def load_bootstrap(self) -> BootstrapResult:
+        return BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})
 
 
 class _Context:
@@ -80,7 +84,7 @@ async def test_reload_installs_snapshot(tmp_path: Path) -> None:
         await _save_core_node(controller, "worker", "worker-v2")
         await _save_core_dag(controller, ["worker"])
 
-        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
 
         assert controller.runtime_snapshot().config.dags["default"].nodes[0].type == "worker"
         assert controller.runtime_snapshot().config.nodes["worker"].handler == "worker-v2"
@@ -105,14 +109,14 @@ async def test_runtime_read_api_committed_snapshot(tmp_path: Path) -> None:
 
         before = json.loads((await graph.ListDags(pb2.EmptyRequest(), _Context())).json)
         before_types = json.loads((await graph.ListNodeTypes(pb2.EmptyRequest(), _Context())).json)
-        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
         after = json.loads((await graph.GetDag(pb2.NameRequest(name="default"), _Context())).json)
         after_types = json.loads((await graph.ListNodeTypes(pb2.EmptyRequest(), _Context())).json)
         node_type = json.loads((await graph.GetNodeType(pb2.NameRequest(name="worker"), _Context())).json)
         entity = await entities.Get(pb2.EntityRef(ref="stock:NEW"), _Context())
 
-        assert before["dags"] == []
-        assert before_types["types"] == []
+        assert before["dags"] == ["default"]
+        assert before_types["types"][0]["handler"] == "worker"
         assert [node["type_name"] for node in after["nodes"]] == ["worker"]
         assert after_types["types"][0]["handler"] == "worker-v2"
         assert node_type["node"]["handler"] == "worker-v2"
@@ -132,7 +136,7 @@ async def test_runtime_read_api_ignores_failed_candidate(tmp_path: Path) -> None
         entities = _EntityService(daemon)
         await _save_core_node(controller, "worker", "worker")
         await _save_core_dag(controller, [])
-        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
         _write_dag(tmp_path, nodes=["worker"])
         _write_node(tmp_path, "worker", handler="worker-v2")
         _write_stock(tmp_path, "NEW")
@@ -142,7 +146,7 @@ async def test_runtime_read_api_ignores_failed_candidate(tmp_path: Path) -> None
 
         controller.install_snapshot = fail_install_snapshot  # type: ignore[method-assign]
         with pytest.raises(RuntimeError, match="commit failed"):
-            await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+            await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
 
         payload = json.loads((await graph.GetDag(pb2.NameRequest(name="default"), _Context())).json)
         node_type = json.loads((await graph.GetNodeType(pb2.NameRequest(name="worker"), _Context())).json)
@@ -187,7 +191,7 @@ async def test_query_runtime_api_committed_snapshot(monkeypatch: pytest.MonkeyPa
         with pytest.raises(AssertionError, match="dag 'candidate' not found"):
             await query.NodeHistory(pb2.NodeHistoryRequest(dag_name="candidate", node_id="worker"), _Context())
 
-        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
         await query.SourceHealth(pb2.EmptyRequest(), _Context())
         await query.SourceLogs(pb2.SourceLogsRequest(), _Context())
         history = json.loads((await query.NodeHistory(pb2.NodeHistoryRequest(dag_name="candidate", node_id="worker"), _Context())).json)
@@ -214,7 +218,7 @@ async def test_config_edit_api_file_backed(tmp_path: Path) -> None:
         file_payload = load_app_config(tmp_path).dags["default"]
         raw = json.loads((await config.ReadConfig(pb2.ConfigFileRequest(kind="dag", name="default"), _Context())).json)
 
-        assert runtime_payload["dags"] == []
+        assert runtime_payload["dags"] == ["default"]
         assert [node.type for node in file_payload.nodes] == ["worker"]
         assert "worker" in raw["file"]["content"]
     finally:
@@ -252,7 +256,7 @@ async def test_dag_edit_updates_db_snapshot_not_yaml(tmp_path: Path) -> None:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         dags = _DagService(daemon)
         await _save_core_dag(controller, [])
-        await daemon._reload_config(load_app_config(tmp_path), scan_extensions([tmp_path.parent / "extensions"], tmp_path))
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
         yaml_path = tmp_path / "dags" / "default.yaml"
         yaml_path.unlink()
 

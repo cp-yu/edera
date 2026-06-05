@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { Advice, Briefing, DagState, DagStatus, EntityItem, NodeControlStatus, NodeExecutionLog, NodeHistoryItem, NodeOutputEntity, NodeResumeResponse, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
+import type { Advice, Briefing, DagState, DagStatus, EntityItem, ExtensionDetail, ExtensionSummary, NodeControlStatus, NodeExecutionLog, NodeHistoryItem, NodeOutputEntity, NodeResumeResponse, NodeType, ResultsSummary, RuntimeStatus, SkillDefinition, SourceHealth, SourceLog } from './types'
 
 export function useDag(name: string) {
   return useQuery({
@@ -204,5 +204,27 @@ export function useNodeHistory(dagName: string, nodeId: string) {
     queryKey: ['nodeHistory', dagName, nodeId],
     queryFn: () => apiFetch<{ history: NodeHistoryItem[] }>(`/api/history/dag/${dagName}/nodes/${nodeId}`),
     enabled: !!dagName && !!nodeId,
+  })
+}
+
+export function useAvailableExtensions() {
+  return useQuery({
+    queryKey: ['extensions', 'available'],
+    queryFn: () => apiFetch<{ extensions: ExtensionSummary[] }>('/api/extensions/available'),
+  })
+}
+
+export function useInstalledExtensions() {
+  return useQuery({
+    queryKey: ['extensions', 'installed'],
+    queryFn: () => apiFetch<{ extensions: ExtensionSummary[] }>('/api/extensions/installed'),
+  })
+}
+
+export function useExtensionDetail(name: string | null) {
+  return useQuery({
+    queryKey: ['extensions', 'detail', name],
+    queryFn: () => apiFetch<ExtensionDetail>(`/api/extensions/${name}`),
+    enabled: !!name,
   })
 }
