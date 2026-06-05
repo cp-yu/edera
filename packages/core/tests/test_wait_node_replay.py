@@ -11,6 +11,7 @@ from edera_core.node.executor import NodeExecutor
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.trigger import TriggerExecutor
 
+from snapshot_fixtures import create_test_snapshot
 from test_wait_registry import _store
 
 
@@ -63,4 +64,4 @@ def _graph():
 
 
 def _executor(nodes, instances) -> NodeExecutor:
-    return NodeExecutor(nodes, SystemConfig(), RuntimeSettings(), {}, instances)
+    return NodeExecutor(nodes, SystemConfig(), RuntimeSettings(), create_test_snapshot(nodes), instances)

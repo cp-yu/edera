@@ -16,14 +16,11 @@ from edera_core.manifest import (
     manifest_from_mapping,
     parse_manifest,
 )
-from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.storage.repository import list_enabled_extensions
 
 
 @dataclass(frozen=True)
 class BootstrapResult:
-    handler_registry: HandlerRegistry
-    entity_type_registry: EntityTypeRegistry
     manifests: list[ExtensionManifest]
     storage_tables: dict[str, list[StorageTableDescriptor]]
     table_names: dict[str, dict[str, str]]
@@ -48,8 +45,6 @@ def discover_available_extensions(extensions_dirs: list[Path] | None = None) -> 
 
 async def load_installed_extensions(session, handlers_dir: Path = Path("handlers")) -> BootstrapResult:
     _ensure_path(handlers_dir)
-    handlers = HandlerRegistry()
-    entity_types: dict[str, EntityTypeConfig] = {}
     manifests: list[ExtensionManifest] = []
     storage_tables: dict[str, list[StorageTableDescriptor]] = {}
     table_names: dict[str, dict[str, str]] = {}
@@ -63,13 +58,7 @@ async def load_installed_extensions(session, handlers_dir: Path = Path("handlers
         table_names[manifest.name] = {
             table.name: extension_table_name(manifest.name, table.name) for table in manifest.storage_tables
         }
-        for handler in manifest.handlers:
-            handlers.register(handler.name, root / handler.entry, descriptor=handler)
-        for entity_type in manifest.entity_types:
-            entity_types[entity_type.name] = _entity_type_config(entity_type)
     return BootstrapResult(
-        handlers.seal(),
-        EntityTypeRegistry(entity_types),
         manifests,
         storage_tables,
         table_names,

@@ -70,6 +70,7 @@ service ConfigService {
   rpc ReadEntitiesConfig(EmptyRequest) returns (JsonResponse);
   rpc SaveEntitiesConfig(JsonRequest) returns (JsonResponse);
   rpc ListEntityTypes(EmptyRequest) returns (JsonResponse);
+  rpc ReloadEntityTypes(EmptyRequest) returns (JsonResponse);
   rpc CreateEntityType(ConfigFileContentRequest) returns (JsonResponse);
   rpc GetEntityType(NameRequest) returns (JsonResponse);
   rpc SaveEntityType(ConfigFileContentRequest) returns (JsonResponse);

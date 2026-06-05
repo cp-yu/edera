@@ -7,13 +7,12 @@ import pytest
 
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
-from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.bootstrap import BootstrapResult
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
 from edera_core.dag_controller import RuntimeSnapshot
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import create_dag_run, mark_node_run
+from edera_core.storage.repository import create_dag_run, mark_node_run, save_installed_extension
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
@@ -225,39 +224,48 @@ async def test_runtime_status_can_scope_to_run_id(tmp_path):
     assert payload["node_statuses"]["same-node"]["status"] == "succeeded"
 
 
-# --- Handler registry tests ---
+# --- Handler database tests ---
 
 
-def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
+async def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
     root = tmp_path / "config"
     _write_graph_config(root)
-    registry = HandlerRegistry()
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'handlers.db'}")
+    await init_db(engine)
+    factory = session_factory(engine)
+    handlers = []
     for name, content in handler_files.items():
-        path = tmp_path / "handlers" / f"{name}.py"
+        path = tmp_path / "handlers" / "demo-ext" / f"{name}.py"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
-        registry.register(name, path)
-    return _FakeDaemonWithHandlers(root, registry.seal())
+        handlers.append({"name": name, "entry": f"{name}.py"})
+    async with factory() as session:
+        await save_installed_extension(
+            session,
+            name="demo-ext",
+            version="1.0.0",
+            manifest_snapshot={"name": "demo-ext", "version": "1.0.0", "handlers": handlers},
+        )
+        await session.commit()
+    return _FakeDaemonWithHandlers(root, factory)
 
 
 class _FakeDaemonWithHandlers:
-    def __init__(self, config_dir, handler_registry):
+    def __init__(self, config_dir, factory):
         self.config_dir = config_dir
         self.pb2 = pb2
-        self.controller = _FakeSnapshot(handler_registry)
+        self.controller = _FakeSnapshot(factory)
 
 
 class _FakeSnapshot:
-    def __init__(self, handler_registry):
-        self.bootstrap = _FakeBootstrap(handler_registry)
+    def __init__(self, factory):
+        self.factory = factory
 
     def runtime_snapshot(self):
         return self
 
-
-class _FakeBootstrap:
-    def __init__(self, handler_registry):
-        self.handler_registry = handler_registry
+    def _factory(self):
+        return self.factory
 
 
 async def _graph_daemon(root, tmp_path):
@@ -273,7 +281,7 @@ class GraphController:
         self.config_dir = config_dir
         self.engine = engine
         self.factory = session_factory(engine)
-        self.bootstrap = BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})
+        self.bootstrap = BootstrapResult([], {}, {}, {})
         self._snapshot = None
 
     def _factory(self):
@@ -299,8 +307,8 @@ class GraphController:
 
 
 @pytest.mark.asyncio
-async def test_list_handlers_returns_registry_entries(tmp_path):
-    daemon = _daemon_with_handlers(tmp_path, {"reader": "def run(): pass", "fetcher": "def run(): pass"})
+async def test_list_handlers_from_database(tmp_path):
+    daemon = await _daemon_with_handlers(tmp_path, {"reader": "def run(): pass", "fetcher": "def run(): pass"})
     service = _GraphService(daemon)
     result = await service.ListHandlers(pb2.EmptyRequest(), FakeContext())
     payload = json.loads(result.json)
@@ -310,8 +318,8 @@ async def test_list_handlers_returns_registry_entries(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_get_handler_reads_from_registry_path(tmp_path):
-    daemon = _daemon_with_handlers(tmp_path, {"reader": "async def run(ctx): return []\n"})
+async def test_get_handler_reads_from_database_path(tmp_path):
+    daemon = await _daemon_with_handlers(tmp_path, {"reader": "async def run(ctx): return []\n"})
     service = _GraphService(daemon)
     result = await service.GetHandler(pb2.NameRequest(name="reader"), FakeContext())
     payload = json.loads(result.json)
@@ -320,8 +328,8 @@ async def test_get_handler_reads_from_registry_path(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_get_handler_not_found_not_in_registry(tmp_path):
-    daemon = _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
+async def test_get_handler_not_found_not_in_database(tmp_path):
+    daemon = await _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
     service = _GraphService(daemon)
     with pytest.raises(AbortError) as exc:
         await service.GetHandler(pb2.NameRequest(name="nonexistent"), FakeContext())
@@ -329,8 +337,8 @@ async def test_get_handler_not_found_not_in_registry(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_save_handler_writes_to_registry_path(tmp_path):
-    daemon = _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
+async def test_save_handler_writes_to_database_path(tmp_path):
+    daemon = await _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
     service = _GraphService(daemon)
     result = await service.SaveHandler(
         pb2.NamedTextRequest(name="reader", content="def run(): updated"),
@@ -338,7 +346,7 @@ async def test_save_handler_writes_to_registry_path(tmp_path):
     )
     payload = json.loads(result.json)
     assert payload["code"] == "def run(): updated"
-    handler_path = tmp_path / "handlers" / "reader.py"
+    handler_path = tmp_path / "handlers" / "demo-ext" / "reader.py"
     assert handler_path.read_text(encoding="utf-8") == "def run(): updated"
 
 

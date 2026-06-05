@@ -259,6 +259,78 @@ wheels = [
 ]
 
 [[package]]
+name = "edera-core"
+version = "0.1.0"
+source = { editable = "packages/core" }
+dependencies = [
+    { name = "aiosqlite" },
+    { name = "alembic" },
+    { name = "apscheduler" },
+    { name = "cryptography" },
+    { name = "edera-types" },
+    { name = "fastapi" },
+    { name = "feedparser" },
+    { name = "grpcio" },
+    { name = "grpcio-tools" },
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "pydantic-settings" },
+    { name = "python-multipart" },
+    { name = "pyyaml" },
+    { name = "sqlmodel" },
+    { name = "uvicorn" },
+    { name = "watchfiles" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosqlite", specifier = ">=0.20.0" },
+    { name = "alembic", specifier = ">=1.13.3" },
+    { name = "apscheduler", specifier = ">=3.10.4" },
+    { name = "cryptography", specifier = ">=42.0.0" },
+    { name = "edera-types", editable = "packages/core-types" },
+    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "feedparser", specifier = ">=6.0.11" },
+    { name = "grpcio", specifier = ">=1.80.0" },
+    { name = "grpcio-tools", specifier = ">=1.80.0" },
+    { name = "httpx", specifier = ">=0.27.2" },
+    { name = "jinja2", specifier = ">=3.1.4" },
+    { name = "pydantic-settings", specifier = ">=2.5.2" },
+    { name = "python-multipart", specifier = ">=0.0.12" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "sqlmodel", specifier = ">=0.0.22" },
+    { name = "uvicorn", specifier = ">=0.30.6" },
+    { name = "watchfiles", specifier = ">=0.24.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.11.2" },
+    { name = "pytest", specifier = ">=8.3.3" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0" },
+    { name = "ruff", specifier = ">=0.6.8" },
+]
+
+[[package]]
+name = "edera-types"
+version = "0.1.0"
+source = { editable = "packages/core-types" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.0" }]
+
+[[package]]
 name = "fastapi"
 version = "0.136.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1041,78 +1113,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/81/69/17425771797c36cde
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/c9/584bc9651441b4ba60cc4d557d8a547b5aff901af35bda3a4ee30c819b82/starlette-1.0.0-py3-none-any.whl", hash = "sha256:d3ec55e0bb321692d275455ddfd3df75fff145d009685eb40dc91fc66b03d38b", size = 72651, upload-time = "2026-03-22T18:29:45.111Z" },
 ]
-
-[[package]]
-name = "edera-core"
-version = "0.1.0"
-source = { editable = "packages/core" }
-dependencies = [
-    { name = "aiosqlite" },
-    { name = "alembic" },
-    { name = "apscheduler" },
-    { name = "cryptography" },
-    { name = "fastapi" },
-    { name = "feedparser" },
-    { name = "grpcio" },
-    { name = "grpcio-tools" },
-    { name = "httpx" },
-    { name = "jinja2" },
-    { name = "pydantic-settings" },
-    { name = "python-multipart" },
-    { name = "pyyaml" },
-    { name = "sqlmodel" },
-    { name = "edera-types" },
-    { name = "uvicorn" },
-    { name = "watchfiles" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.20.0" },
-    { name = "alembic", specifier = ">=1.13.3" },
-    { name = "apscheduler", specifier = ">=3.10.4" },
-    { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "feedparser", specifier = ">=6.0.11" },
-    { name = "grpcio", specifier = ">=1.64.0" },
-    { name = "grpcio-tools", specifier = ">=1.64.0" },
-    { name = "httpx", specifier = ">=0.27.2" },
-    { name = "jinja2", specifier = ">=3.1.4" },
-    { name = "pydantic-settings", specifier = ">=2.5.2" },
-    { name = "python-multipart", specifier = ">=0.0.12" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "sqlmodel", specifier = ">=0.0.22" },
-    { name = "edera-types", editable = "packages/core-types" },
-    { name = "uvicorn", specifier = ">=0.30.6" },
-    { name = "watchfiles", specifier = ">=0.24.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.11.2" },
-    { name = "pytest", specifier = ">=8.3.3" },
-    { name = "pytest-asyncio", specifier = ">=0.24.0" },
-    { name = "ruff", specifier = ">=0.6.8" },
-]
-
-[[package]]
-name = "edera-types"
-version = "0.1.0"
-source = { editable = "packages/core-types" }
-dependencies = [
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.0" }]
 
 [[package]]
 name = "typing-extensions"
