@@ -8,7 +8,7 @@ import pytest
 from edera_core.query_service import _QueryService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import record_log_index, store_node_output_entities
+from edera_core.storage.repository import create_dag_run, mark_node_run, record_log_index, store_node_output_entities
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
@@ -70,6 +70,25 @@ async def test_node_logs_filters_run_and_node(tmp_path):
 
     assert [item["path"] for item in payload["logs"]] == ["/tmp/summary.json"]
     assert payload["logs"][0]["kind"] == "summary"
+    await daemon.controller.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_child_run_for_parent_uses_node_run_metadata(tmp_path):
+    daemon = await _daemon(tmp_path)
+    async with daemon.controller._factory()() as session:
+        await create_dag_run(session, "parent-1", "manual", ["node-x"], dag_name="dag-a")
+        await mark_node_run(session, "parent-1", "node-x", "succeeded", metadata={"sub_dag_run_id": "child-1"})
+        await create_dag_run(session, "parent-2", "manual", ["node-x"], dag_name="dag-b")
+        await mark_node_run(session, "parent-2", "node-x", "succeeded", metadata={"sub_dag_run_id": "child-2"})
+        await session.commit()
+    service = _QueryService(daemon)
+
+    result = await service.ChildRunForParent(pb2.ParentChildRunRequest(parent_run_id="parent-1", parent_node_id="node-x"), FakeContext())
+    missing = await service.ChildRunForParent(pb2.ParentChildRunRequest(parent_run_id="parent-1", parent_node_id="missing"), FakeContext())
+
+    assert json.loads(result.json)["child_run_id"] == "child-1"
+    assert json.loads(missing.json)["child_run_id"] is None
     await daemon.controller.engine.dispose()
 
 

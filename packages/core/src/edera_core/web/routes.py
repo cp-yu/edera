@@ -458,8 +458,8 @@ async def api_graph_handler_save(request: Request, name: str, body: dict[str, ob
 
 
 @router.get("/api/graph/runtime-status")
-async def api_graph_runtime_status(request: Request) -> Any:
-    return await _call(request, lambda client: client.graph_runtime_status())
+async def api_graph_runtime_status(request: Request, run_id: str | None = None) -> Any:
+    return await _call(request, lambda client: client.graph_runtime_status(run_id or ""))
 
 
 @router.get("/api/node-outputs")
@@ -475,3 +475,8 @@ async def api_node_logs(request: Request, node_id: str | None = None, run_id: st
 @router.get("/api/history/dag/{dag_name}/nodes/{node_id}", response_model=None)
 async def api_node_history(request: Request, dag_name: str, node_id: str, limit: int = 50) -> Any:
     return await _call(request, lambda client: client.query_node_history(dag_name, node_id, limit))
+
+
+@router.get("/api/child-run")
+async def api_child_run_for_parent(request: Request, parent_run_id: str, parent_node_id: str) -> Any:
+    return await _call(request, lambda client: client.query_child_run_for_parent(parent_run_id, parent_node_id))

@@ -62,9 +62,37 @@ async def test_node_execution_logs_route_uses_grpc_filters():
     assert outputs.json() == {"outputs": [{"run_id": "run-1", "node_id": "node-a", "payload": {"value": 1}}]}
 
 
+@pytest.mark.asyncio
+async def test_graph_runtime_status_route_forwards_run_id():
+    app = create_app(FakeClient())
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/graph/runtime-status", params={"run_id": "child-1"})
+
+    assert response.status_code == 200
+    assert response.json() == {"run_id": "child-1"}
+
+
+@pytest.mark.asyncio
+async def test_child_run_route_forwards_parent_instance():
+    app = create_app(FakeClient())
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/child-run", params={"parent_run_id": "parent-1", "parent_node_id": "node-x"})
+
+    assert response.status_code == 200
+    assert response.json() == {"child_run_id": "parent-1:node-x"}
+
+
 class FakeClient:
+    async def graph_runtime_status(self, run_id: str = "") -> dict[str, object]:
+        return {"run_id": run_id}
+
     async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
         return {"run_id": f"run-{name}-manual"}
+
+    async def query_child_run_for_parent(self, parent_run_id: str, parent_node_id: str) -> dict[str, object]:
+        return {"child_run_id": f"{parent_run_id}:{parent_node_id}"}
 
     async def query_node_history(self, dag_name: str, node_id: str, limit: int = 50) -> dict[str, object]:
         return {"history": [{"dag_name": dag_name, "node_id": node_id, "run_id": "run-1", "limit": limit}]}

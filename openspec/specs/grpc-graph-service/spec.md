@@ -8,7 +8,7 @@ capabilities:
 定义 GraphService DAG CRUD、GraphService Node-type CRUD、GraphService Skill CRUD、GraphService Handler CRUD等能力。
 ## Requirements
 ### Requirement: GraphService DAG CRUD
-`edera-server` SHALL 通过 `GraphService` 提供 DB-backed DAG Entity 的完整 CRUD 操作。所有验证逻辑（DAG name 格式、node 引用存在性、edge 合法性、entity permission 校验）SHALL 在 server 端执行。DAG graph payload 的 GET、SAVE 和 SAVE response SHALL 保留 `DagNodeInstance.optional` 与 `DagEdge.optional`。
+`edera-server` SHALL 通过 `GraphService` 提供 DB-backed DAG Entity 的完整 CRUD 操作。所有验证逻辑（DAG name 格式、node 引用存在性、edge 合法性、entity permission 校验）SHALL 在 server 端执行。DAG graph payload 的 GET、SAVE 和 SAVE response SHALL 保留 `DagNodeInstance.optional`、`DagNodeInstance.dag_ref`、`DagNodeInstance.input_mapping` 与 `DagEdge.optional`。
 
 #### Scenario: 列出所有 DAG
 - **WHEN** 客户端调用 `GraphService.ListDags`
@@ -18,6 +18,7 @@ capabilities:
 - **WHEN** 客户端调用 `GraphService.GetDag(name="uzi-skill")`
 - **THEN** server SHALL 返回该 DAG 的完整状态（nodes with inspector_schema、edges、ui、entity_types、entities、entity_relations）序列化为 JSON string
 - **AND** node instance payload SHALL 保留 `optional`
+- **AND** sub-DAG node instance payload SHALL 保留 `dag_ref` 与 `input_mapping`
 - **AND** edge payload SHALL 保留 `optional`
 
 #### Scenario: DAG 不存在
@@ -35,7 +36,7 @@ capabilities:
 #### Scenario: 保存 DAG
 - **WHEN** 客户端调用 `GraphService.SaveDag(name, json)` 携带合法 DAG payload
 - **THEN** server SHALL 验证 DagConfig schema、entity_permissions，原子写入 DB-backed DAG Entity，返回保存后的 DAG 状态
-- **AND** 保存后的 DAG 状态 SHALL 保留 `DagNodeInstance.optional` 与 `DagEdge.optional`
+- **AND** 保存后的 DAG 状态 SHALL 保留 `DagNodeInstance.optional`、`DagNodeInstance.dag_ref`、`DagNodeInstance.input_mapping` 与 `DagEdge.optional`
 
 #### Scenario: 保存非法 DAG
 - **WHEN** 客户端调用 `GraphService.SaveDag` 携带引用不存在 node type 的 payload
@@ -44,6 +45,10 @@ capabilities:
 #### Scenario: optional round-trip
 - **WHEN** 客户端读取 DAG 后不修改 optional 字段并保存
 - **THEN** server SHALL 在配置文件和保存响应中保留原有 node instance optional 与 edge optional 值
+
+#### Scenario: sub-DAG instance round-trip
+- **WHEN** 客户端读取包含 `dag_ref: "common-subdag"` 与 `input_mapping` 的 DAG 后不修改这些字段并保存
+- **THEN** server SHALL 在保存后的 DAG 状态中保留原有 `dag_ref` 与 `input_mapping`
 
 ### Requirement: GraphService Node-type CRUD
 `edera-server` SHALL 通过 `GraphService` 提供 DB-backed Node type Entity 的完整 CRUD 操作。
@@ -119,8 +124,14 @@ capabilities:
 - **THEN** server SHALL 返回 gRPC NOT_FOUND 错误
 
 ### Requirement: GraphService runtime-status
-`edera-server` SHALL 通过 `GraphService` 提供 DAG 运行时节点状态查询。
+`edera-server` SHALL 通过 `GraphService` 提供 DAG 运行时节点状态查询。无 run 作用域调用 SHALL 保持查询最近一次 DAG run 的既有行为；带 `run_id` 的调用 SHALL 只返回该 run 的节点执行状态。
 
 #### Scenario: 查询 runtime status
-- **WHEN** 客户端调用 `GraphService.RuntimeStatus`
+- **WHEN** 客户端调用 `GraphService.RuntimeStatus` 且未提供 `run_id`
 - **THEN** server SHALL 查询最近一次 DAG run 的各节点执行状态并返回
+
+#### Scenario: 查询指定 run runtime status
+- **WHEN** 客户端调用 runtime status 并指定 `run_id = "child-1"`
+- **THEN** server SHALL 只查询 `child-1` 的各节点执行状态并返回
+- **AND** MUST NOT 返回其他 run 的节点状态
+

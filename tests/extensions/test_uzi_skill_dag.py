@@ -24,12 +24,9 @@ def test_extension_manifest_loads() -> None:
 @pytest.mark.asyncio
 async def test_uzi_stage_dags_load(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
-    graphs = {
-        dag_name: load_graph(config.dags[dag_name], config.nodes)
-        for dag_name in ("uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering")
-    }
+    graphs = {dag_name: load_graph(config.dags[dag_name], config.nodes) for dag_name in ("uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering")}
 
-    assert "uzi-skill-analysis" not in config.dags
+    assert list(graphs["uzi-skill-analysis"].nodes) == ["data_collection", "scoring_synthesis", "rendering"]
     assert len(graphs["uzi-data-collection"].nodes) == 26
     assert len(graphs["uzi-scoring-synthesis"].nodes) == 3
     assert len(graphs["uzi-rendering"].nodes) == 22
@@ -73,10 +70,20 @@ async def test_mini_racer_fetchers_use_v8_isolate_resource(tmp_path: Path) -> No
 @pytest.mark.asyncio
 async def test_uzi_sub_dag_topology(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
+    main_graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes, config.dags)
     data_graph = load_graph(config.dags["uzi-data-collection"], config.nodes)
     scoring_graph = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
     rendering = config.dags["uzi-rendering"]
 
+    assert main_graph.edges["data_collection"] == ["scoring_synthesis"]
+    assert main_graph.edges["scoring_synthesis"] == ["rendering"]
+    assert main_graph.edges["rendering"] == []
+    assert main_graph.instances["data_collection"].type == "dag"
+    assert main_graph.instances["data_collection"].dag_ref == "uzi-data-collection"
+    assert main_graph.instances["scoring_synthesis"].type == "dag"
+    assert main_graph.instances["scoring_synthesis"].dag_ref == "uzi-scoring-synthesis"
+    assert main_graph.instances["rendering"].type == "dag"
+    assert main_graph.instances["rendering"].dag_ref == "uzi-rendering"
     assert len(data_graph.nodes) == 26
     assert data_graph.reverse_edges["0_basic"] == []
     assert data_graph.reverse_edges["autofill_mx"] == ["0_basic"]
@@ -222,6 +229,30 @@ async def test_stage_dags_mock(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_main_dag_runs_all_uzi_stages(tmp_path: Path) -> None:
+    config = await _runtime_config(tmp_path)
+    bootstrap = scan_extensions([Path("extensions")], Path("config"))
+    _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
+    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
+    graph = load_graph(config.dags["uzi-skill-analysis"], config.nodes, config.dags)
+    executor = NodeExecutor(
+        config.nodes,
+        config.system,
+        config.runtime,
+        bootstrap.handler_registry,
+        graph.instances,
+        store,
+        extension_tables=bootstrap.table_names,
+    )
+
+    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"ticker": "00100.HK"})
+
+    assert result.failures == {}
+    assert result.payload["report_path"] == "/tmp/uzi-skill-report.html"
+    assert len(result.payload["sections"]) == 21
+
+
+@pytest.mark.asyncio
 async def test_rendering_sub_dag_omits_failed_optional_sink(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
     bootstrap = scan_extensions([Path("extensions")], Path("config"))
@@ -262,9 +293,9 @@ async def test_uzi_workflow_import_boundary(tmp_path: Path) -> None:
     assert not Path("config/triggers/uzi-skill-analysis-default-cron.yaml").exists()
     assert not any(Path("config/nodes").glob("uzi-*.yaml"))
     imported = {entity.id for entity in store.query()}
-    assert "uzi-skill-analysis" not in imported
+    assert "uzi-skill-analysis" in imported
     assert "trigger:uzi-skill-analysis-default-cron" not in imported
-    assert {"uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering", "uzi-aggregate-collection-results"}.issubset(imported)
+    assert {"uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering", "uzi-aggregate-collection-results"}.issubset(imported)
 
 
 async def _runtime_config(tmp_path: Path):

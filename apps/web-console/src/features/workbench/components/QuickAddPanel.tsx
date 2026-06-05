@@ -8,7 +8,7 @@ interface Props {
   onQueryChange: (value: string) => void
   items: SearchItem[]
   onClose: () => void
-  onSelect: (name: string) => void
+  onSelect: (item: SearchItem) => void
 }
 
 export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSelect }: Props) {
@@ -31,10 +31,11 @@ export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSe
 
   const active = items[cursor]
   const groups = [
-    { role: 'source', label: 'Sources' },
-    { role: 'processor', label: 'Processors' },
-    { role: 'sink', label: 'Sinks' },
-  ].map((group) => ({ ...group, items: items.filter((item) => item.role === group.role) }))
+    { key: 'dag', label: 'DAGs', items: items.filter((item) => item.source === 'dag') },
+    { key: 'source', label: 'Sources', items: items.filter((item) => item.source === 'node' && item.role === 'source') },
+    { key: 'processor', label: 'Processors', items: items.filter((item) => item.source === 'node' && item.role === 'processor') },
+    { key: 'sink', label: 'Sinks', items: items.filter((item) => item.source === 'node' && item.role === 'sink') },
+  ]
   let itemIndex = 0
 
   return (
@@ -55,7 +56,7 @@ export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSe
                 setCursor((value) => Math.max(value - 1, 0))
               } else if (event.key === 'Enter' && active) {
                 event.preventDefault()
-                onSelect(active.name)
+                onSelect(active)
               } else if (event.key === 'Escape') {
                 event.preventDefault()
                 onClose()
@@ -70,7 +71,7 @@ export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSe
             <div className="rounded-xl px-3 py-6 text-center text-sm text-muted-foreground">没有匹配节点</div>
           ) : (
             groups.map((group) => group.items.length > 0 && (
-              <div key={group.role} className="mb-2">
+              <div key={group.key} className="mb-2">
                 <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {group.label}
                 </div>
@@ -78,9 +79,9 @@ export function QuickAddPanel({ open, query, onQueryChange, items, onClose, onSe
                   const index = itemIndex++
                   return (
                     <button
-                      key={item.name}
+                      key={`${item.source}:${item.name}`}
                       onMouseEnter={() => setCursor(index)}
-                      onClick={() => onSelect(item.name)}
+                      onClick={() => onSelect(item)}
                       className={cn(
                         'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors',
                         index === cursor ? 'bg-accent/60' : 'hover:bg-accent/40',

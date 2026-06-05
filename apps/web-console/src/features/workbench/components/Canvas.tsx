@@ -22,7 +22,7 @@ import ELK from 'elkjs'
 import { useAppStore } from '@/store/useAppStore'
 import { CustomNode } from './nodes/CustomNode'
 import { useRetryDagNode, useSaveDag } from '@/api/mutations'
-import { useNodePrototypes } from '@/api/queries'
+import { useDagList, useNodePrototypes } from '@/api/queries'
 import { entityColor } from '@/lib/colors'
 import type { DagNodeRecord, DagState, DagStatus, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
 import { CanvasContextMenu } from './CanvasContextMenu'
@@ -33,6 +33,7 @@ import {
   clearDraftIfMatch,
   createWorkbenchEdge,
   createWorkbenchNode,
+  dagPrototype,
   enrichNodeData,
   filterSearchItems,
   getEdgeColor,
@@ -51,6 +52,7 @@ import {
   type ContextMenuState,
   type GraphSnapshot,
   type GuideLine,
+  type SearchItem,
   type WorkbenchEdge,
   type WorkbenchNode,
 } from '../lib/graph'
@@ -75,12 +77,25 @@ function createInstance(prototype: NodeType): NodeInstance {
   }
 }
 
+function createDagInstance(dagName: string): NodeInstance {
+  return {
+    ...dagPrototype(dagName),
+    id: crypto.randomUUID(),
+    type_name: 'dag',
+    dag_ref: dagName,
+    alias: dagName,
+    config: {},
+    optional: false,
+  }
+}
+
 function hydrateInstance(
   instance: NodeInstance | DagNodeRecord,
   prototypes: Map<string, NodeType>,
 ): NodeInstance | null {
   const typeName = 'type_name' in instance ? instance.type_name : instance.type
-  const prototype = prototypes.get(typeName)
+  const dagRef = instance.dag_ref
+  const prototype = typeName === 'dag' && typeof dagRef === 'string' ? dagPrototype(dagRef) : prototypes.get(typeName)
   if (!prototype) return null
   const config = instance.config ?? {}
   return {
@@ -107,16 +122,18 @@ function hydrateInstance(
 }
 
 interface Props {
+  dagName: string
   dag: DagState | null
   dagStatus: DagStatus | null
   runtimeStatus: RuntimeStatus | null
   isRunning: boolean
 }
 
-export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }: Props) {
-  const { setInspectorTab, setSelectedEdge, setSelectedNode, entityFilter, selectedDagName, selectedNodeId } = useAppStore()
+export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isRunning }: Props) {
+  const { enterSubDag, setInspectorTab, setSelectedEdge, setSelectedNode, entityFilter, selectedDagName, selectedNodeId, subDagView, exitSubDag } = useAppStore()
   const { data: prototypesData } = useNodePrototypes()
-  const saveDag = useSaveDag(selectedDagName)
+  const { data: dagListData } = useDagList()
+  const saveDag = useSaveDag(dagName)
   const retryNode = useRetryDagNode()
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
   const viewport = useViewport()
@@ -141,7 +158,9 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
   const pendingDraftRef = useRef<string | null>(null)
 
   const prototypes = prototypesData?.prototypes ?? []
+  const dagCandidates = (dagListData?.dags ?? []).filter((name) => name !== selectedDagName)
   const prototypeMap = useMemo(() => new Map(prototypes.map((node) => [node.name, node])), [prototypes])
+  const dagNames = dagListData?.dags ?? []
   const retryRunId = dagStatus?.recent_runs.find((run) => run.status !== 'running')?.run_id
 
   useEffect(() => {
@@ -178,7 +197,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     const draft = toDagDraft(nextNodes, nextEdges)
     const serializedDraft = JSON.stringify(draft)
     pendingDraftRef.current = serializedDraft
-    writeDraft(selectedDagName, draft)
+    writeDraft(dagName, draft)
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
     saveTimerRef.current = window.setTimeout(() => {
       saveDag.mutate({
@@ -187,14 +206,14 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
         ui: draft.ui,
       })
     }, 500)
-  }, [dag, saveDag, selectedDagName])
+  }, [dag, dagName, saveDag])
 
   useEffect(() => {
     if (saveDag.isSuccess && pendingDraftRef.current) {
-      clearDraftIfMatch(selectedDagName, pendingDraftRef.current)
+      clearDraftIfMatch(dagName, pendingDraftRef.current)
       pendingDraftRef.current = null
     }
-  }, [saveDag.isSuccess, selectedDagName])
+  }, [dagName, saveDag.isSuccess])
 
   const recordHistory = useCallback((nextNodes: WorkbenchNode[], nextEdges: WorkbenchEdge[]) => {
     if (applyingHistoryRef.current) return
@@ -240,7 +259,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
       return
     }
 
-    const draft = readDraft(selectedDagName)
+    const draft = readDraft(dagName)
     const source: DagDraft | DagState = draft ?? dag
     const uiPositions = source.ui?.nodes ?? {}
     const sourceEdges = normalizeDagEdges(source.edges.map((edge, index) => ({
@@ -263,7 +282,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     historyRef.current = [{ nodes: nodeData, edges: edgeData }]
     historyIndexRef.current = 0
     fitCanvasToGraph()
-  }, [dag, fitCanvasToGraph, runtimeStatus, selectedDagName])
+  }, [dag, dagName, fitCanvasToGraph, runtimeStatus])
 
   useEffect(() => {
     if (!runtimeStatus) return
@@ -395,15 +414,29 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     setSelectedNode(nextNode.id)
   }, [commitGraph, prototypeMap, runtimeStatus, setSelectedNode])
 
+  const addDagNode = useCallback((dagName: string, position: { x: number; y: number }) => {
+    const instance = createDagInstance(dagName)
+    const nextNode = createWorkbenchNode(instance, position, edgesRef.current, runtimeStatus)
+    const nextNodes = [...nodesRef.current, nextNode]
+    commitGraph(nextNodes, edgesRef.current)
+    setSelectedNode(nextNode.id)
+  }, [commitGraph, runtimeStatus, setSelectedNode])
+
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault()
+      const dagName = event.dataTransfer.getData('application/edera-dag')
+      if (dagName) {
+        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+        addDagNode(dagName, position)
+        return
+      }
       const nodeName = event.dataTransfer.getData('application/reactflow')
       if (!nodeName) return
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
       addExistingNode(nodeName, position)
     },
-    [addExistingNode, screenToFlowPosition],
+    [addDagNode, addExistingNode, screenToFlowPosition],
   )
 
   const styledNodes = useMemo(() => {
@@ -453,10 +486,17 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     })
   }, [edges, selectedNodeId])
 
-  const searchItems = useMemo(
-    () => filterSearchItems(buildSearchItems(prototypes, nodes.map((node) => node.data)), searchQuery),
-    [nodes, prototypes, searchQuery],
-  )
+  const searchItems = useMemo(() => {
+    const dagItems: SearchItem[] = dagCandidates.map((name) => ({
+      name,
+      type: 'dag',
+      kind: 'processor',
+      role: 'processor',
+      aliases: [],
+      source: 'dag',
+    }))
+    return filterSearchItems([...dagItems, ...buildSearchItems(prototypes, nodes.map((node) => node.data))], searchQuery)
+  }, [dagCandidates, nodes, prototypes, searchQuery])
 
   const groupedEntities = useMemo(() => {
     const groups = new Map<string, WorkbenchNode[]>()
@@ -605,7 +645,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     if (!retryRunId) return
     clearNodeSelection()
     retryNode.mutate(
-      { dagName: selectedDagName, runId: retryRunId, nodeIds, mode },
+      { dagName, runId: retryRunId, nodeIds, mode },
       {
         onSuccess: (data) => {
           setRetryingNodeIds(new Set(data.retry_nodes))
@@ -613,7 +653,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
         },
       },
     )
-  }, [clearNodeSelection, retryRunId, retryNode, selectedDagName])
+  }, [clearNodeSelection, dagName, retryRunId, retryNode])
 
   const deleteEdgeById = useCallback((edgeId: string) => {
     const nextEdges = edgesRef.current.filter((edge) => edge.id !== edgeId)
@@ -722,7 +762,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
         {
           label: '查看上游节点历史',
           onSelect: () => {
-            if (edge) window.location.assign(`/history/dag/${selectedDagName}/nodes/${edge.source}`)
+            if (edge) window.location.assign(`/history/dag/${dagName}/nodes/${edge.source}`)
           },
         },
         { label: '反转方向', onSelect: () => reverseEdgeById(contextMenu.id) },
@@ -733,8 +773,21 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
     const isBatch = nodeIds.length > 1
     const retryDisabled = !retryRunId
     const retryTooltip = retryDisabled ? '找不到可用的 prefill 的 node' : undefined
+    const contextNode = nodesRef.current.find((node) => node.id === contextMenu.id)
+    const dagRef = typeof contextNode?.data.dag_ref === 'string' ? contextNode.data.dag_ref : null
+    const subDagName = dagRef && dagNames.includes(dagRef) ? dagRef : null
+    const parentRunId = dagStatus?.current_run_id ?? dagStatus?.recent_runs[0]?.run_id ?? null
 
     return [
+      ...(subDagName ? [{
+        label: '进入 Sub DAG',
+        onSelect: () => enterSubDag({
+          parentDagName: dagName,
+          parentNodeId: contextMenu.id,
+          parentRunId,
+          childDagName: subDagName,
+        }),
+      }] : []),
       {
         label: '查看当前运行状态',
         onSelect: () => {
@@ -744,7 +797,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
       },
       {
         label: '查看历史',
-        onSelect: () => window.location.assign(`/history/dag/${selectedDagName}/nodes/${contextMenu.id}`),
+        onSelect: () => window.location.assign(`/history/dag/${dagName}/nodes/${contextMenu.id}`),
       },
       {
         label: isBatch ? `重试 ${nodeIds.length} 个节点` : '重试节点',
@@ -761,7 +814,7 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
       { label: '删除节点', tone: 'danger' as const, onSelect: () => void deleteNodeById(contextMenu.id) },
       { label: '断开所有连线', onSelect: () => disconnectNodeById(contextMenu.id) },
     ]
-  }, [contextMenu, contextNodeIds, deleteEdgeById, reverseEdgeById, deleteNodeById, disconnectNodeById, retryRunId, retryNodes, selectedDagName, setInspectorTab, setSelectedNode])
+  }, [contextMenu, contextNodeIds, dagName, dagNames, dagStatus?.current_run_id, dagStatus?.recent_runs, deleteEdgeById, reverseEdgeById, deleteNodeById, disconnectNodeById, enterSubDag, retryRunId, retryNodes, setInspectorTab, setSelectedNode])
 
   return (
     <div ref={canvasRef} className="h-full w-full">
@@ -771,14 +824,15 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
         onQueryChange={setSearchQuery}
         items={searchItems}
         onClose={() => setSearchOpen(false)}
-        onSelect={(name) => {
+        onSelect={(item) => {
           const rect = canvasRef.current?.getBoundingClientRect()
           if (!rect) return
           const center = screenToFlowPosition({
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2,
           })
-          addExistingNode(name, center)
+          if (item.source === 'dag') addDagNode(item.name, center)
+          else addExistingNode(item.name, center)
           setSearchOpen(false)
         }}
       />
@@ -917,7 +971,21 @@ export function Canvas({ dag, dagStatus, runtimeStatus, isRunning: _isRunning }:
           ))}
         </ViewportPortal>
         <Panel position="top-right">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {subDagView ? (
+              <>
+                <span className="rounded-md border bg-card px-3 py-1.5 text-xs shadow-sm">
+                  {subDagView.parentDagName}.{subDagView.parentNodeId} {'->'} {subDagView.childDagName}
+                </span>
+                <button
+                  type="button"
+                  onClick={exitSubDag}
+                  className="rounded-md border bg-card px-3 py-1.5 text-xs shadow-sm hover:bg-accent/50"
+                >
+                  返回父 DAG
+                </button>
+              </>
+            ) : null}
             <button
               onClick={() => setSearchOpen(true)}
               className="rounded-md border bg-card px-3 py-1.5 text-xs shadow-sm hover:bg-accent/50"

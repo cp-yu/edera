@@ -1,0 +1,54 @@
+id: uzi-skill-analysis
+type: dag
+attributes:
+  name: uzi-skill-analysis
+  nodes:
+  - id: data_collection
+    type: dag
+    dag_ref: uzi-data-collection
+    alias: 数据采集
+    input_mapping: {}
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: scoring_synthesis
+    type: dag
+    dag_ref: uzi-scoring-synthesis
+    alias: 评分综合
+    input_mapping: {}
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  - id: rendering
+    type: dag
+    dag_ref: uzi-rendering
+    alias: 渲染报告
+    input_mapping: {}
+    config: {}
+    optional: false
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: null
+  edges:
+  - from: data_collection
+    to: scoring_synthesis
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier
+  - from: scoring_synthesis
+    to: rendering
+    fan_out: false
+    fan_in: false
+    condition: null
+    fan_in_mode: barrier

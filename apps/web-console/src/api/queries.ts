@@ -61,11 +61,24 @@ export function useEntities(type?: string) {
   })
 }
 
-export function useRuntimeStatus(polling = false) {
+export function useRuntimeStatus(polling = false, runId?: string | null, enabled = true) {
+  const search = runId ? `?${new URLSearchParams({ run_id: runId }).toString()}` : ''
   return useQuery({
-    queryKey: ['runtimeStatus'],
-    queryFn: () => apiFetch<RuntimeStatus>('/api/graph/runtime-status'),
+    queryKey: ['runtimeStatus', runId ?? (enabled ? 'latest' : 'disabled')],
+    queryFn: () => apiFetch<RuntimeStatus>(`/api/graph/runtime-status${search}`),
+    enabled,
     refetchInterval: polling ? 2000 : false,
+  })
+}
+
+export function useChildRun(parentRunId?: string | null, parentNodeId?: string | null) {
+  const search = parentRunId && parentNodeId
+    ? `?${new URLSearchParams({ parent_run_id: parentRunId, parent_node_id: parentNodeId }).toString()}`
+    : ''
+  return useQuery({
+    queryKey: ['childRun', parentRunId ?? '', parentNodeId ?? ''],
+    queryFn: () => apiFetch<{ child_run_id: string | null }>(`/api/child-run${search}`),
+    enabled: Boolean(parentRunId && parentNodeId),
   })
 }
 
@@ -138,7 +151,7 @@ export function useNodeOutputs(nodeId: string | null, runId?: string | null) {
   return useQuery({
     queryKey: ['nodeOutputs', nodeId, runId],
     queryFn: () => apiFetch<{ outputs: NodeOutputEntity[] }>(`/api/node-outputs${qs ? `?${qs}` : ''}`),
-    enabled: !!nodeId,
+    enabled: !!nodeId && !!runId,
   })
 }
 

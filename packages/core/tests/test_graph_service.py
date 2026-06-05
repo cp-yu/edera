@@ -8,6 +8,12 @@ import pytest
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.registry import HandlerRegistry
+from edera_core.bootstrap import scan_extensions
+from edera_core.config.entities import EntityStore
+from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
+from edera_core.dag_controller import RuntimeSnapshot
+from edera_core.storage import create_engine, init_db, session_factory
+from edera_core.storage.repository import create_dag_run, mark_node_run
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
@@ -16,7 +22,7 @@ from service_fakes import AbortError, FakeContext, FakeDaemon
 async def test_save_invalid_dag(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)
-    service = _GraphService(FakeDaemon(root))
+    service = _GraphService(await _graph_daemon(root, tmp_path))
 
     with pytest.raises(AbortError) as exc:
         await service.SaveDag(
@@ -34,7 +40,7 @@ async def test_save_invalid_dag(tmp_path):
 async def test_delete_referenced_node_type(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)
-    service = _GraphService(FakeDaemon(root))
+    service = _GraphService(await _graph_daemon(root, tmp_path))
 
     with pytest.raises(AbortError) as exc:
         await service.DeleteNodeType(pb2.NameRequest(name="reader"), FakeContext())
@@ -46,7 +52,7 @@ async def test_delete_referenced_node_type(tmp_path):
 async def test_create_skill(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)
-    service = _GraphService(FakeDaemon(root))
+    service = _GraphService(await _graph_daemon(root, tmp_path))
 
     result = await service.CreateSkill(
         pb2.JsonRequest(json=json.dumps({"name": "summarize", "description": "x", "handler_code": "def handle(): pass"})),
@@ -62,7 +68,7 @@ async def test_create_skill(tmp_path):
 async def test_get_dag_detail(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)
-    service = _GraphService(FakeDaemon(root))
+    service = _GraphService(await _graph_daemon(root, tmp_path))
 
     result = await service.GetDag(pb2.NameRequest(name="demo"), FakeContext())
     payload = json.loads(result.json)
@@ -74,7 +80,7 @@ async def test_get_dag_detail(tmp_path):
 async def test_optional_save_response(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)
-    service = _GraphService(FakeDaemon(root))
+    service = _GraphService(await _graph_daemon(root, tmp_path))
 
     result = await service.SaveDag(
         pb2.NamedJsonRequest(
@@ -101,7 +107,7 @@ async def test_optional_save_response(tmp_path):
 async def test_optional_round_trip(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)
-    service = _GraphService(FakeDaemon(root))
+    service = _GraphService(await _graph_daemon(root, tmp_path))
 
     first = await service.SaveDag(
         pb2.NamedJsonRequest(
@@ -119,10 +125,75 @@ async def test_optional_round_trip(tmp_path):
     saved = json.loads(first.json)["dag"]
     second = await service.SaveDag(pb2.NamedJsonRequest(name="demo", json=json.dumps(saved)), FakeContext())
     payload = json.loads(second.json)["dag"]
+    stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
 
     assert payload["nodes"][0]["optional"] is True
     assert payload["edges"][0]["optional"] is True
-    assert "optional: true" in (root / "dags" / "demo.yaml").read_text(encoding="utf-8")
+    assert stored.nodes[0].optional is True
+
+
+@pytest.mark.asyncio
+async def test_sub_dag_instance_round_trip(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(await _graph_daemon(root, tmp_path))
+
+    first = await service.SaveDag(
+        pb2.NamedJsonRequest(
+            name="demo",
+            json=json.dumps(
+                {
+                    "nodes": [
+                        {
+                            "id": "sub-a",
+                            "type": "dag",
+                            "dag_ref": "common-subdag",
+                            "input_mapping": {"topic": "payload.topic"},
+                            "alias": "common",
+                            "config": {"mode": "strict"},
+                        }
+                    ],
+                    "edges": [],
+                    "ui": {},
+                }
+            ),
+        ),
+        FakeContext(),
+    )
+    assert json.loads(first.json)["dag"]["nodes"][0]["config"] == {"mode": "strict"}
+    loaded = await service.GetDag(pb2.NameRequest(name="demo"), FakeContext())
+    saved = json.loads(loaded.json)
+    second = await service.SaveDag(pb2.NamedJsonRequest(name="demo", json=json.dumps(saved)), FakeContext())
+    payload = json.loads(second.json)["dag"]
+    stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
+
+    assert payload["nodes"][0]["dag_ref"] == "common-subdag"
+    assert payload["nodes"][0]["input_mapping"] == {"topic": "payload.topic"}
+    assert payload["nodes"][0]["alias"] == "common"
+    assert payload["nodes"][0]["config"] == {"mode": "strict"}
+    assert stored.nodes[0].dag_ref == "common-subdag"
+    assert stored.nodes[0].input_mapping == {"topic": "payload.topic"}
+    assert stored.nodes[0].alias == "common"
+    assert stored.nodes[0].config == {"mode": "strict"}
+
+
+@pytest.mark.asyncio
+async def test_runtime_status_can_scope_to_run_id(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(await _graph_daemon(root, tmp_path))
+    async with service.daemon.controller._factory()() as session:
+        await create_dag_run(session, "run-old", "manual", ["same-node"], dag_name="demo")
+        await mark_node_run(session, "run-old", "same-node", "failed", "old")
+        await create_dag_run(session, "run-child", "manual", ["same-node"], dag_name="common-subdag")
+        await mark_node_run(session, "run-child", "same-node", "succeeded")
+        await session.commit()
+
+    result = await service.RuntimeStatus(pb2.RuntimeStatusRequest(run_id="run-child"), FakeContext())
+    payload = json.loads(result.json)
+
+    assert payload["node_statuses"]["same-node"]["run_id"] == "run-child"
+    assert payload["node_statuses"]["same-node"]["status"] == "succeeded"
 
 
 # --- Handler registry tests ---
@@ -158,6 +229,44 @@ class _FakeSnapshot:
 class _FakeBootstrap:
     def __init__(self, handler_registry):
         self.handler_registry = handler_registry
+
+
+async def _graph_daemon(root, tmp_path):
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
+    await init_db(engine)
+    controller = GraphController(root, engine)
+    await controller.install_snapshot(_load_runtime_base_config(root), controller.bootstrap)
+    return FakeDaemon(root, controller)
+
+
+class GraphController:
+    def __init__(self, config_dir, engine):
+        self.config_dir = config_dir
+        self.engine = engine
+        self.factory = session_factory(engine)
+        self.bootstrap = scan_extensions([config_dir / "extensions"], config_dir)
+        self._snapshot = None
+
+    def _factory(self):
+        return self.factory
+
+    def runtime_snapshot(self):
+        if self._snapshot is None:
+            raise RuntimeError("missing runtime snapshot")
+        return self._snapshot
+
+    async def install_snapshot(self, config, bootstrap):
+        config = await materialize_runtime_app_config(self.config_dir, config, self.engine)
+        store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
+        self._snapshot = RuntimeSnapshot(
+            config=config,
+            bootstrap=bootstrap,
+            entity_store=store,
+            trigger_executor=None,
+            cron_emitter=None,
+            extension_table_names={},
+        )
+        return self._snapshot
 
 
 @pytest.mark.asyncio
@@ -221,5 +330,10 @@ def _write_graph_config(root):
         "name: demo\nnodes:\n- id: n1\n  type: reader\n- id: n2\n  type: reader\nedges: []\nui: {}\n",
         encoding="utf-8",
     )
+    (root / "dags" / "common-subdag.yaml").write_text(
+        "name: common-subdag\nnodes:\n- id: child\n  type: reader\nedges: []\nui: {}\n",
+        encoding="utf-8",
+    )
     (root / "entities.yaml").write_text("entities: []\n", encoding="utf-8")
     (root / "entity-relations.yaml").write_text("relations: []\n", encoding="utf-8")
+    (root / "system.toml").write_text("database_url = \"sqlite+aiosqlite:///tmp/test.db\"\nschedule_minutes = 1\n", encoding="utf-8")

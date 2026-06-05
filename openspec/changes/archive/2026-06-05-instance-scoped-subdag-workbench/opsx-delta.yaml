@@ -1,0 +1,22 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+
+MODIFIED:
+  capabilities:
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI 支持将 DAG 作为可拖入节点候选，并支持保留父节点实例上下文的 sub-DAG 导航。
+    - id: cap.web.canvas-interaction-enhancement
+      intent: 画布右键菜单支持对 sub-DAG 节点执行实例作用域的“进入 Sub DAG”操作。
+    - id: cap.web.dag-run-observability
+      intent: Web 运行观察能力支持按 child run_id 展示 sub-DAG 内部节点状态，避免同名子 DAG 在不同父实例间状态串线。
+    - id: cap.core.grpc-graph-service
+      intent: GraphService DAG graph payload 保留 sub-DAG 实例字段，并支持 run_id-scoped runtime status 查询。
+    - id: cap.web.node-instance-model
+      intent: 节点实例化模型覆盖 sub-DAG 实例的 dag_ref/input_mapping 持久化与多实例引用同一 DAG。
+    - id: cap.core.sub-dag-execution
+      intent: 子 DAG 执行支持从父 DAG run 和父节点实例解析对应 child run。
+
+REMOVED:
+  capabilities: []

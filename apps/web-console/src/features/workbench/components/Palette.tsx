@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNodePrototypes } from '@/api/queries'
+import { useDagList, useNodePrototypes } from '@/api/queries'
 import type { DagState, NodeType } from '@/api/types'
 import { NewFetcherSheet } from './NewFetcherSheet'
 
@@ -46,8 +46,13 @@ function groupPrototypes(prototypes: NodeType[]) {
   })
 }
 
+function filterDagCandidates(dags: string[], currentDagName?: string): string[] {
+  return dags.filter((name) => name !== currentDagName).sort((left, right) => left.localeCompare(right))
+}
+
 interface Props {
   dag: DagState | null
+  rootDagName: string
 }
 
 function matchesNode(node: NodeType, aliases: string[], query: string): boolean {
@@ -56,9 +61,11 @@ function matchesNode(node: NodeType, aliases: string[], query: string): boolean 
   return node.name.toLowerCase().includes(keyword) || aliases.some((alias) => alias.toLowerCase().includes(keyword))
 }
 
-export function Palette({ dag }: Props) {
+export function Palette({ dag, rootDagName }: Props) {
   const { data } = useNodePrototypes()
+  const dagList = useDagList()
   const prototypes = data?.prototypes ?? []
+  const dagCandidates = filterDagCandidates(dagList.data?.dags ?? [], rootDagName)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [collapsedRoles, setCollapsedRoles] = useState<Set<string>>(() => new Set())
@@ -141,6 +148,28 @@ export function Palette({ dag }: Props) {
           </div>}
         </div>
       ))}
+      {dagCandidates.length > 0 ? (
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">DAG 节点</div>
+          <div className="space-y-1">
+            {dagCandidates
+              .filter((name) => name.toLowerCase().includes(query.trim().toLowerCase()))
+              .map((name) => (
+                <div
+                  key={name}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/edera-dag', name)
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  className="rounded-md border px-3 py-2 text-sm cursor-grab hover:bg-accent/50 transition-colors"
+                >
+                  {name}
+                </div>
+              ))}
+          </div>
+        </div>
+      ) : null}
       <button
         onClick={() => setSheetOpen(true)}
         className="w-full rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 transition-colors"

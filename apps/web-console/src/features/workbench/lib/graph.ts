@@ -48,6 +48,7 @@ export interface SearchItem {
   kind: NodeKind
   role: NodeRole
   aliases: string[]
+  source: 'node' | 'dag'
 }
 
 export interface GraphSnapshot {
@@ -294,6 +295,8 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
     return {
       id: rest.id,
       type: rest.type_name,
+      dag_ref: rest.dag_ref,
+      input_mapping: rest.input_mapping,
       alias: rest.alias,
       config: rest.config ?? {},
       optional: Boolean(rest.optional),
@@ -355,6 +358,7 @@ export function buildSearchItems(nodes: NodeType[], instances: NodeInstance[] = 
     kind: getNodeKind(node),
     role: node.role,
     aliases: instances.filter((instance) => instance.type_name === node.name).map((instance) => instance.alias ?? ''),
+    source: 'node',
   }))
 }
 
@@ -481,4 +485,16 @@ export function getRuntimeEdgeStates(edges: WorkbenchEdge[], runtimeStatus?: Run
   }
 
   return states
+}
+
+export function dagPrototype(dagName: string): NodeType {
+  return {
+    name: dagName,
+    type: 'dag',
+    role: 'processor',
+    input_type: 'Any',
+    output_type: 'Any',
+    skills: [],
+    inspector_schema: { type: 'object', properties: {} },
+  }
 }

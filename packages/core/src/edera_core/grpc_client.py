@@ -254,8 +254,11 @@ class GrpcClient:
     async def graph_save_handler(self, name: str, code: str) -> dict[str, object]:
         return _json_response(await self.graph.SaveHandler(pb2.NamedTextRequest(name=name, content=code)))
 
-    async def graph_runtime_status(self) -> dict[str, object]:
-        return _json_response(await self.graph.RuntimeStatus(pb2.EmptyRequest()))
+    async def graph_runtime_status(self, run_id: str = "") -> dict[str, object]:
+        return _json_response(await self.graph.RuntimeStatus(pb2.RuntimeStatusRequest(run_id=run_id)))
+
+    async def query_child_run_for_parent(self, parent_run_id: str, parent_node_id: str) -> dict[str, object]:
+        return _json_response(await self.query.ChildRunForParent(pb2.ParentChildRunRequest(parent_run_id=parent_run_id, parent_node_id=parent_node_id)))
 
     async def config_list(self) -> dict[str, object]:
         return _json_response(await self.config.ListConfigs(pb2.EmptyRequest()))

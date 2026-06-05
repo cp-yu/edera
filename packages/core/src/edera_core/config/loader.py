@@ -231,7 +231,10 @@ async def materialize_runtime_app_config(
         config.entity_types = await seed_entity_type_records(session, config.entity_types)
         from edera_core.storage.repository import save_core_entity
 
+        existing_core = {entity.id for entity in await list_core_entities(session)}
         for entity in _top_level_core_entities(config_dir):
+            if entity.id in existing_core:
+                continue
             await save_core_entity(session, entity)
         if extension_imports:
             from edera_core.extension_imports import import_manifest_entities

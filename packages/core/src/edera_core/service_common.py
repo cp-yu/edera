@@ -319,13 +319,33 @@ def _graph_dag_state(
         node_config = nodes.get(instance.type)
         if node_config:
             item = node_payload(node_config, skills, entity_types, entities, model_names)
-            item.update({"id": instance.id, "type_name": instance.type, "alias": instance.alias, "config": instance.config, "optional": instance.optional})
+            item.update({
+                "id": instance.id,
+                "type_name": instance.type,
+                "dag_ref": instance.dag_ref,
+                "input_mapping": instance.input_mapping,
+                "alias": instance.alias,
+                "config": instance.config,
+                "optional": instance.optional,
+            })
             for key, value in instance.config.items():
                 if key in INSTANCE_CONFIG_FIELDS | {"parameters"}:
                     item[key] = value
             node_instances.append(item)
         else:
-            node_instances.append({"id": instance.id, "name": instance.type, "type": "function", "type_name": instance.type, "input_type": "Any", "output_type": "Any", "optional": instance.optional})
+            node_instances.append({
+                "id": instance.id,
+                "name": instance.type,
+                "type": "function",
+                "type_name": instance.type,
+                "dag_ref": instance.dag_ref,
+                "input_mapping": instance.input_mapping,
+                "alias": instance.alias,
+                "config": instance.config,
+                "input_type": "Any",
+                "output_type": "Any",
+                "optional": instance.optional,
+            })
     return {
         "name": dag.name,
         "inputs": [item.model_dump(mode="json") for item in dag.inputs],
@@ -417,6 +437,12 @@ def dag_node_payload(node: object) -> dict[str, object]:
         payload["alias"] = alias
     if bool(node.get("optional")):
         payload["optional"] = True
+    dag_ref = node.get("dag_ref")
+    if isinstance(dag_ref, str) and dag_ref:
+        payload["dag_ref"] = dag_ref
+    input_mapping = node.get("input_mapping")
+    if isinstance(input_mapping, dict):
+        payload["input_mapping"] = {str(key): str(value) for key, value in input_mapping.items()}
     return payload
 
 

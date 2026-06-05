@@ -760,6 +760,45 @@ async def test_sub_dag_execution() -> None:
 
 
 @pytest.mark.asyncio
+async def test_explicit_sub_dag_execution_with_emit_callback() -> None:
+    nodes = _condition_nodes()
+    child = DagConfig.model_validate(
+        {
+            "name": "child",
+            "nodes": [{"id": "source", "type": "rss-fetcher"}],
+            "edges": [],
+        }
+    )
+    parent = DagConfig.model_validate(
+        {
+            "name": "parent",
+            "nodes": [{"id": "child-node", "type": "dag", "dag_ref": "child"}],
+            "edges": [],
+        }
+    )
+    graph = load_graph(parent, nodes, {"child": child})
+    events: list[tuple[str, object]] = []
+    executor = NodeExecutor(
+        nodes,
+        SystemConfig(),
+        RuntimeSettings(),
+        {"fetch-rss": _handler({"from": "child"})},
+        graph.instances,
+    )
+
+    result = await DagRunner(
+        executor,
+        emit=lambda event, payload: _append_async(events, (event, payload)),
+        dags={"child": child},
+        nodes=nodes,
+    ).run(graph, "run", {"seed": True})
+
+    assert result.failures == {}
+    assert result.node_outputs["child-node"].payload == {"from": "child"}
+    assert events == []
+
+
+@pytest.mark.asyncio
 async def test_optional_failure_excluded_from_payload_and_required_failure_recorded() -> None:
     config = load_app_config(Path("config"))
     nodes = {

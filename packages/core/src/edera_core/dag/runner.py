@@ -608,7 +608,9 @@ class DagRunner:
         if self.emit is None:
             return
         instance = graph.instances[node]
-        declarations = list(self.nodes[instance.type].emits)
+        declarations: list[EmitDeclaration] = []
+        if not self._is_sub_dag_instance(instance):
+            declarations = list(self.nodes[instance.type].emits)
         instance_emits = instance.config.get("emits")
         if isinstance(instance_emits, list):
             declarations = [EmitDeclaration.model_validate(item) for item in instance_emits]
