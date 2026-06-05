@@ -1,0 +1,55 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.extension-installation-lifecycle
+      type: capability
+      intent: 扩展安装、卸载、停用、重新激活的完整生命周期管理，含 installed_extensions 数据模型、依赖检查和 bootstrap 加载逻辑
+    - id: cap.core.extension-cli-commands
+      type: capability
+      intent: CLI edera extension 子命令集，覆盖 list/show/install/uninstall/reactivate/import/export/export-entities
+    - id: cap.core.extension-grpc-service
+      type: capability
+      intent: gRPC ExtensionService 提供扩展管理 RPC 接口，支撑 CLI 和 WebConsole 操作
+    - id: cap.web.extension-management-web
+      type: capability
+      intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
+  relations:
+    - from: cap.core.extension-installation-lifecycle
+      type: contains
+      to: dom.core
+    - from: cap.core.extension-installation-lifecycle
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.extension-installation-lifecycle
+      type: depends_on
+      to: cap.core.extension-entity-imports
+    - from: cap.core.extension-installation-lifecycle
+      type: depends_on
+      to: cap.core.extension-declarative-storage
+    - from: cap.core.extension-cli-commands
+      type: contains
+      to: dom.core
+    - from: cap.core.extension-cli-commands
+      type: depends_on
+      to: cap.core.extension-grpc-service
+    - from: cap.core.extension-grpc-service
+      type: contains
+      to: dom.core
+    - from: cap.core.extension-grpc-service
+      type: depends_on
+      to: cap.core.extension-installation-lifecycle
+    - from: cap.web.extension-management-web
+      type: contains
+      to: dom.web
+    - from: cap.web.extension-management-web
+      type: depends_on
+      to: cap.core.extension-grpc-service
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      intent: 扩展 manifest 声明、解析、校验，安装时执行而非 bootstrap 自动扫描；移除文件名 Fallback 机制
+    - id: cap.core.extension-entity-imports
+      intent: 扩展安装时导入 Entity 实例，导入记录合并到 installed_extensions.import_records JSON 字段
+    - id: cap.core.edera-cli
+      intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力

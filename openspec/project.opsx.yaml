@@ -125,7 +125,7 @@ capabilities:
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability
   - id: cap.core.extension-manifest-system
-    intent: 扩展 manifest 声明、解析、校验和文件名 fallback 机制，提供 NodeTypeDescriptor、依赖校验、imports.entities 导入声明解析和 workflow package 显式 ownership 边界
+    intent: 扩展 manifest 声明、解析、校验，安装时执行而非 bootstrap 自动扫描；移除文件名 Fallback 机制
     type: capability
   - id: cap.core.core-bootstrap
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 提供 Entity、DAG、Event、System、Node 控制能力，并支持按 run_id 查询节点 execution logs
+    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -275,7 +275,7 @@ capabilities:
     status: draft
     type: capability
   - id: cap.core.extension-entity-imports
-    intent: Extension manifest 声明 imports.entities 后由独立 importer 自动导入 Entity 实例一次，并通过 extension_imports 记录导入状态、digest 和未来卸载依据
+    intent: 扩展安装时导入 Entity 实例，导入记录合并到 installed_extensions.import_records JSON 字段
     type: capability
   - id: cap.core.default-news-workflow
     intent: 默认新闻工作流作为 extension-owned package 导入 default DAG、默认节点、默认 cron trigger 和 DAG 直接引用的信息源 seed Entity
@@ -285,4 +285,16 @@ capabilities:
     type: capability
   - id: cap.core.subdag-cycle-error-detail
     intent: 增强 Sub DAG 循环检测错误消息，提供节点级路径追踪和具体修复建议
+    type: capability
+  - id: cap.core.extension-installation-lifecycle
+    intent: 扩展安装、卸载、停用、重新激活的完整生命周期管理，含 installed_extensions 数据模型、依赖检查和 bootstrap 加载逻辑
+    type: capability
+  - id: cap.core.extension-cli-commands
+    intent: CLI edera extension 子命令集，覆盖 list/show/install/uninstall/reactivate/import/export/export-entities
+    type: capability
+  - id: cap.core.extension-grpc-service
+    intent: gRPC ExtensionService 提供扩展管理 RPC 接口，支撑 CLI 和 WebConsole 操作
+    type: capability
+  - id: cap.web.extension-management-web
+    intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
     type: capability

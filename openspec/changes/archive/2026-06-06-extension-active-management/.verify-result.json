@@ -1,0 +1,485 @@
+{
+  "timestamp": "2026-06-05T17:42:28.700Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "3722bff58e637d2e9cce18cdfc20beb6dea95f69c491af33b06b30ded110f4de",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "apps/web-console/src/api/mutations.ts",
+      "apps/web-console/src/api/queries.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/components/layout/SideNav.tsx",
+      "apps/web-console/src/features/extensions/ExtensionDetail.tsx",
+      "apps/web-console/src/features/extensions/ExtensionList.tsx",
+      "apps/web-console/src/features/extensions/ExtensionPage.tsx",
+      "apps/web-console/src/router/index.tsx",
+      "apps/web-console/tests/extensions.spec.ts",
+      "openspec/changes/extension-active-management/design.md",
+      "openspec/changes/extension-active-management/opsx-delta.yaml",
+      "openspec/changes/extension-active-management/proposal.md",
+      "openspec/changes/extension-active-management/specs/edera-cli/spec.md",
+      "openspec/changes/extension-active-management/specs/extension-cli-commands/spec.md",
+      "openspec/changes/extension-active-management/specs/extension-entity-imports/spec.md",
+      "openspec/changes/extension-active-management/specs/extension-grpc-service/spec.md",
+      "openspec/changes/extension-active-management/specs/extension-installation-lifecycle/spec.md",
+      "openspec/changes/extension-active-management/specs/extension-management-web/spec.md",
+      "openspec/changes/extension-active-management/specs/extension-manifest-system/spec.md",
+      "openspec/changes/extension-active-management/tasks.md",
+      "packages/core/src/edera_core/bootstrap.py",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/engine.py",
+      "packages/core/src/edera_core/extension_imports.py",
+      "packages/core/src/edera_core/extension_manager.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/grpc_extension_service.py",
+      "packages/core/src/edera_core/manifest.py",
+      "packages/core/src/edera_core/migration/migrate_extensions.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "proto/edera.proto",
+      "tests/core/test_core_extension_runtime.py",
+      "tests/core/unit/test_bootstrap_refactor.py",
+      "tests/core/unit/test_cli_extension.py",
+      "tests/core/unit/test_extension_install.py",
+      "tests/core/unit/test_extension_migration.py",
+      "tests/core/unit/test_extension_uninstall.py",
+      "tests/core/unit/test_grpc_extension_service.py",
+      "tests/core/unit/test_installed_extensions_repo.py"
+    ],
+    "evidenceFingerprint": "3ed15ba4329af67f0193a28a351eb3cb25e0a9f6fb211d454a8c3dfed823d788",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/api/mutations.ts",
+        "hash": "79b184095757a94eb7cc84e248b5a664a59ec9bb26703f498bb782d931cc0dcb"
+      },
+      {
+        "path": "apps/web-console/src/api/queries.ts",
+        "hash": "710607daa753ccd2a435020befaa355112a2a801510f12c238156a1aa2bbd49a"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "b09c498eba63ecaa5bf2fab616ddb836aef6c54d564b960ab7d0470322acc2e8"
+      },
+      {
+        "path": "apps/web-console/src/components/layout/SideNav.tsx",
+        "hash": "0d5058f884ae64f10f160b6d50b17bc2453da595572c99e9e4690fa43eea8f9f"
+      },
+      {
+        "path": "apps/web-console/src/features/extensions/ExtensionDetail.tsx",
+        "hash": "5eba65b07e9f3e38d3326d6444e89adc27c06c62d9f4ccd46cf4758be1d91108"
+      },
+      {
+        "path": "apps/web-console/src/features/extensions/ExtensionList.tsx",
+        "hash": "5678e3cc4b46bca7a46dff91623c48a66fbde7cdf87d0789289a1258d6c7b52c"
+      },
+      {
+        "path": "apps/web-console/src/features/extensions/ExtensionPage.tsx",
+        "hash": "c29b47589d4514784a6e60783981bc24270bc6c8fcd7c8aad6fd73401f5ddb3c"
+      },
+      {
+        "path": "apps/web-console/src/router/index.tsx",
+        "hash": "90d01445ffeae3fa93bf4cde7fb496b7cfb8465d1815bfe577429a5e2f43709d"
+      },
+      {
+        "path": "apps/web-console/tests/extensions.spec.ts",
+        "hash": "4d9dfeb586ea97d1380f507939949468bcbe54a4183c047a688c0060254efdc5"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/design.md",
+        "hash": "6fd49fa1aa4d7513184eb0f6828290d2cb774690f7461eee23e0acc74682f6c4"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/opsx-delta.yaml",
+        "hash": "32b38743a6c99aab28b60334348058a3dd0c83ea0f4d65f07a50f94285b6608a"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/proposal.md",
+        "hash": "3dbf6ba8c8ce8bb5c5e35f7d5ab80444f014ab26fc96eaac9dc929557d1f6d7c"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/edera-cli/spec.md",
+        "hash": "13d49da8bcba037979024d12e5ccef234d0694195ec218e9ba062d5af4e917f8"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/extension-cli-commands/spec.md",
+        "hash": "bc910d576faf5a1a50819b93f42c4b7504fb31a9c8424d712bcac857bf357233"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/extension-entity-imports/spec.md",
+        "hash": "0e0a1555dbb5c554759f12db4a88fb46f47d84eb16c927e28be70b7c2d29f52f"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/extension-grpc-service/spec.md",
+        "hash": "c7bd55c7de289ebb04bf7d0b35c0016b4524b11c7d7ebb3cf0acd0b9abf6e85a"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/extension-installation-lifecycle/spec.md",
+        "hash": "140bdb2cc6573e9f53820b8ba0622094c60994a3a7b961c64a6a61fafc9b58e7"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/extension-management-web/spec.md",
+        "hash": "c9b77c8d0c154dd0857c63df1d09f06b140649d1df78b84f59e0a5403ba783d7"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/specs/extension-manifest-system/spec.md",
+        "hash": "435a5c04da3bc8f530a7c41aa607aa168eddbba9acfa0334743756efdfc44dad"
+      },
+      {
+        "path": "openspec/changes/extension-active-management/tasks.md",
+        "hash": "3722bff58e637d2e9cce18cdfc20beb6dea95f69c491af33b06b30ded110f4de"
+      },
+      {
+        "path": "packages/core/src/edera_core/bootstrap.py",
+        "hash": "368fd5df6d57d23231ecceec4a699d2333e6a01467af309496b88d52191f3181"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "b2111f0179972058add33d3e8603d415db825eda7c0411af38ffef378674cc29"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "5cf8613fb58df9fe5307ab0865a81a360ccd1f8bfcf60c0426eeebdd315fa68c"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "625272b2b515aa62b1fb6d06925920b0ce41cb492f3a505e43b949814cf76e44"
+      },
+      {
+        "path": "packages/core/src/edera_core/engine.py",
+        "hash": "a707b3bca38f0c2cd25f199b52e39f179a694c7d2ff15aff98721c745f729ef9"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_imports.py",
+        "hash": "6fd87e7feb102eacae20c2f728bc4a8c41a49f5dcbc374a408b0ab04a7f64d34"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_manager.py",
+        "hash": "400260355e46b537f4b1c0b5885dd5ff634ebc2500a6b8e7ffd11e2bd9836e57"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "0ff3e6ac0021733f50117b4872cbec6fef02e9de93437a11c84fdcc78908d4c4"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_extension_service.py",
+        "hash": "5051dba99a84d227db83576f2dd1ae6a30f4397a7b893aae95f55e3959f5bd92"
+      },
+      {
+        "path": "packages/core/src/edera_core/manifest.py",
+        "hash": "2dd749cb873a1430988a67cf77835103878c9eda513c5acc140e9a97488adb95"
+      },
+      {
+        "path": "packages/core/src/edera_core/migration/migrate_extensions.py",
+        "hash": "7334af2e681d2123589e075aa803adc429629d0c26bc190c95b13ff608cb07ed"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "fa0698d7400243b0e57b937cd871e90f1f01dd44666f142564e60a963211033f"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "f53bfe72ee45d26f86028f450f096be11298064c931696c4ecd48a9e2b352844"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "4ddbb6186a233ae566ce56c13557444b04410f00810cb14607f23491c599e140"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "cf33db93dc155630cc735d8346053d4d88a482378b6475d570cb9667b21d225b"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "9883579eb2d885c4b12d72edf83de0eec94a80bfb8fa1b52aaf242f5cc0f9aa7"
+      },
+      {
+        "path": "tests/core/test_core_extension_runtime.py",
+        "hash": "7bad9fda6be5e482c64ce638d9233f5bb1d428c07218bda1cf5c230f7e8de304"
+      },
+      {
+        "path": "tests/core/unit/test_bootstrap_refactor.py",
+        "hash": "7a2da71b9858e806ee099b53e7b608a33aca8a2faf3f2a80061ddec5cb9cc49f"
+      },
+      {
+        "path": "tests/core/unit/test_cli_extension.py",
+        "hash": "008a996277ff39a18602194e6f2c0a2df23b52e4397a01c98bcdfd1e7d409a99"
+      },
+      {
+        "path": "tests/core/unit/test_extension_install.py",
+        "hash": "74a9f69d630347ea9f1fda513212160843d090782d152a53b555929eac43f816"
+      },
+      {
+        "path": "tests/core/unit/test_extension_migration.py",
+        "hash": "c6e6de6c9b6e552bd24c0a6d4bb7cc4d4fedb12f05a191ea2b98c8ef5ce6d864"
+      },
+      {
+        "path": "tests/core/unit/test_extension_uninstall.py",
+        "hash": "b92a36c934fc558d94e32083f03116598644e4ba1bf9da93b58594df2ddfb36b"
+      },
+      {
+        "path": "tests/core/unit/test_grpc_extension_service.py",
+        "hash": "cd7e00e984db19a7b94debc2841f25c0307c748cac72284a1937a13d411e8b55"
+      },
+      {
+        "path": "tests/core/unit/test_installed_extensions_repo.py",
+        "hash": "249526675c529cba510ee83aff437ff93b5c3e5556abcd3735840314a14e3434"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "baa79db344f26bd2da62aaea3b3a9542cf539b11"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-05T17:46:23.712Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Optimizer subagent returned: No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-05T17:42:28.700Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "3722bff58e637d2e9cce18cdfc20beb6dea95f69c491af33b06b30ded110f4de",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "apps/web-console/src/api/mutations.ts",
+          "apps/web-console/src/api/queries.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/components/layout/SideNav.tsx",
+          "apps/web-console/src/features/extensions/ExtensionDetail.tsx",
+          "apps/web-console/src/features/extensions/ExtensionList.tsx",
+          "apps/web-console/src/features/extensions/ExtensionPage.tsx",
+          "apps/web-console/src/router/index.tsx",
+          "apps/web-console/tests/extensions.spec.ts",
+          "openspec/changes/extension-active-management/design.md",
+          "openspec/changes/extension-active-management/opsx-delta.yaml",
+          "openspec/changes/extension-active-management/proposal.md",
+          "openspec/changes/extension-active-management/specs/edera-cli/spec.md",
+          "openspec/changes/extension-active-management/specs/extension-cli-commands/spec.md",
+          "openspec/changes/extension-active-management/specs/extension-entity-imports/spec.md",
+          "openspec/changes/extension-active-management/specs/extension-grpc-service/spec.md",
+          "openspec/changes/extension-active-management/specs/extension-installation-lifecycle/spec.md",
+          "openspec/changes/extension-active-management/specs/extension-management-web/spec.md",
+          "openspec/changes/extension-active-management/specs/extension-manifest-system/spec.md",
+          "openspec/changes/extension-active-management/tasks.md",
+          "packages/core/src/edera_core/bootstrap.py",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/engine.py",
+          "packages/core/src/edera_core/extension_imports.py",
+          "packages/core/src/edera_core/extension_manager.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/grpc_extension_service.py",
+          "packages/core/src/edera_core/manifest.py",
+          "packages/core/src/edera_core/migration/migrate_extensions.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "proto/edera.proto",
+          "tests/core/test_core_extension_runtime.py",
+          "tests/core/unit/test_bootstrap_refactor.py",
+          "tests/core/unit/test_cli_extension.py",
+          "tests/core/unit/test_extension_install.py",
+          "tests/core/unit/test_extension_migration.py",
+          "tests/core/unit/test_extension_uninstall.py",
+          "tests/core/unit/test_grpc_extension_service.py",
+          "tests/core/unit/test_installed_extensions_repo.py"
+        ],
+        "evidenceFingerprint": "3ed15ba4329af67f0193a28a351eb3cb25e0a9f6fb211d454a8c3dfed823d788",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/api/mutations.ts",
+            "hash": "79b184095757a94eb7cc84e248b5a664a59ec9bb26703f498bb782d931cc0dcb"
+          },
+          {
+            "path": "apps/web-console/src/api/queries.ts",
+            "hash": "710607daa753ccd2a435020befaa355112a2a801510f12c238156a1aa2bbd49a"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "b09c498eba63ecaa5bf2fab616ddb836aef6c54d564b960ab7d0470322acc2e8"
+          },
+          {
+            "path": "apps/web-console/src/components/layout/SideNav.tsx",
+            "hash": "0d5058f884ae64f10f160b6d50b17bc2453da595572c99e9e4690fa43eea8f9f"
+          },
+          {
+            "path": "apps/web-console/src/features/extensions/ExtensionDetail.tsx",
+            "hash": "5eba65b07e9f3e38d3326d6444e89adc27c06c62d9f4ccd46cf4758be1d91108"
+          },
+          {
+            "path": "apps/web-console/src/features/extensions/ExtensionList.tsx",
+            "hash": "5678e3cc4b46bca7a46dff91623c48a66fbde7cdf87d0789289a1258d6c7b52c"
+          },
+          {
+            "path": "apps/web-console/src/features/extensions/ExtensionPage.tsx",
+            "hash": "c29b47589d4514784a6e60783981bc24270bc6c8fcd7c8aad6fd73401f5ddb3c"
+          },
+          {
+            "path": "apps/web-console/src/router/index.tsx",
+            "hash": "90d01445ffeae3fa93bf4cde7fb496b7cfb8465d1815bfe577429a5e2f43709d"
+          },
+          {
+            "path": "apps/web-console/tests/extensions.spec.ts",
+            "hash": "4d9dfeb586ea97d1380f507939949468bcbe54a4183c047a688c0060254efdc5"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/design.md",
+            "hash": "6fd49fa1aa4d7513184eb0f6828290d2cb774690f7461eee23e0acc74682f6c4"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/opsx-delta.yaml",
+            "hash": "32b38743a6c99aab28b60334348058a3dd0c83ea0f4d65f07a50f94285b6608a"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/proposal.md",
+            "hash": "3dbf6ba8c8ce8bb5c5e35f7d5ab80444f014ab26fc96eaac9dc929557d1f6d7c"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/edera-cli/spec.md",
+            "hash": "13d49da8bcba037979024d12e5ccef234d0694195ec218e9ba062d5af4e917f8"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/extension-cli-commands/spec.md",
+            "hash": "bc910d576faf5a1a50819b93f42c4b7504fb31a9c8424d712bcac857bf357233"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/extension-entity-imports/spec.md",
+            "hash": "0e0a1555dbb5c554759f12db4a88fb46f47d84eb16c927e28be70b7c2d29f52f"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/extension-grpc-service/spec.md",
+            "hash": "c7bd55c7de289ebb04bf7d0b35c0016b4524b11c7d7ebb3cf0acd0b9abf6e85a"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/extension-installation-lifecycle/spec.md",
+            "hash": "140bdb2cc6573e9f53820b8ba0622094c60994a3a7b961c64a6a61fafc9b58e7"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/extension-management-web/spec.md",
+            "hash": "c9b77c8d0c154dd0857c63df1d09f06b140649d1df78b84f59e0a5403ba783d7"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/specs/extension-manifest-system/spec.md",
+            "hash": "435a5c04da3bc8f530a7c41aa607aa168eddbba9acfa0334743756efdfc44dad"
+          },
+          {
+            "path": "openspec/changes/extension-active-management/tasks.md",
+            "hash": "3722bff58e637d2e9cce18cdfc20beb6dea95f69c491af33b06b30ded110f4de"
+          },
+          {
+            "path": "packages/core/src/edera_core/bootstrap.py",
+            "hash": "368fd5df6d57d23231ecceec4a699d2333e6a01467af309496b88d52191f3181"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "b2111f0179972058add33d3e8603d415db825eda7c0411af38ffef378674cc29"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "5cf8613fb58df9fe5307ab0865a81a360ccd1f8bfcf60c0426eeebdd315fa68c"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "625272b2b515aa62b1fb6d06925920b0ce41cb492f3a505e43b949814cf76e44"
+          },
+          {
+            "path": "packages/core/src/edera_core/engine.py",
+            "hash": "a707b3bca38f0c2cd25f199b52e39f179a694c7d2ff15aff98721c745f729ef9"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_imports.py",
+            "hash": "6fd87e7feb102eacae20c2f728bc4a8c41a49f5dcbc374a408b0ab04a7f64d34"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_manager.py",
+            "hash": "400260355e46b537f4b1c0b5885dd5ff634ebc2500a6b8e7ffd11e2bd9836e57"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "0ff3e6ac0021733f50117b4872cbec6fef02e9de93437a11c84fdcc78908d4c4"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_extension_service.py",
+            "hash": "5051dba99a84d227db83576f2dd1ae6a30f4397a7b893aae95f55e3959f5bd92"
+          },
+          {
+            "path": "packages/core/src/edera_core/manifest.py",
+            "hash": "2dd749cb873a1430988a67cf77835103878c9eda513c5acc140e9a97488adb95"
+          },
+          {
+            "path": "packages/core/src/edera_core/migration/migrate_extensions.py",
+            "hash": "7334af2e681d2123589e075aa803adc429629d0c26bc190c95b13ff608cb07ed"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "fa0698d7400243b0e57b937cd871e90f1f01dd44666f142564e60a963211033f"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "f53bfe72ee45d26f86028f450f096be11298064c931696c4ecd48a9e2b352844"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "4ddbb6186a233ae566ce56c13557444b04410f00810cb14607f23491c599e140"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "cf33db93dc155630cc735d8346053d4d88a482378b6475d570cb9667b21d225b"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "9883579eb2d885c4b12d72edf83de0eec94a80bfb8fa1b52aaf242f5cc0f9aa7"
+          },
+          {
+            "path": "tests/core/test_core_extension_runtime.py",
+            "hash": "7bad9fda6be5e482c64ce638d9233f5bb1d428c07218bda1cf5c230f7e8de304"
+          },
+          {
+            "path": "tests/core/unit/test_bootstrap_refactor.py",
+            "hash": "7a2da71b9858e806ee099b53e7b608a33aca8a2faf3f2a80061ddec5cb9cc49f"
+          },
+          {
+            "path": "tests/core/unit/test_cli_extension.py",
+            "hash": "008a996277ff39a18602194e6f2c0a2df23b52e4397a01c98bcdfd1e7d409a99"
+          },
+          {
+            "path": "tests/core/unit/test_extension_install.py",
+            "hash": "74a9f69d630347ea9f1fda513212160843d090782d152a53b555929eac43f816"
+          },
+          {
+            "path": "tests/core/unit/test_extension_migration.py",
+            "hash": "c6e6de6c9b6e552bd24c0a6d4bb7cc4d4fedb12f05a191ea2b98c8ef5ce6d864"
+          },
+          {
+            "path": "tests/core/unit/test_extension_uninstall.py",
+            "hash": "b92a36c934fc558d94e32083f03116598644e4ba1bf9da93b58594df2ddfb36b"
+          },
+          {
+            "path": "tests/core/unit/test_grpc_extension_service.py",
+            "hash": "cd7e00e984db19a7b94debc2841f25c0307c748cac72284a1937a13d411e8b55"
+          },
+          {
+            "path": "tests/core/unit/test_installed_extensions_repo.py",
+            "hash": "249526675c529cba510ee83aff437ff93b5c3e5556abcd3735840314a14e3434"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "baa79db344f26bd2da62aaea3b3a9542cf539b11"
+      }
+    }
+  }
+}

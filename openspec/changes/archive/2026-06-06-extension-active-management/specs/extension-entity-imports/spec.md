@@ -2,11 +2,10 @@
 capabilities:
   - cap.core.extension-entity-imports
 ---
-# extension-entity-imports Specification
+# extension-entity-imports Delta Specification
 
-## Purpose
-定义 Extension manifest entity imports、Extension entity import records、Extension entity imports are idempotent、Extension import index supports future uninstall。
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Extension manifest entity imports
 
 系统 SHALL 支持 extension manifest 通过 `imports.entities` 声明一组待导入的 Entity YAML 路径。路径 MUST 相对该 extension 根目录（`extensions/<name>/`）解析，且每个文件 MUST 是完整 Entity 文档，包含 `type`、`id` 和 `attributes`。Entity 导入 SHALL 仅在扩展安装操作时执行，MUST NOT 在 bootstrap 启动时自动触发。
@@ -48,6 +47,8 @@ capabilities:
 - **THEN** importer SHALL 跳过该 path
 - **AND** MUST NOT 读取该 path 后覆盖 DB Entity
 
+## ADDED Requirements
+
 ### Requirement: Import records 支持卸载
 
 `import_records` SHALL 保存足够信息以支持扩展卸载时的 Entity 清理。
@@ -68,3 +69,8 @@ capabilities:
 - **WHEN** 卸载策略为 `keep-modified` 且 import record 的 `status = "skipped_existing"`
 - **THEN** 系统 MUST NOT 删除该 Entity
 
+## REMOVED Requirements
+
+### Requirement: Extension import index supports future uninstall
+**Reason**: 卸载逻辑已在 `extension-installation-lifecycle` 中完整定义，不再需要独立的 "future uninstall" 前瞻性要求。
+**Migration**: 卸载功能直接由 `extension-installation-lifecycle` spec 的卸载策略承接。

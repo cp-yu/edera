@@ -2,11 +2,10 @@
 capabilities:
   - cap.core.extension-manifest-system
 ---
-# extension-manifest-system Specification
+# extension-manifest-system Delta Specification
 
-## Purpose
-定义 Manifest 文件解析、文件名 Fallback 机制、Handler 描述符提取、扩展依赖声明等能力。
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Manifest 文件解析
 
 核心 SHALL 解析扩展目录下的 `manifest.yaml` 文件，提取 handler 声明、entity type 声明、依赖信息和 import 声明。Manifest MUST 遵循固定 schema：顶层字段 `name`（必填）、`version`（必填）、`description`（可选）、`depends`（可选）、`handlers`（可选）、`entity_types`（可选）、`storage`（可选）、`imports`（可选）。Manifest 解析 SHALL 仅在显式安装操作时执行，MUST NOT 在 bootstrap 时自动扫描。
@@ -33,20 +32,6 @@ capabilities:
 - **THEN** 系统 SHALL 解析并保留这些 Entity import declaration
 - **AND** 安装过程 SHALL 通过独立 importer 处理 Entity 导入
 
-### Requirement: Handler 描述符提取
-
-核心 SHALL 从 manifest 的 `handlers` 段提取 `NodeTypeDescriptor`，包含 `name`、`role`、`input_type`、`output_type`，用于 DAG 拓扑校验。
-
-#### Scenario: 提取 NodeTypeDescriptor
-
-- **WHEN** manifest 声明 handler `name: fetch-rss, role: source, input_type: Any, output_type: "list[RawItem]"`
-- **THEN** 核心 SHALL 构建 `NodeTypeDescriptor(name="fetch-rss", role="source", input_type="Any", output_type="list[RawItem]")` 并注册到 node type registry
-
-#### Scenario: 同一扩展提供多个 handler
-
-- **WHEN** manifest 的 `handlers` 段包含多个条目
-- **THEN** 核心 SHALL 为每个条目分别构建并注册 `NodeTypeDescriptor`
-
 ### Requirement: 扩展依赖声明
 
 Manifest MAY 包含 `depends` 字段声明对其他扩展或 `_lib/` 模块的依赖。系统 SHALL 在安装时校验依赖是否已安装。
@@ -66,3 +51,16 @@ Manifest MAY 包含 `depends` 字段声明对其他扩展或 `_lib/` 模块的�
 - **WHEN** manifest 声明 `depends: [_lib/http_fetch]`
 - **THEN** 系统 SHALL 检查 `extensions/_lib/http_fetch.py` 或 `handlers/_lib/http_fetch.py` 是否存在
 
+## REMOVED Requirements
+
+### Requirement: 文件名 Fallback 机制
+**Reason**: 主动安装模式下所有扩展 MUST 提供 `manifest.yaml`，无 manifest 的扩展不再被支持。
+**Migration**: 为现有无 manifest 的扩展创建 `manifest.yaml` 文件。
+
+### Requirement: Manifest imports declarations
+**Reason**: 功能合并到 `extension-installation-lifecycle` 的安装流程中，import declaration 解析在安装时执行而非 scan 时。
+**Migration**: 无需迁移，manifest 格式不变。
+
+### Requirement: Workflow package import boundary
+**Reason**: 安装时显式导入取代了扫描时的 import boundary 约束。
+**Migration**: 无需迁移，`imports.entities` 语义不变。

@@ -195,3 +195,33 @@ relations:
   - from: cap.core.grpc-graph-service
     type: depends_on
     to: cap.core.subdag-cycle-error-detail
+  - from: cap.core.extension-installation-lifecycle
+    type: contains
+    to: dom.core
+  - from: cap.core.extension-installation-lifecycle
+    type: depends_on
+    to: cap.core.extension-manifest-system
+  - from: cap.core.extension-installation-lifecycle
+    type: depends_on
+    to: cap.core.extension-entity-imports
+  - from: cap.core.extension-installation-lifecycle
+    type: depends_on
+    to: cap.core.extension-declarative-storage
+  - from: cap.core.extension-cli-commands
+    type: contains
+    to: dom.core
+  - from: cap.core.extension-cli-commands
+    type: depends_on
+    to: cap.core.extension-grpc-service
+  - from: cap.core.extension-grpc-service
+    type: contains
+    to: dom.core
+  - from: cap.core.extension-grpc-service
+    type: depends_on
+    to: cap.core.extension-installation-lifecycle
+  - from: cap.web.extension-management-web
+    type: contains
+    to: dom.web
+  - from: cap.web.extension-management-web
+    type: depends_on
+    to: cap.core.extension-grpc-service
