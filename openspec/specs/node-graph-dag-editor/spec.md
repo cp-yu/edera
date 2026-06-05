@@ -63,6 +63,10 @@ capabilities:
 - **WHEN** 用户保存包含环、未知节点或 I/O 类型不匹配的 Node Graph DAG
 - **THEN** 系统 MUST 拒绝保存、返回可读错误并保持原 DAG 文件内容不变
 
+#### Scenario: Reject sub-DAG nesting cycle
+- **WHEN** 用户保存的 Node Graph DAG 包含 `type: "dag"` 且 `dag_ref` 指向当前 DAG 或形成间接 sub-DAG 环
+- **THEN** 系统 MUST 拒绝保存、返回可读错误并保持原 DAG Entity 内容不变
+
 ### Requirement: Node Inspector configuration
 系统 SHALL 在 Node Graph Inspector 中根据 `inspector_schema` 展示 schema 驱动的可配置字段。
 

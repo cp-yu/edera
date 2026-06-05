@@ -365,7 +365,7 @@ DAG 工作台 Inspector SHALL 在现有 `Config | Runtime` tab 之外增加 `Tri
 - **AND** SHALL NOT 修改该节点类型的全局 NodeConfig
 
 ### Requirement: DAG palette entries
-Workbench 左侧节点面板 SHALL 展示可作为 sub-DAG 节点拖入的 DAG 候选。DAG 候选 MUST 与普通 Node type 候选可区分，并 MUST NOT 将当前正在编辑的根 DAG 作为可直接拖入候选。
+Workbench 左侧节点面板 SHALL 展示可作为 sub-DAG 节点拖入的 DAG 候选。DAG 候选 MUST 与普通 Node type 候选可区分，并 MUST NOT 将当前正在编辑的根 DAG 或 active sub-DAG 作为可直接拖入候选。
 
 #### Scenario: DAG appears in palette
 - **WHEN** 用户进入 `/workbench` 且系统存在 DAG `common-subdag`
@@ -381,6 +381,11 @@ Workbench 左侧节点面板 SHALL 展示可作为 sub-DAG 节点拖入的 DAG �
 #### Scenario: Current DAG excluded
 - **WHEN** 用户正在编辑 DAG `dagA`
 - **THEN** 左侧节点面板 MUST NOT 将 `dagA` 作为可拖入 DAG 候选展示
+
+#### Scenario: Root and active sub-DAG excluded
+- **WHEN** 用户从根 DAG `dagA` 进入 sub-DAG `common-subdag` 的结构视图
+- **THEN** 左侧节点面板和 quick-add 面板 MUST NOT 将 `dagA` 或 `common-subdag` 作为可添加 DAG 候选展示
+- **AND** 画布 drop 处理 MUST 忽略指向 `dagA` 或 `common-subdag` 的 DAG 拖拽数据
 
 ### Requirement: Instance-scoped sub-DAG navigation
 Workbench SHALL 支持从父 DAG 中的 sub-DAG 节点进入目标 DAG 的结构视图，同时保留父节点实例上下文。该导航 MUST 不覆盖根 DAG 选择器中持久化的 `selectedDagName`。
@@ -398,4 +403,3 @@ Workbench SHALL 支持从父 DAG 中的 sub-DAG 节点进入目标 DAG 的结构
 #### Scenario: Root selection preserved
 - **WHEN** 用户从 DAG `dagA` 进入 sub-DAG `common-subdag`
 - **THEN** 浏览器本地保存的最后选中 DAG SHALL 仍为 `dagA`
-

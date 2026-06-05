@@ -8,7 +8,7 @@ capabilities:
 定义 GraphService DAG CRUD、GraphService Node-type CRUD、GraphService Skill CRUD、GraphService Handler CRUD等能力。
 ## Requirements
 ### Requirement: GraphService DAG CRUD
-`edera-server` SHALL 通过 `GraphService` 提供 DB-backed DAG Entity 的完整 CRUD 操作。所有验证逻辑（DAG name 格式、node 引用存在性、edge 合法性、entity permission 校验）SHALL 在 server 端执行。DAG graph payload 的 GET、SAVE 和 SAVE response SHALL 保留 `DagNodeInstance.optional`、`DagNodeInstance.dag_ref`、`DagNodeInstance.input_mapping` 与 `DagEdge.optional`。
+`edera-server` SHALL 通过 `GraphService` 提供 DB-backed DAG Entity 的完整 CRUD 操作。所有验证逻辑（DAG name 格式、node 引用存在性、edge 合法性、entity permission 校验、sub-DAG nesting 校验）SHALL 在 server 端执行。DAG graph payload 的 GET、SAVE 和 SAVE response SHALL 保留 `DagNodeInstance.optional`、`DagNodeInstance.dag_ref`、`DagNodeInstance.input_mapping` 与 `DagEdge.optional`。
 
 #### Scenario: 列出所有 DAG
 - **WHEN** 客户端调用 `GraphService.ListDags`
@@ -35,12 +35,17 @@ capabilities:
 
 #### Scenario: 保存 DAG
 - **WHEN** 客户端调用 `GraphService.SaveDag(name, json)` 携带合法 DAG payload
-- **THEN** server SHALL 验证 DagConfig schema、entity_permissions，原子写入 DB-backed DAG Entity，返回保存后的 DAG 状态
+- **THEN** server SHALL 验证 DagConfig schema、entity_permissions 和 sub-DAG nesting，原子写入 DB-backed DAG Entity，返回保存后的 DAG 状态
 - **AND** 保存后的 DAG 状态 SHALL 保留 `DagNodeInstance.optional`、`DagNodeInstance.dag_ref`、`DagNodeInstance.input_mapping` 与 `DagEdge.optional`
 
 #### Scenario: 保存非法 DAG
 - **WHEN** 客户端调用 `GraphService.SaveDag` 携带引用不存在 node type 的 payload
 - **THEN** server SHALL 返回 gRPC INVALID_ARGUMENT 错误，包含验证失败详情
+
+#### Scenario: 保存 sub-DAG 自引用 DAG
+- **WHEN** 客户端调用 `GraphService.SaveDag(name="demo")` 且 payload 中包含 `type: "dag", dag_ref: "demo"` 的节点实例
+- **THEN** server SHALL 在写入 DB-backed DAG Entity 前返回 gRPC INVALID_ARGUMENT 错误，包含 sub-DAG cycle 详情
+- **AND** server SHALL 保持原 DAG Entity 内容不变
 
 #### Scenario: optional round-trip
 - **WHEN** 客户端读取 DAG 后不修改 optional 字段并保存
@@ -134,4 +139,3 @@ capabilities:
 - **WHEN** 客户端调用 runtime status 并指定 `run_id = "child-1"`
 - **THEN** server SHALL 只查询 `child-1` 的各节点执行状态并返回
 - **AND** MUST NOT 返回其他 run 的节点状态
-

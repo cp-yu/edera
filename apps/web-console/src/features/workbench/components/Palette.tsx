@@ -46,13 +46,14 @@ function groupPrototypes(prototypes: NodeType[]) {
   })
 }
 
-function filterDagCandidates(dags: string[], currentDagName?: string): string[] {
-  return dags.filter((name) => name !== currentDagName).sort((left, right) => left.localeCompare(right))
+function filterDagCandidates(dags: string[], excludedDagNames: string[]): string[] {
+  const excluded = new Set(excludedDagNames)
+  return dags.filter((name) => !excluded.has(name)).sort((left, right) => left.localeCompare(right))
 }
 
 interface Props {
   dag: DagState | null
-  rootDagName: string
+  excludedDagNames: string[]
 }
 
 function matchesNode(node: NodeType, aliases: string[], query: string): boolean {
@@ -61,11 +62,11 @@ function matchesNode(node: NodeType, aliases: string[], query: string): boolean 
   return node.name.toLowerCase().includes(keyword) || aliases.some((alias) => alias.toLowerCase().includes(keyword))
 }
 
-export function Palette({ dag, rootDagName }: Props) {
+export function Palette({ dag, excludedDagNames }: Props) {
   const { data } = useNodePrototypes()
   const dagList = useDagList()
   const prototypes = data?.prototypes ?? []
-  const dagCandidates = filterDagCandidates(dagList.data?.dags ?? [], rootDagName)
+  const dagCandidates = filterDagCandidates(dagList.data?.dags ?? [], excludedDagNames)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [collapsedRoles, setCollapsedRoles] = useState<Set<string>>(() => new Set())

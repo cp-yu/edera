@@ -158,7 +158,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const pendingDraftRef = useRef<string | null>(null)
 
   const prototypes = prototypesData?.prototypes ?? []
-  const dagCandidates = (dagListData?.dags ?? []).filter((name) => name !== selectedDagName)
+  const dagCandidates = (dagListData?.dags ?? []).filter((name) => name !== dagName && name !== selectedDagName)
   const prototypeMap = useMemo(() => new Map(prototypes.map((node) => [node.name, node])), [prototypes])
   const dagNames = dagListData?.dags ?? []
   const retryRunId = dagStatus?.recent_runs.find((run) => run.status !== 'running')?.run_id
@@ -414,13 +414,14 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
     setSelectedNode(nextNode.id)
   }, [commitGraph, prototypeMap, runtimeStatus, setSelectedNode])
 
-  const addDagNode = useCallback((dagName: string, position: { x: number; y: number }) => {
-    const instance = createDagInstance(dagName)
+  const addDagNode = useCallback((targetDagName: string, position: { x: number; y: number }) => {
+    if (targetDagName === dagName || targetDagName === selectedDagName) return
+    const instance = createDagInstance(targetDagName)
     const nextNode = createWorkbenchNode(instance, position, edgesRef.current, runtimeStatus)
     const nextNodes = [...nodesRef.current, nextNode]
     commitGraph(nextNodes, edgesRef.current)
     setSelectedNode(nextNode.id)
-  }, [commitGraph, runtimeStatus, setSelectedNode])
+  }, [commitGraph, dagName, runtimeStatus, selectedDagName, setSelectedNode])
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {

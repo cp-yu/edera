@@ -8,7 +8,8 @@ import yaml
 from edera_core.config.entities import validate_permission_overrides
 from edera_core.config.loader import _load_runtime_base_config, load_skill_configs
 from edera_core.config.schema import DagConfig, EntityConfig, SkillConfig
-from edera_core.errors import ConfigError
+from edera_core.dag.loader import validate_sub_dag_nesting
+from edera_core.errors import ConfigError, DagError
 from edera_core.service_common import (
     available_model_names,
     delete_node_assets,
@@ -56,8 +57,9 @@ class _GraphService:
             _validate_graph_node_refs(app, payload)
             _validate_graph_entity_permissions(app.entity_types, payload)
             dag_config = DagConfig.model_validate(payload)
+            validate_sub_dag_nesting({**app.dags, request.name: dag_config}, app.system.max_dag_depth)
             await _save_core_and_refresh(self.daemon, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
-        except (ConfigError, KeyError, ValueError) as exc:
+        except (ConfigError, DagError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(
             self.pb2,

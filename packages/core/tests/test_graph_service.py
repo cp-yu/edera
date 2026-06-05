@@ -178,6 +178,33 @@ async def test_sub_dag_instance_round_trip(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_save_sub_dag_cycle_rejected(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(await _graph_daemon(root, tmp_path))
+
+    with pytest.raises(AbortError) as exc:
+        await service.SaveDag(
+            pb2.NamedJsonRequest(
+                name="demo",
+                json=json.dumps(
+                    {
+                        "nodes": [{"id": "self", "type": "dag", "dag_ref": "demo"}],
+                        "edges": [],
+                        "ui": {},
+                    }
+                ),
+            ),
+            FakeContext(),
+        )
+
+    assert exc.value.code == grpc.StatusCode.INVALID_ARGUMENT
+    assert "sub DAG cycle: demo -> demo" in exc.value.details
+    stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
+    assert [node.id for node in stored.nodes] == ["n1", "n2"]
+
+
+@pytest.mark.asyncio
 async def test_runtime_status_can_scope_to_run_id(tmp_path):
     root = tmp_path / "config"
     _write_graph_config(root)

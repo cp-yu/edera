@@ -21,7 +21,7 @@ export function WorkbenchPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 overflow-hidden">
-        <Palette dag={activeDag.data ?? null} rootDagName={selectedDagName} />
+        <Palette dag={activeDag.data ?? null} excludedDagNames={[selectedDagName, activeDagName]} />
         <ReactFlowProvider>
           <div className="flex-1 relative">
             <Canvas

@@ -148,6 +148,22 @@ test('enters sub-DAG view with parent instance context and preserves root select
   await expect(page.locator('select').first()).toHaveValue('default')
 })
 
+test('sub-DAG view excludes root and current DAG from add lists', async ({ page }) => {
+  await page.goto('/workbench')
+
+  await page.locator('.react-flow__node').filter({ hasText: 'Common Sub DAG' }).click({ button: 'right' })
+  await page.getByRole('button', { name: '进入 Sub DAG' }).click()
+
+  const palette = palettePanel(page)
+  await expect(palette.getByText('analysis', { exact: true })).toBeVisible()
+  await expect(palette.getByText('default', { exact: true })).toHaveCount(0)
+  await expect(palette.getByText('common-subdag', { exact: true })).toHaveCount(0)
+
+  await page.getByText('Cmd/Ctrl+K').click()
+  await page.getByPlaceholder('搜索节点并添加到画布中心').fill('common-subdag')
+  await expect(page.getByText('没有匹配节点')).toBeVisible()
+})
+
 test('regular node context menu does not show sub-DAG enter action', async ({ page }) => {
   await page.goto('/workbench')
 
