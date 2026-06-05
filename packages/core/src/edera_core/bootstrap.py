@@ -8,9 +8,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from edera_core.config.schema import EntityTypeConfig
 from edera_core.manifest import (
-    EntityTypeDescriptor,
     ExtensionManifest,
     StorageTableDescriptor,
     manifest_from_mapping,
@@ -87,18 +85,6 @@ def _ensure_path(path: Path) -> None:
     value = str(path.resolve())
     if value not in sys.path:
         sys.path.insert(0, value)
-
-
-def _entity_type_config(descriptor: EntityTypeDescriptor) -> EntityTypeConfig:
-    return EntityTypeConfig(
-        display_name=descriptor.display_name,
-        business_id_field=descriptor.business_id_field,
-        display_template=descriptor.display_template or f"{{{descriptor.business_id_field}}}",
-        storage_tier=descriptor.storage_tier,
-        system_protected=descriptor.system_protected,
-        schema=descriptor.schema,
-        field_permissions=descriptor.field_permissions,
-    )
 
 
 def _column_sql(column: Any) -> str:
