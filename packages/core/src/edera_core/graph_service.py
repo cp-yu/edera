@@ -23,7 +23,7 @@ from edera_core.service_common import (
     save_skill,
     valid_dag_name,
 )
-from edera_core.storage.repository import delete_core_entity, node_runs_for_run, recent_dag_runs, save_core_entity
+from edera_core.storage.repository import delete_core_entity, list_enabled_extensions, node_runs_for_run, recent_dag_runs, save_core_entity
 
 
 class _GraphService:
@@ -173,25 +173,33 @@ class _GraphService:
         return json_response(self.pb2, {"deleted": True})
 
     async def ListHandlers(self, request, context):
-        handlers = [{"name": entry.name} for entry in self._handler_registry().values()]
+        handlers = []
+        async with self.daemon.controller._factory()() as session:
+            for record in await list_enabled_extensions(session):
+                handlers.extend({"name": handler["name"]} for handler in _manifest_handlers(record.manifest_data) if isinstance(handler.get("name"), str))
         return json_response(self.pb2, {"handlers": handlers})
 
     async def GetHandler(self, request, context):
-        entry = self._handler_registry().get(request.name)
-        if entry is None or not entry.path.exists():
+        entry = await self._handler_path(request.name)
+        if entry is None or not entry.exists():
             await context.abort(grpc.StatusCode.NOT_FOUND, f"handler {request.name} not found")
-        return json_response(self.pb2, {"name": request.name, "code": entry.path.read_text(encoding="utf-8")})
+        return json_response(self.pb2, {"name": request.name, "code": entry.read_text(encoding="utf-8")})
 
     async def SaveHandler(self, request, context):
-        entry = self._handler_registry().get(request.name)
+        entry = await self._handler_path(request.name)
         if entry is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"handler {request.name} not found")
-        entry.path.parent.mkdir(parents=True, exist_ok=True)
-        entry.path.write_text(request.content, encoding="utf-8")
+        entry.parent.mkdir(parents=True, exist_ok=True)
+        entry.write_text(request.content, encoding="utf-8")
         return json_response(self.pb2, {"name": request.name, "code": request.content})
 
-    def _handler_registry(self):
-        return self.daemon.controller.runtime_snapshot().bootstrap.handler_registry
+    async def _handler_path(self, name: str):
+        async with self.daemon.controller._factory()() as session:
+            for record in await list_enabled_extensions(session):
+                for handler in _manifest_handlers(record.manifest_data):
+                    if handler.get("name") == name and isinstance(handler.get("entry"), str):
+                        return self.daemon.config_dir.parent / "handlers" / record.name / str(handler["entry"])
+        return None
 
     async def RuntimeStatus(self, request, context):
         factory = self.daemon.controller._factory()
@@ -256,3 +264,8 @@ def _validate_graph_node_refs(app, payload: dict[str, object]) -> None:
         if node_type == "dag" and isinstance(dag_ref, str) and dag_ref in app.dags:
             continue
         raise ConfigError(f"node type '{node_type}' not found")
+
+
+def _manifest_handlers(manifest: dict[str, object]) -> list[dict[str, object]]:
+    handlers = manifest.get("handlers")
+    return [item for item in handlers if isinstance(item, dict)] if isinstance(handlers, list) else []

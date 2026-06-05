@@ -6,6 +6,7 @@ from edera_core.config.schema import DagConfig, DagNodeConfig, DagNodeInstance, 
 from edera_core.dag.loader import DagPathStep, load_graph, validate_sub_dag_nesting
 from edera_core.dag.runner import DagRunner
 from edera_core.node.executor import NodeExecutor
+from snapshot_fixtures import create_test_snapshot
 
 
 def _dag(name: str, nodes: list[dict[str, str]], edges: list[dict[str, str]] | None = None) -> DagConfig:
@@ -24,7 +25,7 @@ def _dag(name: str, nodes: list[dict[str, str]], edges: list[dict[str, str]] | N
 async def test_runtime_cycle_error_format():
     demo = _dag("demo", [{"id": "sub-1", "type": "dag", "dag_ref": "demo"}])
     nodes = {}
-    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings())
+    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings(), snapshot=create_test_snapshot(nodes))
     executor.dag_executor = lambda *a: None
 
     runner = DagRunner(
@@ -64,7 +65,7 @@ async def test_runtime_save_error_consistency():
 
     # Runtime error
     nodes = {}
-    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings())
+    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings(), snapshot=create_test_snapshot(nodes))
     executor.dag_executor = lambda *a: None
 
     runner = DagRunner(
@@ -106,7 +107,7 @@ async def test_runtime_save_error_consistency_multilayer_run():
     with pytest.raises(DagError) as save_exc:
         validate_sub_dag_nesting(dags, max_depth=10)
 
-    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings())
+    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings(), snapshot=create_test_snapshot(nodes))
     result = await DagRunner(executor, dags=dags, nodes=nodes).run(
         load_graph(pipeline_a, nodes, dags),
         "run-1",
@@ -138,7 +139,7 @@ async def test_runtime_save_error_consistency_nested_non_root_cycle():
     with pytest.raises(DagError) as save_exc:
         validate_sub_dag_nesting(dags, max_depth=10)
 
-    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings())
+    executor = NodeExecutor(nodes, system=SystemConfig(), runtime=RuntimeSettings(), snapshot=create_test_snapshot(nodes))
     result = await DagRunner(executor, dags=dags, nodes=nodes).run(
         load_graph(pipeline_a, nodes, dags),
         "run-1",

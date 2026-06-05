@@ -2027,6 +2027,11 @@ class ConfigServiceStub(object):
                 request_serializer=edera__pb2.EmptyRequest.SerializeToString,
                 response_deserializer=edera__pb2.JsonResponse.FromString,
                 _registered_method=True)
+        self.ReloadEntityTypes = channel.unary_unary(
+                '/edera.v1.ConfigService/ReloadEntityTypes',
+                request_serializer=edera__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
         self.CreateEntityType = channel.unary_unary(
                 '/edera.v1.ConfigService/CreateEntityType',
                 request_serializer=edera__pb2.ConfigFileContentRequest.SerializeToString,
@@ -2120,6 +2125,12 @@ class ConfigServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ReloadEntityTypes(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def CreateEntityType(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -2208,6 +2219,11 @@ def add_ConfigServiceServicer_to_server(servicer, server):
             ),
             'ListEntityTypes': grpc.unary_unary_rpc_method_handler(
                     servicer.ListEntityTypes,
+                    request_deserializer=edera__pb2.EmptyRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'ReloadEntityTypes': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReloadEntityTypes,
                     request_deserializer=edera__pb2.EmptyRequest.FromString,
                     response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
@@ -2466,6 +2482,33 @@ class ConfigService(object):
             request,
             target,
             '/edera.v1.ConfigService/ListEntityTypes',
+            edera__pb2.EmptyRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ReloadEntityTypes(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.ConfigService/ReloadEntityTypes',
             edera__pb2.EmptyRequest.SerializeToString,
             edera__pb2.JsonResponse.FromString,
             options,

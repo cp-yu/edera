@@ -225,3 +225,15 @@ relations:
   - from: cap.web.extension-management-web
     type: depends_on
     to: cap.core.extension-grpc-service
+  - from: cap.core.database-handler-resolver
+    type: depends_on
+    to: cap.core.extension-manifest-system
+  - from: cap.core.dag-execution-snapshot
+    type: depends_on
+    to: cap.core.database-handler-resolver
+  - from: cap.operations.node-executor
+    type: depends_on
+    to: cap.core.dag-execution-snapshot
+  - from: cap.core.runtime-entity-type-reload
+    type: depends_on
+    to: cap.core.extension-manifest-system

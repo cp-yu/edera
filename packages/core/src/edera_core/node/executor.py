@@ -29,7 +29,8 @@ from edera_core.config.schema import (
 from edera_core.events import event_bus
 from edera_core.errors import ConfigError, NodeExecutionError
 from edera_core.node.models import NodeContext
-from edera_core.registry import HandlerRegistry
+from edera_core.resolver import HandlerMeta, HandlerNotFoundError
+from edera_core.snapshot import DagExecutionSnapshot
 
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
 StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
@@ -53,7 +54,7 @@ class NodeExecutor:
         nodes: dict[str, NodeConfig],
         system: SystemConfig,
         runtime: RuntimeSettings,
-        handler_registry: HandlerRegistry | dict[str, object] | None = None,
+        snapshot: DagExecutionSnapshot,
         instances: dict[str, DagNodeInstance] | None = None,
         entity_store: EntityStore | None = None,
         output_recorder: OutputRecorder | None = None,
@@ -74,9 +75,6 @@ class NodeExecutor:
         wait_stop_event: asyncio.Event | None = None,
         **legacy_kwargs: object,
     ) -> None:
-        if handler_registry is None:
-            legacy_handlers = legacy_kwargs.get("handlers", {})
-            handler_registry = legacy_handlers if isinstance(legacy_handlers, dict) else {}
         legacy_instances = legacy_kwargs.get("instances")
         if instances is None and isinstance(legacy_instances, dict):
             instances = {
@@ -87,8 +85,7 @@ class NodeExecutor:
         self.nodes = nodes
         self.system = system
         self.runtime = runtime
-        self.handler_registry = handler_registry if isinstance(handler_registry, HandlerRegistry) else HandlerRegistry()
-        self._memory_handlers = handler_registry if isinstance(handler_registry, dict) else {}
+        self.snapshot = snapshot
         self.instances = instances or {}
         self.entity_store = entity_store
         self.output_recorder = output_recorder
@@ -108,6 +105,7 @@ class NodeExecutor:
         self.wait_recorder = wait_recorder
         self.wait_stop_event = wait_stop_event
         self._modules: dict[str, ModuleType] = {}
+        self._handler_meta: dict[str, HandlerMeta] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
 
     async def execute(
@@ -142,8 +140,6 @@ class NodeExecutor:
                 return _failed(node_name, node_input, "dag executor not configured")
             return await self.dag_executor(config, node_name, node_input, context)
         handler_name = config.handler or config.name
-        if handler_name not in self.handler_registry and handler_name not in self._memory_handlers:
-            return _failed(node_name, node_input, f"handler not registered: {handler_name}")
         context = NodeContext(
             run_id=context.run_id,
             instance_id=context.instance_id,
@@ -267,11 +263,8 @@ class NodeExecutor:
         node_input: NodeInput,
         context: NodeContext,
     ) -> object:
-        handler = self._load_handler(handler_name)
+        handler = await self._load_handler(handler_name)
         timeout = config.timeout_seconds if config.timeout_seconds is not None else self.system.llm_timeout_seconds
-        if handler_name in self._memory_handlers:
-            result = cast(Callable[[NodeInput], object], handler)(node_input)
-            return await _await_handler_result(handler_name, result, timeout)
         ctx = HandlerContext(
             input=node_input,
             params=config.parameters,
@@ -407,11 +400,19 @@ class NodeExecutor:
         except KeyError as exc:
             raise NodeExecutionError(f"missing node config: {node_name}") from exc
 
-    def _load_handler(self, name: str) -> object:
-        if name in self._memory_handlers:
-            return self._memory_handlers[name]
-        entry = self.handler_registry[name]
+    async def _load_handler(self, name: str) -> object:
         module = self._modules.get(name)
+        entry = self._handler_meta.get(name)
+        if module is not None and entry is not None:
+            handler = getattr(module, entry.function, None)
+            if not callable(handler):
+                raise NodeExecutionError(f"handler missing function {entry.function}: {name}")
+            return handler
+        try:
+            entry = await self.snapshot.handler_resolver.get(name)
+        except HandlerNotFoundError as exc:
+            raise NodeExecutionError(f"handler not found: {name}") from exc
+        self._handler_meta[name] = entry
         if module is None:
             spec = importlib.util.spec_from_file_location(f"edera_extension_{name}", entry.path)
             if spec is None or spec.loader is None:
@@ -428,10 +429,10 @@ class NodeExecutor:
         return handler
 
     def _handler_storage(self, handler_name: str) -> _ExtensionStorage | None:
-        entry = self.handler_registry[handler_name] if handler_name in self.handler_registry else None
         tables = self.extension_tables.get(handler_name)
-        if not tables and entry is not None:
-            tables = self.extension_tables.get(entry.path.parent.name)
+        entry = self._handler_meta.get(handler_name)
+        if not tables and entry is not None and entry.extension_name is not None:
+            tables = self.extension_tables.get(entry.extension_name)
         return _ExtensionStorage(tables) if tables else None
 
 

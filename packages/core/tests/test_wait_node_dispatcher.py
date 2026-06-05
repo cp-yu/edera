@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
@@ -8,9 +9,9 @@ from edera_core.config.schema import DagConfig, NodeConfig, RuntimeSettings, Sys
 from edera_core.dag.loader import load_graph
 from edera_core.dag.runner import DagRunner
 from edera_core.node.executor import NodeExecutor
-from edera_core.node.models import NodeInput
 from edera_core.trigger import TriggerExecutor
 
+from snapshot_fixtures import create_test_snapshot, write_handler
 from test_wait_registry import _store
 
 
@@ -18,14 +19,10 @@ from test_wait_registry import _store
 async def test_independent_path_runs_while_wait_node_is_waiting() -> None:
     graph, nodes = _graph(include_sink=False)
     trigger = TriggerExecutor(_store())
-    records: list[str] = []
+    records: list[str] = ["pending"]
 
-    async def worker(_input: NodeInput) -> object:
-        records.append("worker")
-        return "done"
-
-    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, worker), trigger_executor=trigger).run(graph, "run", {}))
-    await _until(lambda: "worker" in records)
+    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, records=records), trigger_executor=trigger).run(graph, "run", {}))
+    await _until(lambda: records == ["worker"])
 
     assert not task.done()
     task.cancel()
@@ -36,13 +33,9 @@ async def test_independent_path_runs_while_wait_node_is_waiting() -> None:
 async def test_resume_starts_downstream_after_wait_node_wakes() -> None:
     graph, nodes = _graph(include_sink=True)
     trigger = TriggerExecutor(_store())
-    records: list[str] = []
+    records: list[str] = ["pending"]
 
-    async def sink(node_input: NodeInput) -> object:
-        records.append("sink")
-        return node_input.payload
-
-    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, sink=sink), trigger_executor=trigger).run(graph, "run", {}))
+    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, records=records), trigger_executor=trigger).run(graph, "run", {}))
     await asyncio.sleep(0.01)
     await trigger.emit("event:approve:run", {"ok": True})
     result = await task
@@ -126,15 +119,22 @@ def _wait_only_graph():
     return load_graph(dag, nodes), nodes
 
 
-def _executor(nodes, instances, worker=None, sink=None) -> NodeExecutor:
-    async def default(_input: NodeInput) -> object:
-        return "ok"
+def _executor(nodes, instances, records: list[str] | None = None) -> NodeExecutor:
+    import tempfile
 
+    root = Path(tempfile.mkdtemp(prefix="edera-test-handlers-"))
+    handlers = {
+        "worker": write_handler(root / "worker.py", "ctx.params['records'][:] = ['worker']; return 'done'"),
+        "sink": write_handler(root / "sink.py", "ctx.params['records'][:] = ['sink']; return ctx.input.payload"),
+    }
+    for node in nodes.values():
+        if hasattr(node, "parameters"):
+            node.parameters["records"] = records if records is not None else []
     return NodeExecutor(
         nodes,
         SystemConfig(),
         RuntimeSettings(),
-        {"worker": worker or default, "sink": sink or default},
+        create_test_snapshot(nodes, handlers),
         instances,
     )
 

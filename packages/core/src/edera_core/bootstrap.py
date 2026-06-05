@@ -8,22 +8,17 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from edera_core.config.schema import EntityTypeConfig
 from edera_core.manifest import (
-    EntityTypeDescriptor,
     ExtensionManifest,
     StorageTableDescriptor,
     manifest_from_mapping,
     parse_manifest,
 )
-from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.storage.repository import list_enabled_extensions
 
 
 @dataclass(frozen=True)
 class BootstrapResult:
-    handler_registry: HandlerRegistry
-    entity_type_registry: EntityTypeRegistry
     manifests: list[ExtensionManifest]
     storage_tables: dict[str, list[StorageTableDescriptor]]
     table_names: dict[str, dict[str, str]]
@@ -48,8 +43,6 @@ def discover_available_extensions(extensions_dirs: list[Path] | None = None) -> 
 
 async def load_installed_extensions(session, handlers_dir: Path = Path("handlers")) -> BootstrapResult:
     _ensure_path(handlers_dir)
-    handlers = HandlerRegistry()
-    entity_types: dict[str, EntityTypeConfig] = {}
     manifests: list[ExtensionManifest] = []
     storage_tables: dict[str, list[StorageTableDescriptor]] = {}
     table_names: dict[str, dict[str, str]] = {}
@@ -63,13 +56,7 @@ async def load_installed_extensions(session, handlers_dir: Path = Path("handlers
         table_names[manifest.name] = {
             table.name: extension_table_name(manifest.name, table.name) for table in manifest.storage_tables
         }
-        for handler in manifest.handlers:
-            handlers.register(handler.name, root / handler.entry, descriptor=handler)
-        for entity_type in manifest.entity_types:
-            entity_types[entity_type.name] = _entity_type_config(entity_type)
     return BootstrapResult(
-        handlers.seal(),
-        EntityTypeRegistry(entity_types),
         manifests,
         storage_tables,
         table_names,
@@ -98,18 +85,6 @@ def _ensure_path(path: Path) -> None:
     value = str(path.resolve())
     if value not in sys.path:
         sys.path.insert(0, value)
-
-
-def _entity_type_config(descriptor: EntityTypeDescriptor) -> EntityTypeConfig:
-    return EntityTypeConfig(
-        display_name=descriptor.display_name,
-        business_id_field=descriptor.business_id_field,
-        display_template=descriptor.display_template or f"{{{descriptor.business_id_field}}}",
-        storage_tier=descriptor.storage_tier,
-        system_protected=descriptor.system_protected,
-        schema=descriptor.schema,
-        field_permissions=descriptor.field_permissions,
-    )
 
 
 def _column_sql(column: Any) -> str:

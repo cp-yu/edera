@@ -10,6 +10,7 @@ from edera_core.dag.runner import DagRunner
 from edera_core.node.executor import NodeExecutor
 from edera_core.trigger import TriggerExecutor
 
+from snapshot_fixtures import create_test_snapshot
 from test_wait_registry import _store
 
 
@@ -64,4 +65,4 @@ def _graph(wait_for: str, consume: bool = True):
 
 
 def _executor(nodes, instances) -> NodeExecutor:
-    return NodeExecutor(nodes, SystemConfig(), RuntimeSettings(), {}, instances)
+    return NodeExecutor(nodes, SystemConfig(), RuntimeSettings(), create_test_snapshot(nodes), instances)

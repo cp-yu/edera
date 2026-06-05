@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import grpc
 import json
+import logging
 import yaml
 
 from edera_core.config.editor import ConfigEditError
@@ -21,6 +22,9 @@ from edera_core.service_common import (
     resolve_entity_type_path,
     validate_entity_type_content,
 )
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class _ConfigService:
@@ -84,6 +88,14 @@ class _ConfigService:
             return json_response(self.pb2, {"types": entity_types_payload(load_entity_type_configs(self.daemon.config_dir.parent / "schemas" / "entity-types"))})
         except ConfigError as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
+
+    async def ReloadEntityTypes(self, request, context):
+        identity = _metadata_identity(context)
+        if not _is_admin(identity):
+            await context.abort(grpc.StatusCode.PERMISSION_DENIED, "reload entity types requires admin")
+        count = await self.daemon.controller.reload_entity_types()
+        LOGGER.info("ReloadEntityTypes called by user=%s, loaded %s entity types", identity, count)
+        return json_response(self.pb2, {"reloaded": True, "count": count})
 
     async def CreateEntityType(self, request, context):
         name = request.name.strip()
@@ -197,3 +209,14 @@ class _ConfigService:
         except ConfigEditError as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, {"deleted": True})
+
+
+def _metadata_identity(context) -> str | None:
+    for key, value in context.invocation_metadata():
+        if key == "x-edera-identity" and value:
+            return str(value)
+    return None
+
+
+def _is_admin(identity: str | None) -> bool:
+    return identity == "admin" or bool(identity and identity.startswith("admin:"))

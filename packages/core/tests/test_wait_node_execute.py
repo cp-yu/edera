@@ -12,6 +12,7 @@ from edera_core.events import event_bus
 from edera_core.node.executor import NodeExecutor
 from edera_core.trigger import TriggerExecutor
 
+from snapshot_fixtures import create_test_snapshot
 from test_wait_registry import _store
 
 
@@ -152,7 +153,7 @@ def _executor(nodes, instances, outputs: list[object]) -> NodeExecutor:
         nodes,
         SystemConfig(),
         RuntimeSettings(),
-        {},
+        create_test_snapshot(nodes),
         instances,
         output_recorder=record_output,
     )

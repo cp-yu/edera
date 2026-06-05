@@ -33,6 +33,7 @@ from edera_core.storage.repository import (
     finish_dag_run,
     get_dag_run,
     latest_finished_dag_run,
+    list_entity_type_configs,
     mark_node_run,
     delete_node_outputs_for_nodes,
     edge_inputs_for_run,
@@ -46,6 +47,7 @@ from edera_core.storage.repository import (
 )
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeOutput
+from edera_core.snapshot import DagExecutionSnapshot
 from edera_core.trigger import CronEmitter, TriggerExecutor
 
 
@@ -190,6 +192,14 @@ class DagController:
             await self.load_bootstrap(),
         )
 
+    async def reload_entity_types(self) -> int:
+        snapshot = self.runtime_snapshot()
+        async with self._factory()() as session:
+            entity_types = await list_entity_type_configs(session)
+        snapshot.config.entity_types.clear()
+        snapshot.config.entity_types.update(entity_types)
+        return len(entity_types)
+
     async def load_bootstrap(self) -> BootstrapResult:
         if self.factory is None:
             raise RuntimeError("DAG controller has not been started")
@@ -200,7 +210,6 @@ class DagController:
         if self.engine is None:
             raise RuntimeError("DAG controller has not been started")
         async with self._snapshot_lock:
-            config.entity_types.update(bootstrap.entity_type_registry.as_dict())
             config = await materialize_runtime_app_config(self.config_dir, config, self.engine)
             await create_extension_tables(self.engine, bootstrap.storage_tables)
             store = EntityStore(
@@ -489,31 +498,32 @@ class DagController:
                 await session.commit()
         await event_bus.publish("dag.status", run_id=run_id, dag_name=dag_name, status="started")
         try:
-            executor = self._build_run_executor(snapshot, graph)
-            ctx = self.active_runs.get(dag_name)
-            if ctx is not None and ctx.run_id == run_id:
-                ctx.executor = executor
-            result = await DagRunner(
-                executor,
-                recorder=lambda output_run_id, node, status, error, failure_kind, metadata: self._record_node(
-                    output_run_id, node, status, error, failure_kind, metadata
-                ),
-                edge_recorder=lambda fact: self._record_edge_input(fact),
-                emit=lambda event, event_payload: self.emit(event, event_payload, source=f"node:{dag_name}", depth=1),
-                dag_lifecycle=lambda child_run_id, child_dag_name, status, error: self._record_child_dag_run(
-                    child_run_id, source, child_dag_name, status, error
-                ),
-                trigger_executor=snapshot.trigger_executor,
-                dags=config.dags,
-                nodes=config.nodes,
-            ).run(
-                graph,
-                run_id,
-                payload if payload is not None else {"entities": _source_entity_refs(config)},
-                stop_event=stop_event,
-                retry_nodes=retry_nodes,
-                prefilled_outputs=prefilled_outputs,
-            )
+            async with factory() as session:
+                executor = await self._build_run_executor(snapshot, graph, session)
+                ctx = self.active_runs.get(dag_name)
+                if ctx is not None and ctx.run_id == run_id:
+                    ctx.executor = executor
+                result = await DagRunner(
+                    executor,
+                    recorder=lambda output_run_id, node, status, error, failure_kind, metadata: self._record_node(
+                        output_run_id, node, status, error, failure_kind, metadata
+                    ),
+                    edge_recorder=lambda fact: self._record_edge_input(fact),
+                    emit=lambda event, event_payload: self.emit(event, event_payload, source=f"node:{dag_name}", depth=1),
+                    dag_lifecycle=lambda child_run_id, child_dag_name, status, error: self._record_child_dag_run(
+                        child_run_id, source, child_dag_name, status, error
+                    ),
+                    trigger_executor=snapshot.trigger_executor,
+                    dags=config.dags,
+                    nodes=config.nodes,
+                ).run(
+                    graph,
+                    run_id,
+                    payload if payload is not None else {"entities": _source_entity_refs(config)},
+                    stop_event=stop_event,
+                    retry_nodes=retry_nodes,
+                    prefilled_outputs=prefilled_outputs,
+                )
             active_outputs = {
                 node: output
                 for node, output in result.node_outputs.items()
@@ -572,28 +582,29 @@ class DagController:
             await session.commit()
         await event_bus.publish("dag.status", run_id=run_id, dag_name=dag_name, status="started")
         try:
-            executor = self._build_run_executor(snapshot, graph)
-            ctx = self.active_runs.get(dag_name)
-            if ctx is not None and ctx.run_id == run_id:
-                ctx.executor = executor
-            result = await DagRunner(
-                executor,
-                recorder=lambda output_run_id, node, status, error, failure_kind, metadata: self._record_node(
-                    output_run_id, node, status, error, failure_kind, metadata
-                ),
-                emit=lambda event, event_payload: self.emit(event, event_payload, source=f"node:{dag_name}", depth=1),
-                dag_lifecycle=lambda child_run_id, child_dag_name, status, error: self._record_child_dag_run(
-                    child_run_id, source, child_dag_name, status, error
-                ),
-                trigger_executor=snapshot.trigger_executor,
-                dags=config.dags,
-                nodes=config.nodes,
-            ).run(
-                graph,
-                run_id,
-                payload if payload is not None else {"entities": _source_entity_refs(config)},
-                stop_event=stop_event,
-            )
+            async with factory() as session:
+                executor = await self._build_run_executor(snapshot, graph, session)
+                ctx = self.active_runs.get(dag_name)
+                if ctx is not None and ctx.run_id == run_id:
+                    ctx.executor = executor
+                result = await DagRunner(
+                    executor,
+                    recorder=lambda output_run_id, node, status, error, failure_kind, metadata: self._record_node(
+                        output_run_id, node, status, error, failure_kind, metadata
+                    ),
+                    emit=lambda event, event_payload: self.emit(event, event_payload, source=f"node:{dag_name}", depth=1),
+                    dag_lifecycle=lambda child_run_id, child_dag_name, status, error: self._record_child_dag_run(
+                        child_run_id, source, child_dag_name, status, error
+                    ),
+                    trigger_executor=snapshot.trigger_executor,
+                    dags=config.dags,
+                    nodes=config.nodes,
+                ).run(
+                    graph,
+                    run_id,
+                    payload if payload is not None else {"entities": _source_entity_refs(config)},
+                    stop_event=stop_event,
+                )
             status = "cancelled" if stop_event.is_set() else _result_status(result.node_outputs)
             error = "; ".join(result.failures.values()) or None
             async with factory() as session:
@@ -768,10 +779,16 @@ class DagController:
             raise RuntimeError("DAG controller has not been started")
         return self.factory
 
-    def _build_run_executor(self, snapshot: RuntimeSnapshot, graph) -> NodeExecutor:
+    async def _build_run_executor(self, snapshot: RuntimeSnapshot, graph, session) -> NodeExecutor:
         return _build_executor(
             snapshot.config,
-            snapshot.bootstrap.handler_registry,
+            await DagExecutionSnapshot.create(
+                snapshot.config.dags[graph.name],
+                snapshot.config.nodes,
+                snapshot.config.entity_types,
+                session,
+                self.handlers_dir,
+            ),
             graph.instances,
             self.config_dir,
             extension_tables=snapshot.extension_table_names,
@@ -803,16 +820,23 @@ def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str
         try:
             snapshot = controller.runtime_snapshot()
             graph = load_graph(snapshot.config.dags["default"], snapshot.config.nodes)
-            return (
-                _build_executor(
-                    snapshot.config,
-                    snapshot.bootstrap.handler_registry,
-                    graph.instances,
-                    config_dir=config_dir,
-                    extension_tables=snapshot.extension_table_names,
-                ),
-                "default",
-            )
+            async with controller._factory()() as session:
+                return (
+                    _build_executor(
+                        snapshot.config,
+                    await DagExecutionSnapshot.create(
+                        snapshot.config.dags["default"],
+                            snapshot.config.nodes,
+                            snapshot.config.entity_types,
+                            session,
+                            controller.handlers_dir,
+                        ),
+                        graph.instances,
+                        config_dir=config_dir,
+                        extension_tables=snapshot.extension_table_names,
+                    ),
+                    "default",
+                )
         finally:
             await controller.shutdown()
 
@@ -884,7 +908,7 @@ async def _record_summary_log(
 
 def _build_executor(
     app_config: AppConfig,
-    handler_registry,
+    execution_snapshot: DagExecutionSnapshot,
     instances: Mapping[str, DagNodeInstance] | None = None,
     config_dir: Path | None = None,
     extension_tables: dict[str, dict[str, str]] | None = None,
@@ -898,7 +922,7 @@ def _build_executor(
 ) -> NodeExecutor:
     entity_store = EntityStore(
         app_config.entities,
-        app_config.entity_types,
+        execution_snapshot.entity_types,
         app_config.entity_relations,
         None,
     )
@@ -908,7 +932,7 @@ def _build_executor(
         app_config.nodes,
         app_config.system,
         app_config.runtime,
-        handler_registry,
+        execution_snapshot,
         dict(instances or {}),
         entity_store,
         output_recorder=output_recorder,

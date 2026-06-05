@@ -189,8 +189,7 @@ async def load_runtime_app_config(config_dir: Path, engine, extensions_dirs: lis
                 entity_types=config.entity_types,
             )
             await session.commit()
-        bootstrap = await load_installed_extensions(session, config_dir.parent / "handlers")
-    config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+        await load_installed_extensions(session, config_dir.parent / "handlers")
     return await materialize_runtime_app_config(config_dir, config, engine)
 
 

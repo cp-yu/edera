@@ -69,7 +69,7 @@ capabilities:
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
-    intent: 节点执行器，按 NodeConfig type 分发执行；agent subprocess 注入 EDERA_IDENTITY，session 路径基于 EDERA_DATA_DIR/sessions/ 由 server 决定绝对路径
+    intent: 移除对 HandlerRegistry 的依赖，改为使用 DagExecutionSnapshot 中的 handler resolver
     type: capability
     domain: dom.operations
   - id: cap.advisory.trade-advisory
@@ -125,7 +125,7 @@ capabilities:
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability
   - id: cap.core.extension-manifest-system
-    intent: 扩展 manifest 声明、解析、校验，安装时执行而非 bootstrap 自动扫描；移除文件名 Fallback 机制
+    intent: Bootstrap 流程从数据库加载扩展元数据，不再构建 HandlerRegistry 和 EntityTypeRegistry
     type: capability
   - id: cap.core.core-bootstrap
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
@@ -297,4 +297,13 @@ capabilities:
     type: capability
   - id: cap.web.extension-management-web
     intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
+    type: capability
+  - id: cap.core.database-handler-resolver
+    intent: 从数据库按需查询 handler 元数据，计算 handler 文件路径
+    type: capability
+  - id: cap.core.dag-execution-snapshot
+    intent: DAG 执行时的配置快照隔离机制，保证运行一致性
+    type: capability
+  - id: cap.core.runtime-entity-type-reload
+    intent: 运行时刷新 entity type 配置的 API
     type: capability

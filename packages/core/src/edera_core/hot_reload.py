@@ -42,7 +42,6 @@ class HotReloader:
         config = await loaded if inspect.isawaitable(loaded) else loaded
         loaded_bootstrap = self.bootstrap_loader()
         bootstrap = await loaded_bootstrap if inspect.isawaitable(loaded_bootstrap) else loaded_bootstrap
-        config.entity_types.update(bootstrap.entity_type_registry.as_dict())
         await self.callback(config, bootstrap)
         if self.emit is not None:
             await self.emit("event:config-changed")

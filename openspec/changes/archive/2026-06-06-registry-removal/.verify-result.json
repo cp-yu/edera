@@ -1,0 +1,453 @@
+{
+  "timestamp": "2026-06-05T20:30:12.459Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "message": "Coverage check is marked complete, but the declared pytest-cov command is not runnable in the current test environment.",
+      "requirement": "测试覆盖率",
+      "task": "C26 验证测试覆盖率",
+      "recommendation": "Add pytest-cov to the dev dependency group or change C26 to an available coverage runner before treating coverage evidence as reproducible.",
+      "evidence": [
+        "openspec/changes/registry-removal/tasks.md:285-288",
+        "packages/core/pyproject.toml:34-40"
+      ]
+    },
+    {
+      "severity": "WARNING",
+      "message": "Task 10 asks for a mock_handler_resolver fixture, but final tests provide create_test_snapshot/StaticHandlerResolver and local resolver helpers instead.",
+      "requirement": "Task 10 测试辅助 fixture",
+      "task": "Task 10",
+      "recommendation": "Either add the named fixture or update tasks.md to match the implemented test-helper shape.",
+      "evidence": [
+        "openspec/changes/registry-removal/tasks.md:273-276",
+        "packages/core/tests/snapshot_fixtures.py:10-20",
+        "packages/core/tests/test_node_executor.py:68-82"
+      ]
+    },
+    {
+      "severity": "SUGGESTION",
+      "message": "The branch diff includes a Codex exec guide document that is not tied to registry-removal requirements.",
+      "requirement": "Surgical change scope",
+      "task": null,
+      "recommendation": "Move the documentation file to a separate change if it is not intentionally part of registry-removal.",
+      "evidence": [
+        "docs/codex-exec-agent-guide.md:1-3",
+        "openspec/changes/registry-removal/proposal.md:33-42"
+      ]
+    }
+  ],
+  "tasksFileHash": "19c99f025e6376f3b819b189f2ac57b0660772b0edf938e735637be358e5da27",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer-subagent",
+    "evidenceFiles": [
+      "docs/codex-exec-agent-guide.md",
+      "openspec/changes/registry-removal/.verify-result.json",
+      "openspec/changes/registry-removal/design.md",
+      "openspec/changes/registry-removal/opsx-delta.yaml",
+      "openspec/changes/registry-removal/proposal.md",
+      "openspec/changes/registry-removal/specs/dag-execution-snapshot/spec.md",
+      "openspec/changes/registry-removal/specs/database-handler-resolver/spec.md",
+      "openspec/changes/registry-removal/specs/extension-manifest-system/spec.md",
+      "openspec/changes/registry-removal/specs/node-executor/spec.md",
+      "openspec/changes/registry-removal/specs/runtime-entity-type-reload/spec.md",
+      "openspec/changes/registry-removal/tasks.md",
+      "packages/core/pyproject.toml",
+      "packages/core/src/edera_core/bootstrap.py",
+      "packages/core/src/edera_core/config_service.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/engine.py",
+      "packages/core/src/edera_core/graph_service.py",
+      "packages/core/src/edera_core/hot_reload.py",
+      "packages/core/src/edera_core/node/executor.py",
+      "packages/core/src/edera_core/resolver.py",
+      "packages/core/src/edera_core/snapshot.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/tests/snapshot_fixtures.py",
+      "packages/core/tests/test_bootstrap.py",
+      "packages/core/tests/test_dag_controller.py",
+      "packages/core/tests/test_engine.py",
+      "packages/core/tests/test_graph_service.py",
+      "packages/core/tests/test_grpc_config_service.py",
+      "packages/core/tests/test_hot_reload.py",
+      "packages/core/tests/test_node_executor.py",
+      "packages/core/tests/test_resolver.py",
+      "packages/core/tests/test_snapshot.py",
+      "proto/edera.proto"
+    ],
+    "evidenceFingerprint": "11974edcfa7fb355d5bf08dc4f973381cd3c09d8b966ced6de8bff3a1f20ca34",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "docs/codex-exec-agent-guide.md",
+        "hash": "52758a2fbedf7fb997f63e0b87e7a4c493f9946333030efd6b2fbd34a796dc10"
+      },
+      {
+        "path": "openspec/changes/registry-removal/design.md",
+        "hash": "d1f2d36304e5acccbf82dd0c8d59b724f05073392c9b464cc3b421e655619096"
+      },
+      {
+        "path": "openspec/changes/registry-removal/opsx-delta.yaml",
+        "hash": "2acd3b82cf04747a395b6433ec6a4f949a9aa02dc87a6b188216e03e2d5c8498"
+      },
+      {
+        "path": "openspec/changes/registry-removal/proposal.md",
+        "hash": "8cd2e03c4dca78b7f5a91239668ab888cf32105600e797517756a50a0ee112ab"
+      },
+      {
+        "path": "openspec/changes/registry-removal/specs/dag-execution-snapshot/spec.md",
+        "hash": "e372ce17a19ed1d7b5b21987fc01ed9a909fe869da82bd7d8a0806561e1782b8"
+      },
+      {
+        "path": "openspec/changes/registry-removal/specs/database-handler-resolver/spec.md",
+        "hash": "355286a9385f53860bad9b5d85cbf4dace8df413a724fa55a95a614d20b23064"
+      },
+      {
+        "path": "openspec/changes/registry-removal/specs/extension-manifest-system/spec.md",
+        "hash": "55d1346bc80b4536a48821020689ee1303daf195a97fbda551a175426496c575"
+      },
+      {
+        "path": "openspec/changes/registry-removal/specs/node-executor/spec.md",
+        "hash": "7a9c455eb7c709e4ad8bd5075e9ff47f421c6c479edacac5316945bcd23b718c"
+      },
+      {
+        "path": "openspec/changes/registry-removal/specs/runtime-entity-type-reload/spec.md",
+        "hash": "295e90e2efa4cdae678a2d23a08126c213696eacef860f4ea953c3ac5e05c95e"
+      },
+      {
+        "path": "openspec/changes/registry-removal/tasks.md",
+        "hash": "19c99f025e6376f3b819b189f2ac57b0660772b0edf938e735637be358e5da27"
+      },
+      {
+        "path": "packages/core/pyproject.toml",
+        "hash": "98f636a6dae63b8237ee414fde597b4d5368aa364c10065b3fb47bc2a8e2b002"
+      },
+      {
+        "path": "packages/core/src/edera_core/bootstrap.py",
+        "hash": "f64df97c7d1c729cbc0b66621eceeb86fd1ce3ed6e726b9f9a801ad3b776c91e"
+      },
+      {
+        "path": "packages/core/src/edera_core/config_service.py",
+        "hash": "8bc0f6cb5b7262fe72757a9def0a41b456e8ee11baf4def45903aaa9eeff1499"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "7af74e3e66b1f2273fc13f2516204c6249dea851c0e45df3ed1f12636f9a20f6"
+      },
+      {
+        "path": "packages/core/src/edera_core/engine.py",
+        "hash": "679ad497d4a86acba7848b4bd10a00ee9172f57f547fedada7f2bf86a7432917"
+      },
+      {
+        "path": "packages/core/src/edera_core/graph_service.py",
+        "hash": "fa1a1615e0e8b8214d9ed0cec62af476beb30e186059bf2223737d0a7ef5aa14"
+      },
+      {
+        "path": "packages/core/src/edera_core/hot_reload.py",
+        "hash": "58ec5cac440f4db7fbd9b835cb39794c452b45b2caf3633044092960182db659"
+      },
+      {
+        "path": "packages/core/src/edera_core/node/executor.py",
+        "hash": "22934f77c538b2173dc19367cae34898458e89360f54819ec2a34e2dd6dd5691"
+      },
+      {
+        "path": "packages/core/src/edera_core/resolver.py",
+        "hash": "d9eec015b7d61645e22b87e996240154e918c1b974b18e9b3e57b856ebf53483"
+      },
+      {
+        "path": "packages/core/src/edera_core/snapshot.py",
+        "hash": "ba156a9a3bdbcccaef05c943463d9f88fa357533d6bcfd4d7bab76dfb1cf1eef"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "f53bfe72ee45d26f86028f450f096be11298064c931696c4ecd48a9e2b352844"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "4ddbb6186a233ae566ce56c13557444b04410f00810cb14607f23491c599e140"
+      },
+      {
+        "path": "packages/core/tests/snapshot_fixtures.py",
+        "hash": "761ce0d29dc88998c5bf6c3e3946c6c2d84e711640167074f790f7632d0422a1"
+      },
+      {
+        "path": "packages/core/tests/test_bootstrap.py",
+        "hash": "541859846e2b0e81418be590c246948c1b681c8136f860f4d550aa2678da6db4"
+      },
+      {
+        "path": "packages/core/tests/test_dag_controller.py",
+        "hash": "286c7f51532d9fffaa52da8b353b7076a82ee53dc3f892e2d28281fbded8fb75"
+      },
+      {
+        "path": "packages/core/tests/test_engine.py",
+        "hash": "993ae1e2f847f28abcf6944f65b2bc1399c05124c17940785e8dc9c63f70e767"
+      },
+      {
+        "path": "packages/core/tests/test_graph_service.py",
+        "hash": "8ee4fb58e07f4f6426577f1c34884bf21cd4ca57da20cb5d9b3d81a2c0fbed92"
+      },
+      {
+        "path": "packages/core/tests/test_grpc_config_service.py",
+        "hash": "a022e758c0aacddcc310c21669c4871273912f8d2a886e5241e8f376269dfaaf"
+      },
+      {
+        "path": "packages/core/tests/test_hot_reload.py",
+        "hash": "06daa0ba490531b806143aaf6d49de1a442a8333de28c571ea52174b518ffff6"
+      },
+      {
+        "path": "packages/core/tests/test_node_executor.py",
+        "hash": "e9fb005955220e659e80d459b121c1f388fb69df5f802e9d2e2354b740e0179c"
+      },
+      {
+        "path": "packages/core/tests/test_resolver.py",
+        "hash": "c3a5c3fb2135407466101b94f785c2a12755a69f59ea884973cd068858641c72"
+      },
+      {
+        "path": "packages/core/tests/test_snapshot.py",
+        "hash": "afa327e7bf13fc360a428e44f55c95ff4709e91167beec976699a8849e09097d"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "0391d2f785652c2cb7dd87e0ace4765713474864b2d1484bda32c62ffd7f2ec8"
+      }
+    ],
+    "skippedEvidenceFiles": [
+      "openspec/changes/registry-removal/.verify-result.json"
+    ],
+    "gitHeadCommit": "5a838c95565f1a472cec42d70d4488fe0e283c6c",
+    "gitDiffSummary": "Validated inputs under /home/yunxin/Documents/Code/tools/Edera. CLAUDE.md exists and was read. .apply-isolation.json sets originalBranch to registry-removal; origin/HEAD is unavailable, so master...HEAD was used for navigation because master is the branch point shown by git log. Current branch registry-removal at 5a838c9 includes Phase 2 cleanup commit refactor(core): 清理 bootstrap Registry 遗留死代码. git status shows modified openspec/changes/registry-removal/.verify-result.json and untracked codex_registry_removal*.jsonl/log files. git diff master...HEAD shows registry.py deleted, resolver/snapshot added, executor/controller/bootstrap/config/graph/hot_reload/engine/proto/tests updated, plus docs/codex-exec-agent-guide.md and dependency lock changes. Static evidence shows DatabaseHandlerResolver queries enabled installed_extensions manifest_data, DagExecutionSnapshot is frozen and snapshots handler entries plus entity_types dict copies, NodeExecutor requires snapshot and resolves handlers through snapshot.handler_resolver with module caching, DagController builds execution snapshots per run, bootstrap no longer builds registries and Phase 2 removed EntityTypeConfig/EntityTypeDescriptor bootstrap conversion dead code, ReloadEntityTypes enforces admin metadata and delegates DB reload through DagController, graph_service reads handlers from installed_extensions, and registry.py no longer exists. Commands run: openspec validate registry-removal --strict returned nonzero only for existing global capabilities-frontmatter warnings in unrelated extension specs; focused registry-removal pytest set passed 38/38; full uv run pytest packages/core/tests/ -q passed 94/94 with 5 existing aiosqlite event-loop thread warnings; declared coverage command failed because pytest-cov options are unavailable."
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-05T20:33:27.072Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Final optimizer pass found no further behavior-preserving structural improvements after the bootstrap dead-code cleanup."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-05T20:30:12.459Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "message": "Coverage check is marked complete, but the declared pytest-cov command is not runnable in the current test environment.",
+          "requirement": "测试覆盖率",
+          "task": "C26 验证测试覆盖率",
+          "recommendation": "Add pytest-cov to the dev dependency group or change C26 to an available coverage runner before treating coverage evidence as reproducible.",
+          "evidence": [
+            "openspec/changes/registry-removal/tasks.md:285-288",
+            "packages/core/pyproject.toml:34-40"
+          ]
+        },
+        {
+          "severity": "WARNING",
+          "message": "Task 10 asks for a mock_handler_resolver fixture, but final tests provide create_test_snapshot/StaticHandlerResolver and local resolver helpers instead.",
+          "requirement": "Task 10 测试辅助 fixture",
+          "task": "Task 10",
+          "recommendation": "Either add the named fixture or update tasks.md to match the implemented test-helper shape.",
+          "evidence": [
+            "openspec/changes/registry-removal/tasks.md:273-276",
+            "packages/core/tests/snapshot_fixtures.py:10-20",
+            "packages/core/tests/test_node_executor.py:68-82"
+          ]
+        },
+        {
+          "severity": "SUGGESTION",
+          "message": "The branch diff includes a Codex exec guide document that is not tied to registry-removal requirements.",
+          "requirement": "Surgical change scope",
+          "task": null,
+          "recommendation": "Move the documentation file to a separate change if it is not intentionally part of registry-removal.",
+          "evidence": [
+            "docs/codex-exec-agent-guide.md:1-3",
+            "openspec/changes/registry-removal/proposal.md:33-42"
+          ]
+        }
+      ],
+      "tasksFileHash": "19c99f025e6376f3b819b189f2ac57b0660772b0edf938e735637be358e5da27",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer-subagent",
+        "evidenceFiles": [
+          "docs/codex-exec-agent-guide.md",
+          "openspec/changes/registry-removal/.verify-result.json",
+          "openspec/changes/registry-removal/design.md",
+          "openspec/changes/registry-removal/opsx-delta.yaml",
+          "openspec/changes/registry-removal/proposal.md",
+          "openspec/changes/registry-removal/specs/dag-execution-snapshot/spec.md",
+          "openspec/changes/registry-removal/specs/database-handler-resolver/spec.md",
+          "openspec/changes/registry-removal/specs/extension-manifest-system/spec.md",
+          "openspec/changes/registry-removal/specs/node-executor/spec.md",
+          "openspec/changes/registry-removal/specs/runtime-entity-type-reload/spec.md",
+          "openspec/changes/registry-removal/tasks.md",
+          "packages/core/pyproject.toml",
+          "packages/core/src/edera_core/bootstrap.py",
+          "packages/core/src/edera_core/config_service.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/engine.py",
+          "packages/core/src/edera_core/graph_service.py",
+          "packages/core/src/edera_core/hot_reload.py",
+          "packages/core/src/edera_core/node/executor.py",
+          "packages/core/src/edera_core/resolver.py",
+          "packages/core/src/edera_core/snapshot.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/tests/snapshot_fixtures.py",
+          "packages/core/tests/test_bootstrap.py",
+          "packages/core/tests/test_dag_controller.py",
+          "packages/core/tests/test_engine.py",
+          "packages/core/tests/test_graph_service.py",
+          "packages/core/tests/test_grpc_config_service.py",
+          "packages/core/tests/test_hot_reload.py",
+          "packages/core/tests/test_node_executor.py",
+          "packages/core/tests/test_resolver.py",
+          "packages/core/tests/test_snapshot.py",
+          "proto/edera.proto"
+        ],
+        "evidenceFingerprint": "11974edcfa7fb355d5bf08dc4f973381cd3c09d8b966ced6de8bff3a1f20ca34",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "docs/codex-exec-agent-guide.md",
+            "hash": "52758a2fbedf7fb997f63e0b87e7a4c493f9946333030efd6b2fbd34a796dc10"
+          },
+          {
+            "path": "openspec/changes/registry-removal/design.md",
+            "hash": "d1f2d36304e5acccbf82dd0c8d59b724f05073392c9b464cc3b421e655619096"
+          },
+          {
+            "path": "openspec/changes/registry-removal/opsx-delta.yaml",
+            "hash": "2acd3b82cf04747a395b6433ec6a4f949a9aa02dc87a6b188216e03e2d5c8498"
+          },
+          {
+            "path": "openspec/changes/registry-removal/proposal.md",
+            "hash": "8cd2e03c4dca78b7f5a91239668ab888cf32105600e797517756a50a0ee112ab"
+          },
+          {
+            "path": "openspec/changes/registry-removal/specs/dag-execution-snapshot/spec.md",
+            "hash": "e372ce17a19ed1d7b5b21987fc01ed9a909fe869da82bd7d8a0806561e1782b8"
+          },
+          {
+            "path": "openspec/changes/registry-removal/specs/database-handler-resolver/spec.md",
+            "hash": "355286a9385f53860bad9b5d85cbf4dace8df413a724fa55a95a614d20b23064"
+          },
+          {
+            "path": "openspec/changes/registry-removal/specs/extension-manifest-system/spec.md",
+            "hash": "55d1346bc80b4536a48821020689ee1303daf195a97fbda551a175426496c575"
+          },
+          {
+            "path": "openspec/changes/registry-removal/specs/node-executor/spec.md",
+            "hash": "7a9c455eb7c709e4ad8bd5075e9ff47f421c6c479edacac5316945bcd23b718c"
+          },
+          {
+            "path": "openspec/changes/registry-removal/specs/runtime-entity-type-reload/spec.md",
+            "hash": "295e90e2efa4cdae678a2d23a08126c213696eacef860f4ea953c3ac5e05c95e"
+          },
+          {
+            "path": "openspec/changes/registry-removal/tasks.md",
+            "hash": "19c99f025e6376f3b819b189f2ac57b0660772b0edf938e735637be358e5da27"
+          },
+          {
+            "path": "packages/core/pyproject.toml",
+            "hash": "98f636a6dae63b8237ee414fde597b4d5368aa364c10065b3fb47bc2a8e2b002"
+          },
+          {
+            "path": "packages/core/src/edera_core/bootstrap.py",
+            "hash": "f64df97c7d1c729cbc0b66621eceeb86fd1ce3ed6e726b9f9a801ad3b776c91e"
+          },
+          {
+            "path": "packages/core/src/edera_core/config_service.py",
+            "hash": "8bc0f6cb5b7262fe72757a9def0a41b456e8ee11baf4def45903aaa9eeff1499"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "7af74e3e66b1f2273fc13f2516204c6249dea851c0e45df3ed1f12636f9a20f6"
+          },
+          {
+            "path": "packages/core/src/edera_core/engine.py",
+            "hash": "679ad497d4a86acba7848b4bd10a00ee9172f57f547fedada7f2bf86a7432917"
+          },
+          {
+            "path": "packages/core/src/edera_core/graph_service.py",
+            "hash": "fa1a1615e0e8b8214d9ed0cec62af476beb30e186059bf2223737d0a7ef5aa14"
+          },
+          {
+            "path": "packages/core/src/edera_core/hot_reload.py",
+            "hash": "58ec5cac440f4db7fbd9b835cb39794c452b45b2caf3633044092960182db659"
+          },
+          {
+            "path": "packages/core/src/edera_core/node/executor.py",
+            "hash": "22934f77c538b2173dc19367cae34898458e89360f54819ec2a34e2dd6dd5691"
+          },
+          {
+            "path": "packages/core/src/edera_core/resolver.py",
+            "hash": "d9eec015b7d61645e22b87e996240154e918c1b974b18e9b3e57b856ebf53483"
+          },
+          {
+            "path": "packages/core/src/edera_core/snapshot.py",
+            "hash": "ba156a9a3bdbcccaef05c943463d9f88fa357533d6bcfd4d7bab76dfb1cf1eef"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "f53bfe72ee45d26f86028f450f096be11298064c931696c4ecd48a9e2b352844"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "4ddbb6186a233ae566ce56c13557444b04410f00810cb14607f23491c599e140"
+          },
+          {
+            "path": "packages/core/tests/snapshot_fixtures.py",
+            "hash": "761ce0d29dc88998c5bf6c3e3946c6c2d84e711640167074f790f7632d0422a1"
+          },
+          {
+            "path": "packages/core/tests/test_bootstrap.py",
+            "hash": "541859846e2b0e81418be590c246948c1b681c8136f860f4d550aa2678da6db4"
+          },
+          {
+            "path": "packages/core/tests/test_dag_controller.py",
+            "hash": "286c7f51532d9fffaa52da8b353b7076a82ee53dc3f892e2d28281fbded8fb75"
+          },
+          {
+            "path": "packages/core/tests/test_engine.py",
+            "hash": "993ae1e2f847f28abcf6944f65b2bc1399c05124c17940785e8dc9c63f70e767"
+          },
+          {
+            "path": "packages/core/tests/test_graph_service.py",
+            "hash": "8ee4fb58e07f4f6426577f1c34884bf21cd4ca57da20cb5d9b3d81a2c0fbed92"
+          },
+          {
+            "path": "packages/core/tests/test_grpc_config_service.py",
+            "hash": "a022e758c0aacddcc310c21669c4871273912f8d2a886e5241e8f376269dfaaf"
+          },
+          {
+            "path": "packages/core/tests/test_hot_reload.py",
+            "hash": "06daa0ba490531b806143aaf6d49de1a442a8333de28c571ea52174b518ffff6"
+          },
+          {
+            "path": "packages/core/tests/test_node_executor.py",
+            "hash": "e9fb005955220e659e80d459b121c1f388fb69df5f802e9d2e2354b740e0179c"
+          },
+          {
+            "path": "packages/core/tests/test_resolver.py",
+            "hash": "c3a5c3fb2135407466101b94f785c2a12755a69f59ea884973cd068858641c72"
+          },
+          {
+            "path": "packages/core/tests/test_snapshot.py",
+            "hash": "afa327e7bf13fc360a428e44f55c95ff4709e91167beec976699a8849e09097d"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "0391d2f785652c2cb7dd87e0ace4765713474864b2d1484bda32c62ffd7f2ec8"
+          }
+        ],
+        "skippedEvidenceFiles": [
+          "openspec/changes/registry-removal/.verify-result.json"
+        ],
+        "gitHeadCommit": "5a838c95565f1a472cec42d70d4488fe0e283c6c",
+        "gitDiffSummary": "Validated inputs under /home/yunxin/Documents/Code/tools/Edera. CLAUDE.md exists and was read. .apply-isolation.json sets originalBranch to registry-removal; origin/HEAD is unavailable, so master...HEAD was used for navigation because master is the branch point shown by git log. Current branch registry-removal at 5a838c9 includes Phase 2 cleanup commit refactor(core): 清理 bootstrap Registry 遗留死代码. git status shows modified openspec/changes/registry-removal/.verify-result.json and untracked codex_registry_removal*.jsonl/log files. git diff master...HEAD shows registry.py deleted, resolver/snapshot added, executor/controller/bootstrap/config/graph/hot_reload/engine/proto/tests updated, plus docs/codex-exec-agent-guide.md and dependency lock changes. Static evidence shows DatabaseHandlerResolver queries enabled installed_extensions manifest_data, DagExecutionSnapshot is frozen and snapshots handler entries plus entity_types dict copies, NodeExecutor requires snapshot and resolves handlers through snapshot.handler_resolver with module caching, DagController builds execution snapshots per run, bootstrap no longer builds registries and Phase 2 removed EntityTypeConfig/EntityTypeDescriptor bootstrap conversion dead code, ReloadEntityTypes enforces admin metadata and delegates DB reload through DagController, graph_service reads handlers from installed_extensions, and registry.py no longer exists. Commands run: openspec validate registry-removal --strict returned nonzero only for existing global capabilities-frontmatter warnings in unrelated extension specs; focused registry-removal pytest set passed 38/38; full uv run pytest packages/core/tests/ -q passed 94/94 with 5 existing aiosqlite event-loop thread warnings; declared coverage command failed because pytest-cov options are unavailable."
+      }
+    }
+  }
+}
