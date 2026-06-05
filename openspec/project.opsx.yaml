@@ -221,7 +221,7 @@ capabilities:
     intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态、信息源日志契约、监控页面展示和错误反馈
     type: capability
   - id: cap.core.grpc-graph-service
-    intent: GraphService DAG graph payload 保留 sub-DAG 实例字段，并支持 run_id-scoped runtime status 查询。
+    intent: 提供 GraphService gRPC 接口，包含 DAG CRUD、Node-type CRUD、Skill CRUD、Handler CRUD 和增强的 Sub DAG 循环检测错误详情
     type: capability
   - id: cap.core.grpc-config-service
     intent: gRPC ConfigService，覆盖 system config、entity-types config 和通用配置文件的读写，验证逻辑在 server 端执行
@@ -282,4 +282,7 @@ capabilities:
     type: capability
   - id: cap.core.uzi-subdag-structure
     intent: UZI-Skill 分层 Sub DAG 结构，定义数据采集、评分综合、渲染三阶段的子图组织和数据流契约
+    type: capability
+  - id: cap.core.subdag-cycle-error-detail
+    intent: 增强 Sub DAG 循环检测错误消息，提供节点级路径追踪和具体修复建议
     type: capability

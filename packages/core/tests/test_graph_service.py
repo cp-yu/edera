@@ -199,7 +199,9 @@ async def test_save_sub_dag_cycle_rejected(tmp_path):
         )
 
     assert exc.value.code == grpc.StatusCode.INVALID_ARGUMENT
-    assert "sub DAG cycle: demo -> demo" in exc.value.details
+    assert "Sub DAG cycle detected" in exc.value.details
+    assert "节点 'self'" in exc.value.details
+    assert "修复建议" in exc.value.details
     stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
     assert [node.id for node in stored.nodes] == ["n1", "n2"]
 

@@ -1,6 +1,14 @@
+from dataclasses import dataclass
+
 from edera_core.config.schema import DagConfig, DagEdge, NodeConfig
 from edera_core.dag.models import DagGraph
 from edera_core.errors import DagError
+
+
+@dataclass(frozen=True)
+class DagPathStep:
+    dag_name: str
+    via_node_id: str | None = None
 
 
 def load_graph(config: DagConfig, nodes: dict[str, NodeConfig], dags: dict[str, DagConfig] | None = None) -> DagGraph:
@@ -72,6 +80,24 @@ def validate_sub_dag_nesting(
         _visit_sub_dag(dags, dag_name, max_depth, ())
 
 
+def _format_cycle_error(chain: tuple[DagPathStep, ...], root_dag: str) -> str:
+    lines: list[str] = [f"无法保存 DAG '{root_dag}'：检测到 Sub DAG 循环 (Sub DAG cycle detected)", ""]
+    lines.append("循环路径：")
+    lines.append(f"  {chain[0].dag_name}")
+    for step in chain[1:]:
+        node_part = f"[节点 '{step.via_node_id}']" if step.via_node_id else "?"
+        lines.append(f"    -> {node_part} -> {step.dag_name}")
+    lines.append("")
+    lines.append("问题：Sub DAG 引用形成了循环。")
+    lines.append("修复建议：请移除或修改以下任一节点的引用：")
+    for idx, step in enumerate(chain[1:], start=1):
+        if step.via_node_id is None:
+            continue
+        parent = chain[idx - 1].dag_name
+        lines.append(f"  • {parent} 中的节点 '{step.via_node_id}'")
+    return "\n".join(lines)
+
+
 def _check_io(upstream: NodeConfig, downstream: NodeConfig) -> None:
     if upstream.output_type == "Any" or downstream.input_type == "Any":
         return
@@ -110,18 +136,22 @@ def _visit_sub_dag(
     dags: dict[str, DagConfig],
     dag_name: str,
     max_depth: int,
-    path: tuple[str, ...],
+    path: tuple[DagPathStep, ...],
+    via_node_id: str | None = None,
 ) -> None:
-    chain = (*path, dag_name)
-    if dag_name in path:
-        raise DagError(f"sub DAG cycle: {' -> '.join(chain)}")
+    step = DagPathStep(dag_name=dag_name, via_node_id=via_node_id)
+    chain = (*path, step)
+    seen = {s.dag_name: s for s in path}
+    if dag_name in seen:
+        raise DagError(_format_cycle_error(chain, dag_name))
     if len(chain) > max_depth:
-        raise DagError(f"max DAG depth exceeded: {' -> '.join(chain)}")
+        name_chain = " -> ".join(s.dag_name for s in chain)
+        raise DagError(f"max DAG depth exceeded: {name_chain}")
     dag = dags[dag_name]
     for node in dag.nodes:
         ref = _dag_ref(dags, node.type, node.dag_ref)
         if ref is not None:
-            _visit_sub_dag(dags, ref, max_depth, chain)
+            _visit_sub_dag(dags, ref, max_depth, chain, via_node_id=node.id)
 
 
 def _dag_ref(dags: dict[str, DagConfig], node_type: str, dag_ref: str | None = None) -> str | None:
