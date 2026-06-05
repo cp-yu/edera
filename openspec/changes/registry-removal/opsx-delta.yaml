@@ -1,0 +1,37 @@
+schema_version: 1
+
+ADDED:
+  capabilities:
+    - id: cap.core.database-handler-resolver
+      type: capability
+      intent: 从数据库按需查询 handler 元数据，计算 handler 文件路径
+    - id: cap.core.dag-execution-snapshot
+      type: capability
+      intent: DAG 执行时的配置快照隔离机制，保证运行一致性
+    - id: cap.core.runtime-entity-type-reload
+      type: capability
+      intent: 运行时刷新 entity type 配置的 API
+
+  relations:
+    - from: cap.core.database-handler-resolver
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.dag-execution-snapshot
+      type: depends_on
+      to: cap.core.database-handler-resolver
+    - from: cap.operations.node-executor
+      type: depends_on
+      to: cap.core.dag-execution-snapshot
+    - from: cap.core.runtime-entity-type-reload
+      type: depends_on
+      to: cap.core.extension-manifest-system
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      intent: Bootstrap 流程从数据库加载扩展元数据，不再构建 HandlerRegistry 和 EntityTypeRegistry
+    - id: cap.operations.node-executor
+      intent: 移除对 HandlerRegistry 的依赖，改为使用 DagExecutionSnapshot 中的 handler resolver
+
+REMOVED:
+  capabilities: []

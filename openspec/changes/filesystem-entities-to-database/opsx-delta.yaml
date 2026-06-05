@@ -1,0 +1,40 @@
+schema_version: 1
+
+ADDED:
+  capabilities:
+    - id: cap.core.ordinary-entity-database-storage
+      type: capability
+      intent: 普通 entities 存储到数据库动态表，按 entity type 分表
+    - id: cap.core.entity-relations-database-storage
+      type: capability
+      intent: Entity relations 存储到 entity_relations 表
+    - id: cap.cli.entity-cli-commands
+      type: capability
+      intent: CLI edera entity 子命令集，支持 CRUD 和 import/export
+    - id: cap.cli.relation-cli-commands
+      type: capability
+      intent: CLI edera relation 子命令集，支持关系管理
+
+  relations:
+    - from: cap.core.ordinary-entity-database-storage
+      type: depends_on
+      to: cap.core.db-backed-core-entities
+    - from: cap.core.entity-relations-database-storage
+      type: depends_on
+      to: cap.core.ordinary-entity-database-storage
+    - from: cap.cli.entity-cli-commands
+      type: depends_on
+      to: cap.core.ordinary-entity-database-storage
+    - from: cap.cli.relation-cli-commands
+      type: depends_on
+      to: cap.core.entity-relations-database-storage
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.db-backed-core-entities
+      intent: 所有 entities（核心 + 普通）和 relations 都从数据库加载，不再从 YAML 文件加载
+    - id: cap.unified-entity-model
+      intent: EntityStore 统一从数据库查询所有 entities 和 relations，不涉及文件系统
+
+REMOVED:
+  capabilities: []

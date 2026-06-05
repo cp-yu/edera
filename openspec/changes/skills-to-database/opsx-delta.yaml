@@ -1,0 +1,33 @@
+schema_version: 1
+
+ADDED:
+  capabilities:
+    - id: cap.core.skill-database-storage
+      type: capability
+      intent: Skills 存储到 skills 数据库表
+    - id: cap.core.skill-dynamic-generation
+      type: capability
+      intent: Agent 执行时从数据库动态生成 skill 文件
+    - id: cap.cli.skill-cli-commands
+      type: capability
+      intent: CLI edera skill 子命令集，支持 CRUD 和 import/export
+    - id: cap.core.runtime-skill-reload
+      type: capability
+      intent: 运行时刷新 skill 配置的 API
+
+  relations:
+    - from: cap.core.skill-dynamic-generation
+      type: depends_on
+      to: cap.core.skill-database-storage
+    - from: cap.cli.skill-cli-commands
+      type: depends_on
+      to: cap.core.skill-database-storage
+    - from: cap.core.runtime-skill-reload
+      type: depends_on
+      to: cap.core.skill-database-storage
+
+MODIFIED:
+  capabilities: []
+
+REMOVED:
+  capabilities: []
