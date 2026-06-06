@@ -183,19 +183,25 @@ If the user mentions a change or you detect one is relevant:
 
 3. **Offer to capture when decisions are made**
 
-    | Insight Type               | Where to Capture               |
-    |----------------------------|--------------------------------|
-    | New requirement discovered | `specs/<capability>/spec.md` |
-    | Requirement changed        | `specs/<capability>/spec.md` |
-    | Design decision made       | `design.md`                  |
-    | Scope changed              | `proposal.md`                |
-    | New work identified        | `tasks.md`                   |
-    | Assumption invalidated     | Relevant artifact              |
+### Capture Boundary for Existing Changes
 
-   Example offers:
-   - "That's a design decision. Capture it in design.md?"
-   - "This is a new requirement. Add it to specs?"
-   - "This changes scope. Update the proposal?"
+When exploring an active change, read proposal/design/specs/tasks, reference them naturally, and offer precise artifact updates. The user decides whether to capture them.
+
+| Insight Type                         | Where to Capture               |
+|--------------------------------------|--------------------------------|
+| Observable behavior requirement      | `specs/<capability>/spec.md` |
+| Observable behavior changed          | `specs/<capability>/spec.md` |
+| Refactor rationale or rejected path  | `design.md`                  |
+| Implementation strategy              | `design.md`                  |
+| Scope changed                        | `proposal.md`                |
+| New work or verification identified  | `tasks.md`                   |
+| OPSX graph intent changed            | `opsx-delta.yaml`            |
+| Assumption invalidated               | Relevant artifact              |
+
+Example offers:
+- "That's a design decision. Capture it in design.md?"
+- "This is observable behavior. Add it to specs?"
+- "This changes scope. Update the proposal?"
 
 4. **The user decides** - Offer and move on. Don't pressure. Don't auto-capture.
 

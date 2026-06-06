@@ -103,6 +103,7 @@ Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX
       - Read any completed dependency files for context
       - Create the artifact file using `template` as the structure
       - Apply `configProjection.prompt.fragments`, `context`, and `rules` as constraints - but do NOT copy them into the file
+      - When creating `specs`, apply the returned `Spec content boundary`: route non-behavior content to design/tasks/proposal/opsx-delta instead of requirements
       - Show brief progress: "Created <artifact-id>"
 
    b. **Continue until all `applyRequires` artifacts are complete**
