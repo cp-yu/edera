@@ -200,6 +200,16 @@ class DagController:
         snapshot.config.entity_types.update(entity_types)
         return len(entity_types)
 
+    async def reload_skills(self) -> int:
+        snapshot = self.runtime_snapshot()
+        async with self._factory()() as session:
+            from edera_core.storage.repository import list_skill_configs
+
+            skills = await list_skill_configs(session)
+        snapshot.config.skills.clear()
+        snapshot.config.skills.update(skills)
+        return len(skills)
+
     async def load_bootstrap(self) -> BootstrapResult:
         if self.factory is None:
             raise RuntimeError("DAG controller has not been started")

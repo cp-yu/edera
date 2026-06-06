@@ -3,11 +3,10 @@ from __future__ import annotations
 from uuid import uuid4
 
 import grpc
-import yaml
 
 from edera_core.config.entities import validate_permission_overrides
-from edera_core.config.loader import _load_runtime_base_config, load_skill_configs
-from edera_core.config.schema import DagConfig, EntityConfig, SkillConfig
+from edera_core.config.loader import _load_runtime_base_config
+from edera_core.config.schema import DagConfig, EntityConfig
 from edera_core.dag.loader import validate_sub_dag_nesting
 from edera_core.errors import ConfigError, DagError
 from edera_core.service_common import (
@@ -20,10 +19,19 @@ from edera_core.service_common import (
     node_payload,
     parse_json,
     save_node_assets,
-    save_skill,
     valid_dag_name,
 )
-from edera_core.storage.repository import delete_core_entity, list_enabled_extensions, node_runs_for_run, recent_dag_runs, save_core_entity
+from edera_core.storage.repository import (
+    delete_core_entity,
+    delete_skill,
+    list_enabled_extensions,
+    list_skills,
+    node_runs_for_run,
+    recent_dag_runs,
+    save_core_entity,
+    skill_to_config,
+    upsert_skill,
+)
 
 
 class _GraphService:
@@ -149,29 +157,38 @@ class _GraphService:
         return json_response(self.pb2, {"deleted": True})
 
     async def ListSkills(self, request, context):
-        return json_response(self.pb2, {"skills": [skill.model_dump(mode="json") for skill in load_skill_configs(self.daemon.config_dir / "skills").values()]})
+        async with self.daemon.controller._factory()() as session:
+            skills = [skill_to_config(skill).model_dump(mode="json") for skill in await list_skills(session)]
+        return json_response(self.pb2, {"skills": skills})
 
     async def CreateSkill(self, request, context):
         body = parse_json(request.json)
         name = str(body.get("name", ""))
         if not name:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "skill name is required")
-        path = self.daemon.config_dir / "skills" / f"{name}.yaml"
-        if path.exists():
-            await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"skill '{name}' already exists")
-        return json_response(self.pb2, save_skill(self.daemon.config_dir.parent, path, body))
+        async with self.daemon.controller._factory()() as session:
+            if any(skill.name == name for skill in await list_skills(session)):
+                await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"skill '{name}' already exists")
+            skill = await upsert_skill(session, name, _skill_files(body), _display_name(body), _description(body))
+            await session.commit()
+        await _refresh_runtime_snapshot(self.daemon)
+        return json_response(self.pb2, {"skill": skill_to_config(skill).model_dump(mode="json")})
 
     async def SaveSkill(self, request, context):
         body = {**parse_json(request.json), "name": request.name}
-        return json_response(self.pb2, save_skill(self.daemon.config_dir.parent, self.daemon.config_dir / "skills" / f"{request.name}.yaml", body))
+        async with self.daemon.controller._factory()() as session:
+            skill = await upsert_skill(session, request.name, _skill_files(body), _display_name(body), _description(body))
+            await session.commit()
+        await _refresh_runtime_snapshot(self.daemon)
+        return json_response(self.pb2, {"skill": skill_to_config(skill).model_dump(mode="json")})
 
     async def DeleteSkill(self, request, context):
-        path = self.daemon.config_dir / "skills" / f"{request.name}.yaml"
-        if not path.exists():
+        async with self.daemon.controller._factory()() as session:
+            deleted = await delete_skill(session, request.name)
+            await session.commit()
+        if not deleted:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"skill {request.name} not found")
-        skill = SkillConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
-        path.unlink()
-        (self.daemon.config_dir.parent / "extensions" / skill.handler / "handler.py").unlink(missing_ok=True)
+        await _refresh_runtime_snapshot(self.daemon)
         return json_response(self.pb2, {"deleted": True})
 
     async def ListHandlers(self, request, context):
@@ -235,6 +252,29 @@ async def _save_core_and_refresh(daemon, entity: EntityConfig) -> None:
 async def _refresh_runtime_snapshot(daemon) -> None:
     config = _load_runtime_base_config(daemon.config_dir)
     await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
+
+
+def _skill_files(body: dict[str, object]) -> list[dict[str, str]]:
+    files = body.get("files")
+    if isinstance(files, list):
+        return [
+            {"path": str(item.get("path") or ""), "content": str(item.get("content") or "")}
+            for item in files
+            if isinstance(item, dict)
+        ]
+    name = str(body.get("name") or "skill").strip() or "skill"
+    description = _description(body)
+    content = str(body.get("content") or body.get("skill_md") or f"# {name}\n\n{description}".rstrip())
+    return [{"path": "SKILL.md", "content": content}]
+
+
+def _display_name(body: dict[str, object]) -> str | None:
+    value = body.get("display_name")
+    return str(value) if value is not None else None
+
+
+def _description(body: dict[str, object]) -> str:
+    return str(body.get("description") or "")
 
 
 def _validate_graph_entity_permissions(entity_types: dict[str, object], payload: dict[str, object]) -> None:

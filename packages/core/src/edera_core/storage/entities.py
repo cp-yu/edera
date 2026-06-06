@@ -327,6 +327,25 @@ class InstalledExtension(SQLModel, table=True):
         return value
 
 
+class Skill(SQLModel, table=True):
+    __tablename__ = "skills"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    display_name: str | None = None
+    description: str | None = None
+    config_body: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("name")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
 class DagRun(SQLModel, table=True):
     __tablename__ = "dag_runs"
 

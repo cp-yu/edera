@@ -13,6 +13,7 @@ from edera_core.config.loader import _load_runtime_base_config, materialize_runt
 from edera_core.dag_controller import RuntimeSnapshot
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.repository import create_dag_run, create_relation, mark_node_run, save_installed_extension
+from edera_core.storage.repository import get_skill
 
 from fixtures.entity_fixtures import seed_entity_records
 from service_fakes import AbortError, FakeContext, FakeDaemon
@@ -60,8 +61,11 @@ async def test_create_skill(tmp_path):
     )
 
     assert json.loads(result.json)["skill"]["name"] == "summarize"
-    assert (root / "skills" / "summarize.yaml").exists()
-    assert (root.parent / "extensions" / "summarize" / "handler.py").exists()
+    async with service.daemon.controller._factory()() as session:
+        skill = await get_skill(session, "summarize")
+    assert skill is not None
+    assert skill.config_body["files"][0]["path"] == "SKILL.md"
+    assert not (root / "skills" / "summarize.yaml").exists()
 
 
 @pytest.mark.asyncio

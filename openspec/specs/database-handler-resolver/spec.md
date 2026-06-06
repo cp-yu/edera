@@ -1,8 +1,20 @@
+---
+capabilities:
+  - cap.core.database-handler-resolver
+---
 # database-handler-resolver Specification
 
 ## Purpose
-此规约记录变更 registry-removal 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义从数据库安装扩展快照中按需解析 handler 元数据、计算 handler 文件路径并返回可执行入口信息的能力。
 ## Requirements
+### Requirement: 覆盖率验证可复现性
+registry-removal 针对 `database-handler-resolver` 的 coverage 验证命令 SHALL 可在项目 dev 环境中运行。
+
+#### Scenario: coverage 命令具备依赖
+- **WHEN** 项目 dev dependencies 已安装
+- **THEN** `pytest-cov` SHALL 可被 pytest 使用
+- **AND** `uv run pytest packages/core/tests/ --cov=edera_core --cov-report=term` SHALL 不会因未知 `--cov` 选项失败
+
 ### Requirement: 从数据库查询 handler 元数据
 系统 SHALL 提供 `DatabaseHandlerResolver` 类，从 `installed_extensions` 表的 `manifest_snapshot` 字段查询 handler 元数据。
 
@@ -48,4 +60,3 @@
 #### Scenario: 查询时使用 session
 - **WHEN** resolver 调用 `get(handler_name)`
 - **THEN** 使用构造时传入的 session 查询 `installed_extensions` 表
-

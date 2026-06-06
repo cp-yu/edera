@@ -27,6 +27,7 @@ def main() -> None:
     _relation_parser(subparsers.add_parser("relation"))
     _entity_type_parser(subparsers.add_parser("entity-type"))
     _node_parser(subparsers.add_parser("node"))
+    _skill_parser(subparsers.add_parser("skill"))
     _dag_parser(subparsers.add_parser("dag"))
     _event_parser(subparsers.add_parser("event"))
     _system_parser(subparsers.add_parser("system"))
@@ -138,6 +139,27 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     logs.add_argument("--run-id", required=True)
 
 
+def _skill_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="skill_command", required=True)
+    subparsers.add_parser("list")
+    show = subparsers.add_parser("show")
+    show.add_argument("name")
+    create = subparsers.add_parser("create")
+    create.add_argument("--from-dir", required=True, type=Path)
+    update = subparsers.add_parser("update")
+    update.add_argument("name")
+    update.add_argument("--from-dir", required=True, type=Path)
+    import_dir = subparsers.add_parser("import-dir")
+    import_dir.add_argument("path", type=Path)
+    import_batch = subparsers.add_parser("import-batch")
+    import_batch.add_argument("path", type=Path)
+    export = subparsers.add_parser("export")
+    export.add_argument("name")
+    export.add_argument("-o", "--output-dir", required=True, type=Path)
+    delete = subparsers.add_parser("delete")
+    delete.add_argument("name")
+
+
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="dag_command", required=True)
     run = subparsers.add_parser("run")
@@ -235,6 +257,8 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _run_grpc(_grpc_entity_type(args))
     if args.command == "node":
         return _run_grpc(_grpc_node(args))
+    if args.command == "skill":
+        return _run_grpc(_grpc_skill(args))
     if args.command == "dag":
         return _run_grpc(_grpc_dag(args))
     if args.command == "event":
@@ -427,6 +451,41 @@ async def _grpc_node(args: argparse.Namespace) -> object:
     finally:
         await client.close()
     raise ValueError(f"unknown node command: {args.node_command}")
+
+
+async def _grpc_skill(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.skill_command == "list":
+            return await client.graph_list_skills()
+        if args.skill_command == "show":
+            return _skill_from_list(await client.graph_list_skills(), args.name)
+        if args.skill_command == "create":
+            return await client.graph_create_skill(_skill_dir_payload(args.from_dir))
+        if args.skill_command == "update":
+            return await client.graph_save_skill(args.name, {**_skill_dir_payload(args.from_dir), "name": args.name})
+        if args.skill_command == "import-dir":
+            payload = _skill_dir_payload(args.path)
+            return await client.graph_save_skill(str(payload["name"]), payload)
+        if args.skill_command == "import-batch":
+            imported = []
+            for path in sorted(item for item in args.path.iterdir() if item.is_dir() and (item / "SKILL.md").is_file()):
+                payload = _skill_dir_payload(path)
+                result = await client.graph_save_skill(str(payload["name"]), payload)
+                skill = result.get("skill") if isinstance(result, dict) else None
+                if isinstance(skill, dict) and isinstance(skill.get("name"), str):
+                    imported.append(skill["name"])
+            return {"imported": imported}
+        if args.skill_command == "export":
+            skill = _skill_from_list(await client.graph_list_skills(), args.name)
+            target = args.output_dir / args.name
+            _write_skill_files(target, _skill_files_from_payload(skill))
+            return {"exported": args.name, "path": str(target)}
+        if args.skill_command == "delete":
+            return await client.graph_delete_skill(args.name)
+    finally:
+        await client.close()
+    raise ValueError(f"unknown skill command: {args.skill_command}")
 
 
 async def _grpc_dag(args: argparse.Namespace) -> object:
@@ -757,6 +816,50 @@ def _arg_path(args: argparse.Namespace) -> Path:
     if path is None:
         raise ValueError("file path is required")
     return path
+
+
+def _skill_dir_payload(path: Path) -> dict[str, object]:
+    if not (path / "SKILL.md").is_file():
+        raise ValueError("skill directory must contain SKILL.md")
+    return {"name": path.name, "files": _read_skill_files(path)}
+
+
+def _read_skill_files(root: Path) -> list[dict[str, str]]:
+    return [
+        {"path": item.relative_to(root).as_posix(), "content": item.read_text(encoding="utf-8")}
+        for item in sorted(path for path in root.rglob("*") if path.is_file())
+    ]
+
+
+def _skill_from_list(payload: object, name: str) -> dict[str, object]:
+    skills = payload.get("skills") if isinstance(payload, dict) else None
+    if not isinstance(skills, list):
+        raise ValueError("invalid skills response")
+    for skill in skills:
+        if isinstance(skill, dict) and skill.get("name") == name:
+            return skill
+    raise ValueError(f"skill not found: {name}")
+
+
+def _skill_files_from_payload(skill: dict[str, object]) -> list[dict[str, str]]:
+    files = skill.get("files")
+    if not isinstance(files, list):
+        raise ValueError("skill response missing files")
+    return [
+        {"path": str(item.get("path") or ""), "content": str(item.get("content") or "")}
+        for item in files
+        if isinstance(item, dict)
+    ]
+
+
+def _write_skill_files(root: Path, files: list[dict[str, str]]) -> None:
+    for item in files:
+        relative = Path(item["path"])
+        if relative.is_absolute() or ".." in relative.parts or not item["path"]:
+            raise ValueError(f"unsafe skill file path: {item['path']}")
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(item["content"], encoding="utf-8")
 
 
 def _parse_filters(filters: list[str]) -> dict[str, str]:

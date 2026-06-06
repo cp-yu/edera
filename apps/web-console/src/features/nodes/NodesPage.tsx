@@ -104,11 +104,9 @@ export function NodesPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {(skills?.skills ?? []).map((skill) => (
-              <JsonCard
+              <SkillCard
                 key={skill.name}
-                title={skill.name}
-                subtitle={skill.handler}
-                value={{ ...skill, handler_code: '' }}
+                skill={skill}
                 onSave={(next) => saveSkill.mutate({ name: skill.name, body: next as Partial<SkillDefinition> & Record<string, unknown> })}
                 onDelete={() => deleteSkill.mutate(skill.name)}
               />
@@ -117,6 +115,29 @@ export function NodesPage() {
         )}
       </div>
     </main>
+  )
+}
+
+function SkillCard({
+  skill,
+  onSave,
+  onDelete,
+}: {
+  skill: SkillDefinition
+  onSave: (value: Record<string, unknown>) => void
+  onDelete: () => void
+}) {
+  const readonly = (skill.files?.length ?? 0) > 1
+  return (
+    <JsonCard
+      title={skill.name}
+      subtitle={skill.handler || skill.description}
+      value={{ ...skill, handler_code: '' }}
+      onSave={onSave}
+      onDelete={onDelete}
+      readonly={readonly}
+      notice={readonly ? '此 skill 包含多个文件，请使用 CLI 管理' : undefined}
+    />
   )
 }
 
@@ -179,20 +200,28 @@ function JsonCard({
   value,
   onSave,
   onDelete,
+  readonly = false,
+  notice,
 }: {
   title: string
   subtitle: string
   value: Record<string, unknown>
   onSave: (value: Record<string, unknown>) => void
   onDelete: () => void
+  readonly?: boolean
+  notice?: string
 }) {
   return (
     <section className="rounded-xl border bg-card p-4 shadow-sm">
       <NodeCardHeader title={title} subtitle={subtitle} onDelete={onDelete} />
+      {notice && <p className="mt-3 rounded-md border bg-muted px-3 py-2 text-xs text-muted-foreground">{notice}</p>}
       <textarea
         className="mt-3 min-h-56 w-full rounded-md border bg-background p-3 font-mono text-xs"
         defaultValue={JSON.stringify(value, null, 2)}
-        onBlur={(event) => onSave(JSON.parse(event.target.value) as Record<string, unknown>)}
+        readOnly={readonly}
+        onBlur={(event) => {
+          if (!readonly) onSave(JSON.parse(event.target.value) as Record<string, unknown>)
+        }}
       />
     </section>
   )

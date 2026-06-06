@@ -311,6 +311,9 @@ class GrpcClient:
     async def config_list_entity_types(self) -> dict[str, object]:
         return _json_response(await self.config.ListEntityTypes(pb2.EmptyRequest()))
 
+    async def config_reload_skills(self) -> dict[str, object]:
+        return _json_response(await self.config.ReloadSkills(pb2.EmptyRequest(), metadata=_identity_metadata(self.identity)))
+
     async def config_create_entity_type(self, name: str, content: str) -> dict[str, object]:
         return _json_response(await self.config.CreateEntityType(pb2.ConfigFileContentRequest(name=name, content=content)))
 

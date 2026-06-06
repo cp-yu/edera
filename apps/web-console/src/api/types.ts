@@ -126,9 +126,11 @@ export interface DagState {
 
 export interface SkillDefinition {
   name: string
+  display_name?: string | null
   description: string
   handler: string
   parameters_schema: Record<string, unknown>
+  files?: { path: string; content: string }[]
 }
 
 export interface DagRun {

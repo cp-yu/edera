@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from edera_core.config.schema import EntityConfig, EntityTypeConfig, entity_ref
+from edera_core.config.schema import SkillConfig
 from edera_core.storage.materialization import (
     decode_value,
     encode_value,
@@ -18,7 +20,7 @@ from edera_core.storage.materialization import (
     entity_table_name,
     identifier,
 )
-from edera_core.storage.entities import EdgeInput, EntityRelation, InstalledExtension, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
+from edera_core.storage.entities import EdgeInput, EntityRelation, InstalledExtension, NodeOutputEntity, NodeRun, DagRun, Skill, SourceRecovery, utc_now
 from edera_core.storage.entities import (
     CoreEntityDag,
     CoreEntityNode,
@@ -440,6 +442,90 @@ async def list_relations_for_entity_refs(session: AsyncSession, refs: set[str]) 
     return list(result.all())
 
 
+async def create_skill(
+    session: AsyncSession,
+    name: str,
+    files: list[dict[str, str]],
+    display_name: str | None = None,
+    description: str | None = None,
+) -> Skill:
+    body = _skill_body(files)
+    skill = Skill(name=_skill_name(name), display_name=display_name, description=description, config_body=body)
+    session.add(skill)
+    await session.flush()
+    return skill
+
+
+async def update_skill(
+    session: AsyncSession,
+    name: str,
+    files: list[dict[str, str]],
+    display_name: str | None = None,
+    description: str | None = None,
+) -> Skill:
+    skill = await get_skill(session, name)
+    if skill is None:
+        raise ValueError(f"skill not found: {name}")
+    skill.config_body = _skill_body(files)
+    skill.display_name = display_name
+    skill.description = description
+    skill.updated_at = utc_now()
+    session.add(skill)
+    await session.flush()
+    return skill
+
+
+async def upsert_skill(
+    session: AsyncSession,
+    name: str,
+    files: list[dict[str, str]],
+    display_name: str | None = None,
+    description: str | None = None,
+) -> Skill:
+    current = await get_skill(session, name)
+    if current is None:
+        return await create_skill(session, name, files, display_name, description)
+    return await update_skill(session, name, files, display_name, description)
+
+
+async def get_skill(session: AsyncSession, name: str) -> Skill | None:
+    result = await session.exec(select(Skill).where(Skill.name == name))
+    return result.first()
+
+
+async def delete_skill(session: AsyncSession, name: str) -> bool:
+    skill = await get_skill(session, name)
+    if skill is None:
+        return False
+    await session.delete(skill)
+    await session.flush()
+    return True
+
+
+async def list_skills(session: AsyncSession) -> list[Skill]:
+    result = await session.exec(select(Skill).order_by(col(Skill.name)))
+    return list(result.all())
+
+
+async def list_skill_configs(session: AsyncSession) -> dict[str, SkillConfig]:
+    return {skill.name: skill_to_config(skill) for skill in await list_skills(session)}
+
+
+def skill_to_config(skill: Skill) -> SkillConfig:
+    body = skill.config_body if isinstance(skill.config_body, dict) else {}
+    files = body.get("files") if isinstance(body.get("files"), list) else []
+    return SkillConfig.model_validate(
+        {
+            "name": skill.name,
+            "display_name": skill.display_name,
+            "description": skill.description or "",
+            "handler": skill.name,
+            "parameters_schema": {},
+            "files": files,
+        }
+    )
+
+
 async def entity_exists(
     session: AsyncSession,
     ref: str,
@@ -531,6 +617,31 @@ async def query_log_index(
 async def _all(session: AsyncSession, model):
     result = await session.exec(select(model).order_by(col(model.id)))
     return list(result.all())
+
+
+def _skill_name(name: str) -> str:
+    value = name.strip()
+    if not value:
+        raise ValueError("skill name is required")
+    return value
+
+
+def _skill_body(files: list[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
+    normalized: list[dict[str, str]] = []
+    for item in files:
+        path = str(item.get("path") or "").strip()
+        content = item.get("content")
+        if not path:
+            raise ValueError("skill file path is required")
+        relative = Path(path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"unsafe skill file path: {path}")
+        if content is None:
+            raise ValueError(f"skill file content is required: {path}")
+        normalized.append({"path": path, "content": str(content)})
+    if not any(item["path"] == "SKILL.md" for item in normalized):
+        raise ValueError("skill must include SKILL.md")
+    return {"files": normalized}
 
 
 def _core_model(entity_type: str):

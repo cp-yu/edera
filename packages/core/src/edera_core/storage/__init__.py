@@ -13,6 +13,7 @@ from edera_core.storage.entities import (
     NodeOutputEntity,
     NodeRun,
     DagRun,
+    Skill,
     SourceRecovery,
 )
 
@@ -30,6 +31,7 @@ __all__ = [
     "NodeOutputEntity",
     "NodeRun",
     "DagRun",
+    "Skill",
     "SourceRecovery",
     "create_engine",
     "init_db",

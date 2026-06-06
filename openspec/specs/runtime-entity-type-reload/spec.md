@@ -1,7 +1,11 @@
+---
+capabilities:
+  - cap.core.runtime-entity-type-reload
+---
 # runtime-entity-type-reload Specification
 
 ## Purpose
-此规约记录变更 registry-removal 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义管理员触发的运行时 entity type reload API，以及 reload 后新 DAG run 使用新配置、运行中 DAG run 继续使用既有快照的隔离语义。
 ## Requirements
 ### Requirement: 提供 reload entity types API
 系统 SHALL 提供 gRPC `ReloadEntityTypes` RPC，从数据库重新加载 entity type 配置到 `AppConfig.entity_types`。
@@ -54,4 +58,3 @@ Reload 操作 SHALL 记录日志，包含调用者、时间戳、更新的 entit
 #### Scenario: 记录 reload 事件
 - **WHEN** 管理员调用 reload API
 - **THEN** 系统记录日志：`INFO: ReloadEntityTypes called by user={user}, loaded {count} entity types`
-

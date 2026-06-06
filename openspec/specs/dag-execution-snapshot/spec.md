@@ -1,7 +1,11 @@
+---
+capabilities:
+  - cap.core.dag-execution-snapshot
+---
 # dag-execution-snapshot Specification
 
 ## Purpose
-此规约记录变更 registry-removal 引入的行为，请在后续同步或归档前补全正式 Purpose。
+定义 DAG run 启动时创建不可变执行快照，以隔离运行期 DAG 配置、node 配置、entity type 副本和 handler resolver 的能力。
 ## Requirements
 ### Requirement: 创建 DAG 执行快照
 系统 SHALL 在 DAG 启动时创建 `DagExecutionSnapshot`，包含该 DAG 执行所需的所有配置。
@@ -57,4 +61,3 @@
 - **WHEN** executor 需要加载 handler
 - **THEN** 从 `self.snapshot.handler_resolver` 获取 resolver
 - **THEN** 调用 `resolver.get(handler_name)` 查询元数据
-
