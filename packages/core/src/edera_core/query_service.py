@@ -11,7 +11,7 @@ from edera_core.service_common import (
     limit,
     metadata_bar,
     parse_datetime,
-    source_map,
+    source_map_from_store,
     summary_item,
 )
 from edera_core.storage.repository import (
@@ -121,15 +121,15 @@ class _QueryService:
         )
 
     async def SourceHealth(self, request, context):
-        source_names = list(source_map(self.daemon.controller.runtime_snapshot().entity_store).keys())
         async with self.daemon.controller._factory()() as session:
+            source_names = list((await source_map_from_store(session, self.daemon.controller.runtime_snapshot().entity_store)).keys())
             health = await source_health_summary(session, source_names)
             logs = await source_execution_logs(session, source_names=source_names)
         return json_response(self.pb2, {"sources": health, "logs": logs})
 
     async def SourceLogs(self, request, context):
-        source_names = list(source_map(self.daemon.controller.runtime_snapshot().entity_store).keys())
         async with self.daemon.controller._factory()() as session:
+            source_names = list((await source_map_from_store(session, self.daemon.controller.runtime_snapshot().entity_store)).keys())
             logs = await source_execution_logs(session, request.source_name or None, limit(request.limit), source_names)
         return json_response(self.pb2, {"logs": logs})
 

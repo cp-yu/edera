@@ -12,8 +12,9 @@ from edera_core.config.entities import EntityStore
 from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
 from edera_core.dag_controller import RuntimeSnapshot
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import create_dag_run, mark_node_run, save_installed_extension
+from edera_core.storage.repository import create_dag_run, create_relation, mark_node_run, save_installed_extension
 
+from fixtures.entity_fixtures import seed_entity_records
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
 
@@ -73,6 +74,25 @@ async def test_get_dag_detail(tmp_path):
     payload = json.loads(result.json)
 
     assert {"nodes", "edges", "ui", "entity_types", "entities", "entity_relations"}.issubset(payload)
+
+
+@pytest.mark.asyncio
+async def test_get_dag_detail_includes_database_entities_and_relations(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(await _graph_daemon(root, tmp_path))
+    app = service.daemon.controller.runtime_snapshot().config
+    async with service.daemon.controller._factory()() as session:
+        await create_relation(session, "stock:TEST", "rss-source:rss", "uses-source", {}, app.entity_types)
+        await session.commit()
+
+    result = await service.GetDag(pb2.NameRequest(name="demo"), FakeContext())
+    payload = json.loads(result.json)
+
+    refs = {entity["ref"] for entity in payload["entities"]}
+    assert {"stock:TEST", "rss-source:rss"}.issubset(refs)
+    assert payload["entity_relations"][0]["entities"] == ["stock:TEST", "rss-source:rss"]
+    assert payload["entity_relations"][0]["type"] == "uses-source"
 
 
 @pytest.mark.asyncio
@@ -271,8 +291,13 @@ class _FakeSnapshot:
 async def _graph_daemon(root, tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
     await init_db(engine)
+    config = _load_runtime_base_config(root)
+    factory = session_factory(engine)
+    async with factory() as session:
+        await seed_entity_records(session, config.entity_types)
+        await session.commit()
     controller = GraphController(root, engine)
-    await controller.install_snapshot(_load_runtime_base_config(root), controller.bootstrap)
+    await controller.install_snapshot(config, controller.bootstrap)
     return FakeDaemon(root, controller)
 
 
@@ -356,7 +381,11 @@ def _write_graph_config(root):
     (root / "skills").mkdir()
     (root.parent / "schemas" / "entity-types").mkdir(parents=True)
     (root.parent / "schemas" / "entity-types" / "stock.yaml").write_text(
-        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nschema:\n  properties:\n    code: {}\n",
+        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nstorage_tier: database\nschema:\n  properties:\n    code: {}\n",
+        encoding="utf-8",
+    )
+    (root.parent / "schemas" / "entity-types" / "rss-source.yaml").write_text(
+        "display_name: RSS\nbusiness_id_field: name\ndisplay_template: '{name}'\nstorage_tier: database\nschema:\n  properties:\n    name: {}\n",
         encoding="utf-8",
     )
     (root / "nodes" / "reader.yaml").write_text(
@@ -371,6 +400,4 @@ def _write_graph_config(root):
         "name: common-subdag\nnodes:\n- id: child\n  type: reader\nedges: []\nui: {}\n",
         encoding="utf-8",
     )
-    (root / "entities.yaml").write_text("entities: []\n", encoding="utf-8")
-    (root / "entity-relations.yaml").write_text("relations: []\n", encoding="utf-8")
     (root / "system.toml").write_text("database_url = \"sqlite+aiosqlite:///tmp/test.db\"\nschedule_minutes = 1\n", encoding="utf-8")

@@ -21,15 +21,15 @@
 
 #### Scenario: Relation 作为 Entity
 
-- **WHEN** 系统加载数据库中的 relation 记录
+- **WHEN** 系统按需查询数据库中的 relation 记录
 - **THEN** 系统将其解析为一个 `type: relation` 的 Entity，`attributes` 包含 `from`、`to`、`relation_type`
 - **THEN** 系统不再从 `config/entity-relations.yaml` 加载 relations
 
-#### Scenario: 普通业务 Entity 从数据库加载
+#### Scenario: 普通业务 Entity 按需从数据库查询
 
-- **WHEN** 系统启动时加载 entities
-- **THEN** 系统 SHALL 从数据库查询所有 entity type 的表
-- **THEN** 系统 SHALL 包含普通 entities（如 stock, rss-source）
+- **WHEN** 系统查询普通 entities（如 stock, rss-source）
+- **THEN** 系统 SHALL 从对应 entity type 的数据库表读取结果
+- **THEN** 启动时 `EntityStore` MUST NOT 需要包含所有普通 entities
 - **THEN** 系统不再从 `config/entities.yaml` 加载普通 entities
 
 #### Scenario: Node 输出作为 Entity

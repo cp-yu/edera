@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-import yaml
-
 from edera_core.config.schema import (
     EntitiesConfig,
     EntityConfig,
@@ -17,6 +15,7 @@ from edera_core.config.schema import (
     FieldPermission,
     entity_ref,
 )
+from edera_core.config.entity_query_result import EntityQueryResult
 from edera_core.errors import ConfigEditError, ConfigError
 
 
@@ -36,16 +35,16 @@ class EntityStore:
     entities: EntitiesConfig
     entity_types: dict[str, EntityTypeConfig]
     relations: EntityRelationsConfig
-    config_path: Path | None
-    memory_entities: dict[str, EntityConfig]
+    memory_entities: dict[str, dict[str, EntityConfig]]
     database_entities: list[EntityConfig]
+    default_dag_run_id: str | None
 
     def __init__(
         self,
         entities: EntitiesConfig | None = None,
         entity_types: dict[str, EntityTypeConfig] | None = None,
         relations: EntityRelationsConfig | None = None,
-        config_path: Path | None = None,
+        config_path: object | None = None,
     ) -> None:
         if entities is None or entity_types is None or relations is None:
             from edera_core.config.loader import load_app_config
@@ -54,15 +53,19 @@ class EntityStore:
             entities = config.entities
             entity_types = config.entity_types
             relations = config.entity_relations
-            config_path = Path("config/entities.yaml")
         self.entities = entities
         self.entity_types = entity_types
         self.relations = relations
-        self.config_path = config_path
         self.memory_entities = {}
         self.database_entities = []
+        self.default_dag_run_id = None
 
-    def resolve(self, ref: str) -> EntityConfig:
+    def resolve(self, ref: str, dag_run_id: str | None = None) -> EntityConfig:
+        effective_dag_run_id = dag_run_id or self.default_dag_run_id
+        if effective_dag_run_id is not None:
+            cached = self.memory_entities.get(effective_dag_run_id, {}).get(ref)
+            if cached is not None:
+                return cached.model_copy(deep=True)
         for entity in self.query():
             if _entity_matches(entity, self.entity_types, ref):
                 return entity.model_copy(deep=True)
@@ -100,6 +103,16 @@ class EntityStore:
             return self.create(entity_type, attributes)
         if session is None:
             raise ConfigError("database session is required")
+        if entity_type == "relation":
+            from edera_core.storage.repository import create_relation
+
+            from_entity_id = str(attributes.get("from_entity_id") or attributes.get("from") or "")
+            to_entity_id = str(attributes.get("to_entity_id") or attributes.get("to") or "")
+            relation_type = str(attributes.get("relation_type") or "")
+            if not from_entity_id or not to_entity_id or not relation_type:
+                raise ConfigError("relation requires from_entity_id, to_entity_id and relation_type")
+            relation = await create_relation(session, from_entity_id, to_entity_id, relation_type, dict(attributes.get("metadata") or {}), self.entity_types)
+            return _relation_entity(relation)
         if entity_type in CORE_ENTITY_TYPES:
             from edera_core.storage.repository import save_core_entity
 
@@ -136,13 +149,14 @@ class EntityStore:
         run_id: str | None = None,
         node_id: str | None = None,
         tags: list[str] | None = None,
+        dag_run_id: str | None = None,
         session: Any | None = None,
-    ) -> list[EntityConfig]:
+    ) -> list[EntityQueryResult]:
         if session is None or not self._needs_database(entity_type):
-            return self.query(entity_type, run_id, node_id, tags)
-        from edera_core.storage.repository import list_core_entities, list_ordinary_entities, query_node_output_entities
+            return self.query_results(entity_type, run_id, node_id, tags, dag_run_id)
+        from edera_core.storage.repository import list_core_entities, list_ordinary_entities, list_relations, query_node_output_entities
 
-        filesystem_and_memory = [
+        memory = [
             entity
             for entity in self.query(entity_type, run_id, node_id, tags)
             if self.entity_types[entity.type].storage_tier != "database"
@@ -151,10 +165,72 @@ class EntityStore:
         if entity_type in CORE_ENTITY_TYPES or entity_type is None:
             core = await list_core_entities(session, entity_type if entity_type in CORE_ENTITY_TYPES else None)
         ordinary = await list_ordinary_entities(session, self.entity_types, entity_type)
+        relations: list[EntityConfig] = []
+        if entity_type in {None, "relation"}:
+            relations = [_relation_entity(relation) for relation in await list_relations(session)]
         outputs: list[EntityConfig] = []
         if entity_type not in CORE_ENTITY_TYPES:
             outputs = await query_node_output_entities(session, entity_type, run_id, node_id, tags)
-        return _dedupe_entities(filesystem_and_memory + core + ordinary + outputs)
+        return self._query_results_from_entities(memory + core + ordinary + relations + outputs, entity_type, run_id, node_id, tags, dag_run_id)
+
+    def query_results(
+        self,
+        entity_type: str | None = None,
+        run_id: str | None = None,
+        node_id: str | None = None,
+        tags: list[str] | None = None,
+        dag_run_id: str | None = None,
+    ) -> list[EntityQueryResult]:
+        dag_run_id = dag_run_id or self.default_dag_run_id
+        return self._query_results_from_entities(self.query(entity_type, run_id, node_id, tags), entity_type, run_id, node_id, tags, dag_run_id)
+
+    async def query_one_async(
+        self,
+        ref: str,
+        dag_run_id: str | None = None,
+        session: Any | None = None,
+    ) -> EntityQueryResult:
+        dag_run_id = dag_run_id or self.default_dag_run_id
+        if dag_run_id is not None:
+            cached = self.memory_entities.get(dag_run_id, {}).get(ref)
+            if cached is not None:
+                return EntityQueryResult(cached.model_copy(deep=True), True, dag_run_id)
+        if session is None:
+            return EntityQueryResult(self.resolve(ref), False, None)
+        entity = await self._get_database_entity(ref, session)
+        if entity is None:
+            raise ConfigError(f"Entity not found: {ref}")
+        return EntityQueryResult(entity, False, None)
+
+    async def preload_for_dag(
+        self,
+        dag_run_id: str,
+        entity_refs: list[str],
+        session: Any | None = None,
+    ) -> None:
+        if session is None:
+            raise ConfigError("database session is required")
+        from edera_core.storage.repository import list_relations_for_entity_refs
+
+        cached: dict[str, EntityConfig] = {}
+        direct_refs: set[str] = set()
+        for ref in entity_refs:
+            entity = await self._get_database_entity(ref, session)
+            if entity is None:
+                raise ValueError(f"entity not found: {ref}")
+            _cache_entity(cached, self.entity_types, ref, entity)
+            direct_refs.update(_entity_refs(entity, self.entity_types))
+        for relation in await list_relations_for_entity_refs(session, direct_refs):
+            relation_entity = _relation_entity(relation)
+            cached[relation_entity.id] = relation_entity
+            for ref in (relation.from_entity_id, relation.to_entity_id):
+                entity = await self._get_database_entity(ref, session)
+                if entity is not None:
+                    _cache_entity(cached, self.entity_types, ref, entity)
+        self.memory_entities[dag_run_id] = cached
+
+    def clear_cache_for_dag(self, dag_run_id: str) -> None:
+        self.memory_entities.pop(dag_run_id, None)
 
     async def save_async(
         self,
@@ -166,6 +242,8 @@ class EntityStore:
             return self.save(entity, permissions)
         if session is None:
             raise ConfigError("database session is required")
+        if entity.type == "relation":
+            raise ConfigError("relation updates use relation repository operations")
         if entity.type in CORE_ENTITY_TYPES:
             from edera_core.storage.repository import save_core_entity
 
@@ -180,8 +258,10 @@ class EntityStore:
 
     async def delete_async(self, entity_id: str, session: Any | None = None) -> int:
         if session is not None:
-            from edera_core.storage.repository import delete_core_entity, delete_node_output_entity, delete_ordinary_entity
+            from edera_core.storage.repository import delete_core_entity, delete_node_output_entity, delete_ordinary_entity, delete_relation
 
+            if await delete_relation(session, entity_id):
+                return 0
             if await delete_core_entity(session, entity_id, self.entity_types):
                 return 0
             if await delete_ordinary_entity(session, entity_id, self.entity_types):
@@ -195,17 +275,40 @@ class EntityStore:
             return []
         return [str(ref) for ref in refs]
 
-    def related_refs(self, ref: str) -> list[str]:
-        resolved = entity_ref(self.resolve(ref), self.entity_types)
+    def related_refs(self, ref: str, dag_run_id: str | None = None) -> list[str]:
+        effective_dag_run_id = dag_run_id or self.default_dag_run_id
+        resolved = entity_ref(self.resolve(ref, effective_dag_run_id), self.entity_types)
         related: list[str] = []
-        for relation in self.relations.relations:
-            refs = [entity_ref(self.resolve(item), self.entity_types) for item in relation.entities]
+        for relation in self._relations_for_dag(effective_dag_run_id):
+            refs = [entity_ref(self.resolve(item, effective_dag_run_id), self.entity_types) for item in relation.entities]
             if resolved not in refs:
                 continue
             for item in refs:
                 if item != resolved and item not in related:
                     related.append(item)
         return related
+
+    def _relations_for_dag(self, dag_run_id: str | None) -> list[EntityRelationConfig]:
+        relations = list(self.relations.relations)
+        if dag_run_id is None:
+            return relations
+        seen = {relation.id for relation in relations}
+        for entity in self.memory_entities.get(dag_run_id, {}).values():
+            if entity.type != "relation" or entity.id in seen:
+                continue
+            refs = entity.attributes.get("entities")
+            if not isinstance(refs, list):
+                refs = [entity.attributes.get("from_entity_id"), entity.attributes.get("to_entity_id")]
+            relations.append(
+                EntityRelationConfig(
+                    id=entity.id,
+                    entities=[str(item) for item in refs if item],
+                    type=str(entity.attributes.get("relation_type") or ""),
+                    metadata=dict(entity.attributes.get("metadata") or {}),
+                )
+            )
+            seen.add(entity.id)
+        return relations
 
     def create(self, entity_type: str, attributes: dict[str, Any], entity_id: str | None = None) -> EntityConfig:
         if entity_type not in self.entity_types:
@@ -214,16 +317,13 @@ class EntityStore:
         _validate_entity_semantics(entity)
         tier = self.entity_types[entity_type].storage_tier
         if tier == "memory":
-            self.memory_entities[entity.id] = entity
+            self.memory_entities.setdefault("", {})[entity.id] = entity
         elif tier == "database":
             self.database_entities.append(entity)
-        elif self.config_path is None:
+        else:
             self.entities.entities.append(entity)
         try:
             self._validate()
-            if tier != "filesystem" or self.config_path is None:
-                self._persist()
-            self._persist_entity_file(entity)
         except (ConfigEditError, ConfigError):
             self._remove_new_entity(entity)
             raise
@@ -234,17 +334,6 @@ class EntityStore:
         entity: EntityConfig,
         permissions: dict[str, Any] | None = None,
     ) -> EntityConfig:
-        if self.config_path is not None and self.entity_types[entity.type].storage_tier == "filesystem":
-            current = self._filesystem_entity(entity.id)
-            if current is not None:
-                if current.type != entity.type:
-                    raise ConfigError(f"Entity type cannot change: {entity.id}")
-                saved = entity.model_copy(
-                    update={"attributes": self._writable_attributes(current, entity, permissions)}
-                )
-                _validate_entity_semantics(saved)
-                self._persist_entity_file(saved)
-                return saved
         for index, current in enumerate(self.entities.entities):
             if current.id == entity.id:
                 if current.type != entity.type:
@@ -254,20 +343,20 @@ class EntityStore:
                 self.entities.entities[index] = saved
                 try:
                     self._validate()
-                    self._persist()
                 except (ConfigEditError, ConfigError):
                     self.entities.entities[index] = current
                     raise
                 return saved
-        if entity.id in self.memory_entities:
-            current = self.memory_entities[entity.id]
+        memory_entities = self.memory_entities.setdefault("", {})
+        if entity.id in memory_entities:
+            current = memory_entities[entity.id]
             if current.type != entity.type:
                 raise ConfigError(f"Entity type cannot change: {entity.id}")
             saved = entity.model_copy(
                 update={"attributes": self._writable_attributes(current, entity, permissions)}
             )
             _validate_entity_semantics(saved)
-            self.memory_entities[entity.id] = saved
+            memory_entities[entity.id] = saved
             return saved
         for index, current in enumerate(self.database_entities):
             if current.id != entity.id:
@@ -283,12 +372,6 @@ class EntityStore:
         raise ConfigError(f"Entity not found: {entity.id}")
 
     def delete(self, entity_id: str) -> int:
-        if self.config_path is not None:
-            for file, current in self._filesystem_entity_files():
-                if current.id != entity_id:
-                    continue
-                file.unlink()
-                return 0
         for index, current in enumerate(self.entities.entities):
             if current.id != entity_id:
                 continue
@@ -304,8 +387,6 @@ class EntityStore:
             self.relations.relations = next_relations
             try:
                 self._validate()
-                self._persist()
-                self._persist_relations()
             except (ConfigEditError, ConfigError):
                 self.entities.entities.insert(index, current)
                 self.relations.relations = old_relations
@@ -314,11 +395,7 @@ class EntityStore:
         raise ConfigError(f"Entity not found: {entity_id}")
 
     def release_run(self, run_id: str) -> None:
-        self.memory_entities = {
-            entity_id: entity
-            for entity_id, entity in self.memory_entities.items()
-            if entity.attributes.get("run_id") != run_id
-        }
+        self.clear_cache_for_dag(run_id)
 
     def create_relation(
         self,
@@ -331,23 +408,13 @@ class EntityStore:
             raise ConfigEditError("duplicate entity relation")
         relation = EntityRelationConfig(entities=normalized, type=relation_type, metadata=metadata or {})
         self.relations.relations.append(relation)
-        try:
-            self._persist_relations()
-        except ConfigEditError:
-            self.relations.relations.pop()
-            raise
         return relation
 
     def delete_relation(self, relation_id: str) -> None:
         for index, relation in enumerate(self.relations.relations):
             if relation.id != relation_id:
                 continue
-            removed = self.relations.relations.pop(index)
-            try:
-                self._persist_relations()
-            except ConfigEditError:
-                self.relations.relations.insert(index, removed)
-                raise
+            self.relations.relations.pop(index)
             return
         raise ConfigError(f"Entity relation not found: {relation_id}")
 
@@ -379,47 +446,10 @@ class EntityStore:
 
         _validate_entities(self.entities, self.entity_types)
 
-    def _persist(self) -> None:
-        if self.config_path is None:
-            return
-        from edera_core.config.editor import RuntimeConfigEditor
-
-        content = yaml.safe_dump(self.entities.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
-        RuntimeConfigEditor(self.config_path.parent).save("entities", "entities", content)
-
-    def _persist_relations(self) -> None:
-        if self.config_path is None:
-            return
-        from edera_core.config.editor import RuntimeConfigEditor
-
-        content = yaml.safe_dump(self.relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
-        RuntimeConfigEditor(self.config_path.parent).save("entity-relations", "entity-relations", content)
-
-    def _persist_entity_file(self, entity: EntityConfig) -> None:
-        if self.config_path is None or self.entity_types[entity.type].storage_tier != "filesystem":
-            return
-        path = self._entity_file_path(entity)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            yaml.safe_dump(entity.model_dump(mode="json"), allow_unicode=True, sort_keys=False),
-            encoding="utf-8",
-        )
-
-    def _entity_file_path(self, entity: EntityConfig) -> Path:
-        if self.config_path is None:
-            raise ConfigError("config path is required")
-        directory = _filesystem_dir(self.config_path.parent, entity.type)
-        entity_type = self.entity_types[entity.type]
-        raw_business_id = entity.id if entity_type.business_id_field == "id" else entity.attributes.get(entity_type.business_id_field)
-        business_id = _safe_name(raw_business_id)
-        name = business_id or _safe_name(entity.id)
-        return directory / f"{name}.yaml"
-
     def _all_entities(self) -> list[EntityConfig]:
         entities = list(self.entities.entities)
-        entities.extend(self.memory_entities.values())
+        entities.extend(self.memory_entities.get("", {}).values())
         entities.extend(self.database_entities)
-        entities.extend(self._filesystem_entities())
         return _dedupe_entities(entities)
 
     def _needs_database(self, entity_type: str | None) -> bool:
@@ -428,58 +458,60 @@ class EntityStore:
         entity_config = self.entity_types.get(entity_type)
         return entity_config is not None and entity_config.storage_tier == "database"
 
-    def _filesystem_entities(self) -> list[EntityConfig]:
-        if self.config_path is None:
-            return []
-        from edera_core.config.loader import _entity_from_file
-
-        config_dir = self.config_path.parent
-        entities: list[EntityConfig] = []
-        for entity_type, directory in _filesystem_dirs(config_dir).items():
-            if entity_type != "entities" and entity_type not in self.entity_types:
-                continue
-            if not directory.exists():
-                continue
-            for file in sorted(directory.glob("*.yaml")):
-                entities.append(_entity_from_file(file, entity_type if entity_type != "entities" else None))
-        return entities
-
-    def _filesystem_entity(self, entity_id: str) -> EntityConfig | None:
-        for _file, entity in self._filesystem_entity_files():
-            if entity.id == entity_id:
-                return entity
-        return None
-
-    def _filesystem_entity_files(self) -> list[tuple[Path, EntityConfig]]:
-        if self.config_path is None:
-            return []
-        from edera_core.config.loader import _entity_from_file
-
-        config_dir = self.config_path.parent
-        entities: list[tuple[Path, EntityConfig]] = []
-        for entity_type, directory in _filesystem_dirs(config_dir).items():
-            if entity_type != "entities" and entity_type not in self.entity_types:
-                continue
-            if not directory.exists():
-                continue
-            for file in sorted(directory.glob("*.yaml")):
-                entities.append((file, _entity_from_file(file, entity_type if entity_type != "entities" else None)))
-        return entities
-
     def _remove_new_entity(self, entity: EntityConfig) -> None:
-        if entity.id in self.memory_entities:
-            del self.memory_entities[entity.id]
-            return
-        if self.config_path is not None and self.entity_types[entity.type].storage_tier == "filesystem":
-            path = self._entity_file_path(entity)
-            if path.exists():
-                path.unlink()
+        memory_entities = self.memory_entities.get("", {})
+        if entity.id in memory_entities:
+            del memory_entities[entity.id]
             return
         for collection in (self.database_entities, self.entities.entities):
             for index, current in enumerate(collection):
                 if current.id == entity.id:
                     collection.pop(index)
                     return
+
+    async def _get_database_entity(self, ref: str, session: Any) -> EntityConfig | None:
+        from edera_core.storage.repository import find_ordinary_entity, get_core_entity, list_relations
+
+        core = await get_core_entity(session, ref, self.entity_types)
+        if core is not None:
+            return core
+        ordinary = await find_ordinary_entity(session, ref, self.entity_types)
+        if ordinary is not None:
+            return ordinary
+        for relation in await list_relations(session):
+            if relation.id == ref:
+                return _relation_entity(relation)
+        return None
+
+    def _query_results_from_entities(
+        self,
+        entities: list[EntityConfig],
+        entity_type: str | None,
+        run_id: str | None,
+        node_id: str | None,
+        tags: list[str] | None,
+        dag_run_id: str | None,
+    ) -> list[EntityQueryResult]:
+        fallback = [
+            entity
+            for entity in _dedupe_entities(entities)
+            if _matches_query(entity, entity_type, run_id, node_id, tags)
+        ]
+        if dag_run_id is None:
+            return [EntityQueryResult(entity.model_copy(deep=True), False, None) for entity in fallback]
+        cached = [
+            entity
+            for entity in _dedupe_entities(list(self.memory_entities.get(dag_run_id, {}).values()))
+            if _matches_query(entity, entity_type, run_id, node_id, tags)
+        ]
+        cached_ids = {entity.id for entity in cached}
+        results = [EntityQueryResult(entity.model_copy(deep=True), True, dag_run_id) for entity in cached]
+        results.extend(
+            EntityQueryResult(entity.model_copy(deep=True), False, None)
+            for entity in fallback
+            if entity.id not in cached_ids
+        )
+        return results
 
 
 def field_permission(
@@ -546,6 +578,26 @@ def _normalize_relation_ref(store: EntityStore, ref: str) -> str:
     return entity_ref(store.resolve(ref), store.entity_types)
 
 
+def _cache_entity(
+    cached: dict[str, EntityConfig],
+    entity_types: dict[str, EntityTypeConfig],
+    ref: str,
+    entity: EntityConfig,
+) -> None:
+    cached[ref] = entity
+    for item in _entity_refs(entity, entity_types):
+        cached[item] = entity
+
+
+def _entity_refs(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]) -> set[str]:
+    refs = {entity.id}
+    try:
+        refs.add(entity_ref(entity, entity_types))
+    except (KeyError, ValueError):
+        pass
+    return refs
+
+
 def _entity_matches(
     entity: EntityConfig,
     entity_types: dict[str, EntityTypeConfig],
@@ -557,6 +609,40 @@ def _entity_matches(
         return ref == entity_ref(entity, entity_types)
     except (KeyError, ValueError):
         return False
+
+
+def _matches_query(
+    entity: EntityConfig,
+    entity_type: str | None,
+    run_id: str | None,
+    node_id: str | None,
+    tags: list[str] | None,
+) -> bool:
+    if entity_type is not None and entity.type != entity_type:
+        return False
+    if run_id is not None and entity.attributes.get("run_id") != run_id:
+        return False
+    if node_id is not None and entity.attributes.get("node_id") != node_id:
+        return False
+    return tags is None or set(tags).issubset(set(_tags(entity)))
+
+
+def _relation_entity(relation) -> EntityConfig:
+    from_entity_id = relation.from_entity_id
+    to_entity_id = relation.to_entity_id
+    return EntityConfig(
+        id=relation.id,
+        type="relation",
+        attributes={
+            "from": from_entity_id,
+            "to": to_entity_id,
+            "from_entity_id": from_entity_id,
+            "to_entity_id": to_entity_id,
+            "relation_type": relation.relation_type,
+            "entities": [from_entity_id, to_entity_id],
+            "metadata": relation.metadata_,
+        },
+    )
 
 
 def _tags(entity: EntityConfig) -> list[str]:
@@ -584,24 +670,3 @@ def _looks_like_output(attributes: dict[str, Any]) -> bool:
     return isinstance(attributes.get("payload"), dict) and (
         isinstance(attributes.get("run_id"), str) or isinstance(attributes.get("node_id"), str)
     )
-
-
-def _filesystem_dirs(config_dir: Path) -> dict[str, Path]:
-    return {
-        "node": config_dir / "nodes",
-        "dag": config_dir / "dags",
-        "trigger": config_dir / "triggers",
-        "entities": config_dir / "entities",
-    }
-
-
-def _filesystem_dir(config_dir: Path, entity_type: str) -> Path | None:
-    if entity_type in {"node", "dag", "trigger"}:
-        return _filesystem_dirs(config_dir)[entity_type]
-    return config_dir / "entities"
-
-
-def _safe_name(value: object) -> str:
-    if not isinstance(value, str):
-        return ""
-    return value.replace("/", "_").replace(":", "_").strip()

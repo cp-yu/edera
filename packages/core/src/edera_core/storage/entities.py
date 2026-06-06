@@ -42,6 +42,28 @@ class EntityTypeRecord(SQLModel, table=True):
         return value
 
 
+class EntityRelation(SQLModel, table=True):
+    __tablename__ = "entity_relations"
+    __table_args__ = (
+        UniqueConstraint("from_entity_id", "to_entity_id", "relation_type", name="uq_entity_relations_from_to_type"),
+    )
+
+    id: str = Field(primary_key=True)
+    from_entity_id: str = Field(index=True)
+    to_entity_id: str = Field(index=True)
+    relation_type: str = Field(index=True)
+    metadata_: dict[str, Any] = Field(default_factory=dict, sa_column=Column("metadata", JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("id", "from_entity_id", "to_entity_id", "relation_type")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
 class CoreEntityNode(SQLModel, table=True):
     __tablename__ = "entity_node"
     __table_args__ = (UniqueConstraint("name", name="uq_entity_node_name"),)

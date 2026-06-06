@@ -77,13 +77,39 @@ class GrpcClient:
         )
         return _entity_response(response)
 
-    async def entity_delete(self, ref: str) -> dict[str, object]:
-        response = await self.entities.Delete(pb2.EntityRef(ref=ref), metadata=_identity_metadata(self.identity))
+    async def entity_delete(self, ref: str, force: bool = False) -> dict[str, object]:
+        response = await self.entities.Delete(pb2.EntityRef(ref=ref, force=force), metadata=_identity_metadata(self.identity))
         return {"deleted": bool(response.deleted)}
 
-    async def entity_list(self, type_name: str | None = None) -> list[dict[str, object]]:
-        response = await self.entities.List(pb2.EntityQuery(type=type_name or ""), metadata=_identity_metadata(self.identity))
+    async def entity_list(
+        self,
+        type_name: str | None = None,
+        filters: dict[str, object] | None = None,
+        dag_run_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        response = await self.entities.List(
+            pb2.EntityQuery(
+                type=type_name or "",
+                filters_json=json.dumps(filters or {}),
+                dag_run_id=dag_run_id or "",
+            ),
+            metadata=_identity_metadata(self.identity),
+        )
         return [_entity_response(item) for item in response.entities]
+
+    async def entity_import(self, path: str, type_name: str | None = None) -> dict[str, object]:
+        response = await self.entities.Import(
+            pb2.JsonRequest(json=json.dumps({"file": path, "type": type_name or ""})),
+            metadata=_identity_metadata(self.identity),
+        )
+        return _json_response(response)
+
+    async def entity_export(self, type_name: str | None = None) -> dict[str, object]:
+        response = await self.entities.Export(
+            pb2.EntityQuery(type=type_name or ""),
+            metadata=_identity_metadata(self.identity),
+        )
+        return _json_response(response)
 
     async def entity_search(self, expression: str, identity: str) -> list[dict[str, object]]:
         response = await self.entities.Query(pb2.QueryRequest(expression=expression, identity=identity), metadata=_identity_metadata(identity))

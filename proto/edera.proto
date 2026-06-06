@@ -11,6 +11,8 @@ service EntityService {
   rpc Create(Entity) returns (Entity);
   rpc Update(Entity) returns (Entity);
   rpc Delete(EntityRef) returns (DeleteResult);
+  rpc Import(JsonRequest) returns (JsonResponse);
+  rpc Export(EntityQuery) returns (JsonResponse);
   rpc Materialize(JsonRequest) returns (JsonResponse);
 }
 
@@ -215,10 +217,13 @@ message EmitRequest {
 
 message EntityRef {
   string ref = 1;
+  bool force = 2;
 }
 
 message EntityQuery {
   string type = 1;
+  string filters_json = 2;
+  string dag_run_id = 3;
 }
 
 message QueryRequest {

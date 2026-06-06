@@ -1,5 +1,8 @@
-## ADDED Requirements
+# ordinary-entity-database-storage Specification
 
+## Purpose
+此规约记录变更 filesystem-entities-to-database 引入的行为，请在后续同步或归档前补全正式 Purpose。
+## Requirements
 ### Requirement: 普通 entities 存储到数据库
 系统 SHALL 将所有普通 entities（非核心 entities）存储到数据库的动态表中，按 entity type 分表。
 
@@ -13,10 +16,10 @@
 - **THEN** 系统 SHALL 将 entity 插入或更新到 `entity_stock` 表
 - **THEN** 系统 SHALL 序列化 attributes 为 JSON 存储
 
-#### Scenario: 从数据库加载所有 entities
-- **WHEN** 系统启动时加载 entities
-- **THEN** 系统 SHALL 查询所有 entity type 表
-- **THEN** 系统 SHALL 将所有 entities 加载到 `EntityStore` 内存中
+#### Scenario: 按需从数据库查询 entities
+- **WHEN** CLI、gRPC 或 Web Console 查询普通 entity
+- **THEN** 系统 SHALL 查询对应 entity type 的数据库表
+- **THEN** 系统 MUST NOT 要求普通 entities 已加载到启动时 `EntityStore` 内存中
 
 ### Requirement: Entity CRUD 操作
 系统 SHALL 提供 entity 的创建、读取、更新、删除操作。

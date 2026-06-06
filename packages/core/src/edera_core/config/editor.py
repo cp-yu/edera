@@ -13,14 +13,11 @@ from pydantic import ValidationError
 
 from edera_core.config.loader import (
     load_dag_configs,
-    load_entities_config,
     load_entity_type_configs,
     load_node_configs,
 )
 from edera_core.config.schema import (
     DagConfig,
-    EntitiesConfig,
-    EntityRelationsConfig,
     EntityTypeConfig,
     NodeConfig,
     SystemConfig,
@@ -48,8 +45,6 @@ class RuntimeConfigEditor:
     def list_files(self) -> list[EditableFile]:
         files = [
             self._file("system", "system", self.config_dir / "system.toml"),
-            self._file("entities", "entities", self.config_dir / "entities.yaml"),
-            self._file("entity-relations", "entity-relations", self.config_dir / "entity-relations.yaml"),
         ]
         files.extend(
             self._file("node", path.stem, path)
@@ -79,9 +74,9 @@ class RuntimeConfigEditor:
         if kind == "system":
             return self.config_dir / "system.toml"
         if kind == "entities":
-            return self.config_dir / "entities.yaml"
+            raise ConfigEditError("entities are managed through the database")
         if kind == "entity-relations":
-            return self.config_dir / "entity-relations.yaml"
+            raise ConfigEditError("entity relations are managed through the database")
         if kind == "node":
             return self.config_dir / "nodes" / f"{name}.yaml"
         if kind == "dag":
@@ -104,22 +99,9 @@ class RuntimeConfigEditor:
             if kind == "system":
                 SystemConfig.model_validate(tomllib.loads(content))
             elif kind == "entities":
-                entity_types = load_entity_type_configs(self.config_dir.parent / "schemas" / "entity-types")
-                entities = EntitiesConfig.model_validate(_yaml_mapping(content))
-                from edera_core.config.loader import _validate_entities
-
-                _validate_entities(entities, entity_types)
+                raise ConfigEditError("entities are managed through the database")
             elif kind == "entity-relations":
-                entity_types = load_entity_type_configs(self.config_dir.parent / "schemas" / "entity-types")
-                entities = load_entities_config(self.config_dir / "entities.yaml", entity_types)
-                relations = EntityRelationsConfig.model_validate(_yaml_mapping(content))
-                from edera_core.config.loader import _entity_refs
-
-                refs = _entity_refs(entities, entity_types)
-                for relation in relations.relations:
-                    for ref in relation.entities:
-                        if ref not in refs:
-                            raise ConfigEditError(f"Entity not found: {ref}")
+                raise ConfigEditError("entity relations are managed through the database")
             elif kind == "node":
                 node = NodeConfig.model_validate(_yaml_mapping(content))
                 self._validate_existing_dags(nodes={**load_node_configs(self.config_dir / "nodes"), node.name: node})

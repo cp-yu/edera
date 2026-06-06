@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--version", action="version", version="edera 0.1.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
     _entity_parser(subparsers.add_parser("entity"))
+    _relation_parser(subparsers.add_parser("relation"))
     _entity_type_parser(subparsers.add_parser("entity-type"))
     _node_parser(subparsers.add_parser("node"))
     _dag_parser(subparsers.add_parser("dag"))
@@ -53,27 +54,56 @@ def _entity_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="entity_command", required=True)
     get = subparsers.add_parser("get")
     get.add_argument("ref")
+    show = subparsers.add_parser("show")
+    show.add_argument("ref")
     create = subparsers.add_parser("create")
     create.add_argument("--type", required=True)
-    create.add_argument("--attributes", default="{}")
+    create.add_argument("--id", default="")
+    create.add_argument("--attributes")
     import_ = subparsers.add_parser("import")
-    import_.add_argument("--file", required=True, type=Path)
+    import_.add_argument("path", nargs="?", type=Path)
+    import_.add_argument("--file", type=Path)
+    import_.add_argument("--type")
     export = subparsers.add_parser("export")
-    export.add_argument("ref")
-    export.add_argument("--file", required=True, type=Path)
+    export.add_argument("ref", nargs="?")
+    export.add_argument("-o", "--file", required=True, type=Path)
+    export.add_argument("--type")
     template = subparsers.add_parser("template")
     template.add_argument("--type", required=True)
     template.add_argument("--file", required=True, type=Path)
     list_ = subparsers.add_parser("list")
     list_.add_argument("--type")
+    list_.add_argument("--filter", action="append", default=[])
     update = subparsers.add_parser("update")
     update.add_argument("ref")
-    update.add_argument("--field", required=True)
-    update.add_argument("--value", required=True)
+    update.add_argument("--field")
+    update.add_argument("--value")
+    update.add_argument("--attributes")
     query = subparsers.add_parser("query")
     query.add_argument("expression")
     delete = subparsers.add_parser("delete")
     delete.add_argument("ref")
+    delete.add_argument("--force", action="store_true")
+
+
+def _relation_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="relation_command", required=True)
+    list_ = subparsers.add_parser("list")
+    list_.add_argument("--from", dest="from_")
+    list_.add_argument("--to")
+    list_.add_argument("--type")
+    create = subparsers.add_parser("create")
+    create.add_argument("--from", dest="from_", required=True)
+    create.add_argument("--to", required=True)
+    create.add_argument("--type", required=True)
+    create.add_argument("--metadata", default="{}")
+    delete = subparsers.add_parser("delete")
+    delete.add_argument("id")
+    import_ = subparsers.add_parser("import")
+    import_.add_argument("path", nargs="?", type=Path)
+    import_.add_argument("--file", type=Path)
+    export = subparsers.add_parser("export")
+    export.add_argument("-o", "--file", required=True, type=Path)
 
 
 def _entity_type_parser(parser: argparse.ArgumentParser) -> None:
@@ -199,6 +229,8 @@ def _extension_parser(parser: argparse.ArgumentParser) -> None:
 def _dispatch(args: argparse.Namespace) -> object:
     if args.command == "entity":
         return _run_grpc(_grpc_entity(args))
+    if args.command == "relation":
+        return _run_grpc(_grpc_relation(args))
     if args.command == "entity-type":
         return _run_grpc(_grpc_entity_type(args))
     if args.command == "node":
@@ -237,39 +269,122 @@ def _inject_human_cert_env() -> None:
 
 
 async def _grpc_entity(args: argparse.Namespace) -> object:
-    import_document = _read_entity_yaml(args.file) if args.entity_command == "import" else None
+    import_path = _arg_path(args) if args.entity_command == "import" else None
     client = GrpcClient(args.server, identity=args.identity)
     try:
-        if args.entity_command == "get":
+        if args.entity_command in {"get", "show"}:
             return await client.entity_get(args.ref)
         if args.entity_command == "create":
+            if args.attributes is None:
+                raise ValueError("Missing required parameter: --attributes")
             attributes = json.loads(args.attributes)
             if not isinstance(attributes, dict):
                 raise ValueError("attributes must be a JSON object")
-            return await client.entity_create(args.type, attributes)
+            return await client.entity_create(args.type, attributes, entity_id=args.id)
         if args.entity_command == "import":
-            document = import_document or _read_entity_yaml(args.file)
-            return await client.entity_create(str(document["type"]), document["attributes"], entity_id=str(document["id"]))
+            return await client.entity_import(str(import_path), getattr(args, "type", None))
         if args.entity_command == "export":
-            entity = await client.entity_get(args.ref)
-            _write_entity_yaml(args.file, _entity_document(entity))
-            return {"exported": args.ref, "file": str(args.file)}
+            if args.ref:
+                entity = await client.entity_get(args.ref)
+                _write_entity_yaml(args.file, _entity_document(entity))
+                return {"exported": args.ref, "file": str(args.file)}
+            result = await client.entity_export(getattr(args, "type", None))
+            args.file.parent.mkdir(parents=True, exist_ok=True)
+            args.file.write_text(str(result.get("content") or ""), encoding="utf-8")
+            return {"exported": result.get("exported", 0), "file": str(args.file)}
         if args.entity_command == "template":
             entity_type = await _entity_type(client, args.type)
             document = {"type": args.type, "id": "", "attributes": _template_attributes(entity_type)}
             _write_entity_yaml(args.file, document)
             return {"template": args.type, "file": str(args.file)}
         if args.entity_command == "list":
-            return await client.entity_list(args.type)
+            return await client.entity_list(args.type, _parse_filters(args.filter))
         if args.entity_command == "update":
+            if getattr(args, "attributes", None):
+                updates = json.loads(args.attributes)
+                if not isinstance(updates, dict):
+                    raise ValueError("attributes must be a JSON object")
+                result = None
+                for field, value in updates.items():
+                    result = await client.entity_update(args.ref, str(field), value)
+                return result or await client.entity_get(args.ref)
+            if not args.field:
+                raise ValueError("update requires --field or --attributes")
             return await client.entity_update(args.ref, args.field, _json_value(args.value))
         if args.entity_command == "query":
             return await client.entity_search(args.expression, args.identity)
         if args.entity_command == "delete":
-            return await client.entity_delete(args.ref)
+            return await client.entity_delete(args.ref, getattr(args, "force", False))
     finally:
         await client.close()
     raise ValueError(f"unknown entity command: {args.entity_command}")
+
+
+async def _grpc_relation(args: argparse.Namespace) -> object:
+    if args.relation_command == "list":
+        filters = []
+        if args.from_:
+            filters.append(f"from_entity_id={args.from_}")
+        if args.to:
+            filters.append(f"to_entity_id={args.to}")
+        if args.type:
+            filters.append(f"relation_type={args.type}")
+        return await _grpc_entity(
+            argparse.Namespace(
+                server=args.server,
+                identity=args.identity,
+                entity_command="list",
+                type="relation",
+                filter=filters,
+            )
+        )
+    if args.relation_command == "create":
+        metadata = json.loads(args.metadata)
+        if not isinstance(metadata, dict):
+            raise ValueError("metadata must be a JSON object")
+        attributes = {
+            "from_entity_id": args.from_,
+            "to_entity_id": args.to,
+            "relation_type": args.type,
+            "metadata": metadata,
+        }
+        return await _grpc_entity(
+            argparse.Namespace(
+                server=args.server,
+                identity=args.identity,
+                entity_command="create",
+                type="relation",
+                id="",
+                attributes=json.dumps(attributes, ensure_ascii=False, separators=(",", ":")),
+            )
+        )
+    if args.relation_command == "delete":
+        return await _grpc_entity(
+            argparse.Namespace(server=args.server, identity=args.identity, entity_command="delete", ref=args.id, force=False)
+        )
+    if args.relation_command == "import":
+        return await _grpc_entity(
+            argparse.Namespace(
+                server=args.server,
+                identity=args.identity,
+                entity_command="import",
+                type="relation",
+                path=getattr(args, "path", None),
+                file=getattr(args, "file", None),
+            )
+        )
+    if args.relation_command == "export":
+        return await _grpc_entity(
+            argparse.Namespace(
+                server=args.server,
+                identity=args.identity,
+                entity_command="export",
+                type="relation",
+                ref=None,
+                file=args.file,
+            )
+        )
+    raise ValueError(f"unknown relation command: {args.relation_command}")
 
 
 async def _grpc_entity_type(args: argparse.Namespace) -> object:
@@ -637,19 +752,22 @@ def _json_value(value: str) -> object:
         return value
 
 
-def _read_entity_yaml(path: Path) -> dict[str, object]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    if not isinstance(data, dict):
-        raise ValueError("entity YAML must be a mapping")
-    type_name = data.get("type")
-    attributes = data.get("attributes")
-    if not isinstance(type_name, str) or not type_name:
-        raise ValueError("entity YAML requires non-empty type")
-    if "id" not in data or str(data["id"]) == "":
-        raise ValueError("entity YAML requires non-empty id")
-    if not isinstance(attributes, dict):
-        raise ValueError("entity YAML requires attributes mapping")
-    return {"type": type_name, "id": str(data["id"]), "attributes": attributes}
+def _arg_path(args: argparse.Namespace) -> Path:
+    path = getattr(args, "path", None) or getattr(args, "file", None)
+    if path is None:
+        raise ValueError("file path is required")
+    return path
+
+
+def _parse_filters(filters: list[str]) -> dict[str, str]:
+    return dict(_parse_filter(item) for item in filters)
+
+
+def _parse_filter(value: str) -> tuple[str, str]:
+    key, sep, item = value.partition("=")
+    if not sep or not key:
+        raise ValueError("--filter must be key=value")
+    return key, item
 
 
 def _write_entity_yaml(path: Path, document: dict[str, object]) -> None:

@@ -237,3 +237,15 @@ relations:
   - from: cap.core.runtime-entity-type-reload
     type: depends_on
     to: cap.core.extension-manifest-system
+  - from: cap.core.ordinary-entity-database-storage
+    type: depends_on
+    to: cap.core.db-backed-core-entities
+  - from: cap.core.entity-relations-database-storage
+    type: depends_on
+    to: cap.core.ordinary-entity-database-storage
+  - from: cap.cli.entity-cli-commands
+    type: depends_on
+    to: cap.core.ordinary-entity-database-storage
+  - from: cap.cli.relation-cli-commands
+    type: depends_on
+    to: cap.core.entity-relations-database-storage

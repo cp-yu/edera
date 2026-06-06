@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import grpc
 import pytest
 
+from edera_core.config.entities import EntityStore
+from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
 from edera_core.query_service import _QueryService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import create_dag_run, mark_node_run, record_log_index, store_node_output_entities
+from edera_core.storage.repository import create_dag_run, create_ordinary_entity, mark_node_run, record_log_index, store_node_output_entities
 
 from service_fakes import AbortError, FakeContext, FakeDaemon
 
@@ -52,6 +55,26 @@ async def test_results_summary(tmp_path):
 
     assert {"briefing", "briefings", "advices", "events", "event_details", "summary_items", "metadata_bar", "failed_sources"}.issubset(payload)
     assert payload["advices"][0]["stock_code"] == "AAPL"
+    await daemon.controller.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_source_health_and_logs_use_database_sources(tmp_path):
+    daemon = await _daemon(tmp_path)
+    async with daemon.controller._factory()() as session:
+        entity_types = daemon.controller.runtime_snapshot().entity_store.entity_types
+        await create_ordinary_entity(session, "rss-source", "source:rss", {"name": "rss"}, entity_types)
+        await create_dag_run(session, "run-1", "manual", ["rss"], dag_name="demo")
+        await mark_node_run(session, "run-1", "rss", "failed", "network")
+        await session.commit()
+    service = _QueryService(daemon)
+
+    health = json.loads((await service.SourceHealth(pb2.EmptyRequest(), FakeContext())).json)
+    logs = json.loads((await service.SourceLogs(pb2.SourceLogsRequest(source_name="rss"), FakeContext())).json)
+
+    assert [item["source_name"] for item in health["sources"]] == ["rss"]
+    assert health["logs"][0]["source_name"] == "rss"
+    assert logs["logs"][0]["source_name"] == "rss"
     await daemon.controller.engine.dispose()
 
 
@@ -102,6 +125,23 @@ class Controller:
     def __init__(self, engine, factory):
         self.engine = engine
         self.factory = factory
+        entity_types = {
+            "rss-source": EntityTypeConfig.model_validate(
+                {
+                    "display_name": "RSS",
+                    "business_id_field": "name",
+                    "display_template": "{name}",
+                    "storage_tier": "database",
+                    "schema": {"properties": {"name": {"type": "string"}}},
+                }
+            )
+        }
+        self._snapshot = SimpleNamespace(
+            entity_store=EntityStore(EntitiesConfig(), entity_types, EntityRelationsConfig(), None)
+        )
 
     def _factory(self):
         return self.factory
+
+    def runtime_snapshot(self):
+        return self._snapshot

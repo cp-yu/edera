@@ -1,6 +1,7 @@
 display_name: 城市
 business_id_field: code
 display_template: "{name}"
+storage_tier: database
 schema:
   type: object
   required:

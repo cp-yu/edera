@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 import grpc
+import yaml
 
 from edera_core.bootstrap import BootstrapResult
 from edera_core.cert import CertificateAuthority, IssuedCertificate
@@ -25,7 +26,7 @@ from edera_core.event_service import _EventService
 from edera_core.hot_reload import HotReloader
 from edera_core.dag.loader import validate_sub_dag_nesting
 from edera_core.dag_controller import DagController, DagRunNotFoundError, RunAlreadyActiveError
-from edera_core.errors import DagError
+from edera_core.errors import ConfigError, DagError
 from edera_core.proto import edera_pb2 as pb2, edera_pb2_grpc as pb2_grpc
 from edera_core.query_service import _QueryService
 from edera_core.service_common import (
@@ -34,7 +35,7 @@ from edera_core.service_common import (
     repair_task_dir,
     repair_task_payload,
     render_entity_display,
-    source_map,
+    source_map_from_store,
     write_repair_task,
 )
 from edera_core.storage import create_engine, init_db, session_factory
@@ -196,27 +197,77 @@ class _EntityService:
     async def Get(self, request, context):
         await _identity(context)
         store, app = _runtime_entity_store(self.daemon)
+        if _controller_started(self.daemon):
+            async with self.daemon.controller._factory()() as session:
+                result = await store.query_one_async(request.ref, session=session)
+            return _entity_message(self.pb2, store, result.entity)
         return _entity_message(self.pb2, store, store.resolve(request.ref))
 
     async def List(self, request, context):
         await _identity(context)
-        store, app = _runtime_entity_store(self.daemon)
+        runtime_store, app = _runtime_entity_store(self.daemon)
         if request.type == "entity_type":
             return self.pb2.EntityList(entities=[_entity_type_message(self.pb2, name, entity_type) for name, entity_type in app.entity_types.items()])
-        entities = store.query(request.type or None)
+        store = _active_run_entity_store(self.daemon, request.dag_run_id or None) or runtime_store
+        filters = _filters_from_json(request.filters_json)
+        if _controller_started(self.daemon):
+            async with self.daemon.controller._factory()() as session:
+                if request.type == "relation" and _has_relation_repository_filter(filters):
+                    from edera_core.storage.repository import list_relations
+
+                    relation_filters = _relation_repository_filters(filters)
+                    relations = await list_relations(session, **relation_filters)
+                    entities = _filter_entities([_relation_entity(relation) for relation in relations], filters)
+                    return self.pb2.EntityList(entities=[_entity_message(self.pb2, store, entity) for entity in entities])
+                results = await store.query_async(request.type or None, dag_run_id=request.dag_run_id or None, session=session)
+        else:
+            results = store.query_results(request.type or None, dag_run_id=request.dag_run_id or None)
+        entities = _filter_entities([result.entity for result in results], filters)
         return self.pb2.EntityList(entities=[_entity_message(self.pb2, store, entity) for entity in entities])
 
     async def Query(self, request, context):
         identity = request.identity or await _identity(context)
         store, app = _runtime_entity_store(self.daemon)
         try:
-            entities = await _query(app, store, identity, _identity_permissions(identity, app.dags), request.expression)
+            if _controller_started(self.daemon):
+                async with self.daemon.controller._factory()() as session:
+                    entities = await _query(
+                        app,
+                        store,
+                        identity,
+                        _identity_permissions(identity, app.dags),
+                        request.expression,
+                        session,
+                    )
+            else:
+                entities = await _query(app, store, identity, _identity_permissions(identity, app.dags), request.expression)
         except ValueError as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return self.pb2.EntityList(entities=[_entity_message(self.pb2, store, entity) for entity in entities])
 
     async def Create(self, request, context):
         await _identity(context)
+        if request.type == "relation":
+            store, app = _runtime_entity_store(self.daemon)
+            attrs = json.loads(request.json or "{}")
+            if not isinstance(attrs, dict):
+                raise ValueError("entity json must be an object")
+            async with self.daemon.controller._factory()() as session:
+                from edera_core.storage.repository import create_relation
+
+                relation = await create_relation(
+                    session,
+                    str(attrs["from_entity_id"]),
+                    str(attrs["to_entity_id"]),
+                    str(attrs["relation_type"]),
+                    dict(attrs.get("metadata") or {}),
+                    store.entity_types,
+                )
+                await session.commit()
+            await self._refresh_runtime_snapshot()
+            relation_entity = _relation_entity(relation)
+            store, app = _runtime_entity_store(self.daemon)
+            return _entity_message(self.pb2, store, relation_entity)
         if _database_entity_available(self.daemon, request.type):
             store, app = _runtime_entity_store(self.daemon)
             attrs = json.loads(request.json or "{}")
@@ -245,43 +296,111 @@ class _EntityService:
         data = json.loads(request.json or "{}")
         if not isinstance(data, dict) or not isinstance(data.get("field"), str):
             raise ValueError("update json must contain field")
-        entity = store.resolve(request.id)
-        try:
-            _check_write(identity, app, store, entity, data["field"])
-        except PermissionError as exc:
-            await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
-        updated = entity.model_copy(update={"attributes": {**entity.attributes, data["field"]: data.get("value")}})
-        if _database_entity_available(self.daemon, entity.type):
+        async def _save_updated(entity: EntityConfig, session=None) -> EntityConfig:
+            try:
+                _check_write(identity, app, store, entity, data["field"])
+            except PermissionError as exc:
+                await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
+            if entity.type == "relation":
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "relation update is not supported")
+            updated = entity.model_copy(update={"attributes": {**entity.attributes, data["field"]: data.get("value")}})
+            if not _database_entity_available(self.daemon, entity.type):
+                return store.save(updated, _identity_permissions(identity, app.dags))
+            if session is None:
+                raise ConfigError("database session is required")
             _validate_entity_for_store(store, updated, replace=True)
+            return await _save_database_entity(session, updated, store.entity_types[entity.type])
+
+        if _controller_started(self.daemon):
             async with self.daemon.controller._factory()() as session:
-                saved = await _save_database_entity(session, updated, store.entity_types[entity.type])
+                entity = await _resolve_entity_for_mutation(store, request.id, session)
+                saved = await _save_updated(entity, session)
                 await session.commit()
             await self._refresh_runtime_snapshot()
             store, app = _runtime_entity_store(self.daemon)
         else:
-            saved = store.save(updated, _identity_permissions(identity, app.dags))
+            saved = await _save_updated(store.resolve(request.id))
         await self._emit_entity_changed(store, saved)
         return _entity_message(self.pb2, store, saved)
 
     async def Delete(self, request, context):
         await _identity(context)
         store, app = _runtime_entity_store(self.daemon) if _controller_started(self.daemon) else _entity_store(self.daemon.config_dir)
-        entity = store.resolve(request.ref)
-        if _database_entity_available(self.daemon, entity.type):
+        if _controller_started(self.daemon):
             async with self.daemon.controller._factory()() as session:
-                if entity.type in CORE_ENTITY_TYPES:
-                    deleted = await delete_core_entity(session, entity.id, store.entity_types)
+                entity = await _resolve_entity_for_mutation(store, request.ref, session)
+                if entity.type == "relation":
+                    from edera_core.storage.repository import delete_relation
+
+                    deleted = await delete_relation(session, entity.id)
+                elif _database_entity_available(self.daemon, entity.type):
+                    from edera_core.storage.repository import force_delete_entity_relations
+
+                    refs = _entity_relation_refs(entity, store)
+                    if request.force:
+                        await force_delete_entity_relations(session, refs)
+                    if entity.type in CORE_ENTITY_TYPES:
+                        deleted = await delete_core_entity(session, entity.id, store.entity_types)
+                    else:
+                        deleted = await delete_ordinary_entity(session, entity.id, store.entity_types)
                 else:
-                    deleted = await delete_ordinary_entity(session, entity.id, store.entity_types)
+                    store.delete(entity.id)
+                    deleted = True
                 await session.commit()
             if not deleted:
+                if getattr(deleted, "relations", None):
+                    await context.abort(grpc.StatusCode.FAILED_PRECONDITION, _blocking_relations_message(deleted.relations))
                 await context.abort(grpc.StatusCode.NOT_FOUND, f"Entity not found: {request.ref}")
             await self._refresh_runtime_snapshot()
             store, app = _runtime_entity_store(self.daemon)
-        else:
-            store.delete(entity.id)
+            await self._emit_entity_changed(store, entity)
+            return self.pb2.DeleteResult(deleted=True)
+        entity = store.resolve(request.ref)
+        store.delete(entity.id)
         await self._emit_entity_changed(store, entity)
         return self.pb2.DeleteResult(deleted=True)
+
+    async def Import(self, request, context):
+        await _identity(context)
+        store, app = _runtime_entity_store(self.daemon)
+        payload = json.loads(request.json or "{}")
+        if not isinstance(payload, dict):
+            raise ValueError("import request must be an object")
+        path = Path(str(payload["file"]))
+        async with self.daemon.controller._factory()() as session:
+            from edera_core.storage.import_export import import_entities_from_yaml, import_relations_from_yaml
+
+            if payload.get("type") == "relation" or path.name.startswith("relation"):
+                result = await import_relations_from_yaml(session, path, store.entity_types)
+            else:
+                result = await import_entities_from_yaml(session, path, store.entity_types)
+            await session.commit()
+        await self._refresh_runtime_snapshot()
+        return json_response(self.pb2, result.__dict__)
+
+    async def Export(self, request, context):
+        await _identity(context)
+        store, app = _runtime_entity_store(self.daemon)
+        store = _active_run_entity_store(self.daemon, request.dag_run_id or None) or store
+        if _controller_started(self.daemon):
+            async with self.daemon.controller._factory()() as session:
+                results = await store.query_async(request.type or None, dag_run_id=request.dag_run_id or None, session=session)
+        else:
+            results = store.query_results(request.type or None, dag_run_id=request.dag_run_id or None)
+        entities = [result.entity for result in results]
+        if request.type == "relation":
+            content = yaml.safe_dump(
+                {"relations": [_relation_export_record(entity) for entity in entities if entity.type == "relation"]},
+                allow_unicode=True,
+                sort_keys=False,
+            )
+            return json_response(self.pb2, {"content": content, "exported": len(entities)})
+        content = yaml.safe_dump(
+            {"entities": [entity.model_dump(mode="json") for entity in entities]},
+            allow_unicode=True,
+            sort_keys=False,
+        )
+        return json_response(self.pb2, {"content": content, "exported": len(entities)})
 
     async def Materialize(self, request, context):
         await _identity(context)
@@ -339,6 +458,11 @@ class _EntityService:
 
     async def _refresh_runtime_snapshot(self) -> None:
         if not _controller_started(self.daemon) or self.daemon.controller.engine is None:
+            return
+        if not self.daemon.config_dir.exists():
+            refresh = getattr(self.daemon.controller, "refresh", None)
+            if refresh is not None:
+                await refresh()
             return
         config = _load_runtime_base_config(self.daemon.config_dir)
         await self.daemon.controller.install_snapshot(config, self.daemon.controller.runtime_snapshot().bootstrap)
@@ -518,10 +642,10 @@ class _SystemService:
 
     async def CreateRepairTask(self, request, context):
         await _identity(context)
-        source = source_map(self.daemon.controller.runtime_snapshot().entity_store).get(request.name)
-        if source is None:
-            await context.abort(grpc.StatusCode.NOT_FOUND, "source not found")
         async with self.daemon.controller._factory()() as session:
+            source = (await source_map_from_store(session, self.daemon.controller.runtime_snapshot().entity_store)).get(request.name)
+            if source is None:
+                await context.abort(grpc.StatusCode.NOT_FOUND, "source not found")
             health = await source_health_summary(session, [request.name])
             logs = await source_execution_logs(session, request.name, 1)
             briefing = await latest_briefing(session)
@@ -556,13 +680,29 @@ class _SystemService:
 
 def _entity_store(config_dir: Path) -> tuple[EntityStore, object]:
     app = load_app_config(config_dir)
-    store = EntityStore(app.entities, app.entity_types, app.entity_relations, config_dir / "entities.yaml")
+    store = EntityStore(app.entities, app.entity_types, app.entity_relations, None)
     return store, app
 
 
 def _runtime_entity_store(daemon: Server) -> tuple[EntityStore, AppConfig]:
     snapshot = daemon.controller.runtime_snapshot()
     return snapshot.entity_store, snapshot.config
+
+
+def _active_run_entity_store(daemon: Server, dag_run_id: str | None) -> EntityStore | None:
+    if not dag_run_id:
+        return None
+    for context in getattr(daemon.controller, "active_runs", {}).values():
+        if getattr(context, "run_id", None) != dag_run_id:
+            continue
+        task = getattr(context, "task", None)
+        done = getattr(task, "done", None)
+        if callable(done) and done():
+            continue
+        store = getattr(getattr(context, "executor", None), "entity_store", None)
+        if isinstance(store, EntityStore):
+            return store
+    return None
 
 
 def _controller_started(daemon: Server) -> bool:
@@ -575,6 +715,13 @@ def _database_entity_available(daemon: Server, entity_type: str) -> bool:
     _, app = _runtime_entity_store(daemon)
     config = app.entity_types.get(entity_type)
     return config is not None and config.storage_tier == "database"
+
+
+async def _resolve_entity_for_mutation(store: EntityStore, ref: str, session) -> EntityConfig:
+    try:
+        return (await store.query_one_async(ref, session=session)).entity
+    except ConfigError:
+        return store.resolve(ref)
 
 
 async def _save_database_entity(session, entity: EntityConfig, entity_type) -> EntityConfig:
@@ -600,6 +747,33 @@ def _validate_entity_for_store(store: EntityStore, entity: EntityConfig, *, repl
 
 def _entity_message(pb2, store: EntityStore, entity: EntityConfig):
     return pb2.Entity(id=entity.id, type=entity.type, json=json.dumps(_entity_payload(store, entity), ensure_ascii=False, default=str))
+
+
+def _entity_relation_refs(entity: EntityConfig, store: EntityStore) -> set[str]:
+    refs = {entity.id}
+    try:
+        refs.add(entity_ref(entity, store.entity_types))
+    except (KeyError, ValueError):
+        pass
+    return refs
+
+
+def _relation_export_record(entity: EntityConfig) -> dict[str, object]:
+    attrs = entity.attributes
+    refs = attrs.get("entities")
+    if not isinstance(refs, list) or len(refs) != 2:
+        refs = [attrs.get("from_entity_id") or attrs.get("from"), attrs.get("to_entity_id") or attrs.get("to")]
+    return {
+        "id": entity.id,
+        "entities": refs,
+        "type": attrs.get("relation_type"),
+        "metadata": attrs.get("metadata") or {},
+    }
+
+
+def _blocking_relations_message(relations) -> str:
+    relation_ids = ", ".join(relation.id for relation in relations)
+    return f"Entity is referenced by relations: {relation_ids}" if relation_ids else "Entity is referenced by relations"
 
 
 def _entity_type_message(pb2, name: str, entity_type):
@@ -661,13 +835,14 @@ async def _query(
     identity: str,
     permissions: dict[str, Any] | None,
     expression: str,
+    session=None,
 ) -> list[EntityConfig]:
     parts = [part.strip() for part in expression.split("AND") if part.strip()]
     if not parts:
         raise ValueError(_supported_query_message())
     relation_filters = _relation_filters(parts)
     if relation_filters is not None:
-        return _readable_entities(identity, store, permissions, _query_relations(store, relation_filters))
+        return _readable_entities(identity, store, permissions, await _query_relations(store, relation_filters, session))
     runtime_filters = _runtime_filters(parts)
     if runtime_filters is not None:
         return _readable_entities(identity, store, permissions, await _query_runtime_facts(app, runtime_filters))
@@ -688,6 +863,19 @@ async def _query(
         else:
             raise ValueError(_supported_query_message())
     return _readable_entities(identity, store, permissions, result)
+
+
+async def _query_relations(
+    store: EntityStore,
+    filters: dict[str, str],
+    session=None,
+) -> list[EntityConfig]:
+    if session is None:
+        return _filter_entities(store.query("relation"), filters)
+    from edera_core.storage.repository import list_relations
+
+    relations = await list_relations(session, **_relation_repository_filters(filters))
+    return _filter_entities([_relation_entity(relation) for relation in relations], filters)
 
 
 def _readable_entities(
@@ -719,6 +907,34 @@ def _readable_entity(
     return entity.model_copy(update={"attributes": filtered})
 
 
+def _filters_from_json(value: str) -> dict[str, str]:
+    if not value:
+        return {}
+    data = json.loads(value)
+    if not isinstance(data, dict):
+        raise ValueError("filters_json must be an object")
+    return {str(key): str(item) for key, item in data.items()}
+
+
+def _filter_entities(entities: list[EntityConfig], filters: dict[str, str]) -> list[EntityConfig]:
+    result = entities
+    for key, value in filters.items():
+        result = [entity for entity in result if str(entity.attributes.get(key)) == value]
+    return result
+
+
+def _has_relation_repository_filter(filters: dict[str, str]) -> bool:
+    return any(key in filters for key in ("from_entity_id", "from", "to_entity_id", "to", "relation_type"))
+
+
+def _relation_repository_filters(filters: dict[str, str]) -> dict[str, str | None]:
+    return {
+        "from_entity_id": filters.get("from_entity_id") or filters.get("from"),
+        "to_entity_id": filters.get("to_entity_id") or filters.get("to"),
+        "relation_type": filters.get("relation_type"),
+    }
+
+
 def _relation_filters(parts: list[str]) -> dict[str, str] | None:
     is_relation = False
     filters: dict[str, str] = {}
@@ -729,36 +945,41 @@ def _relation_filters(parts: list[str]) -> dict[str, str] | None:
         if key == "type" and value == "relation":
             is_relation = True
         elif key == "relation_type":
-            filters["type"] = value
+            filters["relation_type"] = value
+        elif key == "from_entity_id":
+            filters["from_entity_id"] = value
+        elif key == "to_entity_id":
+            filters["to_entity_id"] = value
         elif key in {"from", "to"}:
             filters[key] = value
     return filters if is_relation else None
 
 
-def _query_relations(store: EntityStore, filters: dict[str, str]) -> list[EntityConfig]:
-    entities: list[EntityConfig] = []
-    for relation in store.relations.relations:
-        if filters.get("type") and relation.type != filters["type"]:
-            continue
-        refs = relation.entities
-        if filters.get("from") and filters["from"] not in refs:
-            continue
-        if filters.get("to") and filters["to"] not in refs:
-            continue
-        entities.append(
-            EntityConfig(
-                id=relation.id,
-                type="relation",
-                attributes={
-                    "from": refs[0] if refs else "",
-                    "to": refs[1] if len(refs) > 1 else "",
-                    "relation_type": relation.type,
-                    "entities": refs,
-                    "metadata": relation.metadata,
-                },
-            )
-        )
-    return entities
+def _relation_entity(relation) -> EntityConfig:
+    return _relation_config_entity(
+        relation.id,
+        [relation.from_entity_id, relation.to_entity_id],
+        relation.relation_type,
+        relation.metadata_,
+    )
+
+
+def _relation_config_entity(relation_id: str, refs: list[str], relation_type: str, metadata: dict[str, object]) -> EntityConfig:
+    from_entity_id = refs[0] if refs else ""
+    to_entity_id = refs[1] if len(refs) > 1 else ""
+    return EntityConfig(
+        id=relation_id,
+        type="relation",
+        attributes={
+            "from": from_entity_id,
+            "to": to_entity_id,
+            "from_entity_id": from_entity_id,
+            "to_entity_id": to_entity_id,
+            "relation_type": relation_type,
+            "entities": refs,
+            "metadata": metadata,
+        },
+    )
 
 
 def _node_output_filters(parts: list[str]) -> dict[str, str] | None:

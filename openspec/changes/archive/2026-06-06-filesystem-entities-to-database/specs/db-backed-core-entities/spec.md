@@ -12,15 +12,17 @@
 
 #### Scenario: 运行时从 DB 读取普通 Entity
 
-- **WHEN** `edera-server` 启动并构建 runtime snapshot
-- **THEN** 系统 SHALL 从 DB 读取所有 entity types 的 entities（包括 stock, rss-source 等）
+- **WHEN** 运行时、CLI 或 Web Console 查询普通 entities（包括 stock, rss-source 等）
+- **THEN** 系统 SHALL 从对应 entity type 的数据库表读取结果
 - **AND** 系统 MUST NOT 从 `config/entities.yaml` 读取普通 entities
+- **AND** 系统 MUST NOT 要求普通 entities 已加载到启动时 runtime snapshot
 
 #### Scenario: 运行时从 DB 读取 entity relations
 
-- **WHEN** `edera-server` 启动并构建 runtime snapshot
-- **THEN** 系统 SHALL 从 DB `entity_relations` 表读取所有 relations
+- **WHEN** 运行时、CLI 或 Web Console 查询 entity relations
+- **THEN** 系统 SHALL 从 DB `entity_relations` 表读取 relations
 - **AND** 系统 MUST NOT 从 `config/entity-relations.yaml` 读取 relations
+- **AND** 系统 MUST NOT 要求 relations 已加载到启动时 runtime snapshot
 
 #### Scenario: DB 写入后替换 committed snapshot
 
@@ -28,7 +30,7 @@
 - **THEN** 系统 SHALL 基于 DB 状态构建新的 committed runtime snapshot
 - **AND** 只有构建成功后才替换当前运行视图
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: 自动迁移 YAML 文件到数据库
 

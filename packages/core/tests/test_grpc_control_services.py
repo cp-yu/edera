@@ -179,8 +179,6 @@ def _write_minimal_config(root):
     (root / "skills").mkdir()
     (root.parent / "schemas" / "entity-types").mkdir(parents=True, exist_ok=True)
     (root.parent / "schemas" / "entity-types" / "rss-source.yaml").write_text(
-        "display_name: RSS\nbusiness_id_field: name\ndisplay_template: '{name}'\nschema:\n  properties:\n    name: {}\n",
+        "display_name: RSS\nbusiness_id_field: name\ndisplay_template: '{name}'\nstorage_tier: database\nschema:\n  properties:\n    name: {}\n",
         encoding="utf-8",
     )
-    (root / "entities.yaml").write_text("entities:\n- id: s1\n  type: rss-source\n  attributes:\n    name: rss\n", encoding="utf-8")
-    (root / "entity-relations.yaml").write_text("relations: []\n", encoding="utf-8")

@@ -105,7 +105,8 @@ CREATE INDEX idx_entity_relations_type ON entity_relations(relation_type);
    ```
 
 3. **预加载逻辑**（DAG 运行前）：
-   - 分析 DAG definition，提取所有直接引用的 entity refs（不包括 relations 传递引用）
+   - 分析 DAG definition，提取所有直接引用的 entity refs
+   - 对 `source` 驱动的实例，同时加载该 source 通过 relations 关联的一跳 entity refs
    - 批量查询数据库加载这些 entities
    - 存入 `memory_entities[dag_run_id]`
    - 如果预加载失败（entity 不存在），直接失败，拒绝启动 DAG
@@ -165,36 +166,18 @@ edera entity list --type relation --filter from_entity_id=X --filter to_entity_i
 - Relation 别名提升常用场景用户体验（`--from` 比 `--filter from_entity_id=` 简洁）
 - 别名是薄包装层，底层统一实现，维护成本低
 
-### Decision 5: 数据库迁移策略 - 手动一次性迁移
+### Decision 5: 数据库迁移策略 - 启动时自动迁移
 
-**决策**：不提供自动迁移脚本，使用 `edera entity import` 和 `edera relation import` CLI 命令手动执行一次性迁移。
+**决策**：启动时检测 `config/entities.yaml` 和 `config/entity-relations.yaml`，自动导入数据库；导入成功后重命名为 `.migrated`。导入失败时保留原文件并继续启动空/DB 状态。
 
 **备选方案**：
-- A. 启动时自动检测并迁移 YAML 文件 → 被拒绝：系统还在开发阶段，无历史负担，无需自动化
-- B. 手动调用 CLI 命令完成迁移 → **选择此方案**
+- A. 启动时自动检测并迁移 YAML 文件 → **选择此方案**
+- B. 手动调用 CLI 命令完成迁移 → 被拒绝：容易遗留双轨状态
 
 **选择理由**：
-- 当前还在开发阶段，没有生产环境负担
-- 开发团队可以直接操作数据库，无需自动化
-- 简化代码，减少启动时的复杂逻辑
-- CLI import/export 功能已经足够完成迁移
-
-**迁移步骤**（开发环境手动执行一次）：
-```bash
-# 1. 导入 entities
-edera entity import config/entities.yaml
-
-# 2. 导入 relations
-edera relation import config/entity-relations.yaml
-
-# 3. 验证导入结果
-edera entity list
-edera relation list
-
-# 4. 备份原文件（可选）
-mv config/entities.yaml config/entities.yaml.backup
-mv config/entity-relations.yaml config/entity-relations.yaml.backup
-```
+- 避免运行时同时存在 YAML 和 DB 两个 source of truth
+- 首次启动即可进入 DB-backed 状态
+- 失败时不改名原文件，便于修复后重试
 
 ## Risks / Trade-offs
 
@@ -243,13 +226,6 @@ mv config/entity-relations.yaml config/entity-relations.yaml.backup
 2. 更新文档和示例
 3. 完整的集成测试（包括预加载、缓存命中、清理机制）
 
-### 手动迁移步骤
+### 自动迁移步骤
 
-首次部署时，开发团队手动执行：
-```bash
-edera entity import config/entities.yaml
-edera relation import config/entity-relations.yaml
-edera entity list  # 验证
-mv config/entities.yaml config/entities.yaml.backup
-mv config/entity-relations.yaml config/entity-relations.yaml.backup
-```
+首次启动时，runtime materialization 自动导入 `config/entities.yaml` 与 `config/entity-relations.yaml`；提交成功后将文件重命名为 `.migrated`。失败时记录错误、保留原文件并继续以 DB/空状态启动。
