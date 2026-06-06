@@ -64,6 +64,16 @@ class EntityServiceStub(object):
                 request_serializer=edera__pb2.EntityRef.SerializeToString,
                 response_deserializer=edera__pb2.DeleteResult.FromString,
                 _registered_method=True)
+        self.Import = channel.unary_unary(
+                '/edera.v1.EntityService/Import',
+                request_serializer=edera__pb2.JsonRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.Export = channel.unary_unary(
+                '/edera.v1.EntityService/Export',
+                request_serializer=edera__pb2.EntityQuery.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
         self.Materialize = channel.unary_unary(
                 '/edera.v1.EntityService/Materialize',
                 request_serializer=edera__pb2.JsonRequest.SerializeToString,
@@ -112,6 +122,18 @@ class EntityServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Import(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Export(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Materialize(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -150,6 +172,16 @@ def add_EntityServiceServicer_to_server(servicer, server):
                     servicer.Delete,
                     request_deserializer=edera__pb2.EntityRef.FromString,
                     response_serializer=edera__pb2.DeleteResult.SerializeToString,
+            ),
+            'Import': grpc.unary_unary_rpc_method_handler(
+                    servicer.Import,
+                    request_deserializer=edera__pb2.JsonRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'Export': grpc.unary_unary_rpc_method_handler(
+                    servicer.Export,
+                    request_deserializer=edera__pb2.EntityQuery.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
             'Materialize': grpc.unary_unary_rpc_method_handler(
                     servicer.Materialize,
@@ -319,6 +351,60 @@ class EntityService(object):
             '/edera.v1.EntityService/Delete',
             edera__pb2.EntityRef.SerializeToString,
             edera__pb2.DeleteResult.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Import(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.EntityService/Import',
+            edera__pb2.JsonRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Export(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.EntityService/Export',
+            edera__pb2.EntityQuery.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,
             insecure,

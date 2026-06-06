@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from edera_core.config.schema import (
 from edera_core.errors import ConfigError
 
 
+LOGGER = logging.getLogger(__name__)
 CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource"}
 
 
@@ -63,38 +65,6 @@ def load_entity_types(config_dir: Path) -> dict[str, EntityTypeConfig]:
     if (config_dir / "schemas").exists():
         return {**load_entity_type_configs(legacy), **load_entity_type_configs(local)}
     return load_entity_type_configs(legacy)
-
-
-def load_entities_config(
-    path: Path,
-    entity_types: dict[str, EntityTypeConfig],
-) -> EntitiesConfig:
-    entities = EntitiesConfig.model_validate(_read_yaml(path))
-    entity_dir = path.parent / "entities"
-    for file in sorted(entity_dir.glob("*.yaml")):
-        entities.entities.append(_entity_from_file(file, None))
-    _validate_entities(entities, entity_types)
-    return entities
-
-
-def load_entity_relations_config(
-    path: Path,
-    entities: EntitiesConfig,
-    entity_types: dict[str, EntityTypeConfig],
-) -> EntityRelationsConfig:
-    raw = _read_yaml(path)
-    relations = EntityRelationsConfig.model_validate(raw)
-    refs = _entity_refs(entities, entity_types)
-    for relation in relations.relations:
-        for ref in relation.entities:
-            if ref not in refs:
-                raise ConfigError(f"Entity not found: {ref}")
-    if any(isinstance(item, dict) and "id" not in item for item in raw.get("relations", [])):
-        path.write_text(
-            yaml.safe_dump(relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False),
-            encoding="utf-8",
-        )
-    return relations
 
 
 def load_node_configs(path: Path) -> dict[str, NodeConfig]:
@@ -150,12 +120,6 @@ def load_dag_configs(path: Path) -> dict[str, DagConfig]:
 
 def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
     entity_types = load_entity_types(config_dir)
-    entities = load_entities_config(config_dir / "entities.yaml", entity_types)
-    entity_relations = load_entity_relations_config(
-        config_dir / "entity-relations.yaml",
-        entities,
-        entity_types,
-    )
     dags = load_dag_configs(config_dir / "dags")
     system = load_system_config(config_dir / "system.toml")
     from edera_core.dag.loader import validate_sub_dag_nesting
@@ -165,8 +129,8 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
     return AppConfig(
         system=system,
         entity_types=entity_types,
-        entities=entities,
-        entity_relations=entity_relations,
+        entities=EntitiesConfig(),
+        entity_relations=EntityRelationsConfig(),
         runtime=RuntimeSettings(),
         nodes=load_node_configs(config_dir / "nodes"),
         skills=load_skill_configs(config_dir / "skills"),
@@ -195,13 +159,11 @@ async def load_runtime_app_config(config_dir: Path, engine, extensions_dirs: lis
 
 def _load_runtime_base_config(config_dir: Path) -> AppConfig:
     entity_types = _runtime_entity_types(load_entity_types(config_dir))
-    entities = _load_non_core_entities_config(config_dir / "entities.yaml", entity_types)
-    entity_relations = EntityRelationsConfig.model_validate(_read_yaml(config_dir / "entity-relations.yaml"))
     return AppConfig(
         system=load_system_config(config_dir / "system.toml"),
         entity_types=entity_types,
-        entities=entities,
-        entity_relations=entity_relations,
+        entities=EntitiesConfig(),
+        entity_relations=EntityRelationsConfig(),
         runtime=RuntimeSettings(),
         nodes={},
         skills=load_skill_configs(config_dir / "skills"),
@@ -226,13 +188,20 @@ async def materialize_runtime_app_config(
     from edera_core.storage.repository import (
         list_core_entities,
         list_entity_type_configs,
-        list_ordinary_entities,
         seed_entity_type_records,
     )
 
     factory = session_factory(engine)
+    migrated_files: list[tuple[Path, Path]] = []
     async with factory() as session:
         config.entity_types = await seed_entity_type_records(session, config.entity_types)
+        try:
+            migrated_files = await _migrate_legacy_entity_yaml(session, config_dir, config.entity_types)
+        except Exception:
+            await session.rollback()
+            LOGGER.exception("legacy entity YAML migration failed")
+            migrated_files = []
+            config.entity_types = await seed_entity_type_records(session, config.entity_types)
         from edera_core.storage.repository import save_core_entity
 
         existing_core = {entity.id for entity in await list_core_entities(session)}
@@ -255,26 +224,42 @@ async def materialize_runtime_app_config(
 
             await save_ordinary_entity(session, entity, entity_type)
         core_entities = await list_core_entities(session)
-        ordinary_entities = await list_ordinary_entities(session, config.entity_types)
         db_entity_types = await list_entity_type_configs(session)
         await session.commit()
-    runtime_entities = [
-        entity
-        for entity in config.entities.entities
-        if entity.type not in CORE_ENTITY_TYPES
-    ]
-    runtime_entities.extend(core_entities)
-    runtime_entities.extend(ordinary_entities)
+    for source, target in migrated_files:
+        source.rename(target)
     config.entity_types = {**config.entity_types, **db_entity_types}
-    config.entities = EntitiesConfig(entities=runtime_entities)
+    config.entities = EntitiesConfig(entities=core_entities)
+    config.entity_relations = EntityRelationsConfig()
     config.nodes = _nodes_from_core_entities(config_dir, core_entities)
     config.dags = _dags_from_core_entities(core_entities)
-    _validate_entity_relations(config.entity_relations, config.entities, config.entity_types)
     from edera_core.dag.loader import validate_sub_dag_nesting
 
     validate_sub_dag_nesting(config.dags, config.system.max_dag_depth)
     _validate_dag_entity_permissions(config.dags, config.entity_types)
     return config
+
+
+async def _migrate_legacy_entity_yaml(
+    session,
+    config_dir: Path,
+    entity_types: dict[str, EntityTypeConfig],
+) -> list[tuple[Path, Path]]:
+    entities_path = config_dir / "entities.yaml"
+    relations_path = config_dir / "entity-relations.yaml"
+    migrated: list[tuple[Path, Path]] = []
+    if entities_path.exists():
+        from edera_core.storage.import_export import import_entities_from_yaml
+
+        await import_entities_from_yaml(session, entities_path, entity_types)
+        migrated.append((entities_path, config_dir / "entities.yaml.migrated"))
+    if relations_path.exists():
+        from edera_core.storage.import_export import import_relations_from_yaml
+
+        await import_relations_from_yaml(session, relations_path, entity_types)
+        migrated.append((relations_path, config_dir / "entity-relations.yaml.migrated"))
+    await session.flush()
+    return migrated
 
 
 def _top_level_core_entities(config_dir: Path) -> list[EntityConfig]:
@@ -290,31 +275,6 @@ def _top_level_core_entities(config_dir: Path) -> list[EntityConfig]:
             continue
         entities.extend(_entity_from_file(file, entity_type) for file in sorted(directory.glob("*.yaml")))
     return entities
-
-
-def _load_non_core_entities_config(
-    path: Path,
-    entity_types: dict[str, EntityTypeConfig],
-) -> EntitiesConfig:
-    entities = EntitiesConfig.model_validate(_read_yaml(path))
-    entity_dir = path.parent / "entities"
-    for file in sorted(entity_dir.glob("*.yaml")):
-        entities.entities.append(_entity_from_file(file, None))
-    entities.entities = [entity for entity in entities.entities if entity.type not in CORE_ENTITY_TYPES]
-    _validate_entities(entities, entity_types)
-    return entities
-
-
-def _validate_entity_relations(
-    relations: EntityRelationsConfig,
-    entities: EntitiesConfig,
-    entity_types: dict[str, EntityTypeConfig],
-) -> None:
-    refs = _entity_refs(entities, entity_types)
-    for relation in relations.relations:
-        for ref in relation.entities:
-            if ref not in refs:
-                raise ConfigError(f"Entity not found: {ref}")
 
 
 def load_config(config_dir: Path = Path("config")) -> AppConfig:
@@ -411,27 +371,49 @@ def _node_from_entity(raw: dict[str, Any], fallback_name: str) -> NodeConfig:
 def _entity_store(config_dir: Path):
     from edera_core.config.entities import EntityStore
 
-    entity_types = load_entity_types(config_dir)
-    entities = load_entities_config(config_dir / "entities.yaml", entity_types)
-    relations = load_entity_relations_config(config_dir / "entity-relations.yaml", entities, entity_types)
-    return EntityStore(entities, entity_types, relations, config_dir / "entities.yaml")
+    config = load_app_config(config_dir)
+    return EntityStore(config.entities, config.entity_types, config.entity_relations, None)
 
 
 def _entity_store_from_config(config: AppConfig, config_dir: Path):
     from edera_core.config.entities import EntityStore
 
-    return EntityStore(config.entities, config.entity_types, config.entity_relations, config_dir / "entities.yaml")
+    return EntityStore(config.entities, config.entity_types, config.entity_relations, None)
 
 
 def _runtime_entity_types(entity_types: dict[str, EntityTypeConfig]) -> dict[str, EntityTypeConfig]:
     result = dict(entity_types)
     for name, entity_type in _default_core_entity_types().items():
         result.setdefault(name, entity_type)
+    result.setdefault("relation", _default_relation_entity_type())
     for name in CORE_ENTITY_TYPES:
         entity_type = result.get(name)
         if entity_type is not None:
             result[name] = entity_type.model_copy(update={"storage_tier": "database"})
+    relation = result.get("relation")
+    if relation is not None:
+        result["relation"] = relation.model_copy(update={"business_id_field": "id", "storage_tier": "database"})
     return result
+
+
+def _default_relation_entity_type() -> EntityTypeConfig:
+    return EntityTypeConfig.model_validate(
+        {
+            "display_name": "Relation",
+            "business_id_field": "id",
+            "display_template": "{from} -> {to}",
+            "storage_tier": "database",
+            "schema": {
+                "required": ["from", "to", "relation_type"],
+                "properties": {
+                    "from": {"type": "string"},
+                    "to": {"type": "string"},
+                    "relation_type": {"type": "string"},
+                    "metadata": {"type": "object"},
+                },
+            },
+        }
+    )
 
 
 def _default_core_entity_types() -> dict[str, EntityTypeConfig]:
@@ -549,26 +531,4 @@ def _core_entities_from_config(config: AppConfig, entity_type: str) -> list[Enti
 
 
 def _entity_store_or_none(config_dir: Path):
-    if not (config_dir.parent / "schemas" / "entity-types").exists() and not (config_dir / "schemas").exists():
-        return None
-    if not (config_dir / "entities.yaml").exists() or not (config_dir / "entity-relations.yaml").exists():
-        return None
-    schema_dir = config_dir / "schemas" if (config_dir / "schemas").exists() else config_dir.parent / "schemas" / "entity-types"
-    if not (schema_dir / "node.yaml").exists() or not (schema_dir / "dag.yaml").exists():
-        return None
-    try:
-        return _entity_store(config_dir)
-    except ConfigError:
-        raise
-
-
-def _entity_refs(
-    entities: EntitiesConfig,
-    entity_types: dict[str, EntityTypeConfig],
-) -> set[str]:
-    refs = {entity.id for entity in entities.entities}
-    for entity in entities.entities:
-        entity_type = entity_types[entity.type]
-        business_id = entity.id if entity_type.business_id_field == "id" else entity.attributes[entity_type.business_id_field]
-        refs.add(f"{entity.type}:{business_id}")
-    return refs
+    return None

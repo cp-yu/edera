@@ -32,9 +32,11 @@ ADDED:
 MODIFIED:
   capabilities:
     - id: cap.core.db-backed-core-entities
-      intent: 所有 entities（核心 + 普通）和 relations 都从数据库加载，不再从 YAML 文件加载
+      intent: 核心 entities 从数据库构建 runtime snapshot，普通 entities 和 relations 按需查询数据库，不再从 YAML 文件加载
+      type: capability
     - id: cap.unified-entity-model
       intent: EntityStore 统一从数据库查询所有 entities 和 relations，不涉及文件系统
+      type: capability
 
 REMOVED:
   capabilities: []

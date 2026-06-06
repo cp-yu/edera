@@ -1,0 +1,431 @@
+{
+  "timestamp": "2026-06-06T08:31:05.874Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "OPSX Alignment",
+      "task": null,
+      "summary": "Added OPSX capabilities have project and relation entries but no dedicated code-map nodes.",
+      "recommendation": "Add code-map refs for cap.core.ordinary-entity-database-storage, cap.core.entity-relations-database-storage, cap.cli.entity-cli-commands, and cap.cli.relation-cli-commands, or document that existing nodes intentionally cover them.",
+      "evidenceCitations": [
+        "openspec/changes/filesystem-entities-to-database/opsx-delta.yaml:3-16",
+        "openspec/project.opsx.yaml:310-320",
+        "openspec/project.opsx.relations.yaml:240-251",
+        "openspec/project.opsx.code-map.yaml:306-311"
+      ],
+      "message": "Added OPSX capabilities have project and relation entries but no dedicated code-map nodes."
+    }
+  ],
+  "tasksFileHash": "f73fc0519054cf900e4c7172851baabc0b360f97112d5423cbfbc2756d33ba53",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "evidenceFiles": [
+      "alembic/versions/0010_entity_relations.py",
+      "openspec/changes/filesystem-entities-to-database/.apply-isolation.json",
+      "openspec/changes/filesystem-entities-to-database/.verify-result.json",
+      "openspec/changes/filesystem-entities-to-database/design.md",
+      "openspec/changes/filesystem-entities-to-database/opsx-delta.yaml",
+      "openspec/changes/filesystem-entities-to-database/proposal.md",
+      "openspec/changes/filesystem-entities-to-database/specs/db-backed-core-entities/spec.md",
+      "openspec/changes/filesystem-entities-to-database/specs/entity-cli-commands/spec.md",
+      "openspec/changes/filesystem-entities-to-database/specs/entity-relations-database-storage/spec.md",
+      "openspec/changes/filesystem-entities-to-database/specs/ordinary-entity-database-storage/spec.md",
+      "openspec/changes/filesystem-entities-to-database/specs/unified-entity-model/spec.md",
+      "openspec/changes/filesystem-entities-to-database/tasks.md",
+      "openspec/project.opsx.code-map.yaml",
+      "openspec/project.opsx.relations.yaml",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/entities.py",
+      "packages/core/src/edera_core/config/entity_query_result.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/service_common.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/import_export.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/tests/test_cli_entity.py",
+      "packages/core/tests/test_cli_relation_aliases.py",
+      "packages/core/tests/test_entity_relations_storage.py",
+      "packages/core/tests/test_entity_repository.py",
+      "packages/core/tests/test_entity_store_preload.py",
+      "packages/core/tests/test_grpc_entity_service.py",
+      "packages/core/tests/test_import_export.py",
+      "packages/core/tests/test_relation_repository.py",
+      "packages/core/tests/test_runtime_entity_migration.py",
+      "proto/edera.proto"
+    ],
+    "evidenceFingerprint": "357ef178ea79a9ff18a719fd6c5861cb9a7a060e82a9d9b8d4cc0aec8a9e5e11",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "alembic/versions/0010_entity_relations.py",
+        "hash": "55857d48dd4a9d56f7167be4b1c44f61c0e751bcb407813b588e04757aa28ab1"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/.apply-isolation.json",
+        "hash": "a51208241e48a3eae39b532d62bfa951c86106690d823e6ffb5d42e00c3cd783"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/design.md",
+        "hash": "fb097d01596fac51545ab3247ee3fa35456dea776d343e0333836d3e40255afe"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/opsx-delta.yaml",
+        "hash": "c71015c67fcaad06281e168f7854fd618af15fc7c54492c35e33a309719f3efe"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/proposal.md",
+        "hash": "076c5b3e15bbeb358c8f16f0d0a2155adbeb23a31d93b30cac59ea322818a925"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/specs/db-backed-core-entities/spec.md",
+        "hash": "91b8a3b530a30e73421f74fb4f01615dbe7736ee66a8be2f493092b41bc6947f"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/specs/entity-cli-commands/spec.md",
+        "hash": "c95c1622e013518a2ae2980c8569457b1004c6cc2c800cab2b1b4bd46141b590"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/specs/entity-relations-database-storage/spec.md",
+        "hash": "c4c28aff5972014153c3f3f8fc007581e685b4728dd57583501bd6eb14253497"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/specs/ordinary-entity-database-storage/spec.md",
+        "hash": "834a4c05ad231836ac8ccaf659a629da6f908d24b3f776286976b80eb3eb874a"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/specs/unified-entity-model/spec.md",
+        "hash": "0440a01c854480f338ac1141d149e3ad376f1d69129dcabbcfc6738ccad154e5"
+      },
+      {
+        "path": "openspec/changes/filesystem-entities-to-database/tasks.md",
+        "hash": "f73fc0519054cf900e4c7172851baabc0b360f97112d5423cbfbc2756d33ba53"
+      },
+      {
+        "path": "openspec/project.opsx.code-map.yaml",
+        "hash": "18cc382332f667bc9db172f65a229a81f4b685e54c0e10daa3d8caa006007b66"
+      },
+      {
+        "path": "openspec/project.opsx.relations.yaml",
+        "hash": "7fc7c42842d36c12d583b365215ac0b5b7a49c414b921e09add0bbdae7a03c26"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "7461a4484bfaaf258de6a9e1ee974f9e7bd63a76d1d4b2caec2fdf0174052ccc"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "c1daf5cb56c22fc5c69b81a4a01bee490483fc3b046b23700e1a29acfc365e2b"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/entities.py",
+        "hash": "5394e9d544219ab517a2ea5ea3df97247973a6a466e738d902421c82ed13fa03"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/entity_query_result.py",
+        "hash": "eb3672f7d4eba8239dcb2c77a196394cf2897930af42c06427eb1e6f199a1202"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "3ba766551c4539b40ce38f8e0ca0b89c7797b5eeb0ef810b520b215b71ade649"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "03466e22158585616bdfb139740bcce7bcf8b05c3f269420bac6a988f0069cf5"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "8ba91aea41ae562012dc7beacacae6b58aa8fcb95d584e266297b7e539445f08"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "d02cf10fefce5bb9cdaf74fe3360cc57462bfe6ad9a5575fa10e624dc5a224af"
+      },
+      {
+        "path": "packages/core/src/edera_core/service_common.py",
+        "hash": "ea2e690b06b7936a42242d319e1c4da271767e85c5dbd18775549be48afdff2a"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "032c5e6ef35c468fba4306adca6e0ac370d59ac6ec24dad88dc628ba21f278a8"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/import_export.py",
+        "hash": "af4474f6a86944ac62fa6106f7697395ba4e685c3a3b2df86cbb17bead196a2b"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "0fd4fdbaa24d61cff9152f8dd2d032d4a76e5c2473f147ff3da8972a3b5bc30c"
+      },
+      {
+        "path": "packages/core/tests/test_cli_entity.py",
+        "hash": "7aa56cfcb10ca75f8c7de61a13cf325b103a8b9682e7b7c6b1f008aaae939c30"
+      },
+      {
+        "path": "packages/core/tests/test_cli_relation_aliases.py",
+        "hash": "cd86ebae51dbbbaf967ec4e4dea1973d76cf27d6981f9f28f70cbb140eb7cd64"
+      },
+      {
+        "path": "packages/core/tests/test_entity_relations_storage.py",
+        "hash": "596aa86b3f3e0bb64435fe1bdb61823d8c5ee295f83f740af7491ba2d1ebc9cb"
+      },
+      {
+        "path": "packages/core/tests/test_entity_repository.py",
+        "hash": "ad58c24b750e5bff9edbdcf82fed77f14669c92d248451f0dc9197d468f010d4"
+      },
+      {
+        "path": "packages/core/tests/test_entity_store_preload.py",
+        "hash": "e4ef77e61cfc7118dc0900f8de2ed0ff80b7580e2ed85a2fe48f729f5a48bd0e"
+      },
+      {
+        "path": "packages/core/tests/test_grpc_entity_service.py",
+        "hash": "80f3bf0b1c22749706079569282e9ce92a03b977b3a5219060ab65009734501e"
+      },
+      {
+        "path": "packages/core/tests/test_import_export.py",
+        "hash": "7129f589694f25e282bcfad238543bff92d7bf123c7256b4b9fe45d6db24798c"
+      },
+      {
+        "path": "packages/core/tests/test_relation_repository.py",
+        "hash": "893d07fe5a2267fd07d4da6e475e4af805c4f16733171252d881724ed5665409"
+      },
+      {
+        "path": "packages/core/tests/test_runtime_entity_migration.py",
+        "hash": "82724ef9b19f8d4c9b8a5350d1ada50aae43640dcf407d645eaa0c8b47728c05"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "7c77d73941917ff5cfe72f9c0e69620b8f8570ca2e81288db2287634cc112249"
+      }
+    ],
+    "skippedEvidenceFiles": [
+      "openspec/changes/filesystem-entities-to-database/.verify-result.json"
+    ],
+    "gitHeadCommit": "e0ddf74f18c03958f53ff3fe8669bb0b32b7dc35",
+    "gitDiffSummary": "Validated changeName, changeDir, and projectRoot. Read CLAUDE.md, all required change artifacts, specs, tasks, opsx-delta, and .verify-result.json. .apply-isolation.json names branch filesystem-entities-to-database; origin/HEAD was unavailable, and git diff --name-only master...HEAD returned empty because the scope is uncommitted/staged work, so navigation used git status --short, git diff --name-only, git diff --cached --name-only, prior evidenceFiles, OPSX files, and requirement keyword search. Verified implementation in final file contents for relation table/migration, ordinary entity CRUD, relation CRUD, import/export, EntityStore DAG cache/query wrapper, YAML migration, CLI aliases, gRPC entity/relation operations, DAG preload/cleanup, and runtime DB read paths. Ran timeout 180s uv run pytest on focused entity/relation/CLI/gRPC/runtime migration tests: 58 passed. Ran timeout 240s uv run pytest packages/core/tests/ -q: 155 passed. Ran timeout 180s uv run ruff check --select F401 on changed handwritten Python implementation files: passed. rg TODO/FIXME/HACK over reviewed implementation and test files returned no matches."
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-06T08:36:39.295Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "No optimization opportunities found"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-06T08:31:05.874Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "OPSX Alignment",
+          "task": null,
+          "summary": "Added OPSX capabilities have project and relation entries but no dedicated code-map nodes.",
+          "recommendation": "Add code-map refs for cap.core.ordinary-entity-database-storage, cap.core.entity-relations-database-storage, cap.cli.entity-cli-commands, and cap.cli.relation-cli-commands, or document that existing nodes intentionally cover them.",
+          "evidenceCitations": [
+            "openspec/changes/filesystem-entities-to-database/opsx-delta.yaml:3-16",
+            "openspec/project.opsx.yaml:310-320",
+            "openspec/project.opsx.relations.yaml:240-251",
+            "openspec/project.opsx.code-map.yaml:306-311"
+          ],
+          "message": "Added OPSX capabilities have project and relation entries but no dedicated code-map nodes."
+        }
+      ],
+      "tasksFileHash": "f73fc0519054cf900e4c7172851baabc0b360f97112d5423cbfbc2756d33ba53",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "evidenceFiles": [
+          "alembic/versions/0010_entity_relations.py",
+          "openspec/changes/filesystem-entities-to-database/.apply-isolation.json",
+          "openspec/changes/filesystem-entities-to-database/.verify-result.json",
+          "openspec/changes/filesystem-entities-to-database/design.md",
+          "openspec/changes/filesystem-entities-to-database/opsx-delta.yaml",
+          "openspec/changes/filesystem-entities-to-database/proposal.md",
+          "openspec/changes/filesystem-entities-to-database/specs/db-backed-core-entities/spec.md",
+          "openspec/changes/filesystem-entities-to-database/specs/entity-cli-commands/spec.md",
+          "openspec/changes/filesystem-entities-to-database/specs/entity-relations-database-storage/spec.md",
+          "openspec/changes/filesystem-entities-to-database/specs/ordinary-entity-database-storage/spec.md",
+          "openspec/changes/filesystem-entities-to-database/specs/unified-entity-model/spec.md",
+          "openspec/changes/filesystem-entities-to-database/tasks.md",
+          "openspec/project.opsx.code-map.yaml",
+          "openspec/project.opsx.relations.yaml",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/entities.py",
+          "packages/core/src/edera_core/config/entity_query_result.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/service_common.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/import_export.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/tests/test_cli_entity.py",
+          "packages/core/tests/test_cli_relation_aliases.py",
+          "packages/core/tests/test_entity_relations_storage.py",
+          "packages/core/tests/test_entity_repository.py",
+          "packages/core/tests/test_entity_store_preload.py",
+          "packages/core/tests/test_grpc_entity_service.py",
+          "packages/core/tests/test_import_export.py",
+          "packages/core/tests/test_relation_repository.py",
+          "packages/core/tests/test_runtime_entity_migration.py",
+          "proto/edera.proto"
+        ],
+        "evidenceFingerprint": "357ef178ea79a9ff18a719fd6c5861cb9a7a060e82a9d9b8d4cc0aec8a9e5e11",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "alembic/versions/0010_entity_relations.py",
+            "hash": "55857d48dd4a9d56f7167be4b1c44f61c0e751bcb407813b588e04757aa28ab1"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/.apply-isolation.json",
+            "hash": "a51208241e48a3eae39b532d62bfa951c86106690d823e6ffb5d42e00c3cd783"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/design.md",
+            "hash": "fb097d01596fac51545ab3247ee3fa35456dea776d343e0333836d3e40255afe"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/opsx-delta.yaml",
+            "hash": "c71015c67fcaad06281e168f7854fd618af15fc7c54492c35e33a309719f3efe"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/proposal.md",
+            "hash": "076c5b3e15bbeb358c8f16f0d0a2155adbeb23a31d93b30cac59ea322818a925"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/specs/db-backed-core-entities/spec.md",
+            "hash": "91b8a3b530a30e73421f74fb4f01615dbe7736ee66a8be2f493092b41bc6947f"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/specs/entity-cli-commands/spec.md",
+            "hash": "c95c1622e013518a2ae2980c8569457b1004c6cc2c800cab2b1b4bd46141b590"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/specs/entity-relations-database-storage/spec.md",
+            "hash": "c4c28aff5972014153c3f3f8fc007581e685b4728dd57583501bd6eb14253497"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/specs/ordinary-entity-database-storage/spec.md",
+            "hash": "834a4c05ad231836ac8ccaf659a629da6f908d24b3f776286976b80eb3eb874a"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/specs/unified-entity-model/spec.md",
+            "hash": "0440a01c854480f338ac1141d149e3ad376f1d69129dcabbcfc6738ccad154e5"
+          },
+          {
+            "path": "openspec/changes/filesystem-entities-to-database/tasks.md",
+            "hash": "f73fc0519054cf900e4c7172851baabc0b360f97112d5423cbfbc2756d33ba53"
+          },
+          {
+            "path": "openspec/project.opsx.code-map.yaml",
+            "hash": "18cc382332f667bc9db172f65a229a81f4b685e54c0e10daa3d8caa006007b66"
+          },
+          {
+            "path": "openspec/project.opsx.relations.yaml",
+            "hash": "7fc7c42842d36c12d583b365215ac0b5b7a49c414b921e09add0bbdae7a03c26"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "7461a4484bfaaf258de6a9e1ee974f9e7bd63a76d1d4b2caec2fdf0174052ccc"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "c1daf5cb56c22fc5c69b81a4a01bee490483fc3b046b23700e1a29acfc365e2b"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/entities.py",
+            "hash": "5394e9d544219ab517a2ea5ea3df97247973a6a466e738d902421c82ed13fa03"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/entity_query_result.py",
+            "hash": "eb3672f7d4eba8239dcb2c77a196394cf2897930af42c06427eb1e6f199a1202"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "3ba766551c4539b40ce38f8e0ca0b89c7797b5eeb0ef810b520b215b71ade649"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "03466e22158585616bdfb139740bcce7bcf8b05c3f269420bac6a988f0069cf5"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "8ba91aea41ae562012dc7beacacae6b58aa8fcb95d584e266297b7e539445f08"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "d02cf10fefce5bb9cdaf74fe3360cc57462bfe6ad9a5575fa10e624dc5a224af"
+          },
+          {
+            "path": "packages/core/src/edera_core/service_common.py",
+            "hash": "ea2e690b06b7936a42242d319e1c4da271767e85c5dbd18775549be48afdff2a"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "032c5e6ef35c468fba4306adca6e0ac370d59ac6ec24dad88dc628ba21f278a8"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/import_export.py",
+            "hash": "af4474f6a86944ac62fa6106f7697395ba4e685c3a3b2df86cbb17bead196a2b"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "0fd4fdbaa24d61cff9152f8dd2d032d4a76e5c2473f147ff3da8972a3b5bc30c"
+          },
+          {
+            "path": "packages/core/tests/test_cli_entity.py",
+            "hash": "7aa56cfcb10ca75f8c7de61a13cf325b103a8b9682e7b7c6b1f008aaae939c30"
+          },
+          {
+            "path": "packages/core/tests/test_cli_relation_aliases.py",
+            "hash": "cd86ebae51dbbbaf967ec4e4dea1973d76cf27d6981f9f28f70cbb140eb7cd64"
+          },
+          {
+            "path": "packages/core/tests/test_entity_relations_storage.py",
+            "hash": "596aa86b3f3e0bb64435fe1bdb61823d8c5ee295f83f740af7491ba2d1ebc9cb"
+          },
+          {
+            "path": "packages/core/tests/test_entity_repository.py",
+            "hash": "ad58c24b750e5bff9edbdcf82fed77f14669c92d248451f0dc9197d468f010d4"
+          },
+          {
+            "path": "packages/core/tests/test_entity_store_preload.py",
+            "hash": "e4ef77e61cfc7118dc0900f8de2ed0ff80b7580e2ed85a2fe48f729f5a48bd0e"
+          },
+          {
+            "path": "packages/core/tests/test_grpc_entity_service.py",
+            "hash": "80f3bf0b1c22749706079569282e9ce92a03b977b3a5219060ab65009734501e"
+          },
+          {
+            "path": "packages/core/tests/test_import_export.py",
+            "hash": "7129f589694f25e282bcfad238543bff92d7bf123c7256b4b9fe45d6db24798c"
+          },
+          {
+            "path": "packages/core/tests/test_relation_repository.py",
+            "hash": "893d07fe5a2267fd07d4da6e475e4af805c4f16733171252d881724ed5665409"
+          },
+          {
+            "path": "packages/core/tests/test_runtime_entity_migration.py",
+            "hash": "82724ef9b19f8d4c9b8a5350d1ada50aae43640dcf407d645eaa0c8b47728c05"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "7c77d73941917ff5cfe72f9c0e69620b8f8570ca2e81288db2287634cc112249"
+          }
+        ],
+        "skippedEvidenceFiles": [
+          "openspec/changes/filesystem-entities-to-database/.verify-result.json"
+        ],
+        "gitHeadCommit": "e0ddf74f18c03958f53ff3fe8669bb0b32b7dc35",
+        "gitDiffSummary": "Validated changeName, changeDir, and projectRoot. Read CLAUDE.md, all required change artifacts, specs, tasks, opsx-delta, and .verify-result.json. .apply-isolation.json names branch filesystem-entities-to-database; origin/HEAD was unavailable, and git diff --name-only master...HEAD returned empty because the scope is uncommitted/staged work, so navigation used git status --short, git diff --name-only, git diff --cached --name-only, prior evidenceFiles, OPSX files, and requirement keyword search. Verified implementation in final file contents for relation table/migration, ordinary entity CRUD, relation CRUD, import/export, EntityStore DAG cache/query wrapper, YAML migration, CLI aliases, gRPC entity/relation operations, DAG preload/cleanup, and runtime DB read paths. Ran timeout 180s uv run pytest on focused entity/relation/CLI/gRPC/runtime migration tests: 58 passed. Ran timeout 240s uv run pytest packages/core/tests/ -q: 155 passed. Ran timeout 180s uv run ruff check --select F401 on changed handwritten Python implementation files: passed. rg TODO/FIXME/HACK over reviewed implementation and test files returned no matches."
+      }
+    }
+  }
+}

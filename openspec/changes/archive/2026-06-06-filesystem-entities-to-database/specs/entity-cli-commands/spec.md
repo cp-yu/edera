@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Entity list 命令
 系统 SHALL 提供 `edera entity list` 命令列出所有 entities，支持通用列过滤。
@@ -102,6 +102,6 @@
 
 #### Scenario: relation import/export 别名
 - **WHEN** 用户执行 `edera relation import entity-relations.yaml`
-- **THEN** 系统 SHALL 调用 `import_entities_from_yaml()` 并过滤 type=relation
+- **THEN** 系统 SHALL 导入 `relations:` YAML 格式的 entity relations
 - **WHEN** 用户执行 `edera relation export -o entity-relations.yaml`
-- **THEN** 系统 SHALL 调用 `export_entities_to_yaml(entity_type="relation")`
+- **THEN** 系统 SHALL 导出 `relations:` YAML 格式的 entity relations

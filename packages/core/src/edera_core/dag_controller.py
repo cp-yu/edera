@@ -14,7 +14,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from edera_core.config.loader import _load_runtime_base_config, load_runtime_app_config, load_system_config, materialize_runtime_app_config
+from edera_core.config.loader import _load_runtime_base_config, load_system_config, materialize_runtime_app_config
 from edera_core.config.loader import _default_extensions_dirs
 from edera_core.config.entities import EntityStore
 from edera_core.config.git import commit_config_changes
@@ -488,6 +488,9 @@ class DagController:
         config = snapshot.config
         graph = load_graph(config.dags[dag_name], config.nodes)
         factory = self._factory()
+        run_store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
+        run_store.default_dag_run_id = run_id
+        executor: NodeExecutor | None = None
         if replace_existing_run:
             async with factory() as session:
                 await restart_dag_run(session, run_id)
@@ -499,7 +502,8 @@ class DagController:
         await event_bus.publish("dag.status", run_id=run_id, dag_name=dag_name, status="started")
         try:
             async with factory() as session:
-                executor = await self._build_run_executor(snapshot, graph, session)
+                await run_store.preload_for_dag(run_id, _run_entity_refs(config, graph, payload), session)
+                executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store)
                 ctx = self.active_runs.get(dag_name)
                 if ctx is not None and ctx.run_id == run_id:
                     ctx.executor = executor
@@ -556,6 +560,8 @@ class DagController:
             await self._finish_failed(run_id, dag_name, exc)
             commit_config_changes(self.config_dir, run_id, config.system.config_git_commit)
             raise
+        finally:
+            run_store.clear_cache_for_dag(run_id)
 
     async def _run_single_node(
         self,
@@ -577,13 +583,17 @@ class DagController:
             {instance.id: []},
         )
         factory = self._factory()
+        run_store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
+        run_store.default_dag_run_id = run_id
+        executor: NodeExecutor | None = None
         async with factory() as session:
             await create_dag_run(session, run_id, source, [instance.id], dag_name)
             await session.commit()
         await event_bus.publish("dag.status", run_id=run_id, dag_name=dag_name, status="started")
         try:
             async with factory() as session:
-                executor = await self._build_run_executor(snapshot, graph, session)
+                await run_store.preload_for_dag(run_id, _run_entity_refs(config, graph, payload), session)
+                executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store)
                 ctx = self.active_runs.get(dag_name)
                 if ctx is not None and ctx.run_id == run_id:
                     ctx.executor = executor
@@ -621,6 +631,8 @@ class DagController:
             await self._finish_failed(run_id, dag_name, exc)
             commit_config_changes(self.config_dir, run_id, config.system.config_git_commit)
             raise
+        finally:
+            run_store.clear_cache_for_dag(run_id)
 
     async def _prefilled_outputs(
         self,
@@ -779,7 +791,13 @@ class DagController:
             raise RuntimeError("DAG controller has not been started")
         return self.factory
 
-    async def _build_run_executor(self, snapshot: RuntimeSnapshot, graph, session) -> NodeExecutor:
+    async def _build_run_executor(
+        self,
+        snapshot: RuntimeSnapshot,
+        graph,
+        session,
+        entity_store: EntityStore | None = None,
+    ) -> NodeExecutor:
         return _build_executor(
             snapshot.config,
             await DagExecutionSnapshot.create(
@@ -791,6 +809,7 @@ class DagController:
             ),
             graph.instances,
             self.config_dir,
+            entity_store=entity_store,
             extension_tables=snapshot.extension_table_names,
             output_recorder=lambda output_run_id, node_id, entity_type, payload, session_id: self._record_node_output(
                 output_run_id, node_id, entity_type, payload, session_id
@@ -911,6 +930,7 @@ def _build_executor(
     execution_snapshot: DagExecutionSnapshot,
     instances: Mapping[str, DagNodeInstance] | None = None,
     config_dir: Path | None = None,
+    entity_store: EntityStore | None = None,
     extension_tables: dict[str, dict[str, str]] | None = None,
     output_recorder=None,
     stdout_recorder=None,
@@ -920,7 +940,7 @@ def _build_executor(
     daemon_data_dir: Path | None = None,
     source_recovery_recorder=None,
 ) -> NodeExecutor:
-    entity_store = EntityStore(
+    entity_store = entity_store or EntityStore(
         app_config.entities,
         execution_snapshot.entity_types,
         app_config.entity_relations,
@@ -955,6 +975,35 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
         if isinstance(name, str):
             refs.append(f"{entity.type}:{name}")
     return refs
+
+
+def _run_entity_refs(app_config: AppConfig, graph, payload: object | None) -> list[str]:
+    refs: list[str] = []
+    if payload is None:
+        refs.extend(_source_entity_refs(app_config))
+    elif isinstance(payload, dict):
+        raw = payload.get("entities")
+        if isinstance(raw, list):
+            refs.extend(str(item) for item in raw)
+    for instance in graph.instances.values():
+        raw = instance.config.get("entities")
+        if isinstance(raw, list):
+            refs.extend(str(item) for item in raw)
+        source = instance.config.get("source")
+        if isinstance(source, str):
+            refs.append(source)
+    return _dedupe_refs(refs)
+
+
+def _dedupe_refs(refs: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for ref in refs:
+        if ref in seen:
+            continue
+        seen.add(ref)
+        result.append(ref)
+    return result
 
 
 def _safe_path_token(value: str) -> str:

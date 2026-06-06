@@ -1,7 +1,7 @@
 display_name: Relation
-business_id_field: relation_type
+business_id_field: id
 display_template: "{from} -> {to}"
-storage_tier: filesystem
+storage_tier: database
 schema:
   type: object
   required:

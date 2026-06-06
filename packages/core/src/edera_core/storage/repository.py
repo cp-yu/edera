@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import text
@@ -16,7 +18,7 @@ from edera_core.storage.materialization import (
     entity_table_name,
     identifier,
 )
-from edera_core.storage.entities import EdgeInput, InstalledExtension, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
+from edera_core.storage.entities import EdgeInput, EntityRelation, InstalledExtension, NodeOutputEntity, NodeRun, DagRun, SourceRecovery, utc_now
 from edera_core.storage.entities import (
     CoreEntityDag,
     CoreEntityNode,
@@ -33,6 +35,15 @@ CORE_ENTITY_TABLES = {
     "trigger": "entity_trigger",
     "resource": "entity_resource",
 }
+
+
+@dataclass(frozen=True)
+class DeleteEntityResult:
+    deleted: bool
+    relations: list[EntityRelation]
+
+    def __bool__(self) -> bool:
+        return self.deleted
 
 
 async def upsert_entity_type_record(
@@ -154,18 +165,29 @@ async def delete_core_entity(
     session: AsyncSession,
     ref: str,
     entity_types: dict[str, EntityTypeConfig],
-) -> bool:
+) -> DeleteEntityResult:
     entity = await get_core_entity(session, ref, entity_types)
     if entity is None:
-        return False
+        return DeleteEntityResult(False, [])
+    blocking_relations = await list_relations_for_entity_refs(session, _entity_refs(entity, entity_types))
+    if blocking_relations:
+        return DeleteEntityResult(False, blocking_relations)
     table = _core_model(entity.type)
     result = await session.exec(select(table).where(table.entity_id == entity.id))
     row = result.first()
     if row is None:
-        return False
+        return DeleteEntityResult(False, [])
     await session.delete(row)
     await session.flush()
-    return True
+    return DeleteEntityResult(True, [])
+
+
+async def force_delete_entity_relations(session: AsyncSession, refs: set[str]) -> list[EntityRelation]:
+    relations = await list_relations_for_entity_refs(session, refs)
+    for relation in relations:
+        await session.delete(relation)
+    await session.flush()
+    return relations
 
 
 async def save_ordinary_entity(
@@ -173,6 +195,9 @@ async def save_ordinary_entity(
     entity: EntityConfig,
     entity_type: EntityTypeConfig,
 ) -> EntityConfig:
+    if entity.type == "relation":
+        raise ValueError("relation entities use create_relation")
+    _validate_entity_attributes(entity, entity_type)
     table = await ensure_ordinary_entity_table(session, entity.type, entity_type)
     attrs = _ordinary_writable_attrs(entity.attributes, entity_type)
     business_id = entity.id if entity_type.business_id_field == "id" else attrs.get(entity_type.business_id_field)
@@ -214,6 +239,34 @@ async def save_ordinary_entity(
     return await get_ordinary_entity(session, entity.type, entity.id, {entity.type: entity_type}) or entity
 
 
+async def create_ordinary_entity(
+    session: AsyncSession,
+    entity_type: str,
+    entity_id: str,
+    attributes: dict[str, Any],
+    entity_types: dict[str, EntityTypeConfig],
+) -> EntityConfig:
+    if entity_type == "relation":
+        raise ValueError("relation entities use create_relation")
+    config = entity_types.get(entity_type)
+    if config is None:
+        raise ValueError(f"unknown entity type: {entity_type}")
+    return await save_ordinary_entity(session, EntityConfig(id=entity_id, type=entity_type, attributes=attributes), config)
+
+
+async def update_ordinary_entity(
+    session: AsyncSession,
+    ref: str,
+    attributes: dict[str, Any],
+    entity_types: dict[str, EntityTypeConfig],
+) -> EntityConfig:
+    current = await find_ordinary_entity(session, ref, entity_types)
+    if current is None:
+        raise ValueError(f"entity not found: {ref}")
+    updated = current.model_copy(update={"attributes": {**current.attributes, **attributes}})
+    return await save_ordinary_entity(session, updated, entity_types[updated.type])
+
+
 async def list_ordinary_entities(
     session: AsyncSession,
     entity_types: dict[str, EntityTypeConfig],
@@ -223,12 +276,26 @@ async def list_ordinary_entities(
     entities: list[EntityConfig] = []
     for name in names:
         config = entity_types.get(name)
-        if config is None or name in CORE_ENTITY_TABLES or config.storage_tier != "database":
+        if not _is_database_ordinary_entity_type(name, config):
             continue
         table = await ensure_ordinary_entity_table(session, name, config)
         result = await session.exec(text(f"SELECT * FROM {table} ORDER BY id"))
         entities.extend(_ordinary_entity_from_row(name, config, row._mapping) for row in result.all())
     return entities
+
+
+async def find_ordinary_entity(
+    session: AsyncSession,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> EntityConfig | None:
+    for entity_type, config in entity_types.items():
+        if not _is_database_ordinary_entity_type(entity_type, config):
+            continue
+        entity = await get_ordinary_entity(session, entity_type, ref, entity_types)
+        if entity is not None:
+            return entity
+    return None
 
 
 async def get_ordinary_entity(
@@ -241,7 +308,11 @@ async def get_ordinary_entity(
     if config is None:
         return None
     table = await ensure_ordinary_entity_table(session, entity_type, config)
-    result = await session.exec(text(f"SELECT * FROM {table} WHERE id = :ref OR business_id = :ref"), params={"ref": ref})
+    business_ref = ref.removeprefix(f"{entity_type}:") if ref.startswith(f"{entity_type}:") else ref
+    result = await session.exec(
+        text(f"SELECT * FROM {table} WHERE id = :ref OR business_id = :ref OR business_id = :business_ref"),
+        params={"ref": ref, "business_ref": business_ref},
+    )
     row = result.first()
     return _ordinary_entity_from_row(entity_type, config, row._mapping) if row is not None else None
 
@@ -272,9 +343,14 @@ async def delete_ordinary_entity(
     session: AsyncSession,
     ref: str,
     entity_types: dict[str, EntityTypeConfig],
-) -> bool:
+) -> DeleteEntityResult:
+    current = await find_ordinary_entity(session, ref, entity_types)
+    refs = _entity_refs(current, entity_types) if current is not None else {ref}
+    blocking_relations = await list_relations_for_entity_refs(session, refs)
+    if blocking_relations:
+        return DeleteEntityResult(False, blocking_relations)
     for entity_type, config in entity_types.items():
-        if entity_type in CORE_ENTITY_TABLES or config.storage_tier != "database":
+        if not _is_database_ordinary_entity_type(entity_type, config):
             continue
         table = await ensure_ordinary_entity_table(session, entity_type, config)
         result = await session.exec(text(f"SELECT id FROM {table} WHERE id = :ref OR business_id = :ref"), params={"ref": ref})
@@ -283,8 +359,93 @@ async def delete_ordinary_entity(
             continue
         await session.exec(text(f"DELETE FROM {table} WHERE id = :id"), params={"id": row[0]})
         await session.flush()
-        return True
-    return False
+        return DeleteEntityResult(True, [])
+    return DeleteEntityResult(False, [])
+
+
+async def create_relation(
+    session: AsyncSession,
+    from_entity_id: str,
+    to_entity_id: str,
+    relation_type: str,
+    metadata: dict[str, Any] | None = None,
+    entity_types: dict[str, EntityTypeConfig] | None = None,
+) -> EntityRelation:
+    if entity_types is not None:
+        if not await _entity_exists(session, from_entity_id, entity_types):
+            raise ValueError(f"from entity not found: {from_entity_id}")
+        if not await _entity_exists(session, to_entity_id, entity_types):
+            raise ValueError(f"to entity not found: {to_entity_id}")
+    existing = await _relation_by_key(session, from_entity_id, to_entity_id, relation_type)
+    if existing is not None:
+        return existing
+    relation = EntityRelation(
+        id=uuid4().hex,
+        from_entity_id=from_entity_id,
+        to_entity_id=to_entity_id,
+        relation_type=relation_type,
+        metadata_=metadata or {},
+    )
+    session.add(relation)
+    await session.flush()
+    return relation
+
+
+async def delete_relation(session: AsyncSession, relation_id: str) -> bool:
+    result = await session.exec(select(EntityRelation).where(EntityRelation.id == relation_id))
+    relation = result.first()
+    if relation is None:
+        return False
+    await session.delete(relation)
+    await session.flush()
+    return True
+
+
+async def list_relations(
+    session: AsyncSession,
+    from_entity_id: str | None = None,
+    to_entity_id: str | None = None,
+    relation_type: str | None = None,
+) -> list[EntityRelation]:
+    statement = select(EntityRelation).order_by(col(EntityRelation.created_at), col(EntityRelation.id))
+    if from_entity_id is not None:
+        statement = statement.where(EntityRelation.from_entity_id == from_entity_id)
+    if to_entity_id is not None:
+        statement = statement.where(EntityRelation.to_entity_id == to_entity_id)
+    if relation_type is not None:
+        statement = statement.where(EntityRelation.relation_type == relation_type)
+    result = await session.exec(statement)
+    return list(result.all())
+
+
+async def list_relations_for_entity(session: AsyncSession, entity_id: str) -> list[EntityRelation]:
+    statement = (
+        select(EntityRelation)
+        .where((EntityRelation.from_entity_id == entity_id) | (EntityRelation.to_entity_id == entity_id))
+        .order_by(col(EntityRelation.created_at), col(EntityRelation.id))
+    )
+    result = await session.exec(statement)
+    return list(result.all())
+
+
+async def list_relations_for_entity_refs(session: AsyncSession, refs: set[str]) -> list[EntityRelation]:
+    if not refs:
+        return []
+    statement = (
+        select(EntityRelation)
+        .where((col(EntityRelation.from_entity_id).in_(refs)) | (col(EntityRelation.to_entity_id).in_(refs)))
+        .order_by(col(EntityRelation.created_at), col(EntityRelation.id))
+    )
+    result = await session.exec(statement)
+    return list(result.all())
+
+
+async def entity_exists(
+    session: AsyncSession,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> bool:
+    return await _entity_exists(session, ref, entity_types)
 
 
 async def save_installed_extension(
@@ -580,6 +741,32 @@ async def _ordinary_row(session: AsyncSession, table: str, entity_id: str):
     return row._mapping if row is not None else None
 
 
+async def _entity_exists(
+    session: AsyncSession,
+    ref: str,
+    entity_types: dict[str, EntityTypeConfig],
+) -> bool:
+    if await get_core_entity(session, ref, entity_types) is not None:
+        return True
+    return await find_ordinary_entity(session, ref, entity_types) is not None
+
+
+async def _relation_by_key(
+    session: AsyncSession,
+    from_entity_id: str,
+    to_entity_id: str,
+    relation_type: str,
+) -> EntityRelation | None:
+    result = await session.exec(
+        select(EntityRelation).where(
+            EntityRelation.from_entity_id == from_entity_id,
+            EntityRelation.to_entity_id == to_entity_id,
+            EntityRelation.relation_type == relation_type,
+        )
+    )
+    return result.first()
+
+
 def _ordinary_entity_from_row(
     entity_type: str,
     config: EntityTypeConfig,
@@ -599,6 +786,34 @@ def _ordinary_entity_from_row(
 
 def _ordinary_writable_attrs(attrs: dict[str, Any], config: EntityTypeConfig) -> dict[str, Any]:
     return {key: value for key, value in attrs.items() if key not in config.deprecated_fields}
+
+
+def _is_database_ordinary_entity_type(entity_type: str, config: EntityTypeConfig | None) -> bool:
+    return (
+        config is not None
+        and entity_type not in CORE_ENTITY_TABLES
+        and entity_type != "relation"
+        and config.storage_tier == "database"
+    )
+
+
+def _validate_entity_attributes(entity: EntityConfig, entity_type: EntityTypeConfig) -> None:
+    from edera_core.config.loader import _validate_entity_attributes as validate
+    from edera_core.errors import ConfigError
+
+    try:
+        validate(entity, entity_type)
+    except ConfigError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def _entity_refs(entity: EntityConfig, entity_types: dict[str, EntityTypeConfig]) -> set[str]:
+    refs = {entity.id}
+    try:
+        refs.add(entity_ref(entity, entity_types))
+    except (KeyError, ValueError):
+        pass
+    return refs
 
 
 def _json_dict(value: object) -> dict[str, object]:

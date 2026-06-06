@@ -14,10 +14,7 @@ from pydantic import ValidationError
 from edera_core.config.editor import ConfigEditError, ConfigKind, RuntimeConfigEditor
 from edera_core.config.entities import EntityStore, validate_permission_overrides
 from edera_core.config.loader import (
-    load_entities_config,
-    load_entity_relations_config,
     load_entity_type_configs,
-    load_skill_configs,
     load_system_config,
 )
 from edera_core.config.schema import (
@@ -25,6 +22,7 @@ from edera_core.config.schema import (
     DagConfig,
     EntitiesConfig,
     EntityConfig,
+    EntityRelationConfig,
     EntityRelationsConfig,
     EntityTypeConfig,
     NodeConfig,
@@ -45,6 +43,7 @@ INSTANCE_CONFIG_FIELDS = {
     "tools",
     "input_binding",
 }
+SOURCE_ENTITY_TYPES = {"rss-source", "web-source", "api-source"}
 
 
 def json_response(pb2, payload: object):
@@ -80,17 +79,25 @@ def kind(value: str) -> ConfigKind:
 
 def entity_store(root: Path) -> EntityStore:
     entity_types = load_entity_type_configs(root.parent / "schemas" / "entity-types")
-    entities = load_entities_config(root / "entities.yaml", entity_types)
-    relations = load_entity_relations_config(root / "entity-relations.yaml", entities, entity_types)
-    return EntityStore(entities, entity_types, relations, root / "entities.yaml")
+    return EntityStore(EntitiesConfig(), entity_types, EntityRelationsConfig(), None)
 
 
 def source_map(store: EntityStore) -> dict[str, EntityConfig]:
     return {
         str(entity.attributes.get("name") or entity.id): entity
         for entity in store.entities.entities
-        if entity.type in {"rss-source", "web-source", "api-source"}
+        if entity.type in SOURCE_ENTITY_TYPES
     }
+
+
+async def source_map_from_store(session: Any, store: EntityStore) -> dict[str, EntityConfig]:
+    sources = source_map(store)
+    from edera_core.storage.repository import list_ordinary_entities
+
+    for entity_type in sorted(SOURCE_ENTITY_TYPES):
+        for entity in await list_ordinary_entities(session, store.entity_types, entity_type):
+            sources[str(entity.attributes.get("name") or entity.id)] = entity
+    return sources
 
 
 def repair_task_payload(
@@ -305,6 +312,30 @@ def graph_dag_state_from_config(app: AppConfig, name: str) -> dict[str, object]:
     )
 
 
+async def graph_dag_state_from_database(app: AppConfig, name: str, session: Any) -> dict[str, object]:
+    from edera_core.storage.repository import list_ordinary_entities, list_relations
+
+    entities = _merge_entities(
+        app.entities.entities,
+        await list_ordinary_entities(session, app.entity_types),
+    )
+    relation_configs = list(app.entity_relations.relations)
+    seen = {relation.id for relation in relation_configs}
+    for relation in await list_relations(session):
+        if relation.id in seen:
+            continue
+        relation_configs.append(_relation_config(relation))
+        seen.add(relation.id)
+    return _graph_dag_state(
+        app.dags[name],
+        app.nodes,
+        app.skills,
+        app.entity_types,
+        EntitiesConfig(entities=entities),
+        EntityRelationsConfig(relations=relation_configs),
+    )
+
+
 def _graph_dag_state(
     dag: DagConfig,
     nodes: dict[str, NodeConfig],
@@ -356,6 +387,27 @@ def _graph_dag_state(
         "entities": entity_list_payload(entity_types, entities),
         "entity_relations": [relation.model_dump(mode="json") for relation in relations.relations],
     }
+
+
+def _merge_entities(*groups: list[EntityConfig]) -> list[EntityConfig]:
+    seen: set[str] = set()
+    entities: list[EntityConfig] = []
+    for group in groups:
+        for entity in group:
+            if entity.id in seen:
+                continue
+            seen.add(entity.id)
+            entities.append(entity)
+    return entities
+
+
+def _relation_config(relation: Any) -> EntityRelationConfig:
+    return EntityRelationConfig(
+        id=relation.id,
+        entities=[relation.from_entity_id, relation.to_entity_id],
+        type=relation.relation_type,
+        metadata=relation.metadata_,
+    )
 
 
 def graph_dag_payload(name: str, body: dict[str, object]) -> dict[str, object]:

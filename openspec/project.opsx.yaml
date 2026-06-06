@@ -101,7 +101,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.unified-entity-model
-    intent: 统一 Entity 原语扩展 EntityType DB-backed metadata，覆盖 schema version、table mapping、materialized fields 和 deprecated fields
+    intent: EntityStore 统一从数据库查询所有 entities 和 relations，不涉及文件系统
     type: capability
   - id: cap.entity-storage-tiers
     intent: Entity 三层存储中核心配置型 Entity 迁移为 DB-backed per-type tables，YAML 仅作为 import/export/template 格式；输出型 Entity 和瞬态 Entity 边界保持独立
@@ -261,7 +261,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.core.db-backed-core-entities
-    intent: 核心配置型 Entity 运行时读取以 DB 为唯一 source of truth，core 不再自动生成 default DAG/Trigger 或任何配置实例
+    intent: 核心 entities 从数据库构建 runtime snapshot，普通 entities 和 relations 按需查询数据库，不再从 YAML 文件加载
     type: capability
   - id: cap.core.lazy-entity-type-materialization
     intent: 普通 EntityType 支持 per-type table、attributes_json 承接新增字段、lazy materialized columns、deprecated 字段生命周期和维护命令
@@ -306,4 +306,16 @@ capabilities:
     type: capability
   - id: cap.core.runtime-entity-type-reload
     intent: 运行时刷新 entity type 配置的 API
+    type: capability
+  - id: cap.core.ordinary-entity-database-storage
+    intent: 普通 entities 存储到数据库动态表，按 entity type 分表
+    type: capability
+  - id: cap.core.entity-relations-database-storage
+    intent: Entity relations 存储到 entity_relations 表
+    type: capability
+  - id: cap.cli.entity-cli-commands
+    intent: CLI edera entity 子命令集，支持 CRUD 和 import/export
+    type: capability
+  - id: cap.cli.relation-cli-commands
+    intent: CLI edera relation 子命令集，支持关系管理
     type: capability

@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Entity relations 存储到数据库
 系统 SHALL 将所有 entity relations 存储到 `entity_relations` 表中。

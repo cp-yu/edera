@@ -14,7 +14,7 @@ from edera_core.service_common import (
     available_model_names,
     delete_node_assets,
     graph_dag_payload,
-    graph_dag_state_from_config,
+    graph_dag_state_from_database,
     graph_node_payload,
     json_response,
     node_payload,
@@ -36,7 +36,9 @@ class _GraphService:
 
     async def GetDag(self, request, context):
         try:
-            return json_response(self.pb2, graph_dag_state_from_config(self.daemon.controller.runtime_snapshot().config, request.name))
+            app = self.daemon.controller.runtime_snapshot().config
+            async with self.daemon.controller._factory()() as session:
+                return json_response(self.pb2, await graph_dag_state_from_database(app, request.name, session))
         except KeyError:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag {request.name} not found")
 

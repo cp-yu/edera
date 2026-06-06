@@ -1,6 +1,7 @@
 display_name: 股票
 business_id_field: code
 display_template: "{code} {name}"
+storage_tier: database
 schema:
   type: object
   required:
