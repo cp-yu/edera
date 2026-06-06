@@ -123,9 +123,11 @@ class SkillConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    description: str
-    handler: str
+    display_name: str | None = None
+    description: str = ""
+    handler: str = ""
     parameters_schema: dict[str, Any] = Field(default_factory=dict)
+    files: list[dict[str, str]] = Field(default_factory=list)
 
 
 class NodeConfigBase(BaseModel):

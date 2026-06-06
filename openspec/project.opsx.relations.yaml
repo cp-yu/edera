@@ -249,3 +249,12 @@ relations:
   - from: cap.cli.relation-cli-commands
     type: depends_on
     to: cap.core.entity-relations-database-storage
+  - from: cap.core.skill-dynamic-generation
+    type: depends_on
+    to: cap.core.skill-database-storage
+  - from: cap.cli.skill-cli-commands
+    type: depends_on
+    to: cap.core.skill-database-storage
+  - from: cap.core.runtime-skill-reload
+    type: depends_on
+    to: cap.core.skill-database-storage

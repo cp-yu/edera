@@ -102,6 +102,14 @@ class _ConfigService:
         LOGGER.info("ReloadEntityTypes called by user=%s, loaded %s entity types", identity, count)
         return json_response(self.pb2, {"reloaded": True, "count": count})
 
+    async def ReloadSkills(self, request, context):
+        identity = _metadata_identity(context)
+        if not _is_admin(identity):
+            await context.abort(grpc.StatusCode.PERMISSION_DENIED, "reload skills requires admin")
+        count = await self.daemon.controller.reload_skills()
+        LOGGER.info("ReloadSkills called by user=%s, loaded %s skills", identity, count)
+        return json_response(self.pb2, {"reloaded": True, "count": count})
+
     async def CreateEntityType(self, request, context):
         name = request.name.strip()
         if not name:

@@ -319,3 +319,15 @@ capabilities:
   - id: cap.cli.relation-cli-commands
     intent: CLI edera relation 子命令集，支持关系管理
     type: capability
+  - id: cap.core.skill-database-storage
+    intent: Skills 存储到 skills 数据库表
+    type: capability
+  - id: cap.core.skill-dynamic-generation
+    intent: Agent 执行时从数据库动态生成 skill 文件
+    type: capability
+  - id: cap.cli.skill-cli-commands
+    intent: CLI edera skill 子命令集，支持 CRUD 和 import/export
+    type: capability
+  - id: cap.core.runtime-skill-reload
+    intent: 运行时刷新 skill 配置的 API
+    type: capability

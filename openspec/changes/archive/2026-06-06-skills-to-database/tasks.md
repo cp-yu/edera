@@ -17,7 +17,7 @@
 
 #### Checks
 
-- [ ] C1 验证表创建
+- [x] C1 验证表创建
   - Verifies: `specs/skill-database-storage/spec.md` / Requirement "Skills 存储到数据库" / Scenario "创建 skill"
   - Command: `pytest packages/core/tests/test_skills_storage.py::test_create_table -v`
   - Expect: 表创建成功
@@ -37,12 +37,12 @@
 
 #### Checks
 
-- [ ] C2 验证创建 skill
+- [x] C2 验证创建 skill
   - Verifies: `specs/skill-database-storage/spec.md` / Requirement "Skills 存储到数据库" / Scenario "创建 skill"
   - Command: `pytest packages/core/tests/test_skill_repository.py::test_create_skill -v`
   - Expect: Skill 创建成功，验证 SKILL.md 存在
 
-- [ ] C3 验证查询所有 skills
+- [x] C3 验证查询所有 skills
   - Verifies: `specs/skill-database-storage/spec.md` / Requirement "Skills 存储到数据库" / Scenario "查询所有 skills"
   - Command: `pytest packages/core/tests/test_skill_repository.py::test_list_skills -v`
   - Expect: 返回所有 skills，反序列化 files 数组
@@ -65,12 +65,12 @@
 
 #### Checks
 
-- [ ] C4 验证生成 skill 文件夹
+- [x] C4 验证生成 skill 文件夹
   - Verifies: `specs/skill-dynamic-generation/spec.md` / Requirement "Agent 执行时生成 skill 文件" / Scenario "生成 skill 文件夹到 session 目录"
   - Command: `pytest packages/core/tests/test_skill_generator.py::test_generate_files -v`
   - Expect: 文件夹和所有文件生成成功
 
-- [ ] C5 验证文件内容一致
+- [x] C5 验证文件内容一致
   - Verifies: `specs/skill-dynamic-generation/spec.md` / Requirement "Agent 执行时生成 skill 文件" / Scenario "Skill 文件内容与数据库一致"
   - Command: `pytest packages/core/tests/test_skill_generator.py::test_content_consistency -v`
   - Expect: 文件内容与数据库一致，路径结构正确
@@ -92,17 +92,17 @@
 
 #### Checks
 
-- [ ] C6 验证导入单个 skill 文件夹
+- [x] C6 验证导入单个 skill 文件夹
   - Verifies: `specs/skill-database-storage/spec.md` / Requirement "从文件夹导入 skills" / Scenario "导入单个 skill 文件夹"
   - Command: `pytest packages/core/tests/test_skill_import_export.py::test_import_skill_dir -v`
   - Expect: 文件夹内容导入成功，SKILL.md 验证通过
 
-- [ ] C7 验证批量导入 skills
+- [x] C7 验证批量导入 skills
   - Verifies: `specs/skill-database-storage/spec.md` / Requirement "从文件夹导入 skills" / Scenario "批量导入多个 skill 文件夹"
   - Command: `pytest packages/core/tests/test_skill_import_export.py::test_import_skills_batch -v`
   - Expect: 识别并导入所有包含 SKILL.md 的子文件夹
 
-- [ ] C8 验证导出 skill
+- [x] C8 验证导出 skill
   - Verifies: `specs/skill-database-storage/spec.md` / Requirement "导出 skills 到文件夹" / Scenario "导出单个 skill"
   - Command: `pytest packages/core/tests/test_skill_import_export.py::test_export_skill -v`
   - Expect: 生成完整文件夹结构，所有文件正确
@@ -125,17 +125,17 @@
 
 #### Checks
 
-- [ ] C9 验证 skill list 命令
+- [x] C9 验证 skill list 命令
   - Verifies: `specs/skill-cli-commands/spec.md` / Requirement "Skill list 命令" / Scenario "列出所有 skills"
   - Command: `edera skill list`
   - Expect: 显示所有 skills
 
-- [ ] C10 验证 skill import-dir 命令
+- [x] C10 验证 skill import-dir 命令
   - Verifies: `specs/skill-cli-commands/spec.md` / Requirement "Skill import-dir 命令" / Scenario "导入单个 skill 文件夹"
   - Command: `edera skill import-dir test-skills/my-skill/`
   - Expect: 导入成功
 
-- [ ] C11 验证 skill import-batch 命令
+- [x] C11 验证 skill import-batch 命令
   - Verifies: `specs/skill-cli-commands/spec.md` / Requirement "Skill import-batch 命令" / Scenario "批量导入多个 skill 文件夹"
   - Command: `edera skill import-batch test-skills/`
   - Expect: 批量导入成功
@@ -156,7 +156,7 @@
 
 #### Checks
 
-- [ ] C12 验证 reload API
+- [x] C12 验证 reload API
   - Verifies: `specs/skill-dynamic-generation/spec.md` / Requirement "Agent 执行时生成 skill 文件" / Scenario "生成 skill 文件夹到 session 目录"
   - Command: `pytest packages/core/tests/test_skill_reload.py::test_reload_skills -v`
   - Expect: Reload 后新 Agent 使用新 skills
@@ -177,12 +177,12 @@
 
 #### Checks
 
-- [ ] C13 验证不再读取文件系统
+- [x] C13 验证不再读取文件系统
   - Verifies: `specs/skill-dynamic-generation/spec.md` / Requirement "Agent 执行时生成 skill 文件" / Scenario "生成 skill 文件夹到 session 目录"
   - Evidence: `packages/core/src/edera_core/config/loader.py`
   - Expect: 移除 `load_skill_configs()` 调用
 
-- [ ] C14 验证 Web Console 多文件限制
+- [x] C14 验证 Web Console 多文件限制
   - Verifies: Web Console 正确处理多文件 skill
   - Manual: 打开 Web Console skill 管理页面，查看多文件 skill 显示只读提示
   - Expect: 多文件 skill 显示提示："此 skill 包含多个文件，请使用 CLI 管理"

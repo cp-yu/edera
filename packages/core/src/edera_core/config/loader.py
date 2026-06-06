@@ -16,7 +16,6 @@ from edera_core.config.schema import (
     EntityTypeConfig,
     NodeConfig,
     RuntimeSettings,
-    SkillConfig,
     SystemConfig,
 )
 from edera_core.errors import ConfigError
@@ -83,16 +82,6 @@ def load_node_configs(path: Path) -> dict[str, NodeConfig]:
     return configs
 
 
-def load_skill_configs(path: Path) -> dict[str, SkillConfig]:
-    configs: dict[str, SkillConfig] = {}
-    if not path.exists():
-        return configs
-    for file in sorted(path.glob("*.yaml")):
-        skill = SkillConfig.model_validate(_read_yaml(file))
-        configs[skill.name] = skill
-    return configs
-
-
 def load_dag_config(path: Path) -> DagConfig:
     raw = _read_yaml(path)
     if raw.get("type") == "dag" and isinstance(raw.get("attributes"), dict):
@@ -133,7 +122,7 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
         entity_relations=EntityRelationsConfig(),
         runtime=RuntimeSettings(),
         nodes=load_node_configs(config_dir / "nodes"),
-        skills=load_skill_configs(config_dir / "skills"),
+        skills={},
         dags=dags,
     )
 
@@ -166,7 +155,7 @@ def _load_runtime_base_config(config_dir: Path) -> AppConfig:
         entity_relations=EntityRelationsConfig(),
         runtime=RuntimeSettings(),
         nodes={},
-        skills=load_skill_configs(config_dir / "skills"),
+        skills={},
         dags={},
     )
 
@@ -188,6 +177,7 @@ async def materialize_runtime_app_config(
     from edera_core.storage.repository import (
         list_core_entities,
         list_entity_type_configs,
+        list_skill_configs,
         seed_entity_type_records,
     )
 
@@ -225,6 +215,7 @@ async def materialize_runtime_app_config(
             await save_ordinary_entity(session, entity, entity_type)
         core_entities = await list_core_entities(session)
         db_entity_types = await list_entity_type_configs(session)
+        skills = await list_skill_configs(session)
         await session.commit()
     for source, target in migrated_files:
         source.rename(target)
@@ -232,6 +223,7 @@ async def materialize_runtime_app_config(
     config.entities = EntitiesConfig(entities=core_entities)
     config.entity_relations = EntityRelationsConfig()
     config.nodes = _nodes_from_core_entities(config_dir, core_entities)
+    config.skills = skills
     config.dags = _dags_from_core_entities(core_entities)
     from edera_core.dag.loader import validate_sub_dag_nesting
 

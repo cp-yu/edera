@@ -30,6 +30,7 @@ from edera_core.events import event_bus
 from edera_core.errors import ConfigError, NodeExecutionError
 from edera_core.node.models import NodeContext
 from edera_core.resolver import HandlerMeta, HandlerNotFoundError
+from edera_core.skills.generator import generate_skill_files
 from edera_core.snapshot import DagExecutionSnapshot
 
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
@@ -289,6 +290,7 @@ class NodeExecutor:
         effective = _apply_agent_instance_config(config, instance)
         session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.run_id)
         session_dir.mkdir(parents=True, exist_ok=True)
+        generate_skill_files(session_dir, list(self.snapshot.config.skills.values()))
         runtime_context = _agent_runtime_context(node_input, context)
         (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
