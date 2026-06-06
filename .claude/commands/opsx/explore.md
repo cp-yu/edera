@@ -109,9 +109,9 @@ If `openspec/project.opsx.yaml` exists:
 
 ### Impact Sweeps
 
-Invoke `openspec-impact-sweeper` when exploration reaches a code-change concept that needs impact discovery, a user term does not clearly map to project terminology and may affect scope, the user introduces a new module, workflow, command, configuration key, project concept, or unfamiliar domain term that may affect implementation scope, or you are preparing to say the discussion is ready for proposal/change artifacts.
+Invoke `openspec-impact-sweeper` when the user introduces a new module, workflow, command, configuration key, project concept, or unfamiliar domain term, or when preparing to say the discussion is ready for proposal/change artifacts.
 
-Use the Agent tool to spawn a subagent with a prompt instructing it to use the Skill tool to load `openspec-impact-sweeper` and pass `projectRoot`, `concept`, optional `optionalChangeName`, optional `knownUserTerms`, and optional `focus`. Treat each new concept as an independent sweep, even if another concept was already swept earlier in the conversation. After the subagent returns the JSON report path, use the Read tool to load the JSON file content, interpret the findings, and continue the conversation by presenting terminology observations or impact questions to the user.
+Use a subagent, not direct reading, for `openspec-impact-sweeper`. Do not read `openspec-impact-sweeper/SKILL.md` directly in the main agent. Ask the subagent to run the impact sweep with `projectRoot`, `concept`, optional `optionalChangeName`, optional `knownUserTerms`, and optional `focus`. Treat each new concept as an independent sweep, even if another concept was already swept earlier in the conversation. After the subagent returns the JSON report path, read that JSON report and interpret the findings in the explore conversation.
 
 If the report contains terminology observations, decide before impact questions:
 - If related specs use terms but none equals the user's term, ask: "你使用了'{userInput}'，相关 specs 中发现：\n  - '{term1}'（{count1} 处，见 {specs1}）\n是否指同一概念？"
