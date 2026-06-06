@@ -93,6 +93,7 @@ Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX
         openspec instructions <artifact-id> --change "<name>" --json
         ```
       - The instructions JSON includes:
+        - `configProjection`: Normalized project config and prompt fragments, including `proseLanguage` when configured
         - `context`: Project background (constraints for you - do NOT include in output)
         - `rules`: Artifact-specific rules (constraints for you - do NOT include in output)
         - `template`: The structure to use for your output file
@@ -101,7 +102,7 @@ Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX
         - `dependencies`: Completed artifacts to read for context
       - Read any completed dependency files for context
       - Create the artifact file using `template` as the structure
-      - Apply `context` and `rules` as constraints - but do NOT copy them into the file
+      - Apply `configProjection.prompt.fragments`, `context`, and `rules` as constraints - but do NOT copy them into the file
       - Show brief progress: "Created <artifact-id>"
 
    b. **Continue until all `applyRequires` artifacts are complete**
@@ -196,10 +197,10 @@ After completing all artifacts, summarize:
 
 **Document Language Contract**:
 - Treat `openspec/config.yaml` as the compact source of truth, but consume its compiled prompt projection rather than reinterpreting raw keys ad hoc
-- If the compiled projection includes `docLanguage`, apply it only to natural-language prose you write in the artifact body
+- If the compiled projection includes `proseLanguage`, apply it only to natural-language prose you write in the artifact body
 - Follow the existing template structure exactly; do not invent a different layout because the prose language changes
 - Keep template headings, IDs, schema keys, relation types, BDD keywords, file paths, commands, and code identifiers in their canonical form
-- If no `docLanguage` projection is present, keep the default writing behavior for prose
+- If no `proseLanguage` projection is present, keep the default writing behavior for prose
 
 - **IMPORTANT**: `context` and `rules` are constraints for YOU, not content for the file
   - Do NOT copy `<context>`, `<rules>`, `<project_context>` blocks into the artifact

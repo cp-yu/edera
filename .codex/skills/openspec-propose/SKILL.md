@@ -18,7 +18,7 @@ Propose a new change and generate all artifacts needed for implementation.
 3. Run `openspec new change "<name>"`, then `openspec status --change "<name>" --json` to read `applyRequires`, artifact order, dependencies, and schema.
 4. Before specs, run `openspec list --specs --json`; compare proposed capabilities to each spec's `capabilities` string array. Specs without frontmatter return `capabilities: []`. Reuse or modify existing coverage instead of duplicating specs.
 5. Use CLI-backed OPSX navigation: `openspec list --specs --json` and `openspec opsx query <node-id> --json` for known affected nodes.
-6. For each ready artifact, run `openspec instructions <artifact-id> --change "<name>" --json`, read dependencies, follow `template`, `instruction`, and `outputPath` exactly, and do not copy `context` or `rules` into artifact files.
+6. For each ready artifact, run `openspec instructions <artifact-id> --change "<name>" --json`; read `configProjection` (especially `configProjection.normalized.proseLanguage` and `configProjection.prompt.fragments`), dependencies, `template`, `instruction`, and `outputPath`; follow the template exactly and do not copy `context`, `rules`, or `configProjection` into artifact files.
 7. Continue until all `applyRequires` artifacts are `done`. If an artifact is unclear, ask one focused question and continue.
 8. After spec-driven specs are complete, generate `opsx-delta.yaml` from `openspec instructions opsx-delta --change "<name>" --json`; use `schema_version: 1`, `ADDED:`, `MODIFIED:`, and `REMOVED:` YAML keys and query existing nodes when needed.
 9. Run warning-only post-propose validation: This validation is warning-only. Do NOT turn `$openspec-propose` into a blocking gate. Prefer `openspec validate "<name>" --type change --json`; align with `Validator.validateChangeDeltaSpecs()`, SHALL/MUST requirement text, required `#### Scenario:` blocks, `Validator.validateOpsxDelta()`, `applyOpsxDelta()`, referential integrity, and code-map integrity. Do NOT run `openspec sync`; report when validation skips this check. For structure checks, read `openspec instructions proposal --change "<name>" --json`, `openspec instructions design --change "<name>" --json`, and `openspec instructions tasks --change "<name>" --json`; use `validateTaskStructure`, support Actions and coarse `### Task N:` with Goal, Files, Requirements, Checks, Covers:, Verifies:, change-local `Verifies:` spec paths, Requirement/Scenario references, Command:, Evidence:, and Expect:. Do NOT invent semantic lint rules beyond the current templates. Do NOT judge whether a check is semantically sufficient. If warnings appear, do exactly one repair pass, re-check once, and summarize remaining warnings.
@@ -28,9 +28,9 @@ Propose a new change and generate all artifacts needed for implementation.
 
 **Document Language Contract**:
 - Treat `openspec/config.yaml` as the compact source of truth, but consume its compiled prompt projection rather than reinterpreting raw keys ad hoc
-- If the compiled projection includes `docLanguage`, apply it only to natural-language prose you write in the artifact body
+- If the compiled projection includes `proseLanguage`, apply it only to natural-language prose you write in the artifact body
 - Follow the existing template structure exactly; do not invent a different layout because the prose language changes
 - Keep template headings, IDs, schema keys, relation types, BDD keywords, file paths, commands, and code identifiers in their canonical form
-- If no `docLanguage` projection is present, keep the default writing behavior for prose
+- If no `proseLanguage` projection is present, keep the default writing behavior for prose
 
 Keep generated tasks coarse: `### Task N:`, `Goal`, `Files`, `Requirements`, and nested Checks. Keep each task to at most 5 Requirements. Preserve template structure, canonical headings, IDs, schema keys, paths, commands, BDD keywords, and code identifiers.

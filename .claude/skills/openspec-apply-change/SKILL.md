@@ -14,16 +14,16 @@ Implement tasks from an OpenSpec change.
 ## Skill Delegation Protocol
 
 **Internal Skills** — The following skills are subagent-only and MUST NOT be read directly by this agent:
-- `openspec-impact-sweeper` — Invoke via Agent tool, subagent loads via Skill tool
-- `openspec-reviewer` — Invoke via Agent tool, subagent loads via Skill tool
-- `openspec-optimizer` — Invoke via Agent tool, subagent loads via Skill tool
+- `openspec-impact-sweeper` — Use a subagent, not direct reading
+- `openspec-reviewer` — Use a subagent, not direct reading
+- `openspec-optimizer` — Use a subagent, not direct reading
 
 **Never** use the Read tool on `.claude/skills/openspec-impact-sweeper/SKILL.md`, `.claude/skills/openspec-reviewer/SKILL.md`, or `.claude/skills/openspec-optimizer/SKILL.md`.
 
 ## Flow
 
 1. Select the change. If no clear name is provided, infer only from explicit context; otherwise run `openspec list --json` and ask. Always announce "Using change: <name>".
-2. Run `openspec status --change "<name>" --json` and `openspec instructions apply --change "<name>" --json`. Handle `state: "needs_verify"` by skip back to Phase 1 and `state: "needs_seal"` by continue with Phase 2/3.
+2. Run `openspec status --change "<name>" --json` and `openspec instructions apply --change "<name>" --json`. Read `configProjection.prompt.fragments` for `proseLanguage` and `apply.defaultIsolation`. Handle `state: "needs_verify"` by skip back to Phase 1 and `state: "needs_seal"` by continue with Phase 2/3.
 3. Read every context file listed by the CLI. Inspect `changeDir/.verify-result.json` and `## Remediation`; unresolved CRITICAL/code_fix/artifact_fix items take priority.
 4. Use OPSX context: `openspec list --specs --json`, each spec's `capabilities` string array, `capabilities: []`, and `openspec opsx query <node-id> --json`.
 

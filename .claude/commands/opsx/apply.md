@@ -71,10 +71,10 @@ Implement tasks from an OpenSpec change.
 
 **Document Language Contract**:
 - Treat `openspec/config.yaml` as the compact source of truth, but consume its compiled prompt projection rather than reinterpreting raw keys ad hoc
-- If the compiled projection includes `docLanguage`, apply it only to natural-language prose you write in the artifact body
+- If the compiled projection includes `proseLanguage`, apply it only to natural-language prose you write in the artifact body
 - Follow the existing template structure exactly; do not invent a different layout because the prose language changes
 - Keep template headings, IDs, schema keys, relation types, BDD keywords, file paths, commands, and code identifiers in their canonical form
-- If no `docLanguage` projection is present, keep the default writing behavior for prose
+- If no `proseLanguage` projection is present, keep the default writing behavior for prose
 
 5. **Show current progress**
 

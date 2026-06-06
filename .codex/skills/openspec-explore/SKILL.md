@@ -14,9 +14,9 @@ Enter explore mode: investigate, clarify, compare, and help the user think befor
 ## Skill Delegation Protocol
 
 **Internal Skills** — The following skills are subagent-only and MUST NOT be read directly by this agent:
-- `openspec-impact-sweeper` — Invoke via Agent tool, subagent loads via Skill tool
+- `openspec-impact-sweeper` — Use a subagent, not direct reading
 
-**Never** use the Read tool on `.claude/skills/openspec-impact-sweeper/SKILL.md`.
+Do not read `openspec-impact-sweeper/SKILL.md` directly in the main agent.
 
 ## Hard Rules
 
@@ -56,7 +56,7 @@ If `openspec/project.opsx.yaml` exists:
 
 ## Impact Sweeps
 
-Invoke `openspec-impact-sweeper` when the user introduces a new module, workflow, command, configuration key, project concept, or unfamiliar domain term, or when preparing to say the discussion is ready for proposal/change artifacts. Use the Agent tool to spawn a subagent with a prompt instructing it to use the Skill tool to load `openspec-impact-sweeper` and pass `projectRoot`, `concept`, optional `optionalChangeName`, optional `knownUserTerms`, and optional `focus`. Treat each new concept as an independent sweep, even if another concept was already swept earlier in the conversation. After the subagent returns the JSON report path, use the Read tool to load the JSON file content, interpret the findings, and continue the conversation by presenting terminology observations or impact questions to the user.
+Invoke `openspec-impact-sweeper` when the user introduces a new module, workflow, command, configuration key, project concept, or unfamiliar domain term, or when preparing to say the discussion is ready for proposal/change artifacts. Use a subagent, not direct reading, for `openspec-impact-sweeper`. Do not read `openspec-impact-sweeper/SKILL.md` directly in the main agent. Ask the subagent to run the impact sweep with `projectRoot`, `concept`, optional `optionalChangeName`, optional `knownUserTerms`, and optional `focus`. Treat each new concept as an independent sweep, even if another concept was already swept earlier in the conversation. After the subagent returns the JSON report path, read that JSON report and interpret the findings in the explore conversation.
 
 If the report contains terminology observations, decide before impact questions. When the user confirms the terms mean the same concept, record that term group and continue the explore flow. When the user chooses a canonical term, record that canonical term. When the user says the terms are different concepts, record the rejected term group. For any recorded same-concept, canonical-term, or rejected term group, do not ask again for that same group. Do not claim proposal readiness until those scope-affecting questions are resolved or explicitly deferred by the user.
 
