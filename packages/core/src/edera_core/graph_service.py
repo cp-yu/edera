@@ -230,7 +230,7 @@ class _GraphService:
             for record in await list_enabled_extensions(session):
                 for handler in _manifest_handlers(record.manifest_data):
                     if handler.get("name") == name and isinstance(handler.get("entry"), str):
-                        return self.daemon.config_dir.parent / "handlers" / record.name / str(handler["entry"])
+                        return self.daemon.controller.handlers_dir / record.name / str(handler["entry"])
         return None
 
     async def RuntimeStatus(self, request, context):

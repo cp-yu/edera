@@ -69,7 +69,7 @@ capabilities:
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
-    intent: NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver 解析执行入口，测试和实现不再依赖 HandlerRegistry 或旧 handlers 构造路径。
+    intent: NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver 解析 `handlers_dir` 下的已安装执行入口，测试和实现不再依赖 HandlerRegistry 或启动迁移复制路径。
     type: capability
     domain: dom.operations
   - id: cap.advisory.trade-advisory
@@ -125,7 +125,7 @@ capabilities:
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability
   - id: cap.core.extension-manifest-system
-    intent: Bootstrap 流程扫描 extension manifest 并持久化 extension metadata，运行时通过 DB-backed resolver 使用 metadata，不再构建 HandlerRegistry 和 EntityTypeRegistry。
+    intent: Bootstrap 只加载已安装 extension metadata；`extensions/` 是可安装来源，运行时通过 DB-backed resolver 使用 `SystemConfig.handlers_dir` 下的已安装 handler 目录，不再构建 HandlerRegistry 和 EntityTypeRegistry。
     type: capability
   - id: cap.core.core-bootstrap
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；Entity import 通过 gRPC entity import RPC 提交完整 Entity YAML。
+    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；extension export 从配置的 `handlers_dir` 读取已安装 handler 代码。
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -195,7 +195,7 @@ capabilities:
     intent: 边级 optional 是唯一执行语义；DagNodeInstance.optional 与 NodeConfig.optional 作为不同作用域的出边 optional 语法糖
     type: capability
   - id: cap.core.config-hot-reload
-    intent: 配置热加载只重建 committed RuntimeControlSnapshot 的常驻控制面状态；DAG/Node/EntityType/Skill 变更写入 DB 并 emit event:config-changed，但不重建控制面 snapshot。
+    intent: 配置热加载只重建 committed RuntimeControlSnapshot 的常驻控制面状态；handler 代码来源为已安装 `handlers_dir`，extension lifecycle 成功后影响后续 DAG run 的 DagExecutionSnapshot。
     type: capability
   - id: cap.core.edera-server-grpc
     intent: edera-server 后端引擎 gRPC 服务，bootstrap bind 固定 127.0.0.1，端口从 9091 有界退避并写入本机 bootstrap.json，相关测试不依赖 legacy registry fake。
@@ -287,7 +287,7 @@ capabilities:
     intent: 增强 Sub DAG 循环检测错误消息，提供节点级路径追踪和具体修复建议
     type: capability
   - id: cap.core.extension-installation-lifecycle
-    intent: 扩展安装、卸载、停用、重新激活的完整生命周期管理，含 installed_extensions 数据模型、依赖检查和 bootstrap 加载逻辑
+    intent: Extension lifecycle 以显式 install/uninstall/reactivate 管理 `installed_extensions` metadata、导入实体、扩展表和 `handlers_dir/<name>/` 运行 handler 目录；启动不自动迁移或复制扩展。
     type: capability
   - id: cap.core.extension-cli-commands
     intent: CLI edera extension 子命令集，覆盖 list/show/install/uninstall/reactivate/import/export/export-entities
@@ -299,7 +299,7 @@ capabilities:
     intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
     type: capability
   - id: cap.core.database-handler-resolver
-    intent: DatabaseHandlerResolver 支持 run-start handler metadata snapshot，并与 extension table mapping 一起冻结到 DagExecutionSnapshot。
+    intent: DatabaseHandlerResolver 从 `installed_extensions.manifest_snapshot` 冻结 enabled handler metadata，并以 `SystemConfig.handlers_dir`（默认 `data/handlers`）计算运行时 handler 路径。
     type: capability
   - id: cap.core.dag-execution-snapshot
     intent: DAG run 启动时由 DagController 构建 DAG execution closure，并在 DagExecutionSnapshot 中冻结 DAG/Node 闭包、entity_types、handler resolver、extension table mapping 和 run-needed skills。

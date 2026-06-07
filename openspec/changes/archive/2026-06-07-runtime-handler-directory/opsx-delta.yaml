@@ -1,0 +1,22 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      intent: Bootstrap 只加载已安装 extension metadata；`extensions/` 是可安装来源，运行时通过 DB-backed resolver 使用 `SystemConfig.handlers_dir` 下的已安装 handler 目录，不再构建 HandlerRegistry 和 EntityTypeRegistry。
+    - id: cap.core.database-handler-resolver
+      intent: DatabaseHandlerResolver 从 `installed_extensions.manifest_snapshot` 冻结 enabled handler metadata，并以 `SystemConfig.handlers_dir`（默认 `data/handlers`）计算运行时 handler 路径。
+    - id: cap.core.config-hot-reload
+      intent: 配置热加载只重建 committed RuntimeControlSnapshot 的常驻控制面状态；handler 代码来源为已安装 `handlers_dir`，extension lifecycle 成功后影响后续 DAG run 的 DagExecutionSnapshot。
+    - id: cap.operations.node-executor
+      intent: NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver 解析 `handlers_dir` 下的已安装执行入口，测试和实现不再依赖 HandlerRegistry 或启动迁移复制路径。
+    - id: cap.core.extension-installation-lifecycle
+      intent: Extension lifecycle 以显式 install/uninstall/reactivate 管理 `installed_extensions` metadata、导入实体、扩展表和 `handlers_dir/<name>/` 运行 handler 目录；启动不自动迁移或复制扩展。
+    - id: cap.core.edera-cli
+      intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；extension export 从配置的 `handlers_dir` 读取已安装 handler 代码。
+
+REMOVED:
+  capabilities: []

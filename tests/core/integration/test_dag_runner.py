@@ -1,20 +1,22 @@
 import asyncio
+import builtins
 import tempfile
 from pathlib import Path
 from threading import Thread
 
 import pytest
 
-from edera_core.bootstrap import load_installed_extensions
 from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
 from edera_core.config.schema import DagConfig, NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.dag.loader import load_graph, topological_layers, validate_sub_dag_nesting
 from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.errors import DagError
-from edera_core.migration.migrate_extensions import migrate_existing_extensions
-from edera_core.node.executor import NodeExecutor
+from edera_core.extension_manager import ExtensionManager
+from edera_core.node.executor import NodeExecutor as _RuntimeNodeExecutor
 from edera_core.node.models import FunctionHandler, NodeInput
-from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.resolver import HandlerMeta, StaticHandlerResolver
+from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
+from edera_core.storage import create_engine, init_db, sqlite_url
 
 
 def _load_config():
@@ -42,20 +44,68 @@ async def _load_runtime_config():
         try:
             await init_db(engine)
             config = _load_runtime_base_config(Path("config"))
-            factory = session_factory(engine)
-            async with factory() as session:
-                await migrate_existing_extensions(
-                    session,
-                    [Path("extensions")],
-                    handlers_dir=root / "handlers",
-                    entity_types=config.entity_types,
-                )
-                bootstrap = await load_installed_extensions(session, root / "handlers")
-                await session.commit()
-            config.entity_types.update(bootstrap.entity_type_registry.as_dict())
+            await _install_default_extensions(engine, root / "handlers", config.entity_types)
             return await materialize_runtime_app_config(Path("config"), config, engine)
         finally:
             await engine.dispose()
+
+
+async def _install_default_extensions(engine, handlers_dir: Path, entity_types: dict[str, object]) -> None:
+    manager = ExtensionManager(
+        extensions_dir=Path("extensions"),
+        handlers_dir=handlers_dir,
+        engine=engine,
+        config_entity_types=entity_types,
+    )
+    for name in [
+        "rss-fetcher",
+        "api-fetcher",
+        "reader",
+        "advisor",
+        "briefing-generator",
+        "notifier",
+        "default-news-workflow",
+    ]:
+        await manager.install(name)
+
+
+def NodeExecutor(
+    nodes,
+    system,
+    runtime,
+    snapshot=None,
+    instances=None,
+    entity_store=None,
+    **kwargs,
+):
+    if isinstance(snapshot, dict):
+        snapshot = _test_snapshot(snapshot)
+    if snapshot is None:
+        snapshot = _test_snapshot({})
+    return _RuntimeNodeExecutor(nodes, system, runtime, snapshot, instances, entity_store, **kwargs)
+
+
+def _test_snapshot(handlers: dict[str, object]) -> DagExecutionSnapshot:
+    entries: dict[str, HandlerMeta] = {}
+    root = Path(tempfile.mkdtemp(prefix="edera-handlers-"))
+    for name, handler in handlers.items():
+        attr = f"_edera_integration_handler_{id(handler)}"
+        setattr(builtins, attr, handler)
+        path = root / f"{name}.py"
+        path.write_text(
+            "import builtins\n"
+            "async def run(ctx):\n"
+            f"    return await builtins.{attr}(ctx.input)\n",
+            encoding="utf-8",
+        )
+        entries[name] = HandlerMeta(path)
+    return DagExecutionSnapshot(
+        DagExecutionClosure("test", {}, {}),
+        {},
+        StaticHandlerResolver(entries),
+        {},
+        {},
+    )
 
 
 @pytest.mark.asyncio

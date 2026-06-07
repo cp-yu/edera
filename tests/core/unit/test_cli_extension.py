@@ -114,7 +114,10 @@ def test_export_includes_database_entities_and_handlers(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    handlers_dir = tmp_path / "handlers"
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "system.toml").write_text('handlers_dir = "data/handlers"\n', encoding="utf-8")
+    handlers_dir = Path("data/handlers")
     package = tmp_path / "demo.tar.gz"
     handler_root = handlers_dir / "demo"
     handler_root.mkdir(parents=True)
@@ -155,8 +158,6 @@ def test_export_includes_database_entities_and_handlers(
             "demo",
             "-o",
             str(package),
-            "--handlers-dir",
-            str(handlers_dir),
         ],
     )
 

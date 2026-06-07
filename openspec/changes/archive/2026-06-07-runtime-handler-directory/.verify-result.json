@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-06-07T10:18:43.754Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "d8d9c8be654914dc62f877d235310fa40f2456ad2b742cd658f0b9fa482db383",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-review",
+    "evidenceFiles": [
+      "openspec/changes/runtime-handler-directory/tasks.md",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/graph_service.py",
+      "packages/core/tests/test_graph_service.py",
+      "packages/core/tests/test_resolver.py",
+      "tests/core/unit/test_cli_extension.py"
+    ],
+    "evidenceFingerprint": "d2e90762d8d910df2db17b451c0b766875b1f890039df6a88824073ead72ad1d",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/runtime-handler-directory/tasks.md",
+        "hash": "d8d9c8be654914dc62f877d235310fa40f2456ad2b742cd658f0b9fa482db383"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "69da2ff57d33aeeae2e01b0e5603b7f748817f7c7d5f1dad9d6562c5c6af3ec0"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "6792b451f44601a2921d052c479a460ccd3c6a91d80726429cc99b592d30a5c7"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "3dc1bd35e196ff06844607583bc7e8bf207272b4b460bfd63787868a844d1a3f"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "7219940c958925f30b19025779ec1a73687c95b4394e4b8c04f0eeca5be1fccf"
+      },
+      {
+        "path": "packages/core/src/edera_core/graph_service.py",
+        "hash": "7dfff8c3a857fa20ac96367c9e182fc7313f5ef77af0355f0aae2127bb8e4e8b"
+      },
+      {
+        "path": "packages/core/tests/test_graph_service.py",
+        "hash": "a06dd553a62cb681b5bb32101a63c21b3a9650ba4567065ef04a1dc694ce9625"
+      },
+      {
+        "path": "packages/core/tests/test_resolver.py",
+        "hash": "c3a5c3fb2135407466101b94f785c2a12755a69f59ea884973cd068858641c72"
+      },
+      {
+        "path": "tests/core/unit/test_cli_extension.py",
+        "hash": "d8a3aa0bb3cca17960e3bb1b6d386b13ed1d8f0d548c7be5e2b056ff475fb0ac"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "ea24bace93e1a77e614c9e4b71d71097d74e96bc"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-07T10:19:00.032Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Final review passed after fixing CLI export, GraphService handler path, and C8 artifact command. Remaining changes are scoped to configured handlers_dir behavior, startup migration removal, test adaptation, and spec alignment; no behavior-preserving optimization is required."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-07T10:18:43.754Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "d8d9c8be654914dc62f877d235310fa40f2456ad2b742cd658f0b9fa482db383",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-review",
+        "evidenceFiles": [
+          "openspec/changes/runtime-handler-directory/tasks.md",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/graph_service.py",
+          "packages/core/tests/test_graph_service.py",
+          "packages/core/tests/test_resolver.py",
+          "tests/core/unit/test_cli_extension.py"
+        ],
+        "evidenceFingerprint": "d2e90762d8d910df2db17b451c0b766875b1f890039df6a88824073ead72ad1d",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/runtime-handler-directory/tasks.md",
+            "hash": "d8d9c8be654914dc62f877d235310fa40f2456ad2b742cd658f0b9fa482db383"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "69da2ff57d33aeeae2e01b0e5603b7f748817f7c7d5f1dad9d6562c5c6af3ec0"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "6792b451f44601a2921d052c479a460ccd3c6a91d80726429cc99b592d30a5c7"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "3dc1bd35e196ff06844607583bc7e8bf207272b4b460bfd63787868a844d1a3f"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "7219940c958925f30b19025779ec1a73687c95b4394e4b8c04f0eeca5be1fccf"
+          },
+          {
+            "path": "packages/core/src/edera_core/graph_service.py",
+            "hash": "7dfff8c3a857fa20ac96367c9e182fc7313f5ef77af0355f0aae2127bb8e4e8b"
+          },
+          {
+            "path": "packages/core/tests/test_graph_service.py",
+            "hash": "a06dd553a62cb681b5bb32101a63c21b3a9650ba4567065ef04a1dc694ce9625"
+          },
+          {
+            "path": "packages/core/tests/test_resolver.py",
+            "hash": "c3a5c3fb2135407466101b94f785c2a12755a69f59ea884973cd068858641c72"
+          },
+          {
+            "path": "tests/core/unit/test_cli_extension.py",
+            "hash": "d8a3aa0bb3cca17960e3bb1b6d386b13ed1d8f0d548c7be5e2b056ff475fb0ac"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "ea24bace93e1a77e614c9e4b71d71097d74e96bc"
+      }
+    }
+  }
+}

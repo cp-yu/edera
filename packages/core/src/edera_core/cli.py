@@ -12,6 +12,7 @@ from pathlib import Path
 import grpc
 import yaml
 
+from edera_core.config.loader import load_system_config
 from edera_core.errors import ConfigError
 from edera_core.grpc_client import GrpcClient
 from edera_core.handler_validator import validate_handler
@@ -240,7 +241,7 @@ def _extension_parser(parser: argparse.ArgumentParser) -> None:
     export = subparsers.add_parser("export")
     export.add_argument("name")
     export.add_argument("-o", "--file", required=True, type=Path)
-    export.add_argument("--handlers-dir", type=Path, default=Path("handlers"))
+    export.add_argument("--handlers-dir", type=Path)
     export_entities = subparsers.add_parser("export-entities")
     export_entities.add_argument("-o", "--file", required=True, type=Path)
     export_entities.add_argument("--entities", required=True)
@@ -573,7 +574,8 @@ async def _grpc_extension(args: argparse.Namespace) -> object:
                         "entity": await client.entity_get(record["entity_ref"]),
                     }
                 )
-            warnings = _extension_export(args.file, args.handlers_dir, args.name, detail, exported_entities)
+            handlers_dir = args.handlers_dir or load_system_config(Path("config") / "system.toml").handlers_dir
+            warnings = _extension_export(args.file, handlers_dir, args.name, detail, exported_entities)
             return {"exported": args.name, "file": str(args.file), "warnings": warnings}
         if args.extension_command == "export-entities":
             refs = [item.strip() for item in args.entities.split(",") if item.strip()]

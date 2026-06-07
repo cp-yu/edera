@@ -20,7 +20,6 @@ from edera_core.config.entities import EntityStore
 from edera_core.config.git import commit_config_changes
 from edera_core.config.schema import AppConfig, DagNodeInstance, RuntimeSettings, SystemConfig
 from edera_core.bootstrap import BootstrapResult, create_extension_tables, load_installed_extensions
-from edera_core.migration.migrate_extensions import migrate_existing_extensions
 from edera_core.dag.loader import load_graph
 from edera_core.dag.models import DagGraph
 from edera_core.dag.runner import DagRunner, EdgeInputFact
@@ -108,7 +107,7 @@ class DagController:
     ) -> None:
         self.config_dir = config_dir
         self.extensions_dirs = extensions_dirs or _default_extensions_dirs(config_dir)
-        self.handlers_dir = config_dir.parent / "handlers"
+        self.handlers_dir = load_system_config(config_dir / "system.toml").handlers_dir
         self.scheduler = scheduler or _TriggerSchedulerState()
         self.engine: AsyncEngine | None = None
         self.factory: async_sessionmaker[AsyncSession] | None = None
@@ -134,14 +133,6 @@ class DagController:
         await init_db(self.engine)
         config = _load_runtime_base_config(self.config_dir)
         self.factory = session_factory(self.engine)
-        async with self.factory() as session:
-            await migrate_existing_extensions(
-                session,
-                self.extensions_dirs,
-                handlers_dir=self.handlers_dir,
-                entity_types=config.entity_types,
-            )
-            await session.commit()
         bootstrap = await self.load_bootstrap()
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
