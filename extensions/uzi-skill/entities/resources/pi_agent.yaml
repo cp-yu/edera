@@ -1,0 +1,5 @@
+id: pi_agent
+type: resource
+attributes:
+  id: pi_agent
+  permits: 8

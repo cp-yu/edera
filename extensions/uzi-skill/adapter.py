@@ -177,7 +177,10 @@ def _render_section(module: Any, payload: Any) -> dict[str, Any]:
         meta=raw,
         quality=_quality(data),
     )
-    return {"section_id": renderer.section_id, "html": renderer.render(ctx)}
+    html = renderer.render(ctx)
+    if renderer.section_id == "basic_header":
+        html = f"{html}\n{_analyst_panel_html(payload)}".rstrip()
+    return {"section_id": renderer.section_id, "html": html}
 
 
 def _renderer(module: Any) -> Any:
@@ -199,8 +202,30 @@ def _section_data(raw: Any, section_id: str) -> dict[str, Any]:
     value = dimensions.get(dim_key)
     if isinstance(value, dict):
         data = value.get("data")
-        return data if isinstance(data, dict) else value
+        result = data if isinstance(data, dict) else value
+        return _basic_header_data(result) if section_id == "basic_header" else result
     return {}
+
+
+def _basic_header_data(data: dict[str, Any]) -> dict[str, Any]:
+    if data.get("name"):
+        return data
+    name = _name_from_intro(data.get("intro"))
+    if not name:
+        return data
+    result = dict(data)
+    result["name"] = name
+    return result
+
+
+def _name_from_intro(intro: Any) -> str:
+    if not isinstance(intro, str):
+        return ""
+    first_line = intro.strip().splitlines()[0].strip()
+    if "是" in first_line:
+        name = first_line.split("是", 1)[0].strip()
+        return name if 0 < len(name) <= 80 else ""
+    return ""
 
 
 def _quality(data: dict[str, Any]) -> str:
@@ -245,6 +270,15 @@ def _value(ctx: HandlerContext, mapping: dict[str, Any]) -> Any:
     value = _lookup(_roots(ctx), source.split("."))
     if value is _MISSING:
         return mapping.get("default")
+    return _normalize_ticker_arg(source, value)
+
+
+def _normalize_ticker_arg(source: str, value: Any) -> Any:
+    if source.rsplit(".", 1)[-1] != "ticker" or not isinstance(value, str):
+        return value
+    ticker = value.strip().upper()
+    if ticker.startswith("HK.") and ticker[3:].isdigit():
+        return f"{ticker[3:].zfill(5)}.HK"
     return value
 
 
@@ -342,15 +376,145 @@ def generate_panel_from_scored(payload: dict[str, Any]) -> dict[str, Any]:
     raw = payload.get("raw", {})
     dims_scored = payload.get("dims_scored", {})
     panel = _call_run_real_test("generate_panel", dims_scored, raw)
-    return {"raw": raw, "dims_scored": dims_scored, "panel": panel}
+    return {
+        "raw": raw,
+        "dims_scored": dims_scored,
+        "panel": panel,
+        "prompt": _investor_analyst_prompt(raw, dims_scored, panel),
+    }
 
 
-def generate_synthesis_from_panel(payload: dict[str, Any]) -> dict[str, Any]:
+def generate_synthesis_from_panel(payload: Any) -> dict[str, Any]:
+    payload = _panel_payload(payload)
     raw = payload.get("raw", {})
     dims_scored = payload.get("dims_scored", {})
     panel = payload.get("panel", {})
     synthesis = _call_run_real_test("generate_synthesis", raw, dims_scored, panel)
     return {"raw": raw, "dims_scored": dims_scored, "panel": panel, "synthesis": synthesis}
+
+
+def _panel_payload(payload: Any) -> dict[str, Any]:
+    if isinstance(payload, dict):
+        if "panel" in payload:
+            return _merge_panel_payload(payload, [])
+        base = payload.get("generate_panel")
+        if isinstance(base, dict):
+            return _merge_panel_payload(base, [item for key, item in payload.items() if key != "generate_panel"])
+        return payload
+    if not isinstance(payload, list):
+        return {}
+    base = next((item for item in payload if isinstance(item, dict) and "panel" in item), {})
+    if not isinstance(base, dict):
+        return {}
+    return _merge_panel_payload(base, [item for item in payload if item is not base])
+
+
+def _merge_panel_payload(base: dict[str, Any], analyst_items: list[Any]) -> dict[str, Any]:
+    merged = dict(base)
+    panel = dict(merged.get("panel") or {})
+    investors = panel.get("investors")
+    analyst_outputs = [_analyst_output(item) or _fallback_analyst_output(item, investors) for item in analyst_items]
+    analyst_outputs = [item for item in analyst_outputs if item]
+    if analyst_outputs:
+        existing = panel.get("agent_evaluations")
+        panel["agent_evaluations"] = [*(existing if isinstance(existing, list) else []), *analyst_outputs]
+        merged["panel"] = panel
+    return merged
+
+
+def _analyst_output(item: Any) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+    stdout = item.get("stdout")
+    if not isinstance(stdout, str) or not stdout.strip():
+        return None
+    text = stdout.strip()
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return {"stdout": text}
+    return parsed if isinstance(parsed, dict) else {"result": parsed}
+
+
+def _fallback_analyst_output(item: Any, investors: Any) -> dict[str, Any] | None:
+    analyst_id = _analyst_id_from_output(item)
+    if not analyst_id or not isinstance(investors, list):
+        return None
+    investor_id = analyst_id.removeprefix("analyst_")
+    for investor in investors:
+        if isinstance(investor, dict) and investor.get("investor_id") == investor_id:
+            output = dict(investor)
+            output["agent_node_id"] = analyst_id
+            output["source"] = "rule_engine_fallback"
+            return output
+    return None
+
+
+def _analyst_id_from_output(item: Any) -> str:
+    if not isinstance(item, dict):
+        return ""
+    session_id = item.get("session_id")
+    if not isinstance(session_id, str):
+        return ""
+    for part in Path(session_id).parts:
+        if part.startswith("analyst_"):
+            return part
+    return ""
+
+
+def _investor_analyst_prompt(raw: Any, dims_scored: Any, panel: Any) -> str:
+    package = {
+        "raw": raw,
+        "dims_scored": dims_scored,
+        "panel": panel,
+    }
+    return (
+        "你是 UZI-Skill 投资评审团的单人分析师 agent。\n"
+        "从 Runtime context 的 node_id 读取你的身份：节点 id 使用 analyst_<investor_id>。\n"
+        "只处理这一位 investor，不要替其他分析师输出。\n"
+        "输出严格 JSON object，字段为 investor_id, signal, score, headline, reasoning, override_rule_engine, override_reason。\n"
+        "headline 必须引用具体数字或事实；无法适用时 signal 使用 skip。\n"
+        "输入数据如下：\n"
+        f"{json.dumps(package, ensure_ascii=False, default=str)}"
+    )
+
+
+def _analyst_panel_html(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    panel = payload.get("panel")
+    if not isinstance(panel, dict):
+        return ""
+    items = panel.get("agent_evaluations")
+    default_source = "Agent"
+    if not isinstance(items, list) or not items:
+        items = panel.get("investors")
+        default_source = "规则面板"
+    if not isinstance(items, list) or not items:
+        return ""
+    rows = "\n".join(_analyst_panel_row(item, default_source) for item in items if isinstance(item, dict))
+    if not rows:
+        return ""
+    return (
+        "<section id=\"analyst_panel\">\n"
+        "  <h2>投资评审团明细</h2>\n"
+        "  <table>\n"
+        "    <thead><tr><th>分析师</th><th>信号</th><th>分数</th><th>结论</th><th>要点</th><th>来源</th></tr></thead>\n"
+        f"    <tbody>\n{rows}\n    </tbody>\n"
+        "  </table>\n"
+        "</section>"
+    )
+
+
+def _analyst_panel_row(item: dict[str, Any], default_source: str) -> str:
+    name = str(item.get("name") or item.get("investor_id") or "")
+    signal = str(item.get("signal") or "")
+    score = "" if item.get("score") is None else str(item.get("score"))
+    verdict = str(item.get("verdict") or "")
+    headline = str(item.get("headline") or item.get("comment") or item.get("reasoning") or "")
+    source = "规则回退" if item.get("source") == "rule_engine_fallback" else default_source
+    cells = [name, signal, score, verdict, headline, source]
+    return "      <tr>" + "".join(f"<td>{html_lib.escape(value)}</td>" for value in cells) + "</tr>"
 
 
 def assemble_rendered_report(payload: Any, run_id: str | None = None, edge_inputs: list[dict[str, Any]] | None = None) -> dict[str, Any]:

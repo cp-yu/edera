@@ -28,6 +28,16 @@ async def test_basic_call(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_hk_prefixed_ticker_is_normalized_for_legacy_scripts(tmp_path: Path) -> None:
+    _write(tmp_path / "fetch_basic.py", "def main(ticker):\n    return {'ticker': ticker}\n")
+
+    output = await adapter.run(_ctx(tmp_path, "fetch_basic", [{"source": "params.ticker"}], {"ticker": "HK.00100"}))
+
+    assert output.ok is True
+    assert output.payload == {"ticker": "00100.HK"}
+
+
+@pytest.mark.asyncio
 async def test_exception_handling(tmp_path: Path) -> None:
     _write(tmp_path / "broken.py", "def main(ticker):\n    raise ValueError('bad ticker')\n")
 
@@ -237,6 +247,150 @@ def test_score_dimensions_wrapper_normalizes_collection_payload(monkeypatch: pyt
     assert "dimensions" in seen["raw"]
     assert seen["raw"]["dimensions"]["2_kline"] == {"data": {"stage": "Stage 2"}}
     assert seen["raw"]["dimensions"]["4_peers"] == {"data": {"peer_table": []}}
+
+
+def test_basic_header_name_falls_back_to_intro() -> None:
+    data = adapter._section_data(
+        {"dimensions": {"0_basic": {"data": {"intro": "MiniMax Group Inc.是全球领先的通用人工智能科技公司。"}}}},
+        "basic_header",
+    )
+
+    assert data["name"] == "MiniMax Group Inc."
+
+
+def test_generate_panel_wrapper_adds_agent_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_call(name, dims_scored, raw):
+        assert name == "generate_panel"
+        assert dims_scored == {"score": 80}
+        assert raw == {"ticker": "300470.SZ"}
+        return {"investors": []}
+
+    monkeypatch.setattr(adapter, "_call_run_real_test", fake_call)
+
+    output = adapter.generate_panel_from_scored({
+        "raw": {"ticker": "300470.SZ"},
+        "dims_scored": {"score": 80},
+    })
+
+    assert "analyst_<investor_id>" in output["prompt"]
+    assert output["panel"] == {"investors": []}
+
+
+def test_generate_synthesis_wrapper_merges_agent_outputs(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_call(name, raw, dims_scored, panel):
+        seen["name"] = name
+        seen["raw"] = raw
+        seen["dims_scored"] = dims_scored
+        seen["panel"] = panel
+        return {"verdict": "ok"}
+
+    monkeypatch.setattr(adapter, "_call_run_real_test", fake_call)
+
+    output = adapter.generate_synthesis_from_panel([
+        {"raw": {"ticker": "300470.SZ"}, "dims_scored": {"score": 80}, "panel": {"investors": []}},
+        {"stdout": "{\"investor_id\":\"buffett\",\"signal\":\"bullish\",\"score\":90}"},
+    ])
+
+    assert output["synthesis"] == {"verdict": "ok"}
+    assert seen["name"] == "generate_synthesis"
+    assert seen["panel"]["agent_evaluations"] == [{"investor_id": "buffett", "signal": "bullish", "score": 90}]
+
+
+def test_generate_synthesis_wrapper_accepts_named_upstreams(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_call(name, raw, dims_scored, panel):
+        seen["name"] = name
+        seen["raw"] = raw
+        seen["dims_scored"] = dims_scored
+        seen["panel"] = panel
+        return {"verdict": "ok"}
+
+    monkeypatch.setattr(adapter, "_call_run_real_test", fake_call)
+
+    output = adapter.generate_synthesis_from_panel({
+        "generate_panel": {"raw": {"ticker": "300470.SZ"}, "dims_scored": {"score": 80}, "panel": {"investors": []}},
+        "analyst_buffett": {"stdout": "{\"investor_id\":\"buffett\",\"signal\":\"bullish\",\"score\":90}"},
+    })
+
+    assert output["synthesis"] == {"verdict": "ok"}
+    assert seen["name"] == "generate_synthesis"
+    assert seen["raw"] == {"ticker": "300470.SZ"}
+    assert seen["dims_scored"] == {"score": 80}
+    assert seen["panel"]["agent_evaluations"] == [{"investor_id": "buffett", "signal": "bullish", "score": 90}]
+
+
+def test_generate_synthesis_wrapper_falls_back_for_empty_agent_stdout(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_call(name, raw, dims_scored, panel):
+        seen["panel"] = panel
+        return {"verdict": "ok"}
+
+    monkeypatch.setattr(adapter, "_call_run_real_test", fake_call)
+
+    adapter.generate_synthesis_from_panel([
+        {
+            "raw": {"ticker": "00100.HK"},
+            "dims_scored": {"score": 20},
+            "panel": {
+                "investors": [
+                    {"investor_id": "buffett", "name": "巴菲特", "signal": "bearish", "score": 20, "headline": "看空核心"},
+                    {"investor_id": "graham", "name": "格雷厄姆", "signal": "neutral", "score": 40, "headline": "等待折价"},
+                ]
+            },
+        },
+        {"stdout": "", "session_id": "/tmp/sessions/analyst_buffett/run-1"},
+    ])
+
+    assert seen["panel"]["agent_evaluations"] == [
+        {
+            "investor_id": "buffett",
+            "name": "巴菲特",
+            "signal": "bearish",
+            "score": 20,
+            "headline": "看空核心",
+            "agent_node_id": "analyst_buffett",
+            "source": "rule_engine_fallback",
+        }
+    ]
+
+
+def test_analyst_panel_html_renders_agent_evaluations() -> None:
+    html = adapter._analyst_panel_html({
+        "panel": {
+            "agent_evaluations": [
+                {
+                    "investor_id": "buffett",
+                    "name": "巴菲特",
+                    "signal": "bearish",
+                    "score": 20,
+                    "verdict": "回避",
+                    "headline": "看空核心：自由现金流不达标",
+                    "source": "rule_engine_fallback",
+                }
+            ]
+        }
+    })
+
+    assert "投资评审团明细" in html
+    assert "巴菲特" in html
+    assert "规则回退" in html
+
+
+def test_analyst_panel_html_labels_panel_investors() -> None:
+    html = adapter._analyst_panel_html({
+        "panel": {
+            "investors": [
+                {"investor_id": "graham", "name": "格雷厄姆", "signal": "bearish", "score": 0, "headline": "估值不满足"}
+            ]
+        }
+    })
+
+    assert "格雷厄姆" in html
+    assert "规则面板" in html
 
 
 def test_assemble_rendered_report_writes_single_html(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

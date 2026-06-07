@@ -1,0 +1,12 @@
+id: uzi-investor-analyst
+type: node
+attributes:
+  name: uzi-investor-analyst
+  type: agent
+  role: processor
+  model: hf-share/deepseek-v4-flash
+  input_type: Any
+  output_type: Any
+  optional: true
+  timeout_seconds: 120
+  tools: []

@@ -15,7 +15,7 @@ attributes:
     resource: null
   - id: generate_panel
     type: uzi-generate-panel
-    alias: 生成面板
+    alias: 生成规则面板
     config: {}
     optional: false
     fan_in_mode: barrier
@@ -23,6 +23,516 @@ attributes:
     fallback: null
     fallback_model: null
     resource: null
+  - id: analyst_buffett
+    type: uzi-investor-analyst
+    alias: 巴菲特
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_graham
+    type: uzi-investor-analyst
+    alias: 格雷厄姆
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_fisher
+    type: uzi-investor-analyst
+    alias: 费雪
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_munger
+    type: uzi-investor-analyst
+    alias: 芒格
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_templeton
+    type: uzi-investor-analyst
+    alias: 邓普顿
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_klarman
+    type: uzi-investor-analyst
+    alias: 卡拉曼
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_lynch
+    type: uzi-investor-analyst
+    alias: 彼得·林奇
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_oneill
+    type: uzi-investor-analyst
+    alias: 欧奈尔
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_thiel
+    type: uzi-investor-analyst
+    alias: 彼得·蒂尔
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_wood
+    type: uzi-investor-analyst
+    alias: 木头姐
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_soros
+    type: uzi-investor-analyst
+    alias: 索罗斯
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_dalio
+    type: uzi-investor-analyst
+    alias: 达里奥
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_marks
+    type: uzi-investor-analyst
+    alias: 霍华德·马克斯
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_druck
+    type: uzi-investor-analyst
+    alias: 德鲁肯米勒
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_robertson
+    type: uzi-investor-analyst
+    alias: 罗伯逊
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_livermore
+    type: uzi-investor-analyst
+    alias: 利弗莫尔
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_minervini
+    type: uzi-investor-analyst
+    alias: 米内尔维尼
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_darvas
+    type: uzi-investor-analyst
+    alias: 达瓦斯
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_gann
+    type: uzi-investor-analyst
+    alias: 江恩
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_duan
+    type: uzi-investor-analyst
+    alias: 段永平
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_zhangkun
+    type: uzi-investor-analyst
+    alias: 张坤
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_zhushaoxing
+    type: uzi-investor-analyst
+    alias: 朱少醒
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_xiezhiyu
+    type: uzi-investor-analyst
+    alias: 谢治宇
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_fengliu
+    type: uzi-investor-analyst
+    alias: 冯柳
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_dengxiaofeng
+    type: uzi-investor-analyst
+    alias: 邓晓峰
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_zhang_mz
+    type: uzi-investor-analyst
+    alias: 章盟主
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_sun_ge
+    type: uzi-investor-analyst
+    alias: 孙哥
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_zhao_lg
+    type: uzi-investor-analyst
+    alias: 赵老哥
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_fs_wyj
+    type: uzi-investor-analyst
+    alias: 佛山无影脚
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_yangjia
+    type: uzi-investor-analyst
+    alias: 炒股养家
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_chen_xq
+    type: uzi-investor-analyst
+    alias: 陈小群
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_hu_jl
+    type: uzi-investor-analyst
+    alias: 呼家楼
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_fang_xx
+    type: uzi-investor-analyst
+    alias: 方新侠
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_zuoshou
+    type: uzi-investor-analyst
+    alias: 作手新一
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_xiao_ey
+    type: uzi-investor-analyst
+    alias: 小鳄鱼
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_jiao_yy
+    type: uzi-investor-analyst
+    alias: 交易猿
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_mao_lb
+    type: uzi-investor-analyst
+    alias: 毛老板
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_xiao_xian
+    type: uzi-investor-analyst
+    alias: 消闲派
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_lasa
+    type: uzi-investor-analyst
+    alias: 拉萨天团
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_chengdu
+    type: uzi-investor-analyst
+    alias: 成都帮
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_sunan
+    type: uzi-investor-analyst
+    alias: 苏南帮
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_ningbo_st
+    type: uzi-investor-analyst
+    alias: 宁波桑田路
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_liuyi_zl
+    type: uzi-investor-analyst
+    alias: 六一中路
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_liu_sh
+    type: uzi-investor-analyst
+    alias: 流沙河
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_gu_bl
+    type: uzi-investor-analyst
+    alias: 古北路
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_bj_cj
+    type: uzi-investor-analyst
+    alias: 北京炒家
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_wang_zr
+    type: uzi-investor-analyst
+    alias: 瑞鹤仙
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_simons
+    type: uzi-investor-analyst
+    alias: 西蒙斯
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_thorp
+    type: uzi-investor-analyst
+    alias: 索普
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_shaw
+    type: uzi-investor-analyst
+    alias: 大卫·肖
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
+  - id: analyst_serenity
+    type: uzi-investor-analyst
+    alias: Serenity
+    config: {}
+    optional: true
+    fan_in_mode: barrier
+    loop: null
+    fallback: null
+    fallback_model: null
+    resource: pi_agent
   - id: generate_synthesis
     type: uzi-generate-synthesis
     alias: 综合结论
@@ -38,11 +548,727 @@ attributes:
     to: generate_panel
     fan_out: false
     fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_buffett
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_graham
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_fisher
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_munger
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_templeton
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_klarman
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_lynch
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_oneill
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_thiel
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_wood
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_soros
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_dalio
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_marks
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_druck
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_robertson
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_livermore
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_minervini
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_darvas
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_gann
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_duan
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_zhangkun
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_zhushaoxing
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_xiezhiyu
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_fengliu
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_dengxiaofeng
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_zhang_mz
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_sun_ge
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_zhao_lg
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_fs_wyj
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_yangjia
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_chen_xq
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_hu_jl
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_fang_xx
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_zuoshou
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_xiao_ey
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_jiao_yy
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_mao_lb
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_xiao_xian
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_lasa
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_chengdu
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_sunan
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_ningbo_st
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_liuyi_zl
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_liu_sh
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_gu_bl
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_bj_cj
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_wang_zr
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_simons
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_thorp
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_shaw
+    fan_out: false
+    fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: generate_panel
+    to: analyst_serenity
+    fan_out: false
+    fan_in: false
+    optional: false
     condition: null
     fan_in_mode: barrier
   - from: generate_panel
     to: generate_synthesis
     fan_out: false
     fan_in: false
+    optional: false
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_buffett
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_graham
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_fisher
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_munger
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_templeton
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_klarman
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_lynch
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_oneill
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_thiel
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_wood
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_soros
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_dalio
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_marks
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_druck
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_robertson
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_livermore
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_minervini
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_darvas
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_gann
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_duan
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_zhangkun
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_zhushaoxing
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_xiezhiyu
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_fengliu
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_dengxiaofeng
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_zhang_mz
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_sun_ge
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_zhao_lg
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_fs_wyj
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_yangjia
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_chen_xq
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_hu_jl
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_fang_xx
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_zuoshou
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_xiao_ey
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_jiao_yy
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_mao_lb
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_xiao_xian
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_lasa
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_chengdu
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_sunan
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_ningbo_st
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_liuyi_zl
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_liu_sh
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_gu_bl
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_bj_cj
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_wang_zr
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_simons
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_thorp
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_shaw
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
+    condition: null
+    fan_in_mode: barrier
+  - from: analyst_serenity
+    to: generate_synthesis
+    fan_out: false
+    fan_in: false
+    optional: true
     condition: null
     fan_in_mode: barrier

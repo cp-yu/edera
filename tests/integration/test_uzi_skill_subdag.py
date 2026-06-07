@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.config.entities import EntityStore
-from edera_core.config.loader import load_runtime_app_config
+from edera_core.config.loader import _load_runtime_base_config, load_runtime_app_config
 from edera_core.dag.loader import load_graph, validate_sub_dag_nesting
+from edera_core.extension_manager import ExtensionManager
 from edera_core.storage import create_engine, init_db, sqlite_url
 
 
@@ -31,9 +31,19 @@ async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
         "10_valuation": "v8_isolate",
         "12_capital_flow": "v8_isolate",
     }
-    assert len(scoring.nodes) == 3
-    assert sum(len(edges) for edges in scoring.edges.values()) == 2
-    assert list(rendering.nodes) == ["assemble_report"]
+    analyst_nodes = [node for node in scoring.nodes if node.startswith("analyst_")]
+    assert len(scoring.nodes) == 54
+    assert len(analyst_nodes) == 51
+    assert sum(len(edges) for edges in scoring.edges.values()) == 104
+    assert scoring.edges["generate_panel"] == [*analyst_nodes, "generate_synthesis"]
+    assert all(scoring.instances[node].type == "uzi-investor-analyst" for node in analyst_nodes)
+    assert all(scoring.instances[node].resource == "pi_agent" for node in analyst_nodes)
+    render_nodes = [node for node in rendering.nodes if node.startswith("render_")]
+    assert len(rendering.nodes) == 22
+    assert len(render_nodes) == 21
+    assert all(rendering.instances[node].optional for node in render_nodes)
+    assert all(rendering.edges[node] == ["assemble_report"] for node in render_nodes)
+    assert rendering.reverse_edges["assemble_report"] == render_nodes
     assert rendering.edges["assemble_report"] == []
     validate_sub_dag_nesting(config.dags, 3)
 
@@ -41,11 +51,10 @@ async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_uzi_subdag_imports_aggregate_node(tmp_path: Path) -> None:
     config = await _runtime_config(tmp_path)
-    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
-    aggregate = store.resolve("node:uzi-aggregate-collection-results")
+    aggregate = config.nodes["uzi-aggregate-collection-results"]
 
-    assert aggregate.attributes["type"] == "function"
-    assert aggregate.attributes["handler"] == "legacy-script-adapter"
+    assert aggregate.type == "function"
+    assert aggregate.handler == "legacy-script-adapter"
     assert {"uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"}.issubset(config.dags)
 
 
@@ -53,6 +62,14 @@ async def _runtime_config(tmp_path: Path):
     engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
     try:
         await init_db(engine)
+        base = _load_runtime_base_config(Path("config"))
+        manager = ExtensionManager(
+            extensions_dir=Path("extensions"),
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types=base.entity_types,
+        )
+        await manager.install("uzi-skill", installed_by="test")
         return await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
     finally:
         await engine.dispose()
