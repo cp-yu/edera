@@ -10,9 +10,9 @@ from edera_core.proto import edera_pb2 as pb2
 from edera_core.bootstrap import BootstrapResult
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
-from edera_core.dag_controller import RuntimeSnapshot
+from edera_core.dag_controller import RuntimeControlSnapshot
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import create_dag_run, create_relation, mark_node_run, save_installed_extension
+from edera_core.storage.repository import create_dag_run, create_relation, get_dag_config, mark_node_run, save_installed_extension
 from edera_core.storage.repository import get_skill
 
 from fixtures.entity_fixtures import seed_entity_records
@@ -85,7 +85,7 @@ async def test_get_dag_detail_includes_database_entities_and_relations(tmp_path)
     root = tmp_path / "config"
     _write_graph_config(root)
     service = _GraphService(await _graph_daemon(root, tmp_path))
-    app = service.daemon.controller.runtime_snapshot().config
+    app = service.daemon.controller.runtime_config()
     async with service.daemon.controller._factory()() as session:
         await create_relation(session, "stock:TEST", "rss-source:rss", "uses-source", {}, app.entity_types)
         await session.commit()
@@ -148,11 +148,35 @@ async def test_optional_round_trip(tmp_path):
     saved = json.loads(first.json)["dag"]
     second = await service.SaveDag(pb2.NamedJsonRequest(name="demo", json=json.dumps(saved)), FakeContext())
     payload = json.loads(second.json)["dag"]
-    stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
+    async with service.daemon.controller._factory()() as session:
+        stored = await get_dag_config(session, "demo")
 
     assert payload["nodes"][0]["optional"] is True
     assert payload["edges"][0]["optional"] is True
+    assert stored is not None
     assert stored.nodes[0].optional is True
+    assert "event:config-changed" in service.daemon.controller.emitted
+
+
+@pytest.mark.asyncio
+async def test_node_type_write_emits_without_control_snapshot_rebuild(tmp_path):
+    root = tmp_path / "config"
+    _write_graph_config(root)
+    service = _GraphService(await _graph_daemon(root, tmp_path))
+    snapshot = service.daemon.controller.runtime_snapshot()
+    generation = snapshot.generation
+
+    await service.SaveNodeType(
+        pb2.NamedJsonRequest(
+            name="writer",
+            json=json.dumps({"role": "processor", "handler": "writer", "input_type": "Any", "output_type": "Any"}),
+        ),
+        FakeContext(),
+    )
+
+    assert "event:config-changed" in service.daemon.controller.emitted
+    assert service.daemon.controller.runtime_snapshot() is snapshot
+    assert service.daemon.controller.runtime_snapshot().generation == generation
 
 
 @pytest.mark.asyncio
@@ -188,12 +212,14 @@ async def test_sub_dag_instance_round_trip(tmp_path):
     saved = json.loads(loaded.json)
     second = await service.SaveDag(pb2.NamedJsonRequest(name="demo", json=json.dumps(saved)), FakeContext())
     payload = json.loads(second.json)["dag"]
-    stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
+    async with service.daemon.controller._factory()() as session:
+        stored = await get_dag_config(session, "demo")
 
     assert payload["nodes"][0]["dag_ref"] == "common-subdag"
     assert payload["nodes"][0]["input_mapping"] == {"topic": "payload.topic"}
     assert payload["nodes"][0]["alias"] == "common"
     assert payload["nodes"][0]["config"] == {"mode": "strict"}
+    assert stored is not None
     assert stored.nodes[0].dag_ref == "common-subdag"
     assert stored.nodes[0].input_mapping == {"topic": "payload.topic"}
     assert stored.nodes[0].alias == "common"
@@ -225,7 +251,9 @@ async def test_save_sub_dag_cycle_rejected(tmp_path):
     assert "Sub DAG cycle detected" in exc.value.details
     assert "节点 'self'" in exc.value.details
     assert "修复建议" in exc.value.details
-    stored = service.daemon.controller.runtime_snapshot().config.dags["demo"]
+    async with service.daemon.controller._factory()() as session:
+        stored = await get_dag_config(session, "demo")
+    assert stored is not None
     assert [node.id for node in stored.nodes] == ["n1", "n2"]
 
 
@@ -312,6 +340,8 @@ class GraphController:
         self.factory = session_factory(engine)
         self.bootstrap = BootstrapResult([], {}, {}, {})
         self._snapshot = None
+        self._config = None
+        self.emitted: list[str] = []
 
     def _factory(self):
         return self.factory
@@ -321,16 +351,25 @@ class GraphController:
             raise RuntimeError("missing runtime snapshot")
         return self._snapshot
 
+    def runtime_config(self):
+        if self._config is None:
+            raise RuntimeError("missing runtime config")
+        return self._config
+
+    async def emit(self, event, payload=None, *, source="rpc", depth=0):
+        self.emitted.append(event)
+        return []
+
     async def install_snapshot(self, config, bootstrap):
         config = await materialize_runtime_app_config(self.config_dir, config, self.engine)
         store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
-        self._snapshot = RuntimeSnapshot(
-            config=config,
-            bootstrap=bootstrap,
-            entity_store=store,
+        self._config = config
+        self._store = store
+        self._snapshot = RuntimeControlSnapshot(
+            system=config.system,
+            runtime=config.runtime,
             trigger_executor=None,
             cron_emitter=None,
-            extension_table_names={},
         )
         return self._snapshot
 

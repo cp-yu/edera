@@ -65,7 +65,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.dag-control
-    intent: 管道控制能力统一由 TriggerExecutor emit 路径驱动；启动不自动运行 DAG，手动运行通过 manual:dag:<name> emit 进入调度
+    intent: DAG run、retry、resume 和 node trigger 统一通过 DagController 构建 per-run execution snapshot；node trigger target 使用 node:<dag_name>/<node_id>。
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
@@ -107,7 +107,7 @@ capabilities:
     intent: Entity 三层存储中核心配置型 Entity 迁移为 DB-backed per-type tables，YAML 仅作为 import/export/template 格式；输出型 Entity 和瞬态 Entity 边界保持独立
     type: capability
   - id: cap.trigger-system
-    intent: Trigger Entity 使用自由布尔表达式 wait_for，支持 enabled 字段、clear:event:* target 与 fire 后自动 consume
+    intent: Trigger target 中的 node 目标使用 node:<dag_name>/<node_id>，不再支持全局 node:<id> 反查。
     type: capability
   - id: cap.dag-condition-branch
     intent: DAG edge 条件分支，可替换 condition evaluator handler，支持 output.* + entity ref + 常量
@@ -195,7 +195,7 @@ capabilities:
     intent: 边级 optional 是唯一执行语义；DagNodeInstance.optional 与 NodeConfig.optional 作为不同作用域的出边 optional 语法糖
     type: capability
   - id: cap.core.config-hot-reload
-    intent: 配置热加载由 edera-server 生命周期管理 HotReloader.watch，成功 reload 以 committed runtime snapshot 事务替换 config、handler registry、entity type registry、trigger/cron 和 runtime read 视图，失败 reload 保留旧 snapshot 且不终止 watcher
+    intent: 配置热加载只重建 committed RuntimeControlSnapshot 的常驻控制面状态；DAG/Node/EntityType/Skill 变更写入 DB 并 emit event:config-changed，但不重建控制面 snapshot。
     type: capability
   - id: cap.core.edera-server-grpc
     intent: edera-server 后端引擎 gRPC 服务，bootstrap bind 固定 127.0.0.1，端口从 9091 有界退避并写入本机 bootstrap.json，继续覆盖 mTLS、agent/BFF 短期证书签发与 dev 模式
@@ -221,13 +221,13 @@ capabilities:
     intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态、信息源日志契约、监控页面展示和错误反馈
     type: capability
   - id: cap.core.grpc-graph-service
-    intent: 提供 GraphService gRPC 接口，包含 DAG CRUD、Node-type CRUD、Skill CRUD、Handler CRUD 和增强的 Sub DAG 循环检测错误详情
+    intent: GraphService 的 DAG/Node/Skill 读写使用 DB-backed source of truth，SaveDag 只校验 candidate reachable sub-DAG closure，并在保存后 emit config-changed。
     type: capability
   - id: cap.core.grpc-config-service
-    intent: gRPC ConfigService，覆盖 system config、entity-types config 和通用配置文件的读写，验证逻辑在 server 端执行
+    intent: ConfigService 删除 ReloadEntityTypes 和 ReloadSkills，EntityType/Skill 以 DB-backed source of truth 生效。
     type: capability
   - id: cap.core.grpc-query-service
-    intent: gRPC QueryService，覆盖 briefings/advices/results/sources health/source logs/node-outputs/history 等 DB 查询
+    intent: QueryService runtime read validation 使用 DB-backed repositories 和 runtime facts，不依赖 runtime_snapshot().config DAG/Node mirror。
     type: capability
   - id: cap.core.grpc-control-services
     intent: gRPC 控制面服务，覆盖 DagService run/stop/retry、SystemService scheduler/source repair task 和 EventService emit
@@ -248,20 +248,20 @@ capabilities:
     intent: emit 深度计数器与可配阈值（max_trigger_depth），循环触发防护机制
     type: capability
   - id: cap.core.manual-trigger-prefix
-    intent: manual:dag:* / manual:node:* 保留前缀的直接 fire 语义，绕过 wait_for 匹配
+    intent: manual:node 保留前缀使用 manual:node:<dag_name>/<node_id>，直接 fire DAG-scoped node target 且不置位 event bit。
     type: capability
   - id: cap.core.node-emits-declaration
     intent: Node Type emits 字段声明（含 instance 级覆盖）与 DAG Runner 的条件求值/emit 集成
     type: capability
   - id: cap.web.trigger-workbench-inspector
-    intent: Workbench Inspector Triggers tab，覆盖 DAG 级与 node 级 trigger 列表、表达式编辑器、闹钟 picker 与事件 picker
+    intent: Workbench Inspector Triggers tab 在 node 视图生成和过滤 target=node:<dag_name>/<node_id> 的 trigger entity。
     type: capability
   - id: cap.core.terminology-glossary
     intent: 项目术语表文档，定义所有核心概念的 canonical term、同义词和使用约定
     type: capability
     domain: dom.core
   - id: cap.core.db-backed-core-entities
-    intent: 核心 entities 从数据库构建 runtime snapshot，普通 entities 和 relations 按需查询数据库，不再从 YAML 文件加载
+    intent: DB 是 DAG/Node/Trigger/Resource、EntityType 和 Skill 的运行时 source of truth；DAG/Node/EntityType/Skill 不进入 RuntimeControlSnapshot。
     type: capability
   - id: cap.core.lazy-entity-type-materialization
     intent: 普通 EntityType 支持 per-type table、attributes_json 承接新增字段、lazy materialized columns、deprecated 字段生命周期和维护命令
@@ -299,13 +299,10 @@ capabilities:
     intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
     type: capability
   - id: cap.core.database-handler-resolver
-    intent: 从数据库按需查询 handler 元数据，计算 handler 文件路径
+    intent: DatabaseHandlerResolver 支持 run-start handler metadata snapshot，并与 extension table mapping 一起冻结到 DagExecutionSnapshot。
     type: capability
   - id: cap.core.dag-execution-snapshot
-    intent: DAG 执行时的配置快照隔离机制，保证运行一致性
-    type: capability
-  - id: cap.core.runtime-entity-type-reload
-    intent: 运行时刷新 entity type 配置的 API
+    intent: DAG run 启动时由 DagController 构建 DAG execution closure，并在 DagExecutionSnapshot 中冻结 DAG/Node 闭包、entity_types、handler resolver、extension table mapping 和 run-needed skills。
     type: capability
   - id: cap.core.ordinary-entity-database-storage
     intent: 普通 entities 存储到数据库动态表，按 entity type 分表

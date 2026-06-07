@@ -43,7 +43,12 @@ from edera_core.storage.repository import (
     delete_core_entity,
     delete_ordinary_entity,
     edge_inputs_for_run,
+    get_dag_config,
+    get_dag_entity,
+    get_node_config,
     latest_briefing,
+    list_dag_configs,
+    list_entity_type_configs,
     save_core_entity,
     save_ordinary_entity,
     query_node_output_entities,
@@ -207,6 +212,10 @@ class _EntityService:
         await _identity(context)
         runtime_store, app = _runtime_entity_store(self.daemon)
         if request.type == "entity_type":
+            if _controller_started(self.daemon):
+                async with self.daemon.controller._factory()() as session:
+                    entity_types = await list_entity_type_configs(session)
+                return self.pb2.EntityList(entities=[_entity_type_message(self.pb2, name, entity_type) for name, entity_type in entity_types.items()])
             return self.pb2.EntityList(entities=[_entity_type_message(self.pb2, name, entity_type) for name, entity_type in app.entity_types.items()])
         store = _active_run_entity_store(self.daemon, request.dag_run_id or None) or runtime_store
         filters = _filters_from_json(request.filters_json)
@@ -231,16 +240,17 @@ class _EntityService:
         try:
             if _controller_started(self.daemon):
                 async with self.daemon.controller._factory()() as session:
+                    permissions = await _identity_permissions_from_db(session, identity)
                     entities = await _query(
                         app,
                         store,
                         identity,
-                        _identity_permissions(identity, app.dags),
+                        permissions,
                         request.expression,
                         session,
                     )
             else:
-                entities = await _query(app, store, identity, _identity_permissions(identity, app.dags), request.expression)
+                entities = await _query(app, store, identity, _default_identity_permissions(identity), request.expression)
         except ValueError as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return self.pb2.EntityList(entities=[_entity_message(self.pb2, store, entity) for entity in entities])
@@ -264,9 +274,8 @@ class _EntityService:
                     store.entity_types,
                 )
                 await session.commit()
-            await self._refresh_runtime_snapshot()
             relation_entity = _relation_entity(relation)
-            store, app = _runtime_entity_store(self.daemon)
+            await self._emit_config_changed()
             return _entity_message(self.pb2, store, relation_entity)
         if _database_entity_available(self.daemon, request.type):
             store, app = _runtime_entity_store(self.daemon)
@@ -278,8 +287,7 @@ class _EntityService:
             async with self.daemon.controller._factory()() as session:
                 saved = await _save_database_entity(session, created, store.entity_types[request.type])
                 await session.commit()
-            await self._refresh_runtime_snapshot()
-            store, app = _runtime_entity_store(self.daemon)
+            await self._after_database_entity_write(saved.type)
             await self._emit_entity_changed(store, saved)
             return _entity_message(self.pb2, store, saved)
         store, app = _entity_store(self.daemon.config_dir)
@@ -296,16 +304,16 @@ class _EntityService:
         data = json.loads(request.json or "{}")
         if not isinstance(data, dict) or not isinstance(data.get("field"), str):
             raise ValueError("update json must contain field")
-        async def _save_updated(entity: EntityConfig, session=None) -> EntityConfig:
+        async def _save_updated(entity: EntityConfig, session=None, permissions=None) -> EntityConfig:
             try:
-                _check_write(identity, app, store, entity, data["field"])
+                _check_write(identity, store, entity, data["field"], permissions)
             except PermissionError as exc:
                 await context.abort(grpc.StatusCode.PERMISSION_DENIED, str(exc))
             if entity.type == "relation":
                 await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "relation update is not supported")
             updated = entity.model_copy(update={"attributes": {**entity.attributes, data["field"]: data.get("value")}})
             if not _database_entity_available(self.daemon, entity.type):
-                return store.save(updated, _identity_permissions(identity, app.dags))
+                return store.save(updated, permissions)
             if session is None:
                 raise ConfigError("database session is required")
             _validate_entity_for_store(store, updated, replace=True)
@@ -313,13 +321,13 @@ class _EntityService:
 
         if _controller_started(self.daemon):
             async with self.daemon.controller._factory()() as session:
+                permissions = await _identity_permissions_from_db(session, identity)
                 entity = await _resolve_entity_for_mutation(store, request.id, session)
-                saved = await _save_updated(entity, session)
+                saved = await _save_updated(entity, session, permissions)
                 await session.commit()
-            await self._refresh_runtime_snapshot()
-            store, app = _runtime_entity_store(self.daemon)
+            await self._after_database_entity_write(saved.type)
         else:
-            saved = await _save_updated(store.resolve(request.id))
+            saved = await _save_updated(store.resolve(request.id), permissions=_default_identity_permissions(identity))
         await self._emit_entity_changed(store, saved)
         return _entity_message(self.pb2, store, saved)
 
@@ -351,8 +359,7 @@ class _EntityService:
                 if getattr(deleted, "relations", None):
                     await context.abort(grpc.StatusCode.FAILED_PRECONDITION, _blocking_relations_message(deleted.relations))
                 await context.abort(grpc.StatusCode.NOT_FOUND, f"Entity not found: {request.ref}")
-            await self._refresh_runtime_snapshot()
-            store, app = _runtime_entity_store(self.daemon)
+            await self._after_database_entity_write(entity.type)
             await self._emit_entity_changed(store, entity)
             return self.pb2.DeleteResult(deleted=True)
         entity = store.resolve(request.ref)
@@ -375,7 +382,7 @@ class _EntityService:
             else:
                 result = await import_entities_from_yaml(session, path, store.entity_types)
             await session.commit()
-        await self._refresh_runtime_snapshot()
+        await self._emit_config_changed()
         return json_response(self.pb2, result.__dict__)
 
     async def Export(self, request, context):
@@ -442,7 +449,7 @@ class _EntityService:
                 updated = entity_type.model_copy(update={"materialized_fields": materialized_fields})
                 await upsert_entity_type_record(session, type_name, updated)
                 await session.commit()
-                await self._refresh_runtime_snapshot()
+                await self.daemon.controller.emit("event:config-changed", source="entity-service")
                 result = {**plan.to_dict(), "applied": True}
             elif operation == "cleanup-ready":
                 if not field:
@@ -456,16 +463,15 @@ class _EntityService:
                 raise ValueError(f"unknown materialize operation: {operation}")
         return json_response(self.pb2, result)
 
-    async def _refresh_runtime_snapshot(self) -> None:
-        if not _controller_started(self.daemon) or self.daemon.controller.engine is None:
+    async def _emit_config_changed(self) -> None:
+        await self.daemon.controller.emit("event:config-changed", source="entity-service")
+
+    async def _after_database_entity_write(self, entity_type: str) -> None:
+        if entity_type == "trigger":
+            await self.daemon.controller._reload_triggers()
+            await self._emit_config_changed()
             return
-        if not self.daemon.config_dir.exists():
-            refresh = getattr(self.daemon.controller, "refresh", None)
-            if refresh is not None:
-                await refresh()
-            return
-        config = _load_runtime_base_config(self.daemon.config_dir)
-        await self.daemon.controller.install_snapshot(config, self.daemon.controller.runtime_snapshot().bootstrap)
+        await self._emit_config_changed()
 
     async def _emit_entity_changed(self, store: EntityStore, entity: EntityConfig) -> None:
         await self.daemon.controller.emit(
@@ -507,15 +513,14 @@ class _DagService:
 
     async def Stop(self, request, context):
         await _identity(context)
-        if request.dag_name not in self.daemon.controller.runtime_snapshot().config.dags:
-            await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
+        async with self.daemon.controller._factory()() as session:
+            if await get_dag_config(session, request.dag_name) is None:
+                await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
         run_id = await self.daemon.controller.stop_current(request.dag_name, force=request.force)
         return json_response(self.pb2, {"stopped": run_id is not None, "run_id": run_id})
 
     async def Retry(self, request, context):
         await _identity(context)
-        if request.dag_name not in self.daemon.controller.runtime_snapshot().config.dags:
-            await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
         if not request.node_ids:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "node_ids is required")
         payload = json.loads(request.payload_json) if request.payload_json else None
@@ -556,7 +561,7 @@ class _NodeService:
 
     async def Stop(self, request, context):
         await _identity(context)
-        dag_name = _dag_for_node(self.daemon.controller.runtime_snapshot().config, request.id)
+        dag_name = await self.daemon.controller.active_dag_for_node(request.id)
         if dag_name is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node '{request.id}' not found")
         run_id = await self.daemon.controller.stop_current(dag_name, node_id=request.id)
@@ -564,11 +569,14 @@ class _NodeService:
 
     async def Resume(self, request, context):
         await _identity(context)
-        dag_name = _dag_for_node(self.daemon.controller.runtime_snapshot().config, request.id)
-        if dag_name is None:
-            await context.abort(grpc.StatusCode.NOT_FOUND, f"node '{request.id}' not found")
         if not request.run_id:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "run_id is required")
+        try:
+            dag_name = await self.daemon.controller.dag_for_run_node(request.run_id, request.id)
+        except DagRunNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        if dag_name is None:
+            await context.abort(grpc.StatusCode.NOT_FOUND, f"node '{request.id}' not found")
         payload: dict[str, object] = {"resume_session": f"sandbox:{request.id}:{request.run_id}"}
         if request.prompt:
             payload["prompt"] = request.prompt
@@ -643,7 +651,7 @@ class _SystemService:
     async def CreateRepairTask(self, request, context):
         await _identity(context)
         async with self.daemon.controller._factory()() as session:
-            source = (await source_map_from_store(session, self.daemon.controller.runtime_snapshot().entity_store)).get(request.name)
+            source = (await source_map_from_store(session, self.daemon.controller.entity_store())).get(request.name)
             if source is None:
                 await context.abort(grpc.StatusCode.NOT_FOUND, "source not found")
             health = await source_health_summary(session, [request.name])
@@ -685,8 +693,7 @@ def _entity_store(config_dir: Path) -> tuple[EntityStore, object]:
 
 
 def _runtime_entity_store(daemon: Server) -> tuple[EntityStore, AppConfig]:
-    snapshot = daemon.controller.runtime_snapshot()
-    return snapshot.entity_store, snapshot.config
+    return daemon.controller.entity_store(), daemon.controller.runtime_config()
 
 
 def _active_run_entity_store(daemon: Server, dag_run_id: str | None) -> EntityStore | None:
@@ -805,13 +812,19 @@ def _metadata_identity(context) -> str | None:
     return None
 
 
-def _identity_permissions(identity: str, dags: dict[str, object]) -> dict[str, object] | None:
+def _default_identity_permissions(identity: str) -> dict[str, object] | None:
+    if identity == "human" or identity.startswith("human:") or identity.startswith("bff:"):
+        return None
+    return {}
+
+
+async def _identity_permissions_from_db(session, identity: str) -> dict[str, object] | None:
     if identity == "human" or identity.startswith("human:") or identity.startswith("bff:"):
         return None
     if not identity.startswith("node:"):
         return {}
     node_id = identity.removeprefix("node:")
-    for dag in dags.values():
+    for dag in (await list_dag_configs(session)).values():
         for instance in dag.nodes:
             if instance.id == node_id or instance.alias == node_id or instance.type == node_id:
                 permissions = instance.config.get("entity_permissions")
@@ -819,8 +832,7 @@ def _identity_permissions(identity: str, dags: dict[str, object]) -> dict[str, o
     return {}
 
 
-def _check_write(identity: str, app, store: EntityStore, entity: EntityConfig, field: str) -> None:
-    permissions = _identity_permissions(identity, app.dags)
+def _check_write(identity: str, store: EntityStore, entity: EntityConfig, field: str, permissions: dict[str, object] | None) -> None:
     if permissions is None:
         return
     overrides = permissions.get(entity.type) if isinstance(permissions, dict) else None
@@ -1103,7 +1115,11 @@ def _supported_query_message() -> str:
 
 
 async def _edit_runtime_dag(daemon: Server, dag_name: str, operation: str, payload: dict[str, object]) -> dict[str, object]:
-    dag = daemon.controller.runtime_snapshot().config.dags[dag_name]
+    async with daemon.controller._factory()() as session:
+        dag_entity = await get_dag_entity(session, dag_name)
+    if dag_entity is None:
+        raise KeyError(dag_name)
+    dag = DagConfig.model_validate(dag_entity.attributes)
     attrs = dag.model_dump(mode="json", by_alias=True)
     nodes = attrs.setdefault("nodes", [])
     edges = attrs.setdefault("edges", [])
@@ -1130,23 +1146,37 @@ async def _edit_runtime_dag(daemon: Server, dag_name: str, operation: str, paylo
     else:
         raise ValueError(f"unknown dag edit operation: {operation}")
     dag_config = DagConfig.model_validate(attrs)
-    app = daemon.controller.runtime_snapshot().config
-    validate_sub_dag_nesting({**app.dags, dag_name: dag_config}, app.system.max_dag_depth)
+    app = daemon.controller.runtime_config()
     async with daemon.controller._factory()() as session:
-        await save_core_entity(session, EntityConfig(id=dag_name, type="dag", attributes=dag_config.model_dump(mode="json", by_alias=True)))
+        dags = await _candidate_dag_closure(session, dag_name, dag_config)
+        validate_sub_dag_nesting(dags, app.system.max_dag_depth)
+        await save_core_entity(session, EntityConfig(id=dag_entity.id, type="dag", attributes=dag_config.model_dump(mode="json", by_alias=True)))
         await session.commit()
-    if daemon.controller.engine is None:
-        raise RuntimeError("DAG controller has not been started")
-    config = _load_runtime_base_config(daemon.config_dir)
-    await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
+    await daemon.controller.emit("event:config-changed", source="dag-service")
     return {"updated": True, "dag": dag_name}
 
 
-def _dag_for_node(app: AppConfig, node_id: str) -> str | None:
-    for dag in app.dags.values():
-        if any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes):
-            return dag.name
-    return None
+async def _candidate_dag_closure(session, dag_name: str, root: DagConfig) -> dict[str, DagConfig]:
+    dags: dict[str, DagConfig] = {dag_name: root}
+
+    async def visit(dag: DagConfig) -> None:
+        for instance in dag.nodes:
+            sub_dag_name = instance.dag_ref if instance.type == "dag" and instance.dag_ref else None
+            if sub_dag_name is None and await get_dag_config(session, instance.type) is not None:
+                sub_dag_name = instance.type
+            if sub_dag_name is not None:
+                if sub_dag_name not in dags:
+                    sub_dag = await get_dag_config(session, sub_dag_name)
+                    if sub_dag is None:
+                        raise DagError(f"missing DAG config: {sub_dag_name}")
+                    dags[sub_dag_name] = sub_dag
+                    await visit(sub_dag)
+                continue
+            if await get_node_config(session, instance.type) is None:
+                raise DagError(f"missing node config: {instance.type}")
+
+    await visit(root)
+    return dags
 
 
 def resolve_data_dir(cli_arg: Path | str | None = None) -> Path:

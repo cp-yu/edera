@@ -348,6 +348,8 @@ def _manual_target(event: str) -> str:
     parts = event.split(":", 2)
     if len(parts) != 3 or parts[1] not in {"dag", "node"} or not parts[2]:
         raise ConfigError(f"unsupported manual trigger event: {event}")
+    if parts[1] == "node" and "/" not in parts[2]:
+        raise ConfigError(f"unsupported manual trigger event: {event}")
     return f"{parts[1]}:{parts[2]}"
 
 

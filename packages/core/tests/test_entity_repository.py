@@ -8,9 +8,15 @@ from edera_core.storage.repository import (
     create_ordinary_entity,
     create_relation,
     delete_ordinary_entity,
+    get_dag_config,
+    get_node_config,
     get_ordinary_entity,
+    list_dag_names,
+    list_node_summaries,
+    save_core_entity,
     update_ordinary_entity,
 )
+from edera_core.config.schema import EntityConfig
 
 
 @pytest.mark.asyncio
@@ -69,6 +75,67 @@ async def test_create_entity_rejects_invalid_attributes(tmp_path):
     async with await _session(tmp_path) as session:
         with pytest.raises(ValueError, match="must be string"):
             await create_ordinary_entity(session, "stock", "stock:test", {"code": 123}, entity_types)
+
+
+@pytest.mark.asyncio
+async def test_indexed_core_dag_and_node_reads(tmp_path):
+    async with await _session(tmp_path) as session:
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id="dag:demo",
+                type="dag",
+                attributes={
+                    "name": "demo",
+                    "nodes": [{"id": "n1", "type": "reader"}],
+                    "edges": [],
+                    "ui": {},
+                },
+            ),
+        )
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id="node:reader",
+                type="node",
+                attributes={
+                    "name": "reader",
+                    "type": "function",
+                    "handler": "reader",
+                    "input_type": "Any",
+                    "output_type": "Any",
+                },
+            ),
+        )
+
+        dag = await get_dag_config(session, "demo")
+        node = await get_node_config(session, "reader")
+
+    assert dag is not None and dag.name == "demo"
+    assert node is not None and node.name == "reader"
+
+
+@pytest.mark.asyncio
+async def test_core_dag_and_node_summary_lists(tmp_path):
+    async with await _session(tmp_path) as session:
+        await save_core_entity(
+            session,
+            EntityConfig(id="dag:demo", type="dag", attributes={"name": "demo", "nodes": [], "edges": [], "ui": {}}),
+        )
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id="node:reader",
+                type="node",
+                attributes={"name": "reader", "type": "function", "handler": "reader", "input_type": "Any", "output_type": "Any"},
+            ),
+        )
+
+        dag_names = await list_dag_names(session)
+        node_summaries = await list_node_summaries(session)
+
+    assert dag_names == ["demo"]
+    assert node_summaries == [{"name": "reader", "type": "function"}]
 
 
 def _entity_type(business_id_field: str = "code") -> EntityTypeConfig:

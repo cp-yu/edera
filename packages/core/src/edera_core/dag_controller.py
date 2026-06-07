@@ -18,12 +18,13 @@ from edera_core.config.loader import _load_runtime_base_config, load_system_conf
 from edera_core.config.loader import _default_extensions_dirs
 from edera_core.config.entities import EntityStore
 from edera_core.config.git import commit_config_changes
-from edera_core.config.schema import AppConfig, DagNodeInstance
+from edera_core.config.schema import AppConfig, DagNodeInstance, RuntimeSettings, SystemConfig
 from edera_core.bootstrap import BootstrapResult, create_extension_tables, load_installed_extensions
 from edera_core.migration.migrate_extensions import migrate_existing_extensions
 from edera_core.dag.loader import load_graph
 from edera_core.dag.models import DagGraph
 from edera_core.dag.runner import DagRunner, EdgeInputFact
+from edera_core.errors import DagError
 from edera_core.events import event_bus
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.entities import DagRun
@@ -31,9 +32,13 @@ from edera_core.storage.repository import (
     cleanup_node_output_entities,
     create_dag_run,
     finish_dag_run,
+    get_dag_config,
     get_dag_run,
+    get_node_config,
     latest_finished_dag_run,
+    list_dag_configs,
     list_entity_type_configs,
+    list_skill_configs,
     mark_node_run,
     delete_node_outputs_for_nodes,
     edge_inputs_for_run,
@@ -41,13 +46,14 @@ from edera_core.storage.repository import (
     recent_dag_runs,
     record_log_index,
     restart_dag_run,
+    list_core_entities,
     store_node_output_entities,
     upsert_edge_input,
     upsert_source_recovery,
 )
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeOutput
-from edera_core.snapshot import DagExecutionSnapshot
+from edera_core.snapshot import DagExecutionSnapshot, build_dag_execution_closure
 from edera_core.trigger import CronEmitter, TriggerExecutor
 
 
@@ -83,13 +89,12 @@ class DagRunContext:
 
 
 @dataclass(frozen=True)
-class RuntimeSnapshot:
-    config: AppConfig
-    bootstrap: BootstrapResult
-    entity_store: EntityStore
+class RuntimeControlSnapshot:
+    system: SystemConfig
+    runtime: RuntimeSettings
     trigger_executor: TriggerExecutor
     cron_emitter: CronEmitter
-    extension_table_names: dict[str, dict[str, str]]
+    generation: int = 0
 
 
 class DagController:
@@ -115,8 +120,13 @@ class DagController:
         self.trigger_executor: TriggerExecutor | None = None
         self.cron_emitter: CronEmitter | None = None
         self._cron_task: asyncio.Task[object] | None = None
-        self._snapshot: RuntimeSnapshot | None = None
+        self._snapshot: RuntimeControlSnapshot | None = None
+        self._runtime_config: AppConfig | None = None
+        self._bootstrap: BootstrapResult | None = None
+        self._entity_store: EntityStore | None = None
+        self._extension_table_names: dict[str, dict[str, str]] = {}
         self._snapshot_lock = asyncio.Lock()
+        self._snapshot_generation = 0
 
     async def start(self, run_startup: bool = True) -> None:
         system = load_system_config(self.config_dir / "system.toml")
@@ -192,31 +202,13 @@ class DagController:
             await self.load_bootstrap(),
         )
 
-    async def reload_entity_types(self) -> int:
-        snapshot = self.runtime_snapshot()
-        async with self._factory()() as session:
-            entity_types = await list_entity_type_configs(session)
-        snapshot.config.entity_types.clear()
-        snapshot.config.entity_types.update(entity_types)
-        return len(entity_types)
-
-    async def reload_skills(self) -> int:
-        snapshot = self.runtime_snapshot()
-        async with self._factory()() as session:
-            from edera_core.storage.repository import list_skill_configs
-
-            skills = await list_skill_configs(session)
-        snapshot.config.skills.clear()
-        snapshot.config.skills.update(skills)
-        return len(skills)
-
     async def load_bootstrap(self) -> BootstrapResult:
         if self.factory is None:
             raise RuntimeError("DAG controller has not been started")
         async with self.factory() as session:
             return await load_installed_extensions(session, self.handlers_dir)
 
-    async def install_snapshot(self, config: AppConfig, bootstrap: BootstrapResult) -> RuntimeSnapshot:
+    async def install_snapshot(self, config: AppConfig, bootstrap: BootstrapResult) -> RuntimeControlSnapshot:
         if self.engine is None:
             raise RuntimeError("DAG controller has not been started")
         async with self._snapshot_lock:
@@ -228,26 +220,53 @@ class DagController:
                 config.entity_relations,
                 None,
             )
+            async with self._factory()() as session:
+                store.memory_entities[""] = {
+                    entity.id: entity
+                    for entity in await list_core_entities(session, "trigger")
+                }
             trigger_executor = self._new_trigger_executor(config, store)
             await trigger_executor.load()
             cron_emitter = CronEmitter(trigger_executor)
-            snapshot = RuntimeSnapshot(
-                config=config,
-                bootstrap=bootstrap,
-                entity_store=store,
+            self._snapshot_generation += 1
+            snapshot = RuntimeControlSnapshot(
+                system=config.system,
+                runtime=config.runtime,
                 trigger_executor=trigger_executor,
                 cron_emitter=cron_emitter,
-                extension_table_names=dict(bootstrap.table_names),
+                generation=self._snapshot_generation,
             )
             self._snapshot = snapshot
+            self._runtime_config = config
+            self._bootstrap = bootstrap
+            self._entity_store = store
+            self._extension_table_names = dict(bootstrap.table_names)
             self.trigger_executor = trigger_executor
             self.cron_emitter = cron_emitter
             return snapshot
 
-    def runtime_snapshot(self) -> RuntimeSnapshot:
+    def runtime_snapshot(self) -> RuntimeControlSnapshot:
         if self._snapshot is None:
             raise RuntimeError("DAG controller has not been started")
         return self._snapshot
+
+    def runtime_config(self) -> AppConfig:
+        if self._runtime_config is None:
+            raise RuntimeError("DAG controller has not been started")
+        return self._runtime_config
+
+    def bootstrap_result(self) -> BootstrapResult:
+        if self._bootstrap is None:
+            raise RuntimeError("DAG controller has not been started")
+        return self._bootstrap
+
+    def entity_store(self) -> EntityStore:
+        if self._entity_store is None:
+            raise RuntimeError("DAG controller has not been started")
+        return self._entity_store
+
+    def extension_table_names(self) -> dict[str, dict[str, str]]:
+        return self._extension_table_names
 
     def _new_trigger_executor(self, config: AppConfig, store: EntityStore) -> TriggerExecutor:
         return TriggerExecutor(
@@ -258,34 +277,43 @@ class DagController:
             max_depth=config.system.max_trigger_depth,
         )
 
-    async def run_node_trigger(self, node_id: str, payload: object | None = None, source: str = "manual") -> str:
-        dag_name, _instance = self._node_trigger_target(node_id, self.runtime_snapshot())
+    async def run_node_trigger(self, target: str, payload: object | None = None, source: str = "manual") -> str:
+        dag_name, node_id = _parse_node_trigger_target(target)
+        async with self._factory()() as session:
+            _execution_snapshot, _instance = await self._node_trigger_target(session, dag_name, node_id)
         await self._wait_for_idle(dag_name, payload)
         async with self._locks[dag_name]:
             snapshot = self.runtime_snapshot()
-            dag_name, instance = self._node_trigger_target(node_id, snapshot)
+            async with self._factory()() as session:
+                execution_snapshot, instance = await self._node_trigger_target(session, dag_name, node_id)
             ctx = self.active_runs.get(dag_name)
             if ctx is not None and not ctx.task.done():
                 raise RunAlreadyActiveError(ctx.run_id)
             run_id = uuid4().hex
             stop_event = asyncio.Event()
-            task = asyncio.create_task(self._run_single_node(run_id, source, dag_name, instance, payload, stop_event, snapshot))
+            task = asyncio.create_task(
+                self._run_single_node(
+                    run_id,
+                    source,
+                    dag_name,
+                    instance,
+                    payload,
+                    stop_event,
+                    snapshot,
+                    execution_snapshot=execution_snapshot,
+                )
+            )
             self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, run_id=run_id, task=task, stop_event=stop_event)
         task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
         return run_id
 
-    def _node_trigger_target(self, node_id: str, snapshot: RuntimeSnapshot) -> tuple[str, DagNodeInstance]:
-        matches: list[tuple[str, DagNodeInstance]] = []
-        for dag in snapshot.config.dags.values():
-            for instance in dag.nodes:
-                if instance.id == node_id or instance.alias == node_id:
-                    matches.append((dag.name, instance))
-        if not matches:
-            raise ValueError(f"node '{node_id}' not found")
-        if len(matches) > 1:
-            dag_names = sorted(name for name, _instance in matches)
-            raise ValueError(f"node '{node_id}' is ambiguous across DAGs: {', '.join(dag_names)}")
-        return matches[0]
+    async def _node_trigger_target(self, session, dag_name: str, node_id: str) -> tuple[DagExecutionSnapshot, DagNodeInstance]:
+        execution_snapshot = await self._dag_execution_snapshot(session, dag_name)
+        dag = execution_snapshot.dag_config
+        for instance in dag.nodes:
+            if instance.id == node_id or instance.alias == node_id:
+                return execution_snapshot, instance
+        raise ValueError(f"node '{node_id}' not found in DAG '{dag_name}'")
 
     def pause_scheduler(self) -> None:
         self.scheduler.pause()
@@ -309,6 +337,24 @@ class DagController:
             pass
         return ctx.run_id
 
+    async def active_dag_for_node(self, node_id: str) -> str | None:
+        active = [ctx.dag_name for ctx in self.active_runs.values() if not ctx.task.done()]
+        if not active:
+            return None
+        async with self._factory()() as session:
+            for dag_name in active:
+                if _dag_has_node(await get_dag_config(session, dag_name), node_id):
+                    return dag_name
+        return None
+
+    async def dag_for_run_node(self, run_id: str, node_id: str) -> str | None:
+        async with self._factory()() as session:
+            run = await get_dag_run(session, run_id)
+            if run is None:
+                raise DagRunNotFoundError(run_id)
+            dag = await get_dag_config(session, run.dag_name)
+        return run.dag_name if _dag_has_node(dag, node_id) else None
+
     async def retry_node(
         self,
         dag_name: str,
@@ -326,8 +372,9 @@ class DagController:
             if ctx is not None and not ctx.task.done():
                 raise RunAlreadyActiveError(ctx.run_id)
             snapshot = self.runtime_snapshot()
-            config = snapshot.config
-            graph = load_graph(config.dags[dag_name], config.nodes)
+            async with self._factory()() as session:
+                execution_snapshot = await self._dag_execution_snapshot(session, dag_name)
+            graph = load_graph(execution_snapshot.dag_config, execution_snapshot.node_configs, execution_snapshot.dag_closure.dags)
             missing = [node_id for node_id in node_ids if node_id not in graph.instances]
             if missing:
                 raise ValueError(f"node_ids contain unknown nodes: {', '.join(missing)}")
@@ -352,6 +399,7 @@ class DagController:
                     prefilled_outputs=prefilled,
                     payload=payload,
                     snapshot=snapshot,
+                    execution_snapshot=execution_snapshot,
                 )
             )
             self.active_runs[dag_name] = DagRunContext(
@@ -375,8 +423,9 @@ class DagController:
             if ctx is not None and not ctx.task.done():
                 raise RunAlreadyActiveError(ctx.run_id)
             snapshot = self.runtime_snapshot()
-            config = snapshot.config
-            graph = load_graph(config.dags[dag_name], config.nodes)
+            async with self._factory()() as session:
+                execution_snapshot = await self._dag_execution_snapshot(session, dag_name)
+            graph = load_graph(execution_snapshot.dag_config, execution_snapshot.node_configs, execution_snapshot.dag_closure.dags)
             if node_id not in graph.instances:
                 raise ValueError(f"node '{node_id}' not found")
             original = await self._dag_run(run_id)
@@ -398,6 +447,7 @@ class DagController:
                     payload=payload,
                     replace_existing_run=True,
                     snapshot=snapshot,
+                    execution_snapshot=execution_snapshot,
                 )
             )
             self.active_runs[dag_name] = DagRunContext(
@@ -433,14 +483,14 @@ class DagController:
         }
 
     async def node_status(self, node_id: str) -> str:
-        for ctx in self.active_runs.values():
-            if not ctx.task.done() and _dag_has_node(self.runtime_snapshot().config, ctx.dag_name, node_id):
-                return "running"
-        config = self.runtime_snapshot().config
         factory = self._factory()
         async with factory() as session:
-            for dag in config.dags.values():
-                if not any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes):
+            dags = await list_dag_configs(session)
+            for ctx in self.active_runs.values():
+                if not ctx.task.done() and _dag_has_node(dags.get(ctx.dag_name), node_id):
+                    return "running"
+            for dag in dags.values():
+                if not _dag_has_node(dag, node_id):
                     continue
                 recent = await recent_dag_runs(session, 1, dag.name)
                 if recent and recent[0].status == "failed":
@@ -455,11 +505,25 @@ class DagController:
                 await self.cron_emitter.tick()
 
     async def _wait_for_idle(self, dag_name: str, payload: object | None) -> None:
-        target = _wait_for_idle_target(self.runtime_snapshot().config, dag_name, payload)
+        factory = self._factory()
+        async with factory() as session:
+            dag = await get_dag_config(session, dag_name)
+        target = _wait_for_idle_target(dag, payload)
         if target is None:
             return
-        while any(not ctx.task.done() and _dag_has_node(self.runtime_snapshot().config, ctx.dag_name, target) for ctx in self.active_runs.values()):
+        while await self._active_dag_has_node(target):
             await asyncio.sleep(0.1)
+
+    async def _active_dag_has_node(self, node_id: str) -> bool:
+        active_dag_names = [ctx.dag_name for ctx in self.active_runs.values() if not ctx.task.done()]
+        if not active_dag_names:
+            return False
+        async with self._factory()() as session:
+            for dag_name in active_dag_names:
+                dag = await get_dag_config(session, dag_name)
+                if _dag_has_node(dag, node_id):
+                    return True
+        return False
 
     def _start_run_locked(self, source: str, dag_name: str, payload: object | None = None) -> tuple[str, asyncio.Task[object]]:
         ctx = self.active_runs.get(dag_name)
@@ -492,12 +556,16 @@ class DagController:
         prefilled_outputs: dict[str, NodeOutput] | None = None,
         payload: object | None = None,
         replace_existing_run: bool = False,
-        snapshot: RuntimeSnapshot | None = None,
+        snapshot: RuntimeControlSnapshot | None = None,
+        execution_snapshot: DagExecutionSnapshot | None = None,
     ) -> object:
         snapshot = snapshot or self.runtime_snapshot()
-        config = snapshot.config
-        graph = load_graph(config.dags[dag_name], config.nodes)
+        config = self.runtime_config()
         factory = self._factory()
+        if execution_snapshot is None:
+            async with factory() as session:
+                execution_snapshot = await self._dag_execution_snapshot(session, dag_name)
+        graph = load_graph(execution_snapshot.dag_config, execution_snapshot.node_configs, execution_snapshot.dag_closure.dags)
         run_store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
         run_store.default_dag_run_id = run_id
         executor: NodeExecutor | None = None
@@ -513,7 +581,7 @@ class DagController:
         try:
             async with factory() as session:
                 await run_store.preload_for_dag(run_id, _run_entity_refs(config, graph, payload), session)
-                executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store)
+                executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store, execution_snapshot=execution_snapshot)
                 ctx = self.active_runs.get(dag_name)
                 if ctx is not None and ctx.run_id == run_id:
                     ctx.executor = executor
@@ -528,8 +596,8 @@ class DagController:
                         child_run_id, source, child_dag_name, status, error
                     ),
                     trigger_executor=snapshot.trigger_executor,
-                    dags=config.dags,
-                    nodes=config.nodes,
+                    dags=execution_snapshot.dag_closure.dags,
+                    nodes=execution_snapshot.node_configs,
                 ).run(
                     graph,
                     run_id,
@@ -550,7 +618,7 @@ class DagController:
                     config.system.retention_count,
                     config.system.retention_hours,
                 )
-            _cleanup_sandboxes(config)
+            _cleanup_sandboxes(config.system, execution_snapshot.dag_closure.dags.values())
             error = "; ".join(
                 f"{node}: {message}"
                 for node, message in result.failures.items()
@@ -581,10 +649,15 @@ class DagController:
         instance: DagNodeInstance,
         payload: object | None,
         stop_event: asyncio.Event,
-        snapshot: RuntimeSnapshot | None = None,
+        snapshot: RuntimeControlSnapshot | None = None,
+        execution_snapshot: DagExecutionSnapshot | None = None,
     ) -> object:
         snapshot = snapshot or self.runtime_snapshot()
-        config = snapshot.config
+        config = self.runtime_config()
+        factory = self._factory()
+        if execution_snapshot is None:
+            async with factory() as session:
+                execution_snapshot = await self._dag_execution_snapshot(session, dag_name)
         graph = DagGraph(
             dag_name,
             [instance.id],
@@ -592,7 +665,6 @@ class DagController:
             {instance.id: []},
             {instance.id: []},
         )
-        factory = self._factory()
         run_store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
         run_store.default_dag_run_id = run_id
         executor: NodeExecutor | None = None
@@ -603,7 +675,7 @@ class DagController:
         try:
             async with factory() as session:
                 await run_store.preload_for_dag(run_id, _run_entity_refs(config, graph, payload), session)
-                executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store)
+                executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store, execution_snapshot=execution_snapshot)
                 ctx = self.active_runs.get(dag_name)
                 if ctx is not None and ctx.run_id == run_id:
                     ctx.executor = executor
@@ -617,8 +689,8 @@ class DagController:
                         child_run_id, source, child_dag_name, status, error
                     ),
                     trigger_executor=snapshot.trigger_executor,
-                    dags=config.dags,
-                    nodes=config.nodes,
+                    dags=execution_snapshot.dag_closure.dags,
+                    nodes=execution_snapshot.node_configs,
                 ).run(
                     graph,
                     run_id,
@@ -803,24 +875,20 @@ class DagController:
 
     async def _build_run_executor(
         self,
-        snapshot: RuntimeSnapshot,
+        snapshot: RuntimeControlSnapshot,
         graph,
         session,
         entity_store: EntityStore | None = None,
+        execution_snapshot: DagExecutionSnapshot | None = None,
     ) -> NodeExecutor:
+        execution_snapshot = execution_snapshot or await self._dag_execution_snapshot(session, graph.name)
         return _build_executor(
-            snapshot.config,
-            await DagExecutionSnapshot.create(
-                snapshot.config.dags[graph.name],
-                snapshot.config.nodes,
-                snapshot.config.entity_types,
-                session,
-                self.handlers_dir,
-            ),
+            self.runtime_config(),
+            execution_snapshot,
             graph.instances,
             self.config_dir,
             entity_store=entity_store,
-            extension_tables=snapshot.extension_table_names,
+            extension_tables=execution_snapshot.extension_table_names,
             output_recorder=lambda output_run_id, node_id, entity_type, payload, session_id: self._record_node_output(
                 output_run_id, node_id, entity_type, payload, session_id
             ),
@@ -834,11 +902,22 @@ class DagController:
                 output_run_id, node_id, path, digest, size
             ),
             execution_summary_recorder=lambda output_run_id, node_id, summary: self._record_execution_summary(
-                output_run_id, node_id, summary, snapshot.config.system.workspace_root
+                output_run_id, node_id, summary, self.runtime_config().system.workspace_root
             ),
             agent_certificate_issuer=self.agent_certificate_issuer,
             daemon_data_dir=self.daemon_data_dir,
             source_recovery_recorder=self._record_source_recovery,
+        )
+
+    async def _dag_execution_snapshot(self, session, dag_name: str) -> DagExecutionSnapshot:
+        closure = await _load_dag_execution_closure(session, dag_name)
+        return await DagExecutionSnapshot.from_closure(
+            closure,
+            await list_entity_type_configs(session),
+            session,
+            self.handlers_dir,
+            self.extension_table_names(),
+            await list_skill_configs(session),
         )
 
 
@@ -847,22 +926,21 @@ def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str
         controller = DagController(config_dir)
         await controller.start(run_startup=False)
         try:
-            snapshot = controller.runtime_snapshot()
-            graph = load_graph(snapshot.config.dags["default"], snapshot.config.nodes)
+            config = controller.runtime_config()
             async with controller._factory()() as session:
+                execution_snapshot = await controller._dag_execution_snapshot(session, "default")
+                graph = load_graph(
+                    execution_snapshot.dag_config,
+                    execution_snapshot.node_configs,
+                    execution_snapshot.dag_closure.dags,
+                )
                 return (
                     _build_executor(
-                        snapshot.config,
-                    await DagExecutionSnapshot.create(
-                        snapshot.config.dags["default"],
-                            snapshot.config.nodes,
-                            snapshot.config.entity_types,
-                            session,
-                            controller.handlers_dir,
-                        ),
+                        config,
+                        execution_snapshot,
                         graph.instances,
                         config_dir=config_dir,
-                        extension_tables=snapshot.extension_table_names,
+                        extension_tables=controller.extension_table_names(),
                     ),
                     "default",
                 )
@@ -935,6 +1013,34 @@ async def _record_summary_log(
         await session.commit()
 
 
+async def _load_dag_execution_closure(session, root_dag_name: str):
+    dags = {}
+    nodes = {}
+
+    async def visit(dag_name: str) -> None:
+        if dag_name in dags:
+            return
+        dag = await get_dag_config(session, dag_name)
+        if dag is None:
+            raise DagError(f"missing DAG config: {dag_name}")
+        dags[dag_name] = dag
+        for instance in dag.nodes:
+            sub_dag_name = instance.dag_ref if instance.type == "dag" and instance.dag_ref else None
+            if sub_dag_name is None and await get_dag_config(session, instance.type) is not None:
+                sub_dag_name = instance.type
+            if sub_dag_name is not None:
+                await visit(sub_dag_name)
+                continue
+            if instance.type in nodes:
+                continue
+            node = await get_node_config(session, instance.type)
+            if node is not None:
+                nodes[instance.type] = node
+
+    await visit(root_dag_name)
+    return build_dag_execution_closure(root_dag_name, dags, nodes)
+
+
 def _build_executor(
     app_config: AppConfig,
     execution_snapshot: DagExecutionSnapshot,
@@ -959,7 +1065,7 @@ def _build_executor(
     entity_store.system = app_config.system
     entity_store.runtime = app_config.runtime
     return NodeExecutor(
-        app_config.nodes,
+        execution_snapshot.node_configs,
         app_config.system,
         app_config.runtime,
         execution_snapshot,
@@ -1093,15 +1199,13 @@ def _graph_ordered_nodes(graph, node_ids: set[str]) -> list[str]:
     return [node_id for node_id in graph.nodes if node_id in node_ids]
 
 
-def _dag_has_node(config: AppConfig, dag_name: str, node_id: str) -> bool:
-    dag = config.dags.get(dag_name)
+def _dag_has_node(dag, node_id: str) -> bool:
     if dag is None:
         return False
     return any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes)
 
 
-def _wait_for_idle_target(config: AppConfig, dag_name: str, payload: object | None) -> str | None:
-    dag = config.dags.get(dag_name)
+def _wait_for_idle_target(dag, payload: object | None) -> str | None:
     if dag is None:
         return None
     wait_for = dag.ui.get("wait_for")
@@ -1113,17 +1217,24 @@ def _wait_for_idle_target(config: AppConfig, dag_name: str, payload: object | No
     return target if isinstance(target, str) and target else None
 
 
-def _cleanup_sandboxes(config: AppConfig) -> None:
+def _parse_node_trigger_target(target: str) -> tuple[str, str]:
+    dag_name, separator, node_id = target.partition("/")
+    if not separator or not dag_name or not node_id:
+        raise ValueError("node trigger target must be '<dag_name>/<node_id>'")
+    return dag_name, node_id
+
+
+def _cleanup_sandboxes(system: SystemConfig, dags) -> None:
     try:
         from extensions._lib.llm import cleanup_sandboxes
     except ImportError:
         return
-    cleanup_sandboxes(config.system, _referenced_sandboxes(config))
+    cleanup_sandboxes(system, _referenced_sandboxes(dags))
 
 
-def _referenced_sandboxes(config: AppConfig) -> set[str]:
+def _referenced_sandboxes(dags) -> set[str]:
     refs: set[str] = set()
-    for dag in config.dags.values():
+    for dag in dags:
         for instance in dag.nodes:
             value = instance.config.get("session_dir")
             if isinstance(value, str) and value.startswith("sandbox:") and not value.endswith(":latest"):

@@ -234,9 +234,6 @@ relations:
   - from: cap.operations.node-executor
     type: depends_on
     to: cap.core.dag-execution-snapshot
-  - from: cap.core.runtime-entity-type-reload
-    type: depends_on
-    to: cap.core.extension-manifest-system
   - from: cap.core.ordinary-entity-database-storage
     type: depends_on
     to: cap.core.db-backed-core-entities

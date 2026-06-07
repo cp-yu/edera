@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from edera_core.config.schema import EntityConfig, EntityTypeConfig, entity_ref
+from edera_core.config.schema import DagConfig, EntityConfig, EntityTypeConfig, NodeConfig, entity_ref
 from edera_core.config.schema import SkillConfig
 from edera_core.storage.materialization import (
     decode_value,
@@ -100,6 +100,36 @@ async def list_entity_type_configs(session: AsyncSession) -> dict[str, EntityTyp
     return {record.name: entity_type_record_to_config(record) for record in result.all()}
 
 
+async def get_entity_type_config(session: AsyncSession, name: str) -> EntityTypeConfig | None:
+    result = await session.exec(select(EntityTypeRecord).where(EntityTypeRecord.name == name))
+    record = result.first()
+    return entity_type_record_to_config(record) if record is not None else None
+
+
+async def delete_entity_type_record(session: AsyncSession, name: str) -> bool:
+    result = await session.exec(select(EntityTypeRecord).where(EntityTypeRecord.name == name))
+    record = result.first()
+    if record is None:
+        return False
+    await session.delete(record)
+    await session.flush()
+    return True
+
+
+async def count_entities_for_type(session: AsyncSession, name: str, entity_type: EntityTypeConfig) -> int:
+    if name in CORE_ENTITY_TABLES:
+        result = await session.exec(text(f"SELECT COUNT(*) FROM {CORE_ENTITY_TABLES[name]}"))
+        return int(result.one()[0])
+    if entity_type.storage_tier != "database":
+        return 0
+    table = identifier(entity_type.table_name or entity_table_name(name))
+    exists = await session.exec(text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name"), params={"name": table})
+    if exists.first() is None:
+        return 0
+    result = await session.exec(text(f"SELECT COUNT(*) FROM {table}"))
+    return int(result.one()[0])
+
+
 def entity_type_record_to_config(record: EntityTypeRecord) -> EntityTypeConfig:
     return EntityTypeConfig.model_validate(
         {
@@ -146,6 +176,44 @@ async def list_core_entities(session: AsyncSession, entity_type: str | None = No
     for core_type in CORE_ENTITY_TABLES:
         entities.extend(await list_core_entities(session, core_type))
     return entities
+
+
+async def get_dag_config(session: AsyncSession, name: str) -> DagConfig | None:
+    result = await session.exec(select(CoreEntityDag).where(CoreEntityDag.name == name))
+    row = result.first()
+    return _dag_config(row) if row is not None else None
+
+
+async def get_dag_entity(session: AsyncSession, name: str) -> EntityConfig | None:
+    result = await session.exec(select(CoreEntityDag).where(CoreEntityDag.name == name))
+    row = result.first()
+    return core_dag_to_entity(row) if row is not None else None
+
+
+async def get_node_config(session: AsyncSession, name: str) -> NodeConfig | None:
+    result = await session.exec(select(CoreEntityNode).where(CoreEntityNode.name == name))
+    row = result.first()
+    return _node_config(row) if row is not None else None
+
+
+async def list_dag_names(session: AsyncSession) -> list[str]:
+    result = await session.exec(select(CoreEntityDag.name).order_by(col(CoreEntityDag.name)))
+    return list(result.all())
+
+
+async def list_node_summaries(session: AsyncSession) -> list[dict[str, str]]:
+    result = await session.exec(select(CoreEntityNode).order_by(col(CoreEntityNode.name)))
+    return [{"name": row.name, "type": row.node_type} for row in result.all()]
+
+
+async def list_dag_configs(session: AsyncSession) -> dict[str, DagConfig]:
+    result = await session.exec(select(CoreEntityDag).order_by(col(CoreEntityDag.name)))
+    return {row.name: _dag_config(row) for row in result.all()}
+
+
+async def list_node_configs(session: AsyncSession) -> dict[str, NodeConfig]:
+    result = await session.exec(select(CoreEntityNode).order_by(col(CoreEntityNode.name)))
+    return {row.name: _node_config(row) for row in result.all()}
 
 
 async def get_core_entity(
@@ -799,10 +867,20 @@ def core_node_to_entity(row: CoreEntityNode) -> EntityConfig:
     return EntityConfig(id=row.entity_id, type="node", attributes=attrs)
 
 
+def _node_config(row: CoreEntityNode) -> NodeConfig:
+    attrs = core_node_to_entity(row).attributes
+    return NodeConfig.model_validate(attrs)
+
+
 def core_dag_to_entity(row: CoreEntityDag) -> EntityConfig:
     attrs = dict(row.attributes_json)
     attrs.update({"name": row.name, "inputs": row.inputs, "nodes": row.nodes, "edges": row.edges, "ui": row.ui})
     return EntityConfig(id=row.entity_id, type="dag", attributes=attrs)
+
+
+def _dag_config(row: CoreEntityDag) -> DagConfig:
+    attrs = core_dag_to_entity(row).attributes
+    return DagConfig.model_validate(attrs)
 
 
 def core_trigger_to_entity(row: CoreEntityTrigger) -> EntityConfig:

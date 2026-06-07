@@ -95,7 +95,7 @@ class NodeExecutor:
         self.execution_summary_recorder = execution_summary_recorder
         self.dag_executor = dag_executor
         self.agent_certificate_issuer = agent_certificate_issuer
-        self.extension_tables = extension_tables or {}
+        self.extension_tables = dict(snapshot.extension_table_names)
         self.daemon_data_dir = daemon_data_dir
         self.source_recovery_recorder = source_recovery_recorder
         self.wait_payload_reader = wait_payload_reader
@@ -290,7 +290,7 @@ class NodeExecutor:
         effective = _apply_agent_instance_config(config, instance)
         session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.run_id)
         session_dir.mkdir(parents=True, exist_ok=True)
-        generate_skill_files(session_dir, list(self.snapshot.config.skills.values()))
+        generate_skill_files(session_dir, list(self.snapshot.skills.values()))
         runtime_context = _agent_runtime_context(node_input, context)
         (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]

@@ -6,6 +6,7 @@ import pytest
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.schema import EntitiesConfig, EntityRelationsConfig, EntityTypeConfig
+from edera_core.errors import ConfigError
 from edera_core.trigger import TriggerExecutor
 
 
@@ -46,6 +47,29 @@ async def test_emit_both_drives_trigger_and_waiter() -> None:
     assert result == ["dag:default"]
     assert fired == ["dag:default:payload"]
     assert future.result() == "payload"
+
+
+@pytest.mark.asyncio
+async def test_manual_node_emit_requires_dag_scope() -> None:
+    executor = TriggerExecutor(_store())
+
+    with pytest.raises(ConfigError, match="unsupported manual trigger event"):
+        await executor.emit("manual:node:n1")
+
+
+@pytest.mark.asyncio
+async def test_manual_node_emit_fires_dag_scoped_target() -> None:
+    fired: list[tuple[str, object | None, str]] = []
+
+    async def run_node(name: str, payload: object | None, source: str) -> None:
+        fired.append((name, payload, source))
+
+    executor = TriggerExecutor(_store(), run_node=run_node)
+
+    result = await executor.emit("manual:node:demo/n1", {"x": 1})
+
+    assert result == ["node:demo/n1"]
+    assert fired == [("demo/n1", {"x": 1}, "manual")]
 
 
 def _store(trigger: bool = False) -> EntityStore:

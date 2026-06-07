@@ -32,6 +32,7 @@ from edera_core.storage.repository import (
     recent_dag_runs,
     source_execution_logs,
     source_health_summary,
+    get_dag_config,
 )
 
 
@@ -122,14 +123,14 @@ class _QueryService:
 
     async def SourceHealth(self, request, context):
         async with self.daemon.controller._factory()() as session:
-            source_names = list((await source_map_from_store(session, self.daemon.controller.runtime_snapshot().entity_store)).keys())
+            source_names = list((await source_map_from_store(session, self.daemon.controller.entity_store())).keys())
             health = await source_health_summary(session, source_names)
             logs = await source_execution_logs(session, source_names=source_names)
         return json_response(self.pb2, {"sources": health, "logs": logs})
 
     async def SourceLogs(self, request, context):
         async with self.daemon.controller._factory()() as session:
-            source_names = list((await source_map_from_store(session, self.daemon.controller.runtime_snapshot().entity_store)).keys())
+            source_names = list((await source_map_from_store(session, self.daemon.controller.entity_store())).keys())
             logs = await source_execution_logs(session, request.source_name or None, limit(request.limit), source_names)
         return json_response(self.pb2, {"logs": logs})
 
@@ -154,10 +155,11 @@ class _QueryService:
         return json_response(self.pb2, {"logs": [item.model_dump(mode="json") for item in logs]})
 
     async def NodeHistory(self, request, context):
-        if request.dag_name not in self.daemon.controller.runtime_snapshot().config.dags:
-            await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
         async with self.daemon.controller._factory()() as session:
+            dag_exists = await get_dag_config(session, request.dag_name) is not None
             recent = await recent_dag_runs(session, limit(request.limit), request.dag_name)
+            if not dag_exists and not recent:
+                await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.dag_name}' not found")
             history = []
             for run in recent:
                 runs = [item for item in await node_runs_for_run(session, run.run_id) if item.node_name == request.node_id]
