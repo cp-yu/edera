@@ -130,7 +130,7 @@ class DagController:
 
     async def start(self, run_startup: bool = True) -> None:
         system = load_system_config(self.config_dir / "system.toml")
-        self.engine = create_engine(system.database_url)
+        self.engine = create_engine(_daemon_database_url(system.database_url, self.daemon_data_dir))
         await init_db(self.engine)
         config = _load_runtime_base_config(self.config_dir)
         self.factory = session_factory(self.engine)
@@ -1215,6 +1215,20 @@ def _wait_for_idle_target(dag, payload: object | None) -> str | None:
     if target == "$payload.target" and isinstance(payload, dict):
         target = payload.get("target")
     return target if isinstance(target, str) and target else None
+
+
+def _daemon_database_url(database_url: str, data_dir: Path | None) -> str:
+    if data_dir is None:
+        return database_url
+    prefix = "sqlite+aiosqlite:///"
+    if not database_url.startswith(prefix):
+        return database_url
+    path = database_url.removeprefix(prefix)
+    if not path or path == ":memory:" or Path(path).is_absolute():
+        return database_url
+    db_path = data_dir / path
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"{prefix}{db_path}"
 
 
 def _parse_node_trigger_target(target: str) -> tuple[str, str]:

@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from edera_core.cert import CertificateAuthority
 from edera_core.config.schema import AgentNodeConfig, DagConfig, DagNodeConfig, FunctionNodeConfig, NodeConfig
+from edera_core.dag_controller import _daemon_database_url
 from edera_core.dag.loader import load_graph
 from edera_core.dag.runner import DagRunner
 from edera_core.server import Server, _DagService, _NodeService, _SystemService, ensure_ca, ensure_server_cert, resolve_data_dir
@@ -195,6 +196,12 @@ def test_daemon_data_dir_env_priority(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resolve_data_dir(None) == Path("/tmp/test-edera-data")
 
 
+def test_daemon_database_url_resolves_relative_sqlite_under_data_dir(tmp_path: Path) -> None:
+    assert _daemon_database_url("sqlite+aiosqlite:///data/edera.db", tmp_path) == f"sqlite+aiosqlite:///{tmp_path / 'data/edera.db'}"
+    assert _daemon_database_url(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}", tmp_path) == f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}"
+    assert _daemon_database_url("postgresql+asyncpg://db/edera", tmp_path) == "postgresql+asyncpg://db/edera"
+
+
 def test_daemon_ca_and_server_cert_generation(tmp_path: Path) -> None:
     ensure_ca(tmp_path)
     ensure_server_cert(tmp_path, "localhost")
@@ -298,6 +305,51 @@ async def test_daemon_bootstrap_issues_client_cert_for_mtls_port(tmp_path: Path,
         assert (await client.dag_status("default"))["dag_name"] == "default"
     finally:
         await client.close()
+        await daemon.stop()
+
+
+@pytest.mark.asyncio
+async def test_production_single_host_server_client_and_bff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from edera_core.web.__main__ import _bff_grpc_client
+
+    config_dir = _minimal_config(tmp_path)
+    (config_dir / "dags" / "default.yaml").write_text("name: default\nnodes: []\nedges: []\n", encoding="utf-8")
+    data_dir = tmp_path / "edera"
+    monkeypatch.setenv("EDERA_DATA_DIR", str(data_dir))
+    monkeypatch.delenv("EDERA_DEV", raising=False)
+    daemon = Server(data_dir, "127.0.0.1:0", config_dir)
+    await daemon.start()
+    try:
+        assert json.loads((data_dir / "bootstrap.json").read_text(encoding="utf-8")) == {
+            "host": "127.0.0.1",
+            "port": daemon.bootstrap_bound_port,
+        }
+        bootstrap = GrpcClient(f"127.0.0.1:{daemon.bootstrap_bound_port}", force_insecure=True)
+        try:
+            certs = await bootstrap.init_client("human:test")
+        finally:
+            await bootstrap.close()
+        client = GrpcClient(
+            f"127.0.0.1:{daemon.bound_port}",
+            client_cert_pem=certs["client_cert_pem"],
+            client_key_pem=certs["client_key_pem"],
+            ca_cert_pem=certs["ca_cert_pem"],
+        )
+        try:
+            assert await client.health() == {"ok": True}
+        finally:
+            await client.close()
+
+        monkeypatch.setenv("EDERA_SERVER_ADDR", f"127.0.0.1:{daemon.bound_port}")
+        bff_client = await _bff_grpc_client()
+        try:
+            assert await bff_client.health() == {"ok": True}
+        finally:
+            await bff_client.close()
+    finally:
         await daemon.stop()
 
 
