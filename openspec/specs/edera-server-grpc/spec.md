@@ -123,7 +123,7 @@ Server 启动 agent 节点前，SHALL 使用内部 CA 签发短期 client cert�
 - **AND** SHALL 通过 gRPC 响应返回 cert/key/ca PEM 文本
 
 ### Requirement: Bootstrap 端口硬绑 localhost
-`edera-server` 的 bootstrap bind 地址 SHALL 硬绑 `127.0.0.1`，MUST NOT 接受任何 env 或 flag 配置外暴露。Bootstrap port SHALL 默认从 `9091` 开始有界退避到首个可用端口。Server SHALL 将实际绑定的本机 bootstrap endpoint 写入 `EDERA_DATA_DIR/bootstrap.json`，供同机 BFF 读取。远程客户端首次拿 cert 必须按实际端口建立 SSH 隧道。
+`edera-server` 的 bootstrap bind 地址 SHALL 硬绑 `127.0.0.1`，MUST NOT 接受任何 env 或 flag 配置外暴露。Bootstrap port SHALL 默认从 `9091` 开始有界退避到首个可用端口。Server SHALL 将实际绑定的本机 bootstrap endpoint 写入 `EDERA_DATA_DIR/bootstrap.json`，供同机 BFF 读取。远程客户端首次拿 cert 必须按实际端口建立 SSH 隧道。Bootstrap 端口 fallback 行为 SHALL 可在不构建 legacy registry fake 的情况下独立验证。
 
 #### Scenario: Bootstrap 监听限制
 - **WHEN** `edera-server` 启动

@@ -256,12 +256,16 @@ capabilities:
 
 ### Requirement: Entity YAML 文件工作流
 
-`edera entity` SHALL 支持完整 Entity 文档格式的 YAML import、export 和 template 命令。CLI 数据操作 MUST 通过 gRPC 调用 `edera-server`，MUST NOT 直接读取运行时配置目录作为 source of truth。
+`edera entity` SHALL 支持完整 Entity 文档格式的 YAML import、export 和 template 命令。CLI 数据操作 MUST 通过 gRPC 调用 `edera-server`，MUST NOT 直接读取运行时配置目录作为 source of truth。`edera entity import --file` SHALL 调用 entity import RPC，而不是退化为本地 YAML 校验后调用 create RPC。
 
 #### Scenario: Import entity from YAML file
 - **WHEN** 用户执行 `edera entity import --file node.yaml`
-- **THEN** CLI SHALL 通过 gRPC 将完整 Entity 文档提交给 server
+- **THEN** CLI SHALL 通过 `GrpcClient.entity_import` 将完整 Entity 文档提交给 server
 - **AND** server SHALL 将 Entity 写入对应 DB table
+
+#### Scenario: Imported entity is queryable
+- **WHEN** 用户先通过 `edera entity import --file stock.yaml` 显式导入 `stock:TEST`
+- **THEN** 后续 `edera entity query "type=stock"` SHALL 通过 gRPC 返回该显式导入的 Entity
 
 #### Scenario: Export entity to YAML file
 - **WHEN** 用户执行 `edera entity export node:reader --file node.yaml`
@@ -318,4 +322,3 @@ capabilities:
 
 - **WHEN** 用户执行 `edera extension --help`
 - **THEN** 系统 SHALL 输出可用子命令列表（list、show、install、uninstall、reactivate、import、export、export-entities）
-

@@ -294,6 +294,9 @@ def _inject_human_cert_env() -> None:
 
 async def _grpc_entity(args: argparse.Namespace) -> object:
     import_path = _arg_path(args) if args.entity_command == "import" else None
+    normalized_import_path = import_path
+    if import_path is not None and getattr(args, "type", None) != "relation":
+        normalized_import_path = _normalized_entity_import_yaml(import_path)
     client = GrpcClient(args.server, identity=args.identity)
     try:
         if args.entity_command in {"get", "show"}:
@@ -306,7 +309,7 @@ async def _grpc_entity(args: argparse.Namespace) -> object:
                 raise ValueError("attributes must be a JSON object")
             return await client.entity_create(args.type, attributes, entity_id=args.id)
         if args.entity_command == "import":
-            return await client.entity_import(str(import_path), getattr(args, "type", None))
+            return await client.entity_import(str(normalized_import_path), getattr(args, "type", None))
         if args.entity_command == "export":
             if args.ref:
                 entity = await client.entity_get(args.ref)
@@ -876,6 +879,33 @@ def _parse_filter(value: str) -> tuple[str, str]:
 def _write_entity_yaml(path: Path, document: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(document, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+
+def _normalized_entity_import_yaml(path: Path) -> Path:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        raise ValueError("entity YAML must be an object")
+    if "entities" in payload:
+        entities = payload["entities"]
+        if not isinstance(entities, list):
+            raise ValueError("entity YAML entities must be a list")
+        for item in entities:
+            _validate_entity_document(item)
+        return path
+    _validate_entity_document(payload)
+    handle = tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".yaml", delete=False)
+    with handle:
+        yaml.safe_dump({"entities": [payload]}, handle, allow_unicode=True, sort_keys=False)
+    return Path(handle.name)
+
+
+def _validate_entity_document(document: object) -> None:
+    if not isinstance(document, dict):
+        raise ValueError("entity YAML item must be an object")
+    if not document.get("type"):
+        raise ValueError("entity YAML requires non-empty type")
+    if not isinstance(document.get("attributes"), dict):
+        raise ValueError("entity YAML requires attributes object")
 
 
 def _entity_document(entity: dict[str, object]) -> dict[str, object]:

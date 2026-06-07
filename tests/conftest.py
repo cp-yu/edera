@@ -52,6 +52,7 @@ def _minimal_config(root: Path) -> Path:
         "display_name: Stock\n"
         "business_id_field: code\n"
         "display_template: '{code}'\n"
+        "storage_tier: database\n"
         "schema:\n"
         "  type: object\n"
         "  required: [code, name]\n"
