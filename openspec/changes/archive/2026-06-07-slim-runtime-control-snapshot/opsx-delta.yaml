@@ -1,0 +1,50 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.config-hot-reload
+      type: capability
+      intent: 配置热加载只重建 committed RuntimeControlSnapshot 的常驻控制面状态；DAG/Node/EntityType/Skill 变更写入 DB 并 emit event:config-changed，但不重建控制面 snapshot。
+    - id: cap.core.dag-execution-snapshot
+      type: capability
+      intent: DAG run 启动时由 DagController 构建 DAG execution closure，并在 DagExecutionSnapshot 中冻结 DAG/Node 闭包、entity_types、handler resolver、extension table mapping 和 run-needed skills。
+    - id: cap.operations.dag-control
+      type: capability
+      intent: DAG run、retry、resume 和 node trigger 统一通过 DagController 构建 per-run execution snapshot；node trigger target 使用 node:<dag_name>/<node_id>。
+    - id: cap.trigger-system
+      type: capability
+      intent: Trigger target 中的 node 目标使用 node:<dag_name>/<node_id>，不再支持全局 node:<id> 反查。
+    - id: cap.core.manual-trigger-prefix
+      type: capability
+      intent: manual:node 保留前缀使用 manual:node:<dag_name>/<node_id>，直接 fire DAG-scoped node target 且不置位 event bit。
+    - id: cap.web.trigger-workbench-inspector
+      type: capability
+      intent: Workbench Inspector Triggers tab 在 node 视图生成和过滤 target=node:<dag_name>/<node_id> 的 trigger entity。
+    - id: cap.core.grpc-graph-service
+      type: capability
+      intent: GraphService 的 DAG/Node/Skill 读写使用 DB-backed source of truth，SaveDag 只校验 candidate reachable sub-DAG closure，并在保存后 emit config-changed。
+    - id: cap.core.grpc-config-service
+      type: capability
+      intent: ConfigService 删除 ReloadEntityTypes 和 ReloadSkills，EntityType/Skill 以 DB-backed source of truth 生效。
+    - id: cap.core.grpc-query-service
+      type: capability
+      intent: QueryService runtime read validation 使用 DB-backed repositories 和 runtime facts，不依赖 runtime_snapshot().config DAG/Node mirror。
+    - id: cap.core.database-handler-resolver
+      type: capability
+      intent: DatabaseHandlerResolver 支持 run-start handler metadata snapshot，并与 extension table mapping 一起冻结到 DagExecutionSnapshot。
+    - id: cap.core.db-backed-core-entities
+      type: capability
+      intent: DB 是 DAG/Node/Trigger/Resource、EntityType 和 Skill 的运行时 source of truth；DAG/Node/EntityType/Skill 不进入 RuntimeControlSnapshot。
+
+REMOVED:
+  capabilities:
+    - id: cap.core.runtime-entity-type-reload
+      type: capability
+      intent: 运行时刷新 entity type 配置的 API 被删除，EntityType 变更通过 DB source of truth 和下一次 DagExecutionSnapshot 生效。
+  relations:
+    - from: cap.core.runtime-entity-type-reload
+      type: depends_on
+      to: cap.core.extension-manifest-system

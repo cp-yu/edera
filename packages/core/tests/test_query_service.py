@@ -62,7 +62,7 @@ async def test_results_summary(tmp_path):
 async def test_source_health_and_logs_use_database_sources(tmp_path):
     daemon = await _daemon(tmp_path)
     async with daemon.controller._factory()() as session:
-        entity_types = daemon.controller.runtime_snapshot().entity_store.entity_types
+        entity_types = daemon.controller.entity_store().entity_types
         await create_ordinary_entity(session, "rss-source", "source:rss", {"name": "rss"}, entity_types)
         await create_dag_run(session, "run-1", "manual", ["rss"], dag_name="demo")
         await mark_node_run(session, "run-1", "rss", "failed", "network")
@@ -93,6 +93,23 @@ async def test_node_logs_filters_run_and_node(tmp_path):
 
     assert [item["path"] for item in payload["logs"]] == ["/tmp/summary.json"]
     assert payload["logs"][0]["kind"] == "summary"
+    await daemon.controller.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_node_history_uses_persisted_runs_when_dag_deleted(tmp_path):
+    daemon = await _daemon(tmp_path)
+    async with daemon.controller._factory()() as session:
+        await create_dag_run(session, "run-1", "manual", ["node-a"], dag_name="deleted-dag")
+        await mark_node_run(session, "run-1", "node-a", "succeeded")
+        await session.commit()
+    service = _QueryService(daemon)
+
+    result = await service.NodeHistory(pb2.NodeHistoryRequest(dag_name="deleted-dag", node_id="node-a", limit=10), FakeContext())
+
+    payload = json.loads(result.json)
+    assert payload["history"][0]["run"]["dag_name"] == "deleted-dag"
+    assert payload["history"][0]["node_run"]["node_name"] == "node-a"
     await daemon.controller.engine.dispose()
 
 
@@ -145,3 +162,6 @@ class Controller:
 
     def runtime_snapshot(self):
         return self._snapshot
+
+    def entity_store(self):
+        return self._snapshot.entity_store

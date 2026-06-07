@@ -12,6 +12,7 @@ test('renders DAG and node trigger lists in the Inspector Triggers tab', async (
   await page.locator('.react-flow__node').filter({ hasText: 'Source Fetcher' }).click()
   await page.getByRole('button', { name: 'Triggers' }).click()
 
+  await expect(page.getByText('node:default/source-node')).toBeVisible()
   await expect(page.getByText('node-ready')).toBeVisible()
   await expect(page.locator('div').filter({ hasText: /^event:source-ready$/ })).toBeVisible()
   await expect(page.getByText('daily-default')).toHaveCount(0)
@@ -115,6 +116,21 @@ test('creates edits toggles and deletes trigger entities', async ({ page }) => {
   await expect(page.getByText('暂无 trigger')).toBeVisible()
 })
 
+test('creates node trigger with DAG-scoped target', async ({ page }) => {
+  await mockWorkbench(page, [])
+
+  await page.goto('/workbench')
+  await page.locator('.react-flow__node').filter({ hasText: 'Source Fetcher' }).click()
+  await page.getByRole('button', { name: 'Triggers' }).click()
+
+  await expect(page.getByText('node:default/source-node')).toBeVisible()
+  await triggerForm(page, '新建 trigger').locator('input').first().fill('node-ready')
+  await page.locator('textarea').fill('event:source-ready')
+  await page.getByRole('button', { name: '创建 trigger' }).click()
+
+  await expect(page.getByText('node-ready', { exact: true })).toBeVisible()
+})
+
 test('rejects invalid trigger expressions before save', async ({ page }) => {
   await mockWorkbench(page, [])
 
@@ -130,7 +146,7 @@ async function mockWorkbench(
   page: import('@playwright/test').Page,
   triggers: ReturnType<typeof trigger>[] = [
     trigger('daily-default', 'cron:"0 9 * * *"', 'dag:default'),
-    trigger('node-ready', 'event:source-ready', 'node:source-node'),
+    trigger('node-ready', 'event:source-ready', 'node:default/source-node'),
   ],
 ) {
   await page.route(/\/api\/graph\/dag\/default$/, async (route) => {

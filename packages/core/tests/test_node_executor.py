@@ -7,6 +7,7 @@ from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeInput
 from edera_core.resolver import HandlerMeta
 from edera_core.resolver import HandlerNotFoundError
+from edera_core.snapshot import DagExecutionClosure
 from edera_core.snapshot import DagExecutionSnapshot
 
 
@@ -65,6 +66,26 @@ async def test_module_cache(tmp_path):
     assert resolver.calls == ["reader"]
 
 
+@pytest.mark.asyncio
+async def test_handler_storage_uses_execution_snapshot(tmp_path):
+    handler = tmp_path / "handler.py"
+    handler.write_text("async def run(ctx):\n    return ctx.storage.table('items')\n", encoding="utf-8")
+    resolver = _Resolver({"reader": HandlerMeta(handler, extension_name="reader_ext")})
+    snapshot = _snapshot(resolver, {"reader_ext": {"items": "snapshot_items"}})
+    executor = NodeExecutor(
+        _nodes(),
+        SystemConfig(),
+        RuntimeSettings(),
+        snapshot,
+        extension_tables={"reader_ext": {"items": "runtime_items"}},
+    )
+
+    output = await executor.execute("reader", NodeInput(run_id="run", payload={}))
+
+    assert output.ok
+    assert output.payload == "snapshot_items"
+
+
 class _Resolver:
     def __init__(self, entries: dict[str, HandlerMeta]) -> None:
         self.entries = entries
@@ -78,8 +99,17 @@ class _Resolver:
             raise HandlerNotFoundError(name) from exc
 
 
-def _snapshot(resolver) -> DagExecutionSnapshot:
-    return DagExecutionSnapshot(_dag(), _nodes(), {}, resolver)
+def _snapshot(
+    resolver,
+    extension_table_names: dict[str, dict[str, str]] | None = None,
+) -> DagExecutionSnapshot:
+    return DagExecutionSnapshot(
+        DagExecutionClosure("demo", {"demo": _dag()}, _nodes()),
+        {},
+        resolver,
+        extension_table_names or {},
+        {},
+    )
 
 
 def _dag() -> DagConfig:

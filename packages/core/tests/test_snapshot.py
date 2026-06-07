@@ -5,9 +5,9 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from edera_core.config.schema import DagConfig, EntityTypeConfig, NodeConfig
+from edera_core.config.schema import DagConfig, EntityTypeConfig, NodeConfig, SkillConfig
 from edera_core.resolver import DatabaseHandlerResolver
-from edera_core.snapshot import DagExecutionSnapshot
+from edera_core.snapshot import DagExecutionSnapshot, build_dag_execution_closure
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.repository import save_installed_extension
 
@@ -19,6 +19,7 @@ async def test_create_snapshot(tmp_path):
     assert snapshot.dag_config.name == "demo"
     assert "reader" in snapshot.node_configs
     assert "stock" in snapshot.entity_types
+    assert set(snapshot.dag_closure.dags) == {"demo"}
 
 
 @pytest.mark.asyncio
@@ -39,9 +40,57 @@ async def test_snapshot_copies_entity_types(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_snapshot_keeps_only_closure_referenced_skills(tmp_path):
+    async with _session(tmp_path) as session:
+        await _install(session)
+        snapshot = await DagExecutionSnapshot.create(
+            _dag(),
+            _nodes(),
+            _entity_types(),
+            session,
+            tmp_path / "handlers",
+            skills={
+                "used": SkillConfig(name="used"),
+                "unused": SkillConfig(name="unused"),
+            },
+        )
+
+    assert set(snapshot.skills) == {"used"}
+
+
+@pytest.mark.asyncio
 async def test_snapshot_immutable(tmp_path):
     with pytest.raises(FrozenInstanceError):
         (await _snapshot(tmp_path)).entity_types = {}
+
+
+def test_closure_excludes_unrelated_dags():
+    closure = build_dag_execution_closure(
+        "demo",
+        {
+            "demo": _dag(),
+            "unused": DagConfig.model_validate({"name": "unused", "nodes": [], "edges": [], "ui": {}}),
+        },
+        _nodes(),
+    )
+
+    assert set(closure.dags) == {"demo"}
+
+
+def test_closure_includes_reachable_sub_dags():
+    closure = build_dag_execution_closure(
+        "demo",
+        {
+            "demo": DagConfig.model_validate(
+                {"name": "demo", "nodes": [{"id": "child", "type": "dag", "dag_ref": "child"}], "edges": [], "ui": {}}
+            ),
+            "child": _dag("child"),
+        },
+        _nodes(),
+    )
+
+    assert set(closure.dags) == {"demo", "child"}
+    assert set(closure.node_configs) == {"reader"}
 
 
 async def _snapshot(tmp_path) -> DagExecutionSnapshot:
@@ -50,8 +99,8 @@ async def _snapshot(tmp_path) -> DagExecutionSnapshot:
         return await DagExecutionSnapshot.create(_dag(), _nodes(), _entity_types(), session, tmp_path / "handlers")
 
 
-def _dag() -> DagConfig:
-    return DagConfig.model_validate({"name": "demo", "nodes": [{"id": "n1", "type": "reader"}], "edges": [], "ui": {}})
+def _dag(name: str = "demo") -> DagConfig:
+    return DagConfig.model_validate({"name": name, "nodes": [{"id": "n1", "type": "reader"}], "edges": [], "ui": {}})
 
 
 def _nodes() -> dict[str, NodeConfig]:
@@ -62,6 +111,7 @@ def _nodes() -> dict[str, NodeConfig]:
             input_type="Any",
             output_type="Any",
             handler="reader",
+            skills=["used"],
         )
     }
 

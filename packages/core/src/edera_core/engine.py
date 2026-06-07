@@ -18,11 +18,10 @@ class Engine:
     async def start(self, run_startup: bool = False) -> None:
         await self.controller.start(run_startup=run_startup)
         try:
-            snapshot = self.controller.runtime_snapshot()
+            self.bootstrap = self.controller.bootstrap_result()
+            self.config = self.controller.runtime_config()
         except RuntimeError:
             return
-        self.bootstrap = snapshot.bootstrap
-        self.config = snapshot.config
 
     async def run(self, source: str = "manual", dag_name: str = "default") -> str:
         return await self.controller.run_now(source, dag_name)

@@ -265,7 +265,7 @@ function InspectorTabs({ active, onChange }: { active: InspectorTab; onChange: (
 }
 
 function TriggersPanel({ dagName, dag, node }: { dagName: string; dag: { nodes: NodeInstance[] }; node: NodeInstance | null }) {
-  const target = node ? `node:${node.id}` : `dag:${dagName}`
+  const target = node ? `node:${dagName}/${node.id}` : `dag:${dagName}`
   const triggers = useEntities('trigger')
   const createEntity = useCreateEntity()
   const updateEntity = useUpdateEntity()

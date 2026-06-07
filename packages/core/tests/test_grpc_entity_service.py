@@ -9,7 +9,7 @@ from edera_core.bootstrap import BootstrapResult
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import _runtime_entity_types
 from edera_core.config.schema import AppConfig, EntitiesConfig, EntityConfig, EntityRelationsConfig, EntityTypeConfig, RuntimeSettings, SystemConfig
-from edera_core.dag_controller import RuntimeSnapshot
+from edera_core.dag_controller import RuntimeControlSnapshot
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.server import _EntityService
 from edera_core.storage import create_engine, init_db, session_factory
@@ -35,8 +35,8 @@ async def test_create_entity_rpc(tmp_path):
 async def test_list_with_filters_rpc(tmp_path):
     daemon = await _daemon(tmp_path)
     async with daemon.controller._factory()() as session:
-        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_snapshot().config.entity_types)
-        await create_ordinary_entity(session, "stock", "stock:other", {"code": "OTHER"}, daemon.controller.runtime_snapshot().config.entity_types)
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_config().entity_types)
+        await create_ordinary_entity(session, "stock", "stock:other", {"code": "OTHER"}, daemon.controller.runtime_config().entity_types)
         await session.commit()
     await daemon.controller.refresh()
     service = _EntityService(daemon)
@@ -54,7 +54,7 @@ async def test_relation_list_filters_query_repository(tmp_path, monkeypatch):
     daemon = await _daemon(tmp_path)
     service = _EntityService(daemon)
     async with daemon.controller._factory()() as session:
-        entity_types = daemon.controller.runtime_snapshot().config.entity_types
+        entity_types = daemon.controller.runtime_config().entity_types
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, entity_types)
         await create_ordinary_entity(session, "rss-source", "source:one", {"url": "https://example.test/one"}, entity_types)
         await create_ordinary_entity(session, "rss-source", "source:two", {"url": "https://example.test/two"}, entity_types)
@@ -96,7 +96,7 @@ async def test_relation_query_expression_reads_database_relations(tmp_path):
     daemon = await _daemon(tmp_path)
     service = _EntityService(daemon)
     async with daemon.controller._factory()() as session:
-        entity_types = daemon.controller.runtime_snapshot().config.entity_types
+        entity_types = daemon.controller.runtime_config().entity_types
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, entity_types)
         await create_ordinary_entity(session, "rss-source", "source:one", {"url": "https://example.test/one"}, entity_types)
         await create_relation(session, "stock:test", "source:one", "uses-source", entity_types=entity_types)
@@ -115,7 +115,7 @@ async def test_entity_read_paths_query_database_without_snapshot_refresh(tmp_pat
     daemon = await _daemon(tmp_path)
     service = _EntityService(daemon)
     async with daemon.controller._factory()() as session:
-        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_snapshot().config.entity_types)
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_config().entity_types)
         await session.commit()
 
     listed = await service.List(pb2.EntityQuery(type="stock"), FakeContext())
@@ -132,7 +132,7 @@ async def test_update_entity_rpc_queries_database_after_runtime_materialization(
     daemon = await _daemon(tmp_path)
     service = _EntityService(daemon)
     async with daemon.controller._factory()() as session:
-        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_snapshot().config.entity_types)
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_config().entity_types)
         await session.commit()
     await daemon.controller.refresh()
 
@@ -148,8 +148,8 @@ async def test_update_entity_rpc_queries_database_after_runtime_materialization(
 async def test_create_relation_via_entity_rpc(tmp_path):
     daemon = await _daemon(tmp_path)
     async with daemon.controller._factory()() as session:
-        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_snapshot().config.entity_types)
-        await create_ordinary_entity(session, "rss-source", "source:test", {"url": "https://example.test/rss"}, daemon.controller.runtime_snapshot().config.entity_types)
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_config().entity_types)
+        await create_ordinary_entity(session, "rss-source", "source:test", {"url": "https://example.test/rss"}, daemon.controller.runtime_config().entity_types)
         await session.commit()
     await daemon.controller.refresh()
     service = _EntityService(daemon)
@@ -182,14 +182,14 @@ async def test_delete_relation_via_entity_rpc(tmp_path):
             "stock",
             "stock:test",
             {"code": "TEST"},
-            daemon.controller.runtime_snapshot().config.entity_types,
+            daemon.controller.runtime_config().entity_types,
         )
         await create_ordinary_entity(
             session,
             "rss-source",
             "source:test",
             {"url": "https://example.test/rss"},
-            daemon.controller.runtime_snapshot().config.entity_types,
+            daemon.controller.runtime_config().entity_types,
         )
         await session.commit()
     await daemon.controller.refresh()
@@ -225,14 +225,14 @@ async def test_force_delete_entity_removes_relations(tmp_path):
             "stock",
             "stock:test",
             {"code": "TEST"},
-            daemon.controller.runtime_snapshot().config.entity_types,
+            daemon.controller.runtime_config().entity_types,
         )
         await create_ordinary_entity(
             session,
             "rss-source",
             "source:test",
             {"url": "https://example.test/rss"},
-            daemon.controller.runtime_snapshot().config.entity_types,
+            daemon.controller.runtime_config().entity_types,
         )
         await session.commit()
     await daemon.controller.refresh()
@@ -265,14 +265,14 @@ async def test_entity_delete_blocked_by_relations_lists_relation_ids(tmp_path):
             "stock",
             "stock:test",
             {"code": "TEST"},
-            daemon.controller.runtime_snapshot().config.entity_types,
+            daemon.controller.runtime_config().entity_types,
         )
         await create_ordinary_entity(
             session,
             "rss-source",
             "source:test",
             {"url": "https://example.test/rss"},
-            daemon.controller.runtime_snapshot().config.entity_types,
+            daemon.controller.runtime_config().entity_types,
         )
         await session.commit()
     await daemon.controller.refresh()
@@ -308,7 +308,7 @@ async def test_core_entity_delete_blocked_by_relations(tmp_path):
             session,
             EntityConfig(id="reader", type="node", attributes={"name": "reader", "input_type": "Any", "output_type": "Any"}),
         )
-        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_snapshot().config.entity_types)
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, daemon.controller.runtime_config().entity_types)
         await session.commit()
     await daemon.controller.refresh()
     await service.Create(
@@ -351,13 +351,13 @@ async def test_default_entity_export_import_round_trips_core_ordinary_and_relati
             session,
             EntityConfig(id="reader", type="node", attributes={"name": "reader", "input_type": "Any", "output_type": "Any"}),
         )
-        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, source.controller.runtime_snapshot().config.entity_types)
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, source.controller.runtime_config().entity_types)
         await create_ordinary_entity(
             session,
             "rss-source",
             "source:test",
             {"url": "https://example.test/rss"},
-            source.controller.runtime_snapshot().config.entity_types,
+            source.controller.runtime_config().entity_types,
         )
         await session.commit()
     await source.controller.refresh()
@@ -390,7 +390,7 @@ async def test_default_entity_export_import_round_trips_core_ordinary_and_relati
 async def test_list_uses_dag_run_cache(tmp_path):
     daemon = await _daemon(tmp_path)
     service = _EntityService(daemon)
-    store = daemon.controller.runtime_snapshot().entity_store
+    store = daemon.controller.entity_store()
     store.memory_entities["run-1"] = {
         "stock:test": EntityConfig(id="stock:test", type="stock", attributes={"code": "TEST"})
     }
@@ -404,7 +404,7 @@ async def test_list_uses_dag_run_cache(tmp_path):
 async def test_list_uses_active_run_store_for_dag_run_id(tmp_path):
     daemon = await _daemon(tmp_path)
     service = _EntityService(daemon)
-    app = daemon.controller.runtime_snapshot().config
+    app = daemon.controller.runtime_config()
     run_store = EntityStore(app.entities, app.entity_types, app.entity_relations, None)
     run_store.memory_entities["run-1"] = {
         "stock:test": EntityConfig(id="stock:test", type="stock", attributes={"code": "TEST"})
@@ -422,6 +422,86 @@ async def test_list_uses_active_run_store_for_dag_run_id(tmp_path):
     assert [entity.id for entity in result.entities] == ["stock:test"]
 
 
+@pytest.mark.asyncio
+async def test_materialize_apply_emits_config_changed_without_snapshot_rebuild(tmp_path, monkeypatch):
+    daemon = await _daemon(tmp_path)
+    service = _EntityService(daemon)
+
+    async def fail_install_snapshot(*_args, **_kwargs):
+        raise AssertionError("materialize apply must not rebuild RuntimeControlSnapshot")
+
+    monkeypatch.setattr(daemon.controller, "install_snapshot", fail_install_snapshot)
+
+    result = await service.Materialize(
+        pb2.JsonRequest(json=json.dumps({"operation": "apply", "entity_type": "stock", "field": "code", "type": "text"})),
+        FakeContext(),
+    )
+
+    assert json.loads(result.json)["applied"] is True
+    assert daemon.controller.emitted == [("event:config-changed", "entity-service")]
+
+
+@pytest.mark.asyncio
+async def test_entity_db_writes_emit_without_snapshot_rebuild(tmp_path, monkeypatch):
+    daemon = await _daemon(tmp_path)
+    service = _EntityService(daemon)
+
+    async def fail_install_snapshot(*_args, **_kwargs):
+        raise AssertionError("entity DB writes must not rebuild RuntimeControlSnapshot")
+
+    monkeypatch.setattr(daemon.controller, "install_snapshot", fail_install_snapshot)
+
+    created = await service.Create(pb2.Entity(id="stock:test", type="stock", json=json.dumps({"code": "TEST"})), FakeContext())
+    updated = await service.Update(pb2.Entity(id="stock:test", json=json.dumps({"field": "name", "value": "Updated"})), FakeContext())
+    deleted = await service.Delete(pb2.EntityRef(ref="stock:test"), FakeContext())
+
+    assert created.id == "stock:test"
+    assert json.loads(updated.json)["attributes"]["name"] == "Updated"
+    assert deleted.deleted is True
+    assert daemon.controller.emitted.count(("event:config-changed", "entity-service")) == 3
+    assert daemon.controller.trigger_reloads == 0
+
+
+@pytest.mark.asyncio
+async def test_trigger_db_writes_reload_control_snapshot(tmp_path):
+    daemon = await _daemon(tmp_path)
+    service = _EntityService(daemon)
+
+    created = await service.Create(
+        pb2.Entity(
+            id="trigger:test",
+            type="trigger",
+            json=json.dumps({"name": "test", "wait_for": "event:test", "target": "dag:demo", "enabled": True}),
+        ),
+        FakeContext(),
+    )
+    updated = await service.Update(pb2.Entity(id="trigger:test", json=json.dumps({"field": "enabled", "value": False})), FakeContext())
+    deleted = await service.Delete(pb2.EntityRef(ref="trigger:test"), FakeContext())
+
+    assert created.id == "trigger:test"
+    assert json.loads(updated.json)["attributes"]["enabled"] is False
+    assert deleted.deleted is True
+    assert daemon.controller.trigger_reloads == 3
+    assert daemon.controller.reloaded_triggers == [["trigger:test"], ["trigger:test"], []]
+    assert daemon.controller.emitted.count(("event:config-changed", "entity-service")) == 3
+
+
+@pytest.mark.asyncio
+async def test_list_entity_types_reads_database_after_emit_only_update(tmp_path):
+    daemon = await _daemon(tmp_path)
+    service = _EntityService(daemon)
+    async with daemon.controller._factory()() as session:
+        from edera_core.storage.repository import upsert_entity_type_record
+
+        await upsert_entity_type_record(session, "stock", _entity_type("code").model_copy(update={"display_name": "Stock V2"}))
+        await session.commit()
+
+    result = await service.List(pb2.EntityQuery(type="entity_type"), FakeContext())
+
+    payloads = [json.loads(entity.json)["attributes"] for entity in result.entities]
+    assert [item["display_name"] for item in payloads if item["name"] == "stock"] == ["Stock V2"]
+
+
 async def _daemon(tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
     await init_db(engine)
@@ -435,6 +515,11 @@ class _Controller:
         self.engine = engine
         self.factory = session_factory(engine)
         self._snapshot = None
+        self._config = None
+        self._store = None
+        self.emitted: list[tuple[str, str]] = []
+        self.trigger_reloads = 0
+        self.reloaded_triggers: list[list[str]] = []
 
     def _factory(self):
         return self.factory
@@ -442,9 +527,17 @@ class _Controller:
     def runtime_snapshot(self):
         return self._snapshot
 
+    def runtime_config(self):
+        return self._config
+
+    def entity_store(self):
+        return self._store
+
     async def install_snapshot(self, config, bootstrap):
         store = EntityStore(config.entities, config.entity_types, config.entity_relations, None)
-        self._snapshot = RuntimeSnapshot(config, bootstrap, store, None, None, {})
+        self._config = config
+        self._store = store
+        self._snapshot = RuntimeControlSnapshot(config.system, config.runtime, None, None)
 
     async def refresh(self):
         async with self.factory() as session:
@@ -467,7 +560,17 @@ class _Controller:
             BootstrapResult([], {}, {}, {}),
         )
 
-    async def emit(self, event, source="test"):
+    async def _reload_triggers(self):
+        async with self.factory() as session:
+            from edera_core.storage.repository import list_core_entities
+
+            triggers = await list_core_entities(session, "trigger")
+        self._store.memory_entities[""] = {entity.id: entity for entity in triggers}
+        self.reloaded_triggers.append(sorted(entity.id for entity in self._store.query("trigger")))
+        self.trigger_reloads += 1
+
+    async def emit(self, event, payload=None, *, source="test", depth=0):
+        self.emitted.append((event, source))
         return []
 
 

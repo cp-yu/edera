@@ -213,22 +213,17 @@ async def materialize_runtime_app_config(
             from edera_core.storage.repository import save_ordinary_entity
 
             await save_ordinary_entity(session, entity, entity_type)
-        core_entities = await list_core_entities(session)
         db_entity_types = await list_entity_type_configs(session)
         skills = await list_skill_configs(session)
         await session.commit()
     for source, target in migrated_files:
         source.rename(target)
     config.entity_types = {**config.entity_types, **db_entity_types}
-    config.entities = EntitiesConfig(entities=core_entities)
+    config.entities = EntitiesConfig()
     config.entity_relations = EntityRelationsConfig()
-    config.nodes = _nodes_from_core_entities(config_dir, core_entities)
     config.skills = skills
-    config.dags = _dags_from_core_entities(core_entities)
-    from edera_core.dag.loader import validate_sub_dag_nesting
-
-    validate_sub_dag_nesting(config.dags, config.system.max_dag_depth)
-    _validate_dag_entity_permissions(config.dags, config.entity_types)
+    config.nodes = {}
+    config.dags = {}
     return config
 
 

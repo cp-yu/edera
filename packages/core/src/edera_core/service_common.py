@@ -312,7 +312,13 @@ def graph_dag_state_from_config(app: AppConfig, name: str) -> dict[str, object]:
     )
 
 
-async def graph_dag_state_from_database(app: AppConfig, name: str, session: Any) -> dict[str, object]:
+async def graph_dag_state_from_database(
+    app: AppConfig,
+    name: str,
+    session: Any,
+    dag: DagConfig | None = None,
+    nodes: dict[str, NodeConfig] | None = None,
+) -> dict[str, object]:
     from edera_core.storage.repository import list_ordinary_entities, list_relations
 
     entities = _merge_entities(
@@ -327,8 +333,8 @@ async def graph_dag_state_from_database(app: AppConfig, name: str, session: Any)
         relation_configs.append(_relation_config(relation))
         seen.add(relation.id)
     return _graph_dag_state(
-        app.dags[name],
-        app.nodes,
+        dag or app.dags[name],
+        nodes or app.nodes,
         app.skills,
         app.entity_types,
         EntitiesConfig(entities=entities),

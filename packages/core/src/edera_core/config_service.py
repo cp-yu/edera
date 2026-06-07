@@ -6,21 +6,21 @@ import logging
 import yaml
 
 from edera_core.config.editor import ConfigEditError
-from edera_core.config.loader import CORE_ENTITY_TYPES, _load_runtime_base_config, load_entity_type_configs
+from edera_core.config.loader import CORE_ENTITY_TYPES
 from edera_core.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig, EntityTypeConfig
 from edera_core.errors import ConfigError
 from edera_core.service_common import (
-    atomic_write,
     editor,
     entities_response,
-    entity_store,
-    entity_type_config,
-    entity_type_path,
-    entity_types_payload,
     json_response,
     kind,
-    resolve_entity_type_path,
-    validate_entity_type_content,
+)
+from edera_core.storage.repository import (
+    count_entities_for_type,
+    delete_entity_type_record,
+    get_entity_type_config,
+    list_entity_type_configs,
+    upsert_entity_type_record,
 )
 
 
@@ -64,123 +64,106 @@ class _ConfigService:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
 
     async def ReadEntitiesConfig(self, request, context):
-        snapshot = _runtime_snapshot_or_none(self.daemon)
-        if snapshot is None:
+        config = _runtime_config_or_none(self.daemon)
+        if config is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, "runtime snapshot not found")
-        content = yaml.safe_dump(snapshot.config.entities.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        content = yaml.safe_dump(config.entities.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
         return json_response(self.pb2, {"content": content})
 
     async def SaveEntitiesConfig(self, request, context):
         try:
             body = json.loads(request.json or "{}")
             entities = EntitiesConfig.model_validate(body)
-            snapshot = _runtime_snapshot_or_none(self.daemon)
-            if snapshot is None:
+            config = _runtime_config_or_none(self.daemon)
+            if config is None:
                 await context.abort(grpc.StatusCode.NOT_FOUND, "runtime snapshot not found")
             async with self.daemon.controller._factory()() as session:
                 for entity in entities.entities:
-                    await _save_entity_to_db(session, entity, snapshot.config.entity_types)
+                    await _save_entity_to_db(session, entity, config.entity_types)
                 await session.commit()
-            await _refresh_runtime_snapshot(self.daemon)
-            snapshot = self.daemon.controller.runtime_snapshot()
-            response = entities_response(snapshot.config.entity_types, snapshot.config.entities)
+            await _emit_config_changed(self.daemon)
+            response = entities_response(config.entity_types, entities)
         except (ConfigEditError, ConfigError, ValueError, json.JSONDecodeError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, response)
 
     async def ListEntityTypes(self, request, context):
         try:
-            return json_response(self.pb2, {"types": entity_types_payload(load_entity_type_configs(self.daemon.config_dir.parent / "schemas" / "entity-types"))})
+            async with self.daemon.controller._factory()() as session:
+                entity_types = await list_entity_type_configs(session)
+            return json_response(self.pb2, {"types": _entity_types_payload(entity_types)})
         except (ConfigError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
-
-    async def ReloadEntityTypes(self, request, context):
-        identity = _metadata_identity(context)
-        if not _is_admin(identity):
-            await context.abort(grpc.StatusCode.PERMISSION_DENIED, "reload entity types requires admin")
-        count = await self.daemon.controller.reload_entity_types()
-        LOGGER.info("ReloadEntityTypes called by user=%s, loaded %s entity types", identity, count)
-        return json_response(self.pb2, {"reloaded": True, "count": count})
-
-    async def ReloadSkills(self, request, context):
-        identity = _metadata_identity(context)
-        if not _is_admin(identity):
-            await context.abort(grpc.StatusCode.PERMISSION_DENIED, "reload skills requires admin")
-        count = await self.daemon.controller.reload_skills()
-        LOGGER.info("ReloadSkills called by user=%s, loaded %s skills", identity, count)
-        return json_response(self.pb2, {"reloaded": True, "count": count})
 
     async def CreateEntityType(self, request, context):
         name = request.name.strip()
         if not name:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "entity type name is required")
-        path = entity_type_path(self.daemon.config_dir, name)
-        if path.exists():
-            await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"entity type '{name}' already exists")
         try:
-            validate_entity_type_content(request.content)
-            atomic_write(path, request.content)
-        except (ConfigEditError, yaml.YAMLError) as exc:
+            entity_type = _parse_entity_type_content(request.content)
+            async with self.daemon.controller._factory()() as session:
+                if await get_entity_type_config(session, name) is not None:
+                    await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"entity type '{name}' already exists")
+                await upsert_entity_type_record(session, name, entity_type)
+                await session.commit()
+            await _emit_config_changed(self.daemon)
+        except (ConfigEditError, ValueError, yaml.YAMLError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, {"created": True, "name": name})
 
     async def GetEntityType(self, request, context):
-        path = resolve_entity_type_path(self.daemon.config_dir, request.name)
-        if not path.exists():
+        async with self.daemon.controller._factory()() as session:
+            entity_type = await get_entity_type_config(session, request.name)
+        if entity_type is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"entity type {request.name} not found")
-        return json_response(self.pb2, {"name": request.name, "content": path.read_text(encoding="utf-8")})
+        return json_response(self.pb2, {"name": request.name, "content": _entity_type_content(entity_type)})
 
     async def SaveEntityType(self, request, context):
-        path = entity_type_path(self.daemon.config_dir, request.name)
         try:
-            current = entity_type_config(self.daemon.config_dir, request.name)
-        except ConfigError as exc:
-            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
-        if current is not None and current.system_protected:
-            await context.abort(grpc.StatusCode.PERMISSION_DENIED, f"entity type '{request.name}' is system protected")
-        if not path.exists():
-            await context.abort(grpc.StatusCode.NOT_FOUND, f"entity type {request.name} not found")
-        try:
-            validate_entity_type_content(request.content)
-            atomic_write(path, request.content)
-        except (ConfigEditError, yaml.YAMLError) as exc:
+            entity_type = _parse_entity_type_content(request.content)
+            async with self.daemon.controller._factory()() as session:
+                current = await get_entity_type_config(session, request.name)
+                if current is None:
+                    await context.abort(grpc.StatusCode.NOT_FOUND, f"entity type {request.name} not found")
+                if current.system_protected:
+                    await context.abort(grpc.StatusCode.PERMISSION_DENIED, f"entity type '{request.name}' is system protected")
+                await upsert_entity_type_record(session, request.name, entity_type)
+                await session.commit()
+            await _emit_config_changed(self.daemon)
+        except (ConfigEditError, ValueError, yaml.YAMLError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, {"updated": True, "name": request.name})
 
     async def DeleteEntityType(self, request, context):
-        root = self.daemon.config_dir
-        path = entity_type_path(root, request.name)
-        try:
-            current = entity_type_config(root, request.name)
-        except ConfigError as exc:
-            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
-        if current is not None and current.system_protected:
-            await context.abort(grpc.StatusCode.PERMISSION_DENIED, f"entity type '{request.name}' is system protected")
-        if not path.exists():
+        async with self.daemon.controller._factory()() as session:
+            current = await get_entity_type_config(session, request.name)
+            if current is not None and current.system_protected:
+                await context.abort(grpc.StatusCode.PERMISSION_DENIED, f"entity type '{request.name}' is system protected")
+            if current is None:
+                await context.abort(grpc.StatusCode.NOT_FOUND, f"entity type {request.name} not found")
+            instances = await count_entities_for_type(session, request.name, current)
+            if instances and not request.cascade:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"entity type '{request.name}' has {instances} instances")
+            deleted = await delete_entity_type_record(session, request.name)
+            await session.commit()
+        if not deleted:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"entity type {request.name} not found")
-        store = entity_store(root)
-        matching = [entity for entity in store.entities.entities if entity.type == request.name]
-        if matching and not request.cascade:
-            await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"entity type '{request.name}' has {len(matching)} instances")
-        try:
-            path.unlink()
-        except (ConfigEditError, ConfigError, OSError) as exc:
-            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
-        return json_response(self.pb2, {"deleted": True, "instances_removed": len(matching)})
+        await _emit_config_changed(self.daemon)
+        return json_response(self.pb2, {"deleted": True, "instances_removed": instances})
 
     async def ReadEntityRelationsConfig(self, request, context):
-        snapshot = _runtime_snapshot_or_none(self.daemon)
-        if snapshot is None:
+        config = _runtime_config_or_none(self.daemon)
+        if config is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, "runtime snapshot not found")
-        content = yaml.safe_dump(snapshot.config.entity_relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
+        content = yaml.safe_dump(config.entity_relations.model_dump(mode="json"), allow_unicode=True, sort_keys=False)
         return json_response(self.pb2, {"content": content})
 
     async def SaveEntityRelationsConfig(self, request, context):
         try:
             body = json.loads(request.json or "{}")
             relations = EntityRelationsConfig.model_validate(body)
-            snapshot = _runtime_snapshot_or_none(self.daemon)
-            if snapshot is None:
+            config = _runtime_config_or_none(self.daemon)
+            if config is None:
                 await context.abort(grpc.StatusCode.NOT_FOUND, "runtime snapshot not found")
             async with self.daemon.controller._factory()() as session:
                 from edera_core.storage.repository import create_relation
@@ -188,10 +171,9 @@ class _ConfigService:
                 for relation in relations.relations:
                     if len(relation.entities) != 2:
                         raise ConfigError("relation must reference exactly two entities")
-                    await create_relation(session, relation.entities[0], relation.entities[1], relation.type, relation.metadata, snapshot.config.entity_types)
+                    await create_relation(session, relation.entities[0], relation.entities[1], relation.type, relation.metadata, config.entity_types)
                 await session.commit()
-            await _refresh_runtime_snapshot(self.daemon)
-            relations = self.daemon.controller.runtime_snapshot().config.entity_relations
+            await _emit_config_changed(self.daemon)
         except (ConfigEditError, ConfigError, ValueError, json.JSONDecodeError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, {"relations": [relation.model_dump(mode="json") for relation in relations.relations]})
@@ -213,15 +195,15 @@ class _ConfigService:
         try:
             if len(refs) != 2:
                 raise ConfigError("relation must reference exactly two entities")
-            snapshot = _runtime_snapshot_or_none(self.daemon)
-            if snapshot is None:
+            config = _runtime_config_or_none(self.daemon)
+            if config is None:
                 await context.abort(grpc.StatusCode.NOT_FOUND, "runtime snapshot not found")
             async with self.daemon.controller._factory()() as session:
                 from edera_core.storage.repository import create_relation
 
-                relation = await create_relation(session, refs[0], refs[1], relation_type, dict(metadata), snapshot.config.entity_types)
+                relation = await create_relation(session, refs[0], refs[1], relation_type, dict(metadata), config.entity_types)
                 await session.commit()
-            await _refresh_runtime_snapshot(self.daemon)
+            await _emit_config_changed(self.daemon)
         except ConfigError as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(
@@ -245,7 +227,7 @@ class _ConfigService:
                 await session.commit()
             if not deleted:
                 await context.abort(grpc.StatusCode.NOT_FOUND, f"Entity relation not found: {request.name}")
-            await _refresh_runtime_snapshot(self.daemon)
+            await _emit_config_changed(self.daemon)
         except ConfigError as exc:
             await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
         except ConfigEditError as exc:
@@ -277,15 +259,23 @@ async def _save_entity_to_db(session, entity: EntityConfig, entity_types: dict[s
     await save_ordinary_entity(session, entity, entity_type)
 
 
-async def _refresh_runtime_snapshot(daemon) -> None:
-    refresh = getattr(daemon.controller, "refresh", None)
-    if refresh is not None:
-        await refresh()
-        return
-    if getattr(daemon.controller, "engine", None) is None:
-        return
-    config = _load_runtime_base_config(daemon.config_dir)
-    await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
+def _parse_entity_type_content(content: str) -> EntityTypeConfig:
+    data = yaml.safe_load(content) or {}
+    if not isinstance(data, dict):
+        raise ConfigEditError("YAML content must be a mapping")
+    return EntityTypeConfig.model_validate(data)
+
+
+def _entity_type_content(entity_type: EntityTypeConfig) -> str:
+    return yaml.safe_dump(entity_type.model_dump(mode="json", by_alias=True), allow_unicode=True, sort_keys=False)
+
+
+def _entity_types_payload(entity_types: dict[str, EntityTypeConfig]) -> dict[str, object]:
+    return {name: entity_type.model_dump(mode="json", by_alias=True) for name, entity_type in entity_types.items()}
+
+
+async def _emit_config_changed(daemon) -> None:
+    await daemon.controller.emit("event:config-changed", source="config-service")
 
 
 def _metadata_identity(context) -> str | None:
@@ -299,11 +289,11 @@ def _is_admin(identity: str | None) -> bool:
     return identity == "admin" or bool(identity and identity.startswith("admin:"))
 
 
-def _runtime_snapshot_or_none(daemon):
+def _runtime_config_or_none(daemon):
     controller = getattr(daemon, "controller", None)
     if controller is None:
         return None
     try:
-        return controller.runtime_snapshot()
+        return controller.runtime_config()
     except Exception:
         return None

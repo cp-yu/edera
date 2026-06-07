@@ -5,7 +5,6 @@ from uuid import uuid4
 import grpc
 
 from edera_core.config.entities import validate_permission_overrides
-from edera_core.config.loader import _load_runtime_base_config
 from edera_core.config.schema import DagConfig, EntityConfig
 from edera_core.dag.loader import validate_sub_dag_nesting
 from edera_core.errors import ConfigError, DagError
@@ -24,7 +23,12 @@ from edera_core.service_common import (
 from edera_core.storage.repository import (
     delete_core_entity,
     delete_skill,
+    get_dag_config,
+    get_node_config,
     list_enabled_extensions,
+    list_dag_configs,
+    list_dag_names,
+    list_node_configs,
     list_skills,
     node_runs_for_run,
     recent_dag_runs,
@@ -40,13 +44,17 @@ class _GraphService:
         self.pb2 = daemon.pb2
 
     async def ListDags(self, request, context):
-        return json_response(self.pb2, {"dags": sorted(self.daemon.controller.runtime_snapshot().config.dags)})
+        async with self.daemon.controller._factory()() as session:
+            return json_response(self.pb2, {"dags": await list_dag_names(session)})
 
     async def GetDag(self, request, context):
         try:
-            app = self.daemon.controller.runtime_snapshot().config
+            app = self.daemon.controller.runtime_config()
             async with self.daemon.controller._factory()() as session:
-                return json_response(self.pb2, await graph_dag_state_from_database(app, request.name, session))
+                dag = await get_dag_config(session, request.name)
+                if dag is None:
+                    await context.abort(grpc.StatusCode.NOT_FOUND, f"dag {request.name} not found")
+                return json_response(self.pb2, await graph_dag_state_from_database(app, request.name, session, dag, await list_node_configs(session)))
         except KeyError:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag {request.name} not found")
 
@@ -54,21 +62,23 @@ class _GraphService:
         name = request.name.strip()
         if not valid_dag_name(name):
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "dag name must be kebab-case")
-        if name in self.daemon.controller.runtime_snapshot().config.dags:
-            await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"dag '{name}' already exists")
+        async with self.daemon.controller._factory()() as session:
+            if await get_dag_config(session, name) is not None:
+                await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"dag '{name}' already exists")
         payload = {"name": name, "nodes": [], "edges": [], "ui": {}}
-        await _save_core_and_refresh(self.daemon, EntityConfig(id=name, type="dag", attributes=payload))
+        await _save_core_and_emit(self.daemon, EntityConfig(id=name, type="dag", attributes=payload))
         return json_response(self.pb2, {"dag": payload})
 
     async def SaveDag(self, request, context):
         try:
             payload = graph_dag_payload(request.name, parse_json(request.json))
-            app = self.daemon.controller.runtime_snapshot().config
-            _validate_graph_node_refs(app, payload)
+            app = self.daemon.controller.runtime_config()
+            async with self.daemon.controller._factory()() as session:
+                dags, nodes = await _candidate_dag_closure(session, request.name, payload)
             _validate_graph_entity_permissions(app.entity_types, payload)
             dag_config = DagConfig.model_validate(payload)
-            validate_sub_dag_nesting({**app.dags, request.name: dag_config}, app.system.max_dag_depth)
-            await _save_core_and_refresh(self.daemon, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
+            validate_sub_dag_nesting(dags, app.system.max_dag_depth)
+            await _save_core_and_emit(self.daemon, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
         except (ConfigError, DagError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(
@@ -85,18 +95,19 @@ class _GraphService:
 
     async def CreateDagNode(self, request, context):
         body = parse_json(request.json)
-        app = self.daemon.controller.runtime_snapshot().config
-        dags = app.dags
-        if request.name not in dags:
+        app = self.daemon.controller.runtime_config()
+        async with self.daemon.controller._factory()() as session:
+            dag = await get_dag_config(session, request.name)
+            nodes = await list_node_configs(session)
+        if dag is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"dag '{request.name}' not found")
         node_name = str(body.get("name", ""))
         if not node_name:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "node name is required")
-        if node_name in app.nodes:
+        if node_name in nodes:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"node '{node_name}' already exists")
         try:
             node_data = graph_node_payload(node_name, body)
-            dag = dags[request.name]
             dag_nodes = [node.model_dump(mode="json") for node in dag.nodes] + [{"id": uuid4().hex, "type": node_name, "alias": node_name, "config": {}}]
             dag_payload = {"name": dag.name, "nodes": dag_nodes, "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in} for e in dag.edges], "ui": dag.ui}
             dag_config = DagConfig.model_validate(dag_payload)
@@ -104,56 +115,58 @@ class _GraphService:
                 await save_core_entity(session, EntityConfig(id=node_name, type="node", attributes=node_data))
                 await save_core_entity(session, EntityConfig(id=request.name, type="dag", attributes=dag_config.model_dump(by_alias=True, mode="json")))
                 await session.commit()
-            await _refresh_runtime_snapshot(self.daemon)
-            app = self.daemon.controller.runtime_snapshot().config
-            node_config = app.nodes[node_name]
+            await _emit_config_changed(self.daemon)
+            node_config = await _get_node_config_or_abort(self.daemon, node_name, context)
         except (ConfigError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, {"node": node_payload(node_config, app.skills, app.entity_types, app.entities, available_model_names())})
 
     async def ListNodeTypes(self, request, context):
-        app = self.daemon.controller.runtime_snapshot().config
+        app = self.daemon.controller.runtime_config()
         model_names = available_model_names()
-        payload = [node_payload(node, app.skills, app.entity_types, app.entities, model_names) for node in app.nodes.values()]
+        async with self.daemon.controller._factory()() as session:
+            nodes = await list_node_configs(session)
+        payload = [node_payload(node, app.skills, app.entity_types, app.entities, model_names) for node in nodes.values()]
         return json_response(self.pb2, {"types": payload, "prototypes": payload})
 
     async def GetNodeType(self, request, context):
-        try:
-            app = self.daemon.controller.runtime_snapshot().config
-            return json_response(self.pb2, {"node": node_payload(app.nodes[request.name], app.skills, app.entity_types, app.entities, available_model_names())})
-        except KeyError:
-            await context.abort(grpc.StatusCode.NOT_FOUND, f"node {request.name} not found")
+        app = self.daemon.controller.runtime_config()
+        node_config = await _get_node_config_or_abort(self.daemon, request.name, context)
+        return json_response(self.pb2, {"node": node_payload(node_config, app.skills, app.entity_types, app.entities, available_model_names())})
 
     async def SaveNodeType(self, request, context):
         body = parse_json(request.json)
         try:
             payload = graph_node_payload(request.name, body)
             save_node_assets(self.daemon.config_dir.parent, payload, body)
-            await _save_core_and_refresh(self.daemon, EntityConfig(id=request.name, type="node", attributes=payload))
-            app = self.daemon.controller.runtime_snapshot().config
-            node_config = app.nodes[request.name]
+            await _save_core_and_emit(self.daemon, EntityConfig(id=request.name, type="node", attributes=payload))
+            app = self.daemon.controller.runtime_config()
+            node_config = await _get_node_config_or_abort(self.daemon, request.name, context)
         except (ConfigError, KeyError, ValueError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
         return json_response(self.pb2, {"node": node_payload(node_config, app.skills, app.entity_types, app.entities, available_model_names())})
 
     async def CreateNodeType(self, request, context):
-        if request.name in self.daemon.controller.runtime_snapshot().config.nodes:
-            await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"node type '{request.name}' already exists")
+        async with self.daemon.controller._factory()() as session:
+            if await get_node_config(session, request.name) is not None:
+                await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"node type '{request.name}' already exists")
         return await self.SaveNodeType(request, context)
 
     async def DeleteNodeType(self, request, context):
-        app = self.daemon.controller.runtime_snapshot().config
-        for dag in app.dags.values():
+        app = self.daemon.controller.runtime_config()
+        async with self.daemon.controller._factory()() as session:
+            dags = await list_dag_configs(session)
+            node = await get_node_config(session, request.name)
+        for dag in dags.values():
             if any(node.type == request.name for node in dag.nodes):
                 await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"node type '{request.name}' is referenced by DAG '{dag.name}'")
-        if request.name not in app.nodes:
+        if node is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node type {request.name} not found")
-        node = app.nodes[request.name]
         async with self.daemon.controller._factory()() as session:
             await delete_core_entity(session, request.name, app.entity_types)
             await session.commit()
         delete_node_assets(self.daemon.config_dir.parent, node)
-        await _refresh_runtime_snapshot(self.daemon)
+        await _emit_config_changed(self.daemon)
         return json_response(self.pb2, {"deleted": True})
 
     async def ListSkills(self, request, context):
@@ -171,7 +184,7 @@ class _GraphService:
                 await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"skill '{name}' already exists")
             skill = await upsert_skill(session, name, _skill_files(body), _display_name(body), _description(body))
             await session.commit()
-        await _refresh_runtime_snapshot(self.daemon)
+        await _emit_config_changed(self.daemon)
         return json_response(self.pb2, {"skill": skill_to_config(skill).model_dump(mode="json")})
 
     async def SaveSkill(self, request, context):
@@ -179,7 +192,7 @@ class _GraphService:
         async with self.daemon.controller._factory()() as session:
             skill = await upsert_skill(session, request.name, _skill_files(body), _display_name(body), _description(body))
             await session.commit()
-        await _refresh_runtime_snapshot(self.daemon)
+        await _emit_config_changed(self.daemon)
         return json_response(self.pb2, {"skill": skill_to_config(skill).model_dump(mode="json")})
 
     async def DeleteSkill(self, request, context):
@@ -188,7 +201,7 @@ class _GraphService:
             await session.commit()
         if not deleted:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"skill {request.name} not found")
-        await _refresh_runtime_snapshot(self.daemon)
+        await _emit_config_changed(self.daemon)
         return json_response(self.pb2, {"deleted": True})
 
     async def ListHandlers(self, request, context):
@@ -242,16 +255,23 @@ class _GraphService:
         return json_response(self.pb2, {"node_statuses": node_statuses})
 
 
-async def _save_core_and_refresh(daemon, entity: EntityConfig) -> None:
+async def _save_core_and_emit(daemon, entity: EntityConfig) -> None:
     async with daemon.controller._factory()() as session:
         await save_core_entity(session, entity)
         await session.commit()
-    await _refresh_runtime_snapshot(daemon)
+    await _emit_config_changed(daemon)
 
 
-async def _refresh_runtime_snapshot(daemon) -> None:
-    config = _load_runtime_base_config(daemon.config_dir)
-    await daemon.controller.install_snapshot(config, daemon.controller.runtime_snapshot().bootstrap)
+async def _emit_config_changed(daemon) -> None:
+    await daemon.controller.emit("event:config-changed", source="graph-service")
+
+
+async def _get_node_config_or_abort(daemon, name: str, context):
+    async with daemon.controller._factory()() as session:
+        node_config = await get_node_config(session, name)
+    if node_config is None:
+        await context.abort(grpc.StatusCode.NOT_FOUND, f"node {name} not found")
+    return node_config
 
 
 def _skill_files(body: dict[str, object]) -> list[dict[str, str]]:
@@ -292,20 +312,35 @@ def _validate_graph_entity_permissions(entity_types: dict[str, object], payload:
             validate_permission_overrides(entity_types, permissions)
 
 
-def _validate_graph_node_refs(app, payload: dict[str, object]) -> None:
-    nodes = payload.get("nodes", [])
-    if not isinstance(nodes, list):
-        return
-    for node in nodes:
-        if not isinstance(node, dict):
-            continue
-        node_type = str(node.get("type") or "")
-        dag_ref = node.get("dag_ref")
-        if node_type in app.nodes or node_type in app.dags:
-            continue
-        if node_type == "dag" and isinstance(dag_ref, str) and dag_ref in app.dags:
-            continue
-        raise ConfigError(f"node type '{node_type}' not found")
+async def _candidate_dag_closure(session, dag_name: str, payload: dict[str, object]) -> tuple[dict[str, DagConfig], dict[str, object]]:
+    root = DagConfig.model_validate(payload)
+    dags: dict[str, DagConfig] = {dag_name: root}
+    nodes: dict[str, object] = {}
+
+    async def visit(dag: DagConfig) -> None:
+        for instance in dag.nodes:
+            sub_dag_name = instance.dag_ref if instance.type == "dag" and instance.dag_ref else None
+            if sub_dag_name is None:
+                existing_dag = await get_dag_config(session, instance.type)
+                if existing_dag is not None:
+                    sub_dag_name = instance.type
+            if sub_dag_name is not None:
+                if sub_dag_name not in dags:
+                    sub_dag = await get_dag_config(session, sub_dag_name)
+                    if sub_dag is None:
+                        raise ConfigError(f"dag '{sub_dag_name}' not found")
+                    dags[sub_dag_name] = sub_dag
+                    await visit(sub_dag)
+                continue
+            if instance.type in nodes:
+                continue
+            node = await get_node_config(session, instance.type)
+            if node is None:
+                raise ConfigError(f"node type '{instance.type}' not found")
+            nodes[instance.type] = node
+
+    await visit(root)
+    return dags, nodes
 
 
 def _manifest_handlers(manifest: dict[str, object]) -> list[dict[str, object]]:
