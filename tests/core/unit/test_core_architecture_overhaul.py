@@ -21,6 +21,9 @@ from edera_core.grpc_client import GrpcClient, _channel_credentials
 from edera_core.hot_reload import clear_handler_cache
 from edera_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
 from edera_core.node.models import NodeInput
+from edera_core.resolver import HandlerMeta, StaticHandlerResolver
+from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
+from edera_core.storage.repository import get_dag_config
 
 
 def test_node_config_discriminated_union() -> None:
@@ -62,7 +65,7 @@ def test_dag_config_inputs_and_optional_edges() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dag_input_binding_and_optional_barrier() -> None:
+async def test_dag_input_binding_and_optional_barrier(tmp_path: Path) -> None:
     nodes = {
         "source": NodeConfig(
             name="source",
@@ -88,16 +91,18 @@ async def test_dag_input_binding_and_optional_barrier() -> None:
     )
     graph = load_graph(dag, nodes)
 
-    async def source(node_input: NodeInput) -> object:
-        return node_input.payload
-
-    async def optional(_node_input: NodeInput) -> object:
-        raise RuntimeError("optional failed")
-
-    async def sink(node_input: NodeInput) -> object:
-        return node_input.payload
-
-    executor = NodeExecutor(nodes, system=_system(), runtime=_runtime(), handlers={"source": source, "optional": optional, "sink": sink}, instances=graph.instances)
+    handlers = {
+        "source": write_handler(tmp_path / "handlers" / "source.py"),
+        "optional": write_handler(tmp_path / "handlers" / "optional.py", 'raise RuntimeError("optional failed")'),
+        "sink": write_handler(tmp_path / "handlers" / "sink.py"),
+    }
+    executor = NodeExecutor(
+        nodes,
+        system=_system(),
+        runtime=_runtime(),
+        snapshot=create_test_snapshot(nodes, handlers),
+        instances=graph.instances,
+    )
     result = await DagRunner(executor).run(graph, "run", {"ticker": "AAPL"})
 
     assert result.node_outputs["source"].payload == "AAPL"
@@ -136,6 +141,7 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
         nodes,
         system=_system().model_copy(update={"workspace_root": tmp_path / "runs"}),
         runtime=_runtime().model_copy(update={"pi_bin": str(fake_pi)}),
+        snapshot=create_test_snapshot(nodes),
         stdout_recorder=lambda _run, _node, line: _append(events, line),
         daemon_data_dir=tmp_path / "edera",
     )
@@ -153,7 +159,7 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
 
 
 def test_clear_handler_cache() -> None:
-    executor = NodeExecutor({}, system=_system(), runtime=_runtime())
+    executor = NodeExecutor({}, system=_system(), runtime=_runtime(), snapshot=create_test_snapshot({}))
     executor._modules["handler"] = object()  # type: ignore[assignment]
 
     clear_handler_cache(executor)
@@ -466,12 +472,14 @@ async def test_daemon_dag_edit_persists_config(tmp_path: Path) -> None:
             ),
             _FakeGrpcContext(),
         )
-        nodes = daemon.controller.runtime_snapshot().config.dags["default"].nodes
+        async with daemon.controller._factory()() as session:
+            updated = await get_dag_config(session, "default")
     finally:
         await daemon.stop()
 
     assert json.loads(response.json) == {"updated": True, "dag": "default"}
-    assert any(node.id == "reader-1" for node in nodes)
+    assert updated is not None
+    assert any(node.id == "reader-1" for node in updated.nodes)
 
 
 @pytest.mark.asyncio
@@ -511,6 +519,15 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
     class Controller:
         agent_certificate_issuer = None
         daemon_data_dir = None
+
+        async def active_dag_for_node(self, node_id: str) -> str | None:
+            assert node_id == "reader-1"
+            return "default"
+
+        async def dag_for_run_node(self, run_id: str, node_id: str) -> str | None:
+            assert run_id == "run-1"
+            assert node_id == "reader-1"
+            return "default"
 
         async def stop_current(self, dag_name: str, force: bool = False, node_id: str | None = None) -> str:
             assert dag_name == "default"
@@ -556,20 +573,22 @@ def test_daemon_resume_path_reissues_agent_cert(tmp_path: Path) -> None:
         issued.append((instance_id, ttl_seconds))
         return SimpleNamespace(cert_pem="CERT", key_pem="KEY", ca_pem="CA")
 
+    nodes = {
+        "agent": NodeConfig.model_validate(
+            {
+                "name": "agent",
+                "type": "agent",
+                "model": "m",
+                "input_type": "Any",
+                "output_type": "Any",
+            }
+        )
+    }
     executor = NodeExecutor(
-        {
-            "agent": NodeConfig.model_validate(
-                {
-                    "name": "agent",
-                    "type": "agent",
-                    "model": "m",
-                    "input_type": "Any",
-                    "output_type": "Any",
-                }
-            )
-        },
+        nodes,
         _system().model_copy(update={"llm_timeout_seconds": 12}),
         _runtime(),
+        create_test_snapshot(nodes),
         agent_certificate_issuer=issuer,
         daemon_data_dir=tmp_path / "edera",
     )
@@ -593,6 +612,22 @@ def _runtime():
     from edera_core.config.schema import RuntimeSettings
 
     return RuntimeSettings()
+
+
+def create_test_snapshot(nodes: dict[str, NodeConfig], handlers: dict[str, HandlerMeta] | None = None) -> DagExecutionSnapshot:
+    return DagExecutionSnapshot(
+        DagExecutionClosure("test", {"test": DagConfig(name="test", nodes=[], edges=[], ui={})}, nodes),
+        {},
+        StaticHandlerResolver(handlers or {}),
+        {},
+        {},
+    )
+
+
+def write_handler(path: Path, body: str = "return ctx.input.payload") -> HandlerMeta:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"async def run(ctx):\n    {body}\n", encoding="utf-8")
+    return HandlerMeta(path)
 
 
 class _FakeGrpcContext:

@@ -1,0 +1,235 @@
+{
+  "timestamp": "2026-06-07T08:43:47.943Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "4d8696b5582fd171db04c57a1334fb68067844f60cdac7aeaa2803bb353a8f1f",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-review",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/design.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/opsx-delta.yaml",
+      "openspec/changes/refresh-stale-test-suite-contracts/proposal.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/specs/core-bootstrap/spec.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-cli/spec.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-server-grpc/spec.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/specs/node-executor/spec.md",
+      "openspec/changes/refresh-stale-test-suite-contracts/tasks.md",
+      "openspec/specs/core-bootstrap/spec.md",
+      "openspec/specs/edera-cli/spec.md",
+      "openspec/specs/edera-server-grpc/spec.md",
+      "openspec/specs/node-executor/spec.md",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/tests/test_bootstrap_with_existing_cert.py",
+      "tests/core/unit/test_bootstrap_fallback.py",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_core_architecture_overhaul.py",
+      "tests/core/unit/test_web_bootstrap_discovery.py"
+    ],
+    "evidenceFingerprint": "871f7bfe3953ef2ea3126607b5b8a1688679c1d94acc03f892619d2e20235ff6",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/design.md",
+        "hash": "9ed5c4e3e48b4263f0ed8cde692d7ee3b67e50aba8748a656cc2beec1b4fe494"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/opsx-delta.yaml",
+        "hash": "6d25e5d19942eb515b77b9fc3b2d3203c3007b794116917e98817ac0fa8b0956"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/proposal.md",
+        "hash": "5dcda785835252cb87efff500a1bf72c1268a22d0f9d189ab80b5bffce170b44"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/core-bootstrap/spec.md",
+        "hash": "53cb6091a125b12b59ffc3ae6a99d4c6375ee1cb895f0e71a65cf4d24b9e947b"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-cli/spec.md",
+        "hash": "f790d0f953f9bad2aceefa48b3dd95af2db1328aefc95ecc3f52ca70c4547079"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-server-grpc/spec.md",
+        "hash": "8daae86ef859fd0ed31d009e52d474ec029c45362ac4526704570e606e704653"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/node-executor/spec.md",
+        "hash": "a76a543ae70db9ca5a189bd9fb0a60b2ce284e6cd88102cd00e849fcc29c1a42"
+      },
+      {
+        "path": "openspec/changes/refresh-stale-test-suite-contracts/tasks.md",
+        "hash": "4d8696b5582fd171db04c57a1334fb68067844f60cdac7aeaa2803bb353a8f1f"
+      },
+      {
+        "path": "openspec/specs/core-bootstrap/spec.md",
+        "hash": "9915d9225fdea325cb4b64371c16a7018e47859afe6677605e551d5895bde6f3"
+      },
+      {
+        "path": "openspec/specs/edera-cli/spec.md",
+        "hash": "05d87fe1ead81bc840f942be31194e8543fc09d082e9a5be46b55f35d8d09e16"
+      },
+      {
+        "path": "openspec/specs/edera-server-grpc/spec.md",
+        "hash": "23869f499f4e2d551d49e9f3460491cc276f146b56e48b35c08cce87fb9d4c12"
+      },
+      {
+        "path": "openspec/specs/node-executor/spec.md",
+        "hash": "13985ab9cc95b7ea738ec3c7df4d455e518349635375deb586193f7950469f39"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "b56053ef4257e264d0a8214b7c9a0ce65fb6be3649e3340f03bc6ec7d7f08e2c"
+      },
+      {
+        "path": "packages/core/tests/test_bootstrap_with_existing_cert.py",
+        "hash": "1c27714e86becf0f7a88fdfe2cecebab807706caec26bb3e84711f729e403ce4"
+      },
+      {
+        "path": "tests/core/unit/test_bootstrap_fallback.py",
+        "hash": "41e976e97ca18f003d46bc6b42d821082e72ccec3ad94ee4f9d1210b3d1f9194"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "7a19bdfa6b10d98c946dbddc2dcc34487f090f1b7f453d080a066866546f979e"
+      },
+      {
+        "path": "tests/core/unit/test_core_architecture_overhaul.py",
+        "hash": "e99e77145f9c38636c15a568e06d697037b3b568820f5ce8fb59a5bc7f4327a7"
+      },
+      {
+        "path": "tests/core/unit/test_web_bootstrap_discovery.py",
+        "hash": "cbcf4eda6d074cd72abf64e8d5e58b9919e153ec20aabbc688f17e148c456c05"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "007a5af58704ec1bdfe969db0e29e2ec18e73057"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-07T08:45:18.333Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Reviewed touched CLI, tests, conftest, and change artifacts; no behavior-preserving optimization is worth applying for this surgical change."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-07T08:43:47.943Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "4d8696b5582fd171db04c57a1334fb68067844f60cdac7aeaa2803bb353a8f1f",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-review",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/design.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/opsx-delta.yaml",
+          "openspec/changes/refresh-stale-test-suite-contracts/proposal.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/specs/core-bootstrap/spec.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-cli/spec.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-server-grpc/spec.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/specs/node-executor/spec.md",
+          "openspec/changes/refresh-stale-test-suite-contracts/tasks.md",
+          "openspec/specs/core-bootstrap/spec.md",
+          "openspec/specs/edera-cli/spec.md",
+          "openspec/specs/edera-server-grpc/spec.md",
+          "openspec/specs/node-executor/spec.md",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/tests/test_bootstrap_with_existing_cert.py",
+          "tests/core/unit/test_bootstrap_fallback.py",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_core_architecture_overhaul.py",
+          "tests/core/unit/test_web_bootstrap_discovery.py"
+        ],
+        "evidenceFingerprint": "2351f818b4136b97afa071ba2d7429c9e4f91820adc50c4e0e48123b4bd2d955",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/design.md",
+            "hash": "9ed5c4e3e48b4263f0ed8cde692d7ee3b67e50aba8748a656cc2beec1b4fe494"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/opsx-delta.yaml",
+            "hash": "6d25e5d19942eb515b77b9fc3b2d3203c3007b794116917e98817ac0fa8b0956"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/proposal.md",
+            "hash": "5dcda785835252cb87efff500a1bf72c1268a22d0f9d189ab80b5bffce170b44"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/core-bootstrap/spec.md",
+            "hash": "53cb6091a125b12b59ffc3ae6a99d4c6375ee1cb895f0e71a65cf4d24b9e947b"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-cli/spec.md",
+            "hash": "f790d0f953f9bad2aceefa48b3dd95af2db1328aefc95ecc3f52ca70c4547079"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/edera-server-grpc/spec.md",
+            "hash": "8daae86ef859fd0ed31d009e52d474ec029c45362ac4526704570e606e704653"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/specs/node-executor/spec.md",
+            "hash": "a76a543ae70db9ca5a189bd9fb0a60b2ce284e6cd88102cd00e849fcc29c1a42"
+          },
+          {
+            "path": "openspec/changes/refresh-stale-test-suite-contracts/tasks.md",
+            "hash": "4d8696b5582fd171db04c57a1334fb68067844f60cdac7aeaa2803bb353a8f1f"
+          },
+          {
+            "path": "openspec/specs/core-bootstrap/spec.md",
+            "hash": "cf351b623f12db54e7ebd56cf655de102d60109f33006c8f4215307b126e31d7"
+          },
+          {
+            "path": "openspec/specs/edera-cli/spec.md",
+            "hash": "05d87fe1ead81bc840f942be31194e8543fc09d082e9a5be46b55f35d8d09e16"
+          },
+          {
+            "path": "openspec/specs/edera-server-grpc/spec.md",
+            "hash": "23869f499f4e2d551d49e9f3460491cc276f146b56e48b35c08cce87fb9d4c12"
+          },
+          {
+            "path": "openspec/specs/node-executor/spec.md",
+            "hash": "13985ab9cc95b7ea738ec3c7df4d455e518349635375deb586193f7950469f39"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "b56053ef4257e264d0a8214b7c9a0ce65fb6be3649e3340f03bc6ec7d7f08e2c"
+          },
+          {
+            "path": "packages/core/tests/test_bootstrap_with_existing_cert.py",
+            "hash": "1c27714e86becf0f7a88fdfe2cecebab807706caec26bb3e84711f729e403ce4"
+          },
+          {
+            "path": "tests/core/unit/test_bootstrap_fallback.py",
+            "hash": "41e976e97ca18f003d46bc6b42d821082e72ccec3ad94ee4f9d1210b3d1f9194"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "7a19bdfa6b10d98c946dbddc2dcc34487f090f1b7f453d080a066866546f979e"
+          },
+          {
+            "path": "tests/core/unit/test_core_architecture_overhaul.py",
+            "hash": "e99e77145f9c38636c15a568e06d697037b3b568820f5ce8fb59a5bc7f4327a7"
+          },
+          {
+            "path": "tests/core/unit/test_web_bootstrap_discovery.py",
+            "hash": "cbcf4eda6d074cd72abf64e8d5e58b9919e153ec20aabbc688f17e148c456c05"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "007a5af58704ec1bdfe969db0e29e2ec18e73057"
+      }
+    }
+  }
+}

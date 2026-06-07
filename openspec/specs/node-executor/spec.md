@@ -172,17 +172,18 @@ Node executor SHALL 在节点配置只指定 source 而未指定 entities 时，
 
 ### Requirement: Node 作为 Entity 执行
 
-Node executor SHALL 从 Entity Store 加载 Node Entity，根据 handler registry 查找执行入口。MUST NOT 依赖 Entity attributes 中的 `type: function/llm` 区分。
+Node executor SHALL 从当前 DAG run 的 `DagExecutionSnapshot` 中解析 Node type 和 handler metadata。执行入口 SHALL 通过 `snapshot.handler_resolver` 获取，MUST NOT 通过 handler registry 获取。
 
 #### Scenario: 加载 Node Entity 并执行
 
 - **WHEN** DAG Runner 调度执行一个 Node Entity
-- **THEN** executor 从 Entity Store 读取该 Entity 的 attributes，提取 `handler` 字段，从 registry 查找执行入口
+- **THEN** executor SHALL 从当前执行上下文解析该 Node 的 type 和 handler 字段
+- **AND** executor SHALL 通过 `snapshot.handler_resolver.get(<handler>)` 查询执行入口 metadata
 
-#### Scenario: Node Entity 无 handler 且不在 registry
+#### Scenario: Node Entity 无 handler 且 resolver 不存在执行入口
 
-- **WHEN** executor 尝试执行一个 attributes 中无 `handler` 的 Entity，且其类型不在 handler registry 中
-- **THEN** executor 返回错误 "Entity is not executable: no registered handler"
+- **WHEN** executor 尝试执行一个无法解析 handler 的 Node Entity
+- **THEN** executor SHALL 返回错误 "Entity is not executable: no registered handler" 或等价的 handler-not-found 错误
 
 ### Requirement: Node 输出存储为 Entity
 
@@ -265,15 +266,16 @@ Node executor SHALL 检测 session_dir 中是否存在 `.jsonl` 文件，存在�
 - **THEN** executor SHALL 不传 `--continue`，pi 创建新 session
 
 ### Requirement: 按 NodeConfig type 分发执行
-Node executor SHALL 根据 NodeConfig 的 type 字段分发到不同执行路径：`function` 走 handler registry，`agent` 走 subprocess pi CLI，`dag` 走递归 DagRunner。MUST NOT 统一为 function node 执行路径。
+Node executor SHALL 根据 NodeConfig 的 type 字段分发到不同执行路径：`function` 走 `snapshot.handler_resolver` + importlib，`agent` 走 subprocess pi CLI，`dag` 走递归 DagRunner。MUST NOT 统一为 function node 执行路径。
 
-#### Scenario: Function 节点走 handler registry
+#### Scenario: Function 节点走 snapshot handler resolver
 - **WHEN** executor 执行 `FunctionNodeConfig` 类型节点
-- **THEN** executor SHALL 通过 importlib 从 handler registry 加载 handler 模块，调用 `run(ctx: HandlerContext)`
+- **THEN** executor SHALL 通过 `snapshot.handler_resolver` 查询 handler metadata
+- **AND** executor SHALL 通过 importlib 加载 handler 模块，调用 `run(ctx: HandlerContext)`
 
 #### Scenario: Agent 节点走 subprocess
 - **WHEN** executor 执行 `AgentNodeConfig` 类型节点
-- **THEN** executor SHALL 启动 subprocess 调用 pi CLI，不走 handler registry
+- **THEN** executor SHALL 启动 subprocess 调用 pi CLI，不走 handler resolver
 
 #### Scenario: Dag 节点走递归 DagRunner
 - **WHEN** executor 执行 `DagNodeConfig` 类型节点
@@ -312,4 +314,3 @@ Node executor SHALL 接收 `DagExecutionSnapshot` 作为构造参数，从快照
 - **WHEN** executor 需要访问 entity type 配置
 - **THEN** executor 从 `self.snapshot.entity_types` 获取（dict）
 - **THEN** executor 不访问全局 `AppConfig.entity_types`
-

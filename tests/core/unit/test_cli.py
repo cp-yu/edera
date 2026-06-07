@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import asyncio
 import pytest
 import yaml
 
@@ -94,8 +95,6 @@ def test_client_init_uses_force_insecure(monkeypatch: pytest.MonkeyPatch) -> Non
 
     monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
 
-    import asyncio
-
     assert asyncio.run(_grpc_client_init("127.0.0.1:9091", "human:test")) == {
         "client_cert_pem": "cert",
         "client_key_pem": "key",
@@ -112,6 +111,32 @@ def test_cli_entity_query_uses_running_server(
     _set_server_env(monkeypatch, running_server)
     monkeypatch.setattr("sys.argv", ["edera", "entity", "query", "type=stock"])
 
+    main()
+
+    assert capsys.readouterr().out == "[]\n"
+
+
+def test_cli_entity_list_returns_explicitly_imported_entity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    running_server,
+) -> None:
+    _set_server_env(monkeypatch, running_server)
+    entity_file = tmp_path / "stock.yaml"
+    entity_file.write_text(
+        "type: stock\n"
+        "id: stock-test\n"
+        "attributes:\n"
+        "  code: TEST\n"
+        "  name: Test\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "import", "--file", str(entity_file)])
+    main()
+    capsys.readouterr()
+
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "list", "--type", "stock"])
     main()
 
     assert "stock:TEST" in capsys.readouterr().out
@@ -134,10 +159,12 @@ async def test_grpc_entity_list_returns_entity_types(
 
 def test_cli_entity_update_denies_node_without_permission(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     running_server,
 ) -> None:
     _set_server_env(monkeypatch, running_server)
+    _import_stock_test(running_server, tmp_path)
     monkeypatch.setattr(
         "sys.argv",
         [
@@ -163,10 +190,12 @@ def test_cli_entity_update_denies_node_without_permission(
 
 def test_cli_entity_update_human_writes_field(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     running_server,
 ) -> None:
     _set_server_env(monkeypatch, running_server)
+    _import_stock_test(running_server, tmp_path)
     monkeypatch.setattr(
         "sys.argv",
         ["edera", "entity", "update", "stock:TEST", "--field", "name", "--value", "Changed"],
@@ -191,16 +220,16 @@ def test_cli_entity_import_uses_full_yaml_document(
         "  type: function\n",
         encoding="utf-8",
     )
-    calls: list[tuple[str, dict[str, object], str]] = []
+    calls: list[tuple[str, str | None]] = []
 
     class FakeClient:
         def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
             assert address == "127.0.0.1:9090"
             assert identity == "human"
 
-        async def entity_create(self, type_name: str, attributes: dict[str, object], entity_id: str = "") -> dict[str, object]:
-            calls.append((type_name, attributes, entity_id))
-            return {"id": entity_id, "type": type_name, "attributes": attributes}
+        async def entity_import(self, import_path: str, type_name: str | None = None) -> dict[str, object]:
+            calls.append((import_path, type_name))
+            return {"imported": 1, "file": import_path}
 
         async def close(self) -> None:
             return None
@@ -211,8 +240,17 @@ def test_cli_entity_import_uses_full_yaml_document(
 
     main()
 
-    assert calls == [("node", {"name": "reader", "type": "function"}, "node-1")]
-    assert '"id": "node-1"' in capsys.readouterr().out
+    assert calls[0][1] is None
+    assert yaml.safe_load(Path(calls[0][0]).read_text(encoding="utf-8")) == {
+        "entities": [
+            {
+                "type": "node",
+                "id": "node-1",
+                "attributes": {"name": "reader", "type": "function"},
+            }
+        ]
+    }
+    assert '"imported": 1' in capsys.readouterr().out
 
 
 def test_cli_entity_export_writes_full_yaml_document(
@@ -350,6 +388,42 @@ def test_cli_entity_import_rejects_invalid_yaml_document(
 
     assert exc.value.code == 1
     assert "entity YAML requires non-empty type" in capsys.readouterr().err
+
+
+def test_cli_relation_import_accepts_relation_yaml(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "relations.yaml"
+    path.write_text(
+        "relations:\n"
+        "- entities: [stock:TEST, rss-source:demo]\n"
+        "  type: watches\n",
+        encoding="utf-8",
+    )
+    calls: list[tuple[str, str | None]] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def entity_import(self, import_path: str, type_name: str | None = None) -> dict[str, object]:
+            calls.append((import_path, type_name))
+            return {"imported": 1}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "relation", "import", "--file", str(path)])
+
+    main()
+
+    assert calls == [(str(path), "relation")]
+    assert '"imported": 1' in capsys.readouterr().out
 
 
 def test_cli_dag_status_uses_grpc(
@@ -538,3 +612,24 @@ def _set_server_env(monkeypatch: pytest.MonkeyPatch, running_server) -> None:
     monkeypatch.setenv("EDERA_CLIENT_CERT", running_server["certs"]["client_cert_pem"])
     monkeypatch.setenv("EDERA_CLIENT_KEY", running_server["certs"]["client_key_pem"])
     monkeypatch.setenv("EDERA_CA_CERT", running_server["certs"]["ca_cert_pem"])
+
+
+def _import_stock_test(running_server, tmp_path: Path) -> None:
+    path = tmp_path / "stock-test.yaml"
+    path.write_text(
+        "type: stock\n"
+        "id: stock-test\n"
+        "attributes:\n"
+        "  code: TEST\n"
+        "  name: Test\n",
+        encoding="utf-8",
+    )
+
+    async def run() -> None:
+        client = GrpcClient(running_server["addr"])
+        try:
+            await client.entity_import(str(path))
+        finally:
+            await client.close()
+
+    asyncio.run(run())

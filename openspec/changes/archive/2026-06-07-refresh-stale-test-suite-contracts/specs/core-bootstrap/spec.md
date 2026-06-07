@@ -1,12 +1,5 @@
----
-capabilities:
-  - cap.core.extension-manifest-system
----
-# core-bootstrap Specification
+## MODIFIED Requirements
 
-## Purpose
-定义扩展目录扫描、extension metadata 持久化、Module Path 设置等能力。
-## Requirements
 ### Requirement: 扩展目录扫描
 
 核心 SHALL 在启动时扫描配置的 `extensions_dirs` 列表中的所有目录，发现扩展 manifest 并持久化 extension metadata。扫描 MUST 递归一层（扩展目录的直接子目录）。扫描阶段 MUST NOT 构建 `HandlerRegistry` 或 `EntityTypeRegistry`。
@@ -57,15 +50,6 @@ capabilities:
 - **WHEN** 扩展 manifest 声明 `rss-source` entity type，用户配置也定义了 `rss-source`
 - **THEN** 核心 SHALL 使用户配置对应的 metadata 成为 DB-backed source of truth
 
-### Requirement: Module Path 设置
-
-核心 bootstrap SHALL 将 `extensions/` 目录加入 `sys.path`，使扩展 handler 可通过相对 import 引用 `_lib/` 模块。
-
-#### Scenario: Handler import _lib 模块
-
-- **WHEN** handler 代码包含 `from _lib.http_fetch import fetch_with_recovery`
-- **THEN** Python 运行时 SHALL 成功解析该 import（因 `extensions/` 已在 `sys.path` 中）
-
 ### Requirement: Engine 启动入口
 核心 SHALL 提供统一启动入口 `Engine`，接受 `config_dir` 和 `extensions_dirs` 参数，完成 bootstrap 后提供 DAG 执行能力。运行入口由 `edera`、`edera-server`、`edera-web` 三个 console scripts 分担。
 
@@ -93,4 +77,3 @@ capabilities:
 #### Scenario: 运行中 DAG 不受影响
 - **WHEN** 重新 bootstrap 期间有 DAG 正在执行
 - **THEN** 该 DAG SHALL 继续使用启动时创建的 `DagExecutionSnapshot`，不受新 metadata 影响
-
