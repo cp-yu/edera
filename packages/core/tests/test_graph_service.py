@@ -287,7 +287,7 @@ async def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
     factory = session_factory(engine)
     handlers = []
     for name, content in handler_files.items():
-        path = tmp_path / "handlers" / "demo-ext" / f"{name}.py"
+        path = tmp_path / "data" / "handlers" / "demo-ext" / f"{name}.py"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         handlers.append({"name": name, "entry": f"{name}.py"})
@@ -299,19 +299,20 @@ async def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
             manifest_snapshot={"name": "demo-ext", "version": "1.0.0", "handlers": handlers},
         )
         await session.commit()
-    return _FakeDaemonWithHandlers(root, factory)
+    return _FakeDaemonWithHandlers(root, factory, tmp_path / "data" / "handlers")
 
 
 class _FakeDaemonWithHandlers:
-    def __init__(self, config_dir, factory):
+    def __init__(self, config_dir, factory, handlers_dir):
         self.config_dir = config_dir
         self.pb2 = pb2
-        self.controller = _FakeSnapshot(factory)
+        self.controller = _FakeSnapshot(factory, handlers_dir)
 
 
 class _FakeSnapshot:
-    def __init__(self, factory):
+    def __init__(self, factory, handlers_dir):
         self.factory = factory
+        self.handlers_dir = handlers_dir
 
     def runtime_snapshot(self):
         return self
@@ -414,7 +415,7 @@ async def test_save_handler_writes_to_database_path(tmp_path):
     )
     payload = json.loads(result.json)
     assert payload["code"] == "def run(): updated"
-    handler_path = tmp_path / "handlers" / "demo-ext" / "reader.py"
+    handler_path = tmp_path / "data" / "handlers" / "demo-ext" / "reader.py"
     assert handler_path.read_text(encoding="utf-8") == "def run(): updated"
 
 

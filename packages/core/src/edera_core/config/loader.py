@@ -130,19 +130,10 @@ def load_app_config(config_dir: Path = Path("config")) -> AppConfig:
 async def load_runtime_app_config(config_dir: Path, engine, extensions_dirs: list[Path] | None = None) -> AppConfig:
     config = _load_runtime_base_config(config_dir)
     from edera_core.bootstrap import load_installed_extensions
-    from edera_core.migration.migrate_extensions import migrate_existing_extensions
     from edera_core.storage import session_factory
 
     async with session_factory(engine)() as session:
-        if extensions_dirs is not None:
-            await migrate_existing_extensions(
-                session,
-                extensions_dirs,
-                handlers_dir=config_dir.parent / "handlers",
-                entity_types=config.entity_types,
-            )
-            await session.commit()
-        await load_installed_extensions(session, config_dir.parent / "handlers")
+        await load_installed_extensions(session, config.system.handlers_dir)
     return await materialize_runtime_app_config(config_dir, config, engine)
 
 
@@ -214,6 +205,7 @@ async def materialize_runtime_app_config(
 
             await save_ordinary_entity(session, entity, entity_type)
         db_entity_types = await list_entity_type_configs(session)
+        core_entities = await list_core_entities(session)
         skills = await list_skill_configs(session)
         await session.commit()
     for source, target in migrated_files:
@@ -222,8 +214,8 @@ async def materialize_runtime_app_config(
     config.entities = EntitiesConfig()
     config.entity_relations = EntityRelationsConfig()
     config.skills = skills
-    config.nodes = {}
-    config.dags = {}
+    config.nodes = _nodes_from_core_entities(config_dir, core_entities)
+    config.dags = _dags_from_core_entities(core_entities)
     return config
 
 

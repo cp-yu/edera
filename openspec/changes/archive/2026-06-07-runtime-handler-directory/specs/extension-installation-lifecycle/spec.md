@@ -1,26 +1,4 @@
-# extension-installation-lifecycle Specification
-
-## Purpose
-此规约记录变更 extension-active-management 引入的行为，请在后续同步或归档前补全正式 Purpose。
-## Requirements
-### Requirement: installed_extensions 数据模型
-
-系统 SHALL 使用 `installed_extensions` 表记录已安装扩展的完整状态。表 MUST 包含 `name`（UNIQUE）、`version`、`manifest_snapshot`（JSON）、`import_records`（JSON array）、`enabled`（BOOLEAN）、`installed_by`（TEXT）和 timestamps。
-
-#### Scenario: 表结构完整
-
-- **WHEN** 系统首次启动创建数据库
-- **THEN** 系统 SHALL 创建 `installed_extensions` 表，含 `id`（INTEGER PRIMARY KEY AUTOINCREMENT）、`name`（TEXT UNIQUE NOT NULL）、`version`（TEXT NOT NULL）、`manifest_snapshot`（TEXT NOT NULL）、`import_records`（TEXT NOT NULL DEFAULT '[]'）、`enabled`（BOOLEAN DEFAULT TRUE）、`installed_by`（TEXT）、`created_at`（TEXT NOT NULL）、`updated_at`（TEXT NOT NULL）
-
-#### Scenario: manifest_snapshot 存储完整 manifest
-
-- **WHEN** 扩展被安装
-- **THEN** 系统 SHALL 将 manifest.yaml 的完整内容序列化为 JSON 存入 `manifest_snapshot` 字段
-
-#### Scenario: import_records 存储导入记录
-
-- **WHEN** 扩展安装过程中导入了 Entity 实例
-- **THEN** 系统 SHALL 将每条导入记录追加到 `import_records` JSON array，每条记录 MUST 包含 `import_path`、`entity_type`、`entity_id`、`entity_ref`、`content_digest`、`imported_entity_digest`、`status`
+## MODIFIED Requirements
 
 ### Requirement: 扩展安装
 
@@ -142,4 +120,3 @@
 
 - **WHEN** 扩展被卸载或停用
 - **THEN** 后续新 DAG run MUST NOT 解析到该扩展的 handler metadata
-

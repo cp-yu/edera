@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 
 from edera_core.bootstrap import discover_available_extensions, load_installed_extensions
-from edera_core.config.schema import EntityTypeConfig
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import save_installed_extension
 
@@ -20,7 +19,7 @@ async def test_no_auto_scan(tmp_path: Path) -> None:
         async with factory() as session:
             bootstrap = await load_installed_extensions(session, tmp_path / "handlers")
 
-        assert list(bootstrap.handler_registry) == []
+        assert bootstrap.manifests == []
         assert [manifest.name for manifest in discover_available_extensions([extensions])] == ["demo"]
     finally:
         await engine.dispose()
@@ -49,8 +48,9 @@ async def test_load_installed(tmp_path: Path) -> None:
         async with factory() as session:
             bootstrap = await load_installed_extensions(session, handlers)
 
-        assert bootstrap.handler_registry["demo-handler"].path == handlers / "demo" / "handler.py"
-        assert isinstance(bootstrap.entity_type_registry["demo_entity"], EntityTypeConfig)
+        assert bootstrap.extension_roots["demo"] == handlers / "demo"
+        assert bootstrap.manifests[0].handlers[0].name == "demo-handler"
+        assert bootstrap.manifests[0].entity_types[0].name == "demo_entity"
         assert [manifest.name for manifest in bootstrap.manifests] == ["demo"]
     finally:
         await engine.dispose()
@@ -76,9 +76,8 @@ async def test_skip_disabled(tmp_path: Path) -> None:
         async with factory() as session:
             bootstrap = await load_installed_extensions(session, tmp_path / "handlers")
 
-        assert list(bootstrap.handler_registry) == []
-        assert list(bootstrap.entity_type_registry) == []
         assert bootstrap.manifests == []
+        assert bootstrap.extension_roots == {}
     finally:
         await engine.dispose()
 

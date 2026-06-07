@@ -1,6 +1,8 @@
 import hashlib
+import builtins
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Callable
 
 import pytest
 from sqlalchemy import text
@@ -18,6 +20,8 @@ from edera_core.config.schema import (
 from edera_core.dag_controller import _record_raw_log, _record_summary_log
 from edera_core.node.executor import NodeExecutor, _apply_instance_config
 from edera_core.node.models import NodeContext, NodeInput
+from edera_core.resolver import HandlerMeta, StaticHandlerResolver
+from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import query_log_index
 from edera_types import NodeOutput
@@ -65,7 +69,7 @@ def _load_config():
 
 
 @pytest.mark.asyncio
-async def test_node_executor_function_handler_returns_json_payload() -> None:
+async def test_node_executor_function_handler_returns_json_payload(tmp_path: Path) -> None:
     config = _load_config()
 
     async def handler(node_input: NodeInput) -> dict[str, object]:
@@ -81,7 +85,7 @@ async def test_node_executor_function_handler_returns_json_payload() -> None:
         config.nodes,
         config.system,
         config.runtime,
-        handlers={"fetch-rss": handler},
+        _test_snapshot(tmp_path, handlers={"fetch-rss": handler}),
         instances={instance.id: instance},
     )
     output = await executor.execute(
@@ -93,7 +97,7 @@ async def test_node_executor_function_handler_returns_json_payload() -> None:
 
 
 @pytest.mark.asyncio
-async def test_node_executor_records_handler_node_output() -> None:
+async def test_node_executor_records_handler_node_output(tmp_path: Path) -> None:
     recorded: list[tuple[str, str, str, object, str | None]] = []
     summaries: list[tuple[str, str, dict[str, object]]] = []
 
@@ -123,7 +127,7 @@ async def test_node_executor_records_handler_node_output() -> None:
         {"report-node": node},
         SystemConfig(),
         RuntimeSettings(),
-        handlers={"report": handler},
+        _test_snapshot(tmp_path, handlers={"report": handler}),
         output_recorder=recorder,
         execution_summary_recorder=summary_recorder,
     )
@@ -153,7 +157,7 @@ async def test_node_executor_records_handler_node_output() -> None:
 
 
 @pytest.mark.asyncio
-async def test_node_executor_records_empty_payload_summary_without_output() -> None:
+async def test_node_executor_records_empty_payload_summary_without_output(tmp_path: Path) -> None:
     recorded: list[tuple[str, str, str, object, str | None]] = []
     summaries: list[tuple[str, str, dict[str, object]]] = []
 
@@ -183,7 +187,7 @@ async def test_node_executor_records_empty_payload_summary_without_output() -> N
         {"empty-node": node},
         SystemConfig(),
         RuntimeSettings(),
-        handlers={"empty": handler},
+        _test_snapshot(tmp_path, handlers={"empty": handler}),
         output_recorder=output_recorder,
         execution_summary_recorder=summary_recorder,
     )
@@ -197,7 +201,7 @@ async def test_node_executor_records_empty_payload_summary_without_output() -> N
 
 
 @pytest.mark.asyncio
-async def test_node_executor_records_failed_summary_without_output() -> None:
+async def test_node_executor_records_failed_summary_without_output(tmp_path: Path) -> None:
     recorded: list[tuple[str, str, str, object, str | None]] = []
     summaries: list[tuple[str, str, dict[str, object]]] = []
 
@@ -227,7 +231,7 @@ async def test_node_executor_records_failed_summary_without_output() -> None:
         {"failing-node": node},
         SystemConfig(),
         RuntimeSettings(),
-        handlers={"failing": handler},
+        _test_snapshot(tmp_path, handlers={"failing": handler}),
         output_recorder=output_recorder,
         execution_summary_recorder=summary_recorder,
     )
@@ -255,10 +259,8 @@ async def test_node_executor_missing_skill_reports_name(tmp_path: Path) -> None:
         config.nodes,
         config.system,
         config.runtime,
-        handlers={},
+        _test_snapshot(tmp_path),
         instances={instance.id: instance},
-        handlers_dir=tmp_path,
-        skills_dir=tmp_path,
     )
     output = await executor.execute(
         instance.id,
@@ -269,16 +271,18 @@ async def test_node_executor_missing_skill_reports_name(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_node_entity_execution_uses_registry_module_cache(tmp_path: Path) -> None:
+async def test_node_entity_execution_uses_module_cache(tmp_path: Path) -> None:
     config = _load_config()
     handler = tmp_path / "dynamic.py"
     handler.write_text("async def run(ctx):\n    return {'version': 1}\n", encoding="utf-8")
     node = config.nodes["rss-fetcher"].model_copy(update={"handler": "dynamic"})
-    from edera_core.registry import HandlerRegistry
 
-    registry = HandlerRegistry()
-    registry.register("dynamic", handler)
-    executor = NodeExecutor({"rss-fetcher": node}, config.system, config.runtime, registry.seal())
+    executor = NodeExecutor(
+        {"rss-fetcher": node},
+        config.system,
+        config.runtime,
+        _test_snapshot(tmp_path, paths={"dynamic": handler}),
+    )
 
     first = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
     handler.write_text("async def run(ctx):\n    return {'version': 2}\n", encoding="utf-8")
@@ -289,7 +293,7 @@ async def test_node_entity_execution_uses_registry_module_cache(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_node_executor_prefers_node_entity() -> None:
+async def test_node_executor_prefers_node_entity(tmp_path: Path) -> None:
     config = _load_config()
 
     async def entity_handler(_node_input: NodeInput) -> dict[str, object]:
@@ -323,7 +327,7 @@ async def test_node_executor_prefers_node_entity() -> None:
         {"reader": config.nodes["reader"].model_copy(update={"handler": "legacy-handler"})},
         config.system,
         config.runtime,
-        handlers={"entity-handler": entity_handler, "legacy-handler": legacy_handler},
+        _test_snapshot(tmp_path, handlers={"entity-handler": entity_handler, "legacy-handler": legacy_handler}),
         entity_store=store,
     )
 
@@ -333,7 +337,7 @@ async def test_node_executor_prefers_node_entity() -> None:
 
 
 @pytest.mark.asyncio
-async def test_node_executor_reports_non_executable_entity() -> None:
+async def test_node_executor_reports_non_executable_entity(tmp_path: Path) -> None:
     config = _load_config()
     store = EntityStore(
         EntitiesConfig.model_validate(
@@ -374,16 +378,16 @@ async def test_node_executor_reports_non_executable_entity() -> None:
         },
         EntityRelationsConfig(),
     )
-    executor = NodeExecutor({}, config.system, config.runtime, entity_store=store)
+    executor = NodeExecutor({}, config.system, config.runtime, _test_snapshot(tmp_path), entity_store=store)
 
     output = await executor.execute("metadata", NodeInput(run_id="run", payload={}))
 
     assert not output.ok
-    assert output.error == "handler not registered: metadata"
+    assert output.error == "handler not found: metadata"
 
 
 @pytest.mark.asyncio
-async def test_system_zero_timeout_disables_wait_for() -> None:
+async def test_system_zero_timeout_disables_wait_for(tmp_path: Path) -> None:
     config = _load_config()
 
     async def handler(_node_input: NodeInput) -> dict[str, object]:
@@ -395,7 +399,7 @@ async def test_system_zero_timeout_disables_wait_for() -> None:
         {"rss-fetcher": node},
         system,
         config.runtime,
-        handlers={"fetch-rss": handler},
+        _test_snapshot(tmp_path, handlers={"fetch-rss": handler}),
     )
 
     output = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
@@ -415,11 +419,12 @@ async def test_context_handler_receives_full_input_and_params(tmp_path: Path) ->
         encoding="utf-8",
     )
     node = config.nodes["rss-fetcher"].model_copy(update={"parameters": {"limit": 2}})
-    from edera_core.registry import HandlerRegistry
-
-    registry = HandlerRegistry()
-    registry.register("fetch-rss", handler)
-    executor = NodeExecutor({"rss-fetcher": node}, config.system, config.runtime, registry.seal())
+    executor = NodeExecutor(
+        {"rss-fetcher": node},
+        config.system,
+        config.runtime,
+        _test_snapshot(tmp_path, paths={"fetch-rss": handler}),
+    )
     node_input = NodeInput(run_id="run", payload={"source_names": ["hn-rss"]}, metadata={})
 
     output = await executor.execute("rss-fetcher", node_input)
@@ -443,15 +448,11 @@ async def test_context_handler_records_source_recovery(tmp_path: Path) -> None:
     async def recorder(run_id: str, node_id: str, source_name: str, summary: dict[str, object]) -> None:
         recorded.append((run_id, node_id, source_name, summary))
 
-    from edera_core.registry import HandlerRegistry
-
-    registry = HandlerRegistry()
-    registry.register("fetch-rss", handler)
     executor = NodeExecutor(
         {"rss-fetcher": config.nodes["rss-fetcher"]},
         config.system,
         config.runtime,
-        registry.seal(),
+        _test_snapshot(tmp_path, paths={"fetch-rss": handler}),
         source_recovery_recorder=recorder,
     )
 
@@ -462,7 +463,7 @@ async def test_context_handler_records_source_recovery(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_pi_node_requires_instance_model() -> None:
+async def test_pi_node_requires_instance_model(tmp_path: Path) -> None:
     config = _load_config()
     node = NodeConfig(
         name="llm-node",
@@ -476,7 +477,7 @@ async def test_pi_node_requires_instance_model() -> None:
         {"llm-node": node},
         config.system,
         config.runtime,
-        handlers={"run-pi": _unused_handler},
+        _test_snapshot(tmp_path, handlers={"run-pi": _unused_handler}),
         instances={instance.id: instance},
     )
 
@@ -542,6 +543,7 @@ async def test_agent_executor_records_raw_log_file(tmp_path: Path) -> None:
         {"agent-node": node},
         SystemConfig(),
         runtime,
+        _test_snapshot(tmp_path),
         daemon_data_dir=tmp_path / "data",
         stdout_recorder=lambda _run, _node, line: _append(stdout, line),
         raw_log_recorder=recorder,
@@ -597,6 +599,7 @@ async def test_agent_executor_records_failed_and_silent_summary(tmp_path: Path) 
         {"agent-node": node},
         SystemConfig(),
         RuntimeSettings(pi_bin=str(failed_pi)),
+        _test_snapshot(tmp_path),
         daemon_data_dir=tmp_path / "failed-data",
         stdout_recorder=lambda _run, _node, line: _append(stdout, line),
         raw_log_recorder=recorder,
@@ -606,6 +609,7 @@ async def test_agent_executor_records_failed_and_silent_summary(tmp_path: Path) 
         {"agent-node": node},
         SystemConfig(),
         RuntimeSettings(pi_bin=str(silent_pi)),
+        _test_snapshot(tmp_path),
         daemon_data_dir=tmp_path / "silent-data",
         raw_log_recorder=recorder,
         execution_summary_recorder=summary_recorder,
@@ -712,3 +716,32 @@ async def _unused_handler(_node_input: NodeInput) -> dict[str, object]:
 
 async def _append(items: list[str], value: str) -> None:
     items.append(value)
+
+
+def _test_snapshot(
+    tmp_path: Path,
+    *,
+    handlers: dict[str, Callable[[object], object]] | None = None,
+    paths: dict[str, Path] | None = None,
+) -> DagExecutionSnapshot:
+    entries: dict[str, HandlerMeta] = {}
+    for name, handler in (handlers or {}).items():
+        path = tmp_path / f"{name}.py"
+        attr = f"_edera_test_handler_{name.replace('-', '_')}"
+        setattr(builtins, attr, handler)
+        path.write_text(
+            "import builtins\n"
+            f"async def run(ctx):\n"
+            f"    return await builtins.{attr}(ctx.input)\n",
+            encoding="utf-8",
+        )
+        entries[name] = HandlerMeta(path)
+    for name, path in (paths or {}).items():
+        entries[name] = HandlerMeta(path)
+    return DagExecutionSnapshot(
+        DagExecutionClosure("test", {}, {}),
+        {},
+        StaticHandlerResolver(entries),
+        {},
+        {},
+    )

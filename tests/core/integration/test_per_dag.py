@@ -12,7 +12,7 @@ from edera_core.bootstrap import load_installed_extensions
 from edera_core.config.schema import EntityConfig
 from edera_core.config.loader import _load_runtime_base_config
 from edera_core.errors import DagError
-from edera_core.migration.migrate_extensions import migrate_existing_extensions
+from edera_core.extension_manager import ExtensionManager
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import (
     create_dag_run,
@@ -37,15 +37,9 @@ class FakeController(DagController):
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
         config = _load_runtime_base_config(self.config_dir)
+        await _install_default_extensions(self.engine, self.handlers_dir, config.entity_types)
         async with self.factory() as session:
-            await migrate_existing_extensions(
-                session,
-                self.extensions_dirs,
-                handlers_dir=self.handlers_dir,
-                entity_types=config.entity_types,
-            )
             bootstrap = await load_installed_extensions(session, self.handlers_dir)
-            await session.commit()
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
 
@@ -126,6 +120,50 @@ class FakeGrpcClient:
 
     async def config_list_entity_types(self) -> dict[str, object]:
         return {"types": {}}
+
+
+async def _install_default_extensions(engine, handlers_dir: Path, entity_types: dict[str, object]) -> None:
+    manager = ExtensionManager(
+        extensions_dir=Path("extensions"),
+        handlers_dir=handlers_dir,
+        engine=engine,
+        config_entity_types=entity_types,
+    )
+    for name in [
+        "rss-fetcher",
+        "api-fetcher",
+        "reader",
+        "advisor",
+        "briefing-generator",
+        "notifier",
+        "default-news-workflow",
+    ]:
+        await manager.install(name)
+
+
+async def _install_controller_extensions(ctrl: DagController, extensions_dir: Path, names: list[str]) -> None:
+    if ctrl.engine is None:
+        raise RuntimeError("controller not started")
+    manager = ExtensionManager(
+        extensions_dir=extensions_dir,
+        handlers_dir=ctrl.handlers_dir,
+        engine=ctrl.engine,
+        config_entity_types=_load_runtime_base_config(ctrl.config_dir).entity_types,
+    )
+    for name in names:
+        await manager.install(name)
+    await ctrl.install_snapshot(_load_runtime_base_config(ctrl.config_dir), await ctrl.load_bootstrap())
+
+
+async def _save_default_node_a_dag(session) -> None:
+    await save_core_entity(
+        session,
+        EntityConfig(
+            id="default",
+            type="dag",
+            attributes={"name": "default", "nodes": [{"id": "node-a", "type": "node-a"}], "edges": []},
+        ),
+    )
 
 
 # --- PLACEHOLDER_TESTS ---
@@ -370,7 +408,7 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
             super().__init__(config_dir)
             self.calls = []
 
-        async def _run_single_node(self, run_id, source, dag_name, instance, payload, stop_event, snapshot=None):
+        async def _run_single_node(self, run_id, source, dag_name, instance, payload, stop_event, snapshot=None, **_kwargs):
             self.calls.append((run_id, source, dag_name, payload))
             await asyncio.sleep(60)
 
@@ -380,8 +418,9 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", dag_name="default")
             await finish_dag_run(session, "run-original", "succeeded")
+            await _save_default_node_a_dag(session)
             await session.commit()
-        run_id = await ctrl.run_node_trigger("node-a", {"symbol": "TEST"})
+        run_id = await ctrl.run_node_trigger("default/node-a", {"symbol": "TEST"})
         await asyncio.sleep(0)
     finally:
         await ctrl.shutdown()
@@ -545,6 +584,7 @@ async def test_full_successful_dag_run_triggers_retention_cleanup(
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         await ctrl.run_now("manual", "default")
     finally:
         await ctrl.shutdown()
@@ -568,6 +608,7 @@ async def test_failed_dag_run_skips_retention_cleanup(
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         with pytest.raises(DagError, match="all source nodes failed"):
             await ctrl.run_now("manual", "default")
     finally:
@@ -592,6 +633,7 @@ async def test_cancelled_dag_run_skips_retention_cleanup(
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         run_id = await ctrl.start_run("manual", "default")
         assert run_id
         await asyncio.sleep(0)
@@ -618,7 +660,8 @@ async def test_single_node_run_skips_retention_cleanup(
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
-        await ctrl.run_node_trigger("source", {"manual": True})
+        await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
+        await ctrl.run_node_trigger("default/source", {"manual": True})
         await ctrl.active_runs["default"].task
     finally:
         await ctrl.shutdown()
@@ -642,6 +685,7 @@ async def test_partial_retry_skips_retention_cleanup(
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         await ctrl.run_now("manual", "default")
         async with ctrl._factory()() as session:
             await store_node_output_entities(session, "original", "source", "analysis", {"summary": "old"}, None)
@@ -696,6 +740,7 @@ async def test_sub_dag_records_independent_run_and_parent_metadata(tmp_path: Pat
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["leaf"])
         parent_run_id = await ctrl.run_now("manual", "default", {"seed": True})
         async with ctrl._factory()() as session:
             parent_runs = await node_runs_for_run(session, parent_run_id)
@@ -1007,6 +1052,7 @@ async def test_resume_api_reuses_original_run(tmp_path: Path) -> None:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", ["node-a"], dag_name="default")
             await store_node_output_entities(session, "run-original", "node-a", "analysis", {"summary": "old"}, "session-1")
+            await _save_default_node_a_dag(session)
             await session.commit()
         run_id = await ctrl.resume_node("default", "run-original", "node-a", {"prompt": "adjust"})
         async with ctrl._factory()() as session:
@@ -1088,6 +1134,7 @@ async def test_dag_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["run-pi"])
         await ctrl.run_now("manual", "default")
         configured = tmp_path / "workspace" / "sandbox" / "source" / "configured"
         override = tmp_path / "workspace" / "sandbox" / "source" / "override"
@@ -1156,6 +1203,7 @@ async def test_scheduler_reflection_waits_and_edits_skill(tmp_path: Path) -> Non
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
     await ctrl.start(run_startup=False)
     try:
+        await _install_controller_extensions(ctrl, extensions_dir, ["reflection-editor"])
         blocker = asyncio.create_task(asyncio.sleep(0.2))
         ctrl.active_runs["default"] = DagRunContext("default", "run-default", blocker)
         pending = asyncio.create_task(ctrl.start_run("manual", "reflection"))

@@ -32,6 +32,7 @@ class SystemConfig(BaseModel):
     workspace_root: Path = Path("/tmp/edera/runs")
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=720, ge=0)
+    handlers_dir: Path = Path("data/handlers")
     sandbox_max_bytes: int = Field(default=0, ge=0)
     max_dag_depth: int = Field(default=3, ge=1)
     config_git_commit: bool = True

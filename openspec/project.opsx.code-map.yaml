@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at: 2026-06-07T08:50:28.264Z
+generated_at: 2026-06-07T10:23:06.064Z
 nodes:
   - id: cap.advisory.trade-advisory
     refs:
