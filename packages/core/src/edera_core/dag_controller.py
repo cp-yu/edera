@@ -571,7 +571,11 @@ class DagController:
         await event_bus.publish("dag.status", run_id=run_id, dag_name=dag_name, status="started")
         try:
             async with factory() as session:
-                await run_store.preload_for_dag(run_id, _run_entity_refs(config, graph, payload), session)
+                await run_store.preload_for_dag(
+                    run_id,
+                    _run_entity_refs(config, [*execution_snapshot.dag_closure.dags.values()], payload),
+                    session,
+                )
                 executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store, execution_snapshot=execution_snapshot)
                 ctx = self.active_runs.get(dag_name)
                 if ctx is not None and ctx.run_id == run_id:
@@ -1084,7 +1088,7 @@ def _source_entity_refs(app_config: AppConfig) -> list[str]:
     return refs
 
 
-def _run_entity_refs(app_config: AppConfig, graph, payload: object | None) -> list[str]:
+def _run_entity_refs(app_config: AppConfig, dags_or_graph, payload: object | None) -> list[str]:
     refs: list[str] = []
     if payload is None:
         refs.extend(_source_entity_refs(app_config))
@@ -1092,7 +1096,13 @@ def _run_entity_refs(app_config: AppConfig, graph, payload: object | None) -> li
         raw = payload.get("entities")
         if isinstance(raw, list):
             refs.extend(str(item) for item in raw)
-    for instance in graph.instances.values():
+    if hasattr(dags_or_graph, "instances"):
+        instances = list(dags_or_graph.instances.values())
+    else:
+        instances = [instance for dag in dags_or_graph for instance in dag.nodes]
+    for instance in instances:
+        if instance.resource:
+            refs.append(instance.resource)
         raw = instance.config.get("entities")
         if isinstance(raw, list):
             refs.extend(str(item) for item in raw)

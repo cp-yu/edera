@@ -90,7 +90,7 @@ async def test_run_preloads_and_clears_dag_entity_cache(monkeypatch, tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
     await init_db(engine)
     factory = session_factory(engine)
-    controller = DagController(tmp_path / "config")
+    controller = DagController(_config_dir(tmp_path))
     controller.engine = engine
     controller.factory = factory
     _install_runtime_state(controller, _app_config(), RuntimeControlSnapshot(SystemConfig(config_git_commit=False), RuntimeSettings(), None, None))
@@ -146,11 +146,67 @@ async def test_run_preloads_and_clears_dag_entity_cache(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_run_preloads_resource_refs_from_dag_closure(monkeypatch, tmp_path):
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
+    await init_db(engine)
+    factory = session_factory(engine)
+    controller = DagController(_config_dir(tmp_path))
+    controller.engine = engine
+    controller.factory = factory
+    _install_runtime_state(controller, _app_config(), RuntimeControlSnapshot(SystemConfig(config_git_commit=False), RuntimeSettings(), None, None))
+    captured: dict[str, object] = {}
+
+    class FakeDagRunner:
+        def __init__(self, executor, **_kwargs):
+            captured["store"] = executor.entity_store
+
+        async def run(self, _graph, run_id, _payload, **_kwargs):
+            store = captured["store"]
+            captured["resource_permits"] = store.resolve("v8_isolate").attributes["permits"]
+            return SimpleNamespace(
+                node_outputs={"child": NodeOutput(node_name="child", ok=True)},
+                failures={},
+                payload={"ok": True},
+            )
+
+    monkeypatch.setattr("edera_core.dag_controller.DagRunner", FakeDagRunner)
+    async with factory() as session:
+        await _install(session)
+        await save_core_entity(session, EntityConfig(id="node:reader", type="node", attributes=_reader_node()))
+        await save_core_entity(session, EntityConfig(id="v8_isolate", type="resource", attributes={"id": "v8_isolate", "permits": 1}))
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id="dag:demo",
+                type="dag",
+                attributes={"name": "demo", "nodes": [{"id": "child", "type": "dag", "dag_ref": "child"}], "edges": [], "ui": {}},
+            ),
+        )
+        await save_core_entity(
+            session,
+            EntityConfig(
+                id="dag:child",
+                type="dag",
+                attributes={"name": "child", "nodes": [{"id": "n1", "type": "reader", "resource": "v8_isolate"}], "edges": [], "ui": {}},
+            ),
+        )
+        await session.commit()
+
+    try:
+        result = await controller._run("run-resource", "manual", "demo", snapshot=controller.runtime_snapshot())
+    finally:
+        await engine.dispose()
+
+    assert result == {"ok": True}
+    assert captured["resource_permits"] == 1
+
+
+@pytest.mark.asyncio
 async def test_run_rejects_invalid_closure_before_creating_dag_run(tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
     await init_db(engine)
     factory = session_factory(engine)
-    controller = DagController(tmp_path / "config")
+    controller = DagController(_config_dir(tmp_path))
     controller.engine = engine
     controller.factory = factory
     _install_runtime_state(
@@ -336,13 +392,20 @@ async def test_resume_node_uses_database_execution_snapshot(monkeypatch, tmp_pat
 
 
 def _controller(tmp_path) -> DagController:
-    controller = DagController(tmp_path / "config")
+    controller = DagController(_config_dir(tmp_path))
     _install_runtime_state(
         controller,
         _app_config(),
         RuntimeControlSnapshot(SystemConfig(config_git_commit=False), RuntimeSettings(), None, None),
     )
     return controller
+
+
+def _config_dir(tmp_path):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(exist_ok=True)
+    (config_dir / "system.toml").write_text(f'handlers_dir = "{tmp_path / "handlers"}"\n', encoding="utf-8")
+    return config_dir
 
 
 def _app_config() -> AppConfig:

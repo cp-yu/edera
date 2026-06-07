@@ -156,6 +156,9 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
     args = json.loads(captured[2])
     session_dir = Path(args[args.index("--session-dir") + 1])
     assert (session_dir / "runtime-context.json").exists()
+    prompt_arg = args[args.index("-p") + 1]
+    assert prompt_arg == f"@{session_dir / 'prompt.md'}"
+    assert "do it" in (session_dir / "prompt.md").read_text(encoding="utf-8")
 
 
 def test_clear_handler_cache() -> None:

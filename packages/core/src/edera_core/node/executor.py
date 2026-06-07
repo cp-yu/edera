@@ -288,17 +288,20 @@ class NodeExecutor:
         instance: DagNodeInstance | None,
     ) -> NodeOutput:
         effective = _apply_agent_instance_config(config, instance)
-        session_dir = _agent_session_dir(self._agent_data_dir(), context.dag_name, context.instance_id, node_input.run_id)
+        session_dir = _agent_session_dir(self._agent_data_dir().resolve(), context.dag_name, context.instance_id, node_input.run_id)
         session_dir.mkdir(parents=True, exist_ok=True)
+        has_session = any(session_dir.glob("*.jsonl"))
         generate_skill_files(session_dir, list(self.snapshot.skills.values()))
         runtime_context = _agent_runtime_context(node_input, context)
         (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
-        if any(session_dir.iterdir()):
+        if has_session:
             cmd.append("--continue")
         prompt = _agent_prompt(node_input.payload, runtime_context)
         if prompt:
-            cmd.extend(["--prompt", prompt])
+            prompt_path = session_dir / "prompt.md"
+            prompt_path.write_text(prompt, encoding="utf-8")
+            cmd.extend(["-p", f"@{prompt_path}"])
         env = os.environ.copy()
         env.update(_agent_env(context.instance_id))
         workdir = effective.workdir or session_dir.parent

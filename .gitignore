@@ -18,3 +18,6 @@ codex_*.log
 .runtime-run.vdRdxQ
 .claude/settings.local.json
 extensions/uzi-skill/.cache/_global/api_cache
+/sessions
+/ca.crt
+/ca.key
