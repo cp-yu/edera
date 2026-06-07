@@ -65,6 +65,7 @@ const HISTORY_LIMIT = 50
 const MIN_ZOOM = 0.01
 const FIT_VIEW_PADDING = 0.24
 const FIT_VIEW_FRAME_DELAY = 2
+const EMPTY_PROTOTYPES: NodeType[] = []
 
 function createInstance(prototype: NodeType): NodeInstance {
   return {
@@ -157,7 +158,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const [contextNodeIds, setContextNodeIds] = useState<string[]>([])
   const pendingDraftRef = useRef<string | null>(null)
 
-  const prototypes = prototypesData?.prototypes ?? []
+  const prototypes = prototypesData?.prototypes ?? EMPTY_PROTOTYPES
   const dagCandidates = (dagListData?.dags ?? []).filter((name) => name !== dagName && name !== selectedDagName)
   const prototypeMap = useMemo(() => new Map(prototypes.map((node) => [node.name, node])), [prototypes])
   const dagNames = dagListData?.dags ?? []
@@ -282,7 +283,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
     historyRef.current = [{ nodes: nodeData, edges: edgeData }]
     historyIndexRef.current = 0
     fitCanvasToGraph()
-  }, [dag, dagName, fitCanvasToGraph, runtimeStatus])
+  }, [dag, dagName, fitCanvasToGraph, prototypeMap, runtimeStatus])
 
   useEffect(() => {
     if (!runtimeStatus) return

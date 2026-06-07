@@ -4,6 +4,28 @@ test.beforeEach(async ({ page }) => {
   await mockWorkbench(page)
 })
 
+test('hydrates DAG nodes after prototypes arrive', async ({ page }) => {
+  await page.unroute(/\/api\/graph\/nodes$/)
+  await page.route(/\/api\/graph\/nodes$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await route.fulfill({
+      json: {
+        prototypes: [
+          prototype('source-alpha', 'source', 'None', 'RawItem'),
+          prototype('source-beta', 'source', 'None', 'RawItem'),
+          prototype('processor-transform', 'processor', 'RawItem', 'Analysis'),
+          prototype('sink-write', 'sink', 'Analysis', 'None'),
+        ],
+      },
+    })
+  })
+
+  await page.goto('/workbench')
+
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'Node A' })).toBeVisible()
+  await expect(page.locator('.react-flow__node')).toHaveCount(6)
+})
+
 test('persists selected DAG', async ({ page }) => {
   await page.goto('/workbench')
 
