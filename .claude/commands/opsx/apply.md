@@ -71,9 +71,12 @@ Implement tasks from an OpenSpec change.
 
 **Document Language Contract**:
 - Treat `openspec/config.yaml` as the compact source of truth, but consume its compiled prompt projection rather than reinterpreting raw keys ad hoc
-- If the compiled projection includes `proseLanguage`, apply it only to natural-language prose you write in the artifact body
+- If the compiled projection includes `proseLanguage`, apply it to natural-language prose you write or revise in the artifact body
+- Natural-language prose includes task titles, check names, Requirement titles, Scenario titles, bullet descriptions, Expect/Evidence descriptions, rationale, goals, risks, and summaries
 - Follow the existing template structure exactly; do not invent a different layout because the prose language changes
-- Keep template headings, IDs, schema keys, relation types, BDD keywords, file paths, commands, and code identifiers in their canonical form
+- Keep template headings, normative keywords, BDD keywords, IDs, schema keys, relation types, file paths, commands, and code identifiers in their canonical form
+- Preserve exact existing Requirement titles required for MODIFIED matching
+- English project terminology may remain embedded in prose, but ordinary English sentences and titles still follow `proseLanguage`
 - If no `proseLanguage` projection is present, keep the default writing behavior for prose
 
 5. **Show current progress**
@@ -106,6 +109,7 @@ Before Phase 0 implementation:
     "originalBranch": "<original-branch-name>"
   }
   ```
+- Do not use `type`/`name` or `originBranch` as aliases for those fields.
 - For worktrees, first check `.claude/skills/using-git-worktrees/` and `skills/using-git-worktrees/`. Use that skill when present; otherwise use `git worktree add` with paths built through `path.join()`.
 
 ### Master Agent Strict TDD Implementation

@@ -7,7 +7,17 @@ tags: [workflow, explore, experimental, thinking]
 
 Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
+**IMPORTANT: Explore mode is for thinking, not writing.** You may read files, search code, and investigate the codebase, but you must never create or modify files, including OpenSpec artifacts. If the user asks to create or update artifacts, produce or refine the conversation-only Design Summary and instruct them to run `$openspec-propose <change-name>` or the appropriate non-explore workflow.
+
+### Read-only Boundary
+
+Explore is read-only for the main agent. Do not create, edit, delete, format, regenerate, or patch any project file or OpenSpec artifact. The main explore agent may read files, search code, run read-only inspection commands, interpret impact reports, and produce a conversation-only `Design Summary`.
+
+When artifact generation is appropriate, instruct the user to call `$openspec-propose <change-name>`.
+
+User selection of an option, confirmation of a design section, or statements such as "可以", "就这样", "选 2", or "拆成多个文件" confirm design direction only. They are not authorization to modify files.
+
+Only the `openspec-impact-sweeper` subagent may write its JSON report under `openspec/sweeper/`; the main explore agent may only read and interpret that report. The sweeper report write is an internal subagent exception and does not grant the main explore agent permission to create or modify project files or OpenSpec artifacts.
 
 **Explore has a mandatory brainstorming flow.** Stay conversational, but complete the checklist below before proposal readiness.
 
@@ -156,7 +166,7 @@ Explore MUST run this sequence before saying a proposal is ready:
 6. **Generate Design Summary**
    - Produce a `Design Summary` in the conversation, not in a file.
    - Include: architecture, core components, data flow, technology stack, testing strategy, risks and trade-offs.
-   - End with: "设计总结已完成。请审查上述设计。如果确认无误，请调用 `/opsx:propose <change-name>` 生成制品。"
+   - End with: "设计总结已完成。请审查上述设计。如果确认无误，请调用 `$openspec-propose <change-name>` 生成制品。"
 
 If the user mentioned a specific change name, read its artifacts for context.
 
@@ -164,7 +174,7 @@ If the user mentioned a specific change name, read its artifacts for context.
 
 Think freely. When insights crystallize, you might offer:
 
-- "This feels solid enough to start a change. Want me to create a proposal?"
+- "This feels solid enough to start a change. Call `$openspec-propose <change-name>` to create artifacts from the Design Summary."
 - Or keep exploring - no pressure to formalize
 
 ### When a change exists
@@ -181,13 +191,13 @@ If the user mentions a change or you detect one is relevant:
    - "Your design mentions using Redis, but we just realized SQLite fits better..."
    - "The proposal scopes this to premium users, but we're now thinking everyone..."
 
-3. **Offer to capture when decisions are made**
+3. **Classify future capture targets when decisions are made**
 
 ### Capture Boundary for Existing Changes
 
-When exploring an active change, read proposal/design/specs/tasks, reference them naturally, and offer precise artifact updates. The user decides whether to capture them.
+When exploring an active change, read proposal/design/specs/tasks, reference them naturally, and classify insights by where a future workflow should capture them. Do not update those artifacts in explore.
 
-| Insight Type                         | Where to Capture               |
+| Insight Type                         | Future Capture Target          |
 |--------------------------------------|--------------------------------|
 | Observable behavior requirement      | `specs/<capability>/spec.md` |
 | Observable behavior changed          | `specs/<capability>/spec.md` |
@@ -199,11 +209,11 @@ When exploring an active change, read proposal/design/specs/tasks, reference the
 | Assumption invalidated               | Relevant artifact              |
 
 Example offers:
-- "That's a design decision. Capture it in design.md?"
-- "This is observable behavior. Add it to specs?"
-- "This changes scope. Update the proposal?"
+- "That is a design decision for `design.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
+- "This is observable behavior for `specs/<capability>/spec.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
+- "This changes scope for `proposal.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
 
-4. **The user decides** - Offer and move on. Don't pressure. Don't auto-capture.
+4. **The user decides next workflow** - Include the classification in the Design Summary and move on. Don't pressure. Don't auto-capture.
 
 ---
 
@@ -222,8 +232,7 @@ Example offers:
 
 There's no required ending. Discovery might:
 
-- **Flow into a proposal**: "Ready to start? I can create a change proposal."
-- **Result in artifact updates**: "Updated design.md with these decisions"
+- **Flow into a proposal**: "Ready to start? Call `$openspec-propose <change-name>` to create artifacts from the Design Summary."
 - **Just provide clarity**: User has what they need, moves on
 - **Continue later**: "We can pick this up anytime"
 
@@ -233,12 +242,12 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
-- **File modification whitelist** - ONLY modify files under `openspec/sweeper/`. All other paths are read-only.
+- **Don't write** - Never create or modify project files or OpenSpec artifacts in explore.
+- **Sweeper exception only** - Only `openspec-impact-sweeper` may write its JSON report under `openspec/sweeper/`; the main explore agent only reads and interprets it.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Do follow the brainstorming checklist** - Complete the six steps before proposal readiness
-- **Don't auto-capture** - Offer to save insights, don't just do it
+- **Don't auto-capture** - Include classifications in the Design Summary and route artifact writes to `$openspec-propose <change-name>` or the appropriate non-explore workflow.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
 - **Do question assumptions** - Including the user's and your own

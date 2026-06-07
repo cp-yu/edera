@@ -29,7 +29,7 @@ Implement tasks from an OpenSpec change.
 
 ### Branch Isolation Preflight
 
-Run `git branch --show-current`. On main/master ask whether to Create branch `<change-name>`, Create worktree at `.worktrees/<change-name>`, or continue; config branch/worktree/none use that as the default choice without prompting; only `ask` is interactive and means prompt. Persist `path.join(changeDir, '.apply-isolation.json')`; use using-git-worktrees when present.
+Run `git branch --show-current`. On main/master ask whether to Create branch `<change-name>`, Create worktree at `.worktrees/<change-name>`, or continue; config branch/worktree/none use that as the default choice without prompting; only `ask` is interactive and means prompt. Persist `path.join(changeDir, '.apply-isolation.json')` with `method`, `branchName`, optional `worktreePath`, and `originalBranch`. Use using-git-worktrees when present.
 
 ### Master Agent Strict TDD Implementation
 
@@ -47,7 +47,7 @@ Invoke reviewer subagent, persist `openspec verify phase1 "<change-name>" --inpu
 
 ### Phase 2: Optimize under checkpoint protection
 
-Respect `--skip-optimization`; read `optimization.optRetries`; create `apply-opt-checkpoint-r0`; invoke Optimizer subagent; use `openspec verify phase2`; record each failed direction.
+You MUST read `references/apply-phase2-optimization.md` before Phase 2. Checkpoints are git stash entries, not git tags. Respect `--skip-optimization`; read `optimization.optRetries`; create the initial stash checkpoint `apply-opt-checkpoint-r0` with git stash; invoke Optimizer subagent; use `openspec verify phase2`; record each failed direction.
 
 ### Phase 3: Seal final result
 

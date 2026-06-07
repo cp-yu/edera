@@ -20,10 +20,12 @@ Do not read `openspec-impact-sweeper/SKILL.md` directly in the main agent.
 
 ## Hard Rules
 
-- Do not implement application code. Creating or revising OpenSpec artifacts is allowed only when the user asks.
-- Only modify files under `openspec/sweeper/` unless the user explicitly asks for artifact updates.
+- Explore is read-only for the main agent. Do not create, edit, delete, format, regenerate, or patch any project file or OpenSpec artifact.
+- Only the `openspec-impact-sweeper` subagent may write its JSON report under `openspec/sweeper/`; the main explore agent may only read and interpret that report.
+- The sweeper report write is an internal subagent exception and does not grant the main explore agent permission to create or modify project files or OpenSpec artifacts.
+- User selection of an option, confirmation of a design section, or statements such as "可以", "就这样", "选 2", or "拆成多个文件" confirm design direction only. They are not authorization to modify files.
 - Ask one clarification question at a time; do not auto-capture decisions into artifacts.
-- If drafting artifacts, follow the compiled `openspec/config.yaml` prompt projection and preserve canonical headings, BDD keywords, IDs, schema keys, paths, commands, and code identifiers.
+- When artifact generation is appropriate, produce a conversation-only `Design Summary` and instruct the user to call `$openspec-propose <change-name>`.
 
 ## Required Context
 
@@ -74,9 +76,9 @@ Explore MUST run this sequence before saying a proposal is ready:
 
 ### Capture Boundary for Existing Changes
 
-When exploring an active change, read proposal/design/specs/tasks, reference them naturally, and offer precise artifact updates. The user decides whether to capture them.
+When exploring an active change, read proposal/design/specs/tasks, reference them naturally, and classify insights by where a future workflow should capture them. Do not update those artifacts in explore.
 
-| Insight Type                         | Where to Capture               |
+| Insight Type                         | Future Capture Target          |
 |--------------------------------------|--------------------------------|
 | Observable behavior requirement      | `specs/<capability>/spec.md` |
 | Observable behavior changed          | `specs/<capability>/spec.md` |
@@ -88,6 +90,6 @@ When exploring an active change, read proposal/design/specs/tasks, reference the
 | Assumption invalidated               | Relevant artifact              |
 
 Example offers:
-- "That's a design decision. Capture it in design.md?"
-- "This is observable behavior. Add it to specs?"
-- "This changes scope. Update the proposal?"
+- "That is a design decision for `design.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
+- "This is observable behavior for `specs/<capability>/spec.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
+- "This changes scope for `proposal.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
