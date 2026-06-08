@@ -1,0 +1,345 @@
+{
+  "timestamp": "2026-06-08T08:46:19.769Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "4bf66f20fe238e9286d2ae4d4f478ce5bd0390f786e336a1f8d19039e6416cc5",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer-subagent",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "apps/web-console/src/api/mutations.ts",
+      "apps/web-console/src/api/types.ts",
+      "apps/web-console/src/components/TemporaryInputDialog.tsx",
+      "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+      "apps/web-console/src/features/workbench/components/Canvas.tsx",
+      "openspec/changes/runtime-input-override/design.md",
+      "openspec/changes/runtime-input-override/opsx-delta.yaml",
+      "openspec/changes/runtime-input-override/proposal.md",
+      "openspec/changes/runtime-input-override/specs/dag-input-parameters/spec.md",
+      "openspec/changes/runtime-input-override/specs/node-graph-dag-editor/spec.md",
+      "openspec/changes/runtime-input-override/specs/runtime-temporary-input/spec.md",
+      "openspec/changes/runtime-input-override/tasks.md",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/storage/repository.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "packages/core/tests/test_grpc_control_services.py",
+      "proto/edera.proto",
+      "tests/core/integration/test_node_input_resolution.py",
+      "tests/core/integration/test_subdag_input_mapping.py",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_deprecated_fields.py",
+      "tests/core/unit/test_input_mapping_entity.py"
+    ],
+    "evidenceFingerprint": "1d9f0d3d245fc8a15d571dc0c452d7ab666f290dcb87b853d08b0970656553f2",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/src/api/mutations.ts",
+        "hash": "f2e27c3828763dff1da61da8af2edfc23e35df6933d46864648db31243c66169"
+      },
+      {
+        "path": "apps/web-console/src/api/types.ts",
+        "hash": "6ad56fad34d508cefa2db784763ad46e72f62a03428e56a501a2312264adb301"
+      },
+      {
+        "path": "apps/web-console/src/components/TemporaryInputDialog.tsx",
+        "hash": "e188ce5ff35e1db492e991bbe1c987f6da76dbe40cb430ec566d48227b83542d"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+        "hash": "e65c3265908a76fa35f5267b05c8dac7375e14e88b056dc7f858a0a73ba56392"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+        "hash": "26d0b3ae146cb5c76c60f5f7705432c09bb1a076ca33673acfb71907d03f15ad"
+      },
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/design.md",
+        "hash": "a72bb2c21759296dc48a657a7c70536ae2ca800855ff72e276f5acd95dade95c"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/opsx-delta.yaml",
+        "hash": "2b9b57c9263d7273102820088df3b2710f3453428e1c3500236ff4b78f702e6d"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/proposal.md",
+        "hash": "ea5f70af8c66dc422d9650da30cc01c51468d144cc14b3e1af17991c42490e8a"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/specs/dag-input-parameters/spec.md",
+        "hash": "66ddbe34a9eb370aac03d617a46f4c596ac44e15385377df0254d8210303541c"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/specs/node-graph-dag-editor/spec.md",
+        "hash": "1f4c3eb51ee3ec1da2374949a4f12ca25ba6922cb6910fff29606172e291bd7c"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/specs/runtime-temporary-input/spec.md",
+        "hash": "e493ea298bc5571804181c2c971a9542037b5b82d7aa2890207ede59131bf6c6"
+      },
+      {
+        "path": "openspec/changes/runtime-input-override/tasks.md",
+        "hash": "4bf66f20fe238e9286d2ae4d4f478ce5bd0390f786e336a1f8d19039e6416cc5"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "c4f51ad3e69c6ea397644a3584f47146a43725bdeb5c72861e3e0adc78ac5139"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "1a5a109131d39e9389daf8286ede05dc27d25c14f6ac45306626ee018a6a6be3"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "25e8edcf762fb4b14fe7561e7e318e244e675aa459b789f8f4dea8e6c2c56398"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "585553fec3d012c6a55fab293dd47729136483a675881955c788d8c80146ddb4"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "9135c08f194edeeeb206e423d6e8c1d4c53114232012e658ab4bc1d0b6370452"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "be74136728b38090078b0c3224840a163334caf98f5c0d45c08025efc430a089"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "c63ba9461a2345b8514a92c4203fa906755e03955ff7b850bfaaa156645b40fd"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository.py",
+        "hash": "adbc85d8934360730f24b6a43e69f2e8fe994d8ad8e206c02f06e8a907ab2f30"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "484db07390cb47596c9d2274dc676b73502ac76eb49eaa4adabfef85d3ce0dce"
+      },
+      {
+        "path": "packages/core/tests/test_grpc_control_services.py",
+        "hash": "260a699a84ff26bb7affd30622b278e2c590b7f68d7d788e41ba15135fb7e965"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "88ab8d04763ce17aa65b0bec82bcb10594e3eb82a090e13fb28477c6324e0032"
+      },
+      {
+        "path": "tests/core/integration/test_node_input_resolution.py",
+        "hash": "c4e37b5d893056fcc108ad753650521d25c17cf10b95ba43948089b54942f569"
+      },
+      {
+        "path": "tests/core/integration/test_subdag_input_mapping.py",
+        "hash": "8bb90a03b67a504f3777ab76474c7697185266ef76e51f2791fab3d2db5dd944"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "869ed13197023b558531dcec18626fc7ed89535525398eba03b2f2dd824db1bf"
+      },
+      {
+        "path": "tests/core/unit/test_deprecated_fields.py",
+        "hash": "5b991fa6a08859fa79f8ee0c3c492fd5a858181ec2ceb81875800fd6a70dc796"
+      },
+      {
+        "path": "tests/core/unit/test_input_mapping_entity.py",
+        "hash": "bcce8334e820d2d7890f53dde57febe5cbe30909f4c55257a01a528e5086417b"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "920c5d70f66711555df9b2216c5aeed569fa60b3"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-08T08:50:43.061Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "optimizer subagent 未发现值得做的低风险行为保持优化。"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-08T08:46:19.769Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "4bf66f20fe238e9286d2ae4d4f478ce5bd0390f786e336a1f8d19039e6416cc5",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer-subagent",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "apps/web-console/src/api/mutations.ts",
+          "apps/web-console/src/api/types.ts",
+          "apps/web-console/src/components/TemporaryInputDialog.tsx",
+          "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+          "apps/web-console/src/features/workbench/components/Canvas.tsx",
+          "openspec/changes/runtime-input-override/design.md",
+          "openspec/changes/runtime-input-override/opsx-delta.yaml",
+          "openspec/changes/runtime-input-override/proposal.md",
+          "openspec/changes/runtime-input-override/specs/dag-input-parameters/spec.md",
+          "openspec/changes/runtime-input-override/specs/node-graph-dag-editor/spec.md",
+          "openspec/changes/runtime-input-override/specs/runtime-temporary-input/spec.md",
+          "openspec/changes/runtime-input-override/tasks.md",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/storage/repository.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "packages/core/tests/test_grpc_control_services.py",
+          "proto/edera.proto",
+          "tests/core/integration/test_node_input_resolution.py",
+          "tests/core/integration/test_subdag_input_mapping.py",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_deprecated_fields.py",
+          "tests/core/unit/test_input_mapping_entity.py"
+        ],
+        "evidenceFingerprint": "1d9f0d3d245fc8a15d571dc0c452d7ab666f290dcb87b853d08b0970656553f2",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/src/api/mutations.ts",
+            "hash": "f2e27c3828763dff1da61da8af2edfc23e35df6933d46864648db31243c66169"
+          },
+          {
+            "path": "apps/web-console/src/api/types.ts",
+            "hash": "6ad56fad34d508cefa2db784763ad46e72f62a03428e56a501a2312264adb301"
+          },
+          {
+            "path": "apps/web-console/src/components/TemporaryInputDialog.tsx",
+            "hash": "e188ce5ff35e1db492e991bbe1c987f6da76dbe40cb430ec566d48227b83542d"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/BottomToolbar.tsx",
+            "hash": "e65c3265908a76fa35f5267b05c8dac7375e14e88b056dc7f858a0a73ba56392"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+            "hash": "26d0b3ae146cb5c76c60f5f7705432c09bb1a076ca33673acfb71907d03f15ad"
+          },
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/design.md",
+            "hash": "a72bb2c21759296dc48a657a7c70536ae2ca800855ff72e276f5acd95dade95c"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/opsx-delta.yaml",
+            "hash": "2b9b57c9263d7273102820088df3b2710f3453428e1c3500236ff4b78f702e6d"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/proposal.md",
+            "hash": "ea5f70af8c66dc422d9650da30cc01c51468d144cc14b3e1af17991c42490e8a"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/specs/dag-input-parameters/spec.md",
+            "hash": "66ddbe34a9eb370aac03d617a46f4c596ac44e15385377df0254d8210303541c"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/specs/node-graph-dag-editor/spec.md",
+            "hash": "1f4c3eb51ee3ec1da2374949a4f12ca25ba6922cb6910fff29606172e291bd7c"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/specs/runtime-temporary-input/spec.md",
+            "hash": "e493ea298bc5571804181c2c971a9542037b5b82d7aa2890207ede59131bf6c6"
+          },
+          {
+            "path": "openspec/changes/runtime-input-override/tasks.md",
+            "hash": "4bf66f20fe238e9286d2ae4d4f478ce5bd0390f786e336a1f8d19039e6416cc5"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "c4f51ad3e69c6ea397644a3584f47146a43725bdeb5c72861e3e0adc78ac5139"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "1a5a109131d39e9389daf8286ede05dc27d25c14f6ac45306626ee018a6a6be3"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "25e8edcf762fb4b14fe7561e7e318e244e675aa459b789f8f4dea8e6c2c56398"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "585553fec3d012c6a55fab293dd47729136483a675881955c788d8c80146ddb4"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "9135c08f194edeeeb206e423d6e8c1d4c53114232012e658ab4bc1d0b6370452"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "be74136728b38090078b0c3224840a163334caf98f5c0d45c08025efc430a089"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "c63ba9461a2345b8514a92c4203fa906755e03955ff7b850bfaaa156645b40fd"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository.py",
+            "hash": "adbc85d8934360730f24b6a43e69f2e8fe994d8ad8e206c02f06e8a907ab2f30"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "484db07390cb47596c9d2274dc676b73502ac76eb49eaa4adabfef85d3ce0dce"
+          },
+          {
+            "path": "packages/core/tests/test_grpc_control_services.py",
+            "hash": "260a699a84ff26bb7affd30622b278e2c590b7f68d7d788e41ba15135fb7e965"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "88ab8d04763ce17aa65b0bec82bcb10594e3eb82a090e13fb28477c6324e0032"
+          },
+          {
+            "path": "tests/core/integration/test_node_input_resolution.py",
+            "hash": "c4e37b5d893056fcc108ad753650521d25c17cf10b95ba43948089b54942f569"
+          },
+          {
+            "path": "tests/core/integration/test_subdag_input_mapping.py",
+            "hash": "8bb90a03b67a504f3777ab76474c7697185266ef76e51f2791fab3d2db5dd944"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "869ed13197023b558531dcec18626fc7ed89535525398eba03b2f2dd824db1bf"
+          },
+          {
+            "path": "tests/core/unit/test_deprecated_fields.py",
+            "hash": "5b991fa6a08859fa79f8ee0c3c492fd5a858181ec2ceb81875800fd6a70dc796"
+          },
+          {
+            "path": "tests/core/unit/test_input_mapping_entity.py",
+            "hash": "bcce8334e820d2d7890f53dde57febe5cbe30909f4c55257a01a528e5086417b"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "920c5d70f66711555df9b2216c5aeed569fa60b3"
+      }
+    }
+  }
+}

@@ -2,6 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
 import type { DagEdge, DagNodeRecord, NodeInstance, NodeType, RetryDagResponse, SkillDefinition } from './types'
 
+export interface TemporaryInputs {
+  sourceSharedInputs?: Record<string, unknown>
+  nodeInputs?: Record<string, unknown>
+  appendNodes?: string[]
+}
+
 function alertMutationError(error: Error) {
   window.alert(error.message)
 }
@@ -28,10 +34,10 @@ export function useSaveNode() {
 export function useRunDag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ dagName, inputs }: { dagName: string; inputs?: Record<string, unknown> }) =>
+    mutationFn: ({ dagName, temporaryInputs }: { dagName: string; temporaryInputs?: TemporaryInputs }) =>
       apiFetch<{ run_id: string }>(`/api/dags/${dagName}/run`, {
         method: 'POST',
-        body: JSON.stringify(inputs && Object.keys(inputs).length > 0 ? { inputs } : {}),
+        body: JSON.stringify(temporaryInputs ?? {}),
       }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,
@@ -51,10 +57,10 @@ export function useStopDag() {
 export function useRetryDagNode() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ dagName, runId, nodeIds, mode }: { dagName: string; runId?: string; nodeIds: string[]; mode: 'single' | 'cascade' }) =>
+    mutationFn: ({ dagName, runId, nodeIds, mode, temporaryInputs }: { dagName: string; runId?: string; nodeIds: string[]; mode: 'single' | 'cascade'; temporaryInputs?: TemporaryInputs }) =>
       apiFetch<RetryDagResponse>(`/api/dags/${dagName}/retry`, {
         method: 'POST',
-        body: JSON.stringify({ run_id: runId, node_ids: nodeIds, mode }),
+        body: JSON.stringify({ run_id: runId, node_ids: nodeIds, mode, ...(temporaryInputs ?? {}) }),
       }),
     onSuccess: (_data, { dagName }) => { qc.invalidateQueries({ queryKey: ['dagStatus', dagName] }) },
     onError: alertMutationError,

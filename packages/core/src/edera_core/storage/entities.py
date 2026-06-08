@@ -85,7 +85,6 @@ class CoreEntityNode(SQLModel, table=True):
     source_names: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     parameters: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     parameters_schema: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
-    input_binding: str | None = None
     model: str | None = None
     workdir: str | None = None
     dag_ref: str | None = None
@@ -109,7 +108,6 @@ class CoreEntityDag(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     entity_id: str = Field(index=True, unique=True)
     name: str = Field(index=True)
-    inputs: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     nodes: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     edges: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     ui: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
@@ -159,6 +157,28 @@ class CoreEntityResource(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now, index=True)
 
     @field_validator("entity_id", "resource_id")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("value must not be blank")
+        return value
+
+
+class CoreEntityInputMapping(SQLModel, table=True):
+    __tablename__ = "entity_input_mapping"
+    __table_args__ = (UniqueConstraint("name", name="uq_entity_input_mapping_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_id: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    shared: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    nodes: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    append_nodes: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    attributes_json: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+    @field_validator("entity_id", "name")
     @classmethod
     def _not_blank(cls, value: str) -> str:
         if not value.strip():

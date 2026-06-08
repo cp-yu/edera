@@ -88,7 +88,15 @@ class FakeClient:
     async def graph_runtime_status(self, run_id: str = "") -> dict[str, object]:
         return {"run_id": run_id}
 
-    async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
+    async def dag_run(
+        self,
+        name: str,
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: list[str] | None = None,
+    ) -> dict[str, object]:
         return {"run_id": f"run-{name}-manual"}
 
     async def query_child_run_for_parent(self, parent_run_id: str, parent_node_id: str) -> dict[str, object]:

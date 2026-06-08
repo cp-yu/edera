@@ -157,17 +157,49 @@ class DagController:
         if self.engine is not None:
             await self.engine.dispose()
 
-    async def start_run(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+    async def start_run(
+        self,
+        source: str = "manual",
+        dag_name: str = "default",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ) -> str:
         await self._wait_for_idle(dag_name, payload)
         async with self._locks[dag_name]:
-            run_id, task = self._start_run_locked(source, dag_name, payload)
+            run_id, task = self._start_run_locked(
+                source,
+                dag_name,
+                payload,
+                source_shared_inputs=source_shared_inputs,
+                node_inputs=node_inputs,
+                append_nodes=append_nodes,
+            )
         task.add_done_callback(lambda t: self._clear_finished_task(t, dag_name))
         return run_id
 
-    async def run_now(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
+    async def run_now(
+        self,
+        source: str = "manual",
+        dag_name: str = "default",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ) -> str:
         await self._wait_for_idle(dag_name, payload)
         async with self._locks[dag_name]:
-            run_id, task = self._start_run_locked(source, dag_name, payload)
+            run_id, task = self._start_run_locked(
+                source,
+                dag_name,
+                payload,
+                source_shared_inputs=source_shared_inputs,
+                node_inputs=node_inputs,
+                append_nodes=append_nodes,
+            )
         try:
             await task
         finally:
@@ -268,7 +300,14 @@ class DagController:
             max_depth=config.system.max_trigger_depth,
         )
 
-    async def run_node_trigger(self, target: str, payload: object | None = None, source: str = "manual") -> str:
+    async def run_node_trigger(
+        self,
+        target: str,
+        payload: object | None = None,
+        source: str = "manual",
+        *,
+        append: bool = False,
+    ) -> str:
         dag_name, node_id = _parse_node_trigger_target(target)
         async with self._factory()() as session:
             _execution_snapshot, _instance = await self._node_trigger_target(session, dag_name, node_id)
@@ -292,6 +331,8 @@ class DagController:
                     stop_event,
                     snapshot,
                     execution_snapshot=execution_snapshot,
+                    node_inputs={instance.id: payload} if payload is not None else None,
+                    append_nodes={instance.id} if append else set(),
                 )
             )
             self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, run_id=run_id, task=task, stop_event=stop_event)
@@ -353,6 +394,10 @@ class DagController:
         node_ids: list[str],
         mode: str = "single",
         payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
     ) -> RetryRunResult:
         if mode not in {"single", "cascade"}:
             raise ValueError("mode must be single or cascade")
@@ -389,6 +434,9 @@ class DagController:
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled,
                     payload=payload,
+                    source_shared_inputs=source_shared_inputs,
+                    node_inputs=node_inputs,
+                    append_nodes=append_nodes,
                     snapshot=snapshot,
                     execution_snapshot=execution_snapshot,
                 )
@@ -516,13 +564,34 @@ class DagController:
                     return True
         return False
 
-    def _start_run_locked(self, source: str, dag_name: str, payload: object | None = None) -> tuple[str, asyncio.Task[object]]:
+    def _start_run_locked(
+        self,
+        source: str,
+        dag_name: str,
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ) -> tuple[str, asyncio.Task[object]]:
         ctx = self.active_runs.get(dag_name)
         if ctx is not None and not ctx.task.done():
             raise RunAlreadyActiveError(ctx.run_id)
         run_id = uuid4().hex
         stop_event = asyncio.Event()
-        task = asyncio.create_task(self._run(run_id, source, dag_name, stop_event=stop_event, payload=payload, snapshot=self.runtime_snapshot()))
+        task = asyncio.create_task(
+            self._run(
+                run_id,
+                source,
+                dag_name,
+                stop_event=stop_event,
+                payload=payload,
+                source_shared_inputs=source_shared_inputs,
+                node_inputs=node_inputs,
+                append_nodes=append_nodes,
+                snapshot=self.runtime_snapshot(),
+            )
+        )
         self.active_runs[dag_name] = DagRunContext(dag_name=dag_name, run_id=run_id, task=task, stop_event=stop_event)
         return run_id, task
 
@@ -546,6 +615,9 @@ class DagController:
         retry_nodes: set[str] | None = None,
         prefilled_outputs: dict[str, NodeOutput] | None = None,
         payload: object | None = None,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
         replace_existing_run: bool = False,
         snapshot: RuntimeControlSnapshot | None = None,
         execution_snapshot: DagExecutionSnapshot | None = None,
@@ -600,6 +672,9 @@ class DagController:
                     stop_event=stop_event,
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled_outputs,
+                    source_shared_inputs=source_shared_inputs,
+                    node_inputs=node_inputs,
+                    append_nodes=append_nodes,
                 )
             active_outputs = {
                 node: output
@@ -646,6 +721,8 @@ class DagController:
         stop_event: asyncio.Event,
         snapshot: RuntimeControlSnapshot | None = None,
         execution_snapshot: DagExecutionSnapshot | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
     ) -> object:
         snapshot = snapshot or self.runtime_snapshot()
         config = self.runtime_config()
@@ -691,6 +768,8 @@ class DagController:
                     run_id,
                     payload if payload is not None else {"entities": _source_entity_refs(config)},
                     stop_event=stop_event,
+                    node_inputs=node_inputs,
+                    append_nodes=append_nodes,
                 )
             status = "cancelled" if stop_event.is_set() else _result_status(result.node_outputs)
             error = "; ".join(result.failures.values()) or None

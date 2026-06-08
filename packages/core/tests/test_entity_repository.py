@@ -118,6 +118,31 @@ async def test_indexed_core_dag_and_node_reads(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_core_node_save_ignores_removed_input_binding(tmp_path):
+    async with _session(tmp_path) as session:
+        saved = await save_core_entity(
+            session,
+            EntityConfig(
+                id="node:reader",
+                type="node",
+                attributes={
+                    "name": "reader",
+                    "type": "function",
+                    "handler": "reader",
+                    "input_type": "Any",
+                    "output_type": "Any",
+                    "input_binding": "ticker",
+                },
+            ),
+        )
+
+        node = await get_node_config(session, "reader")
+
+    assert "input_binding" not in saved.attributes
+    assert node is not None and "input_binding" not in node.model_dump(mode="json")
+
+
+@pytest.mark.asyncio
 async def test_core_dag_and_node_summary_lists(tmp_path):
     async with _session(tmp_path) as session:
         await save_core_entity(

@@ -20,10 +20,30 @@ class Controller:
     def runtime_config(self):
         return SimpleNamespace(dags={"demo": object()})
 
-    async def emit(self, event: str, payload: object | None = None, *, source: str = "rpc", depth: int = 0):
+    async def start_run(
+        self,
+        source: str = "manual",
+        dag_name: str = "default",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ):
         raise RunAlreadyActiveError("active-run")
 
-    async def retry_node(self, dag_name: str, run_id: str | None, node_ids: list[str], mode: str, payload: object):
+    async def retry_node(
+        self,
+        dag_name: str,
+        run_id: str | None,
+        node_ids: list[str],
+        mode: str,
+        payload: object,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ):
         raise DagRunNotFoundError(run_id or "missing")
 
 
@@ -65,12 +85,38 @@ async def test_run_already_active(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_run_uses_manual_emit(tmp_path):
+async def test_run_starts_dag(tmp_path):
     service = _DagService(FakeDaemon(tmp_path, RunController()))
 
     response = await service.Run(pb2.DagRunRequest(name="default"), FakeContext())
 
     assert response.run_id == "run-1"
+
+
+@pytest.mark.asyncio
+async def test_run_with_temp_inputs(tmp_path):
+    controller = CaptureRunController()
+    service = _DagService(FakeDaemon(tmp_path, controller))
+
+    response = await service.Run(
+        pb2.DagRunRequest(
+            name="default",
+            source_shared_inputs_json='{"symbol":"AAPL"}',
+            node_inputs_json='{"worker":{"limit":5}}',
+            append_nodes_json='["worker"]',
+        ),
+        FakeContext(),
+    )
+
+    assert response.run_id == "run-1"
+    assert controller.captured == {
+        "source": "dag-service",
+        "dag_name": "default",
+        "payload": None,
+        "source_shared_inputs": {"symbol": "AAPL"},
+        "node_inputs": {"worker": {"limit": 5}},
+        "append_nodes": {"worker"},
+    }
 
 
 @pytest.mark.asyncio
@@ -84,6 +130,36 @@ async def test_retry_run_not_found(tmp_path):
         await service.Retry(pb2.DagRetryRequest(dag_name="demo", run_id="missing", node_ids=["n1"]), FakeContext())
 
     assert exc.value.code == grpc.StatusCode.NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_retry_with_temp_inputs(tmp_path):
+    controller = CaptureRetryController()
+    service = _DagService(FakeDaemon(tmp_path, controller))
+
+    response = await service.Retry(
+        pb2.DagRetryRequest(
+            dag_name="demo",
+            run_id="run-1",
+            node_ids=["worker"],
+            source_shared_inputs_json='{"symbol":"AAPL"}',
+            node_inputs_json='{"worker":{"limit":5}}',
+            append_nodes_json='["worker"]',
+        ),
+        FakeContext(),
+    )
+
+    assert response.json == '{"run_id": "retry-1", "retry_of": "run-1", "node_ids": ["worker"], "mode": "single", "retry_nodes": ["worker"]}'
+    assert controller.captured == {
+        "dag_name": "demo",
+        "run_id": "run-1",
+        "node_ids": ["worker"],
+        "mode": "single",
+        "payload": None,
+        "source_shared_inputs": {"symbol": "AAPL"},
+        "node_inputs": {"worker": {"limit": 5}},
+        "append_nodes": {"worker"},
+    }
 
 
 @pytest.mark.asyncio
@@ -289,12 +365,78 @@ class EditController:
 
 
 class RunController:
-    async def emit(self, event: str, payload: object | None = None, *, source: str = "rpc", depth: int = 0) -> list[str]:
-        assert event == "manual:dag:default"
-        assert payload is None
+    async def start_run(
+        self,
+        source: str = "manual",
+        dag_name: str = "default",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ) -> str:
         assert source == "dag-service"
-        assert depth == 0
-        return ["run-1"]
+        assert dag_name == "default"
+        assert payload is None
+        return "run-1"
+
+
+class CaptureRunController:
+    captured: dict[str, object | None]
+
+    async def start_run(
+        self,
+        source: str = "manual",
+        dag_name: str = "default",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ) -> str:
+        self.captured = {
+            "source": source,
+            "dag_name": dag_name,
+            "payload": payload,
+            "source_shared_inputs": source_shared_inputs,
+            "node_inputs": node_inputs,
+            "append_nodes": append_nodes,
+        }
+        return "run-1"
+
+
+class CaptureRetryController:
+    captured: dict[str, object]
+
+    async def retry_node(
+        self,
+        dag_name: str,
+        run_id: str | None,
+        node_ids: list[str],
+        mode: str = "single",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: set[str] | None = None,
+    ):
+        self.captured = {
+            "dag_name": dag_name,
+            "run_id": run_id,
+            "node_ids": node_ids,
+            "mode": mode,
+            "payload": payload,
+            "source_shared_inputs": source_shared_inputs,
+            "node_inputs": node_inputs,
+            "append_nodes": append_nodes,
+        }
+        return SimpleNamespace(
+            run_id="retry-1",
+            retry_of=run_id,
+            node_ids=node_ids,
+            mode=mode,
+            retry_nodes=node_ids,
+        )
 
 
 async def _node_controller(tmp_path) -> DagController:

@@ -22,10 +22,12 @@ import ELK from 'elkjs'
 import { useAppStore } from '@/store/useAppStore'
 import { CustomNode } from './nodes/CustomNode'
 import { useRetryDagNode, useSaveDag } from '@/api/mutations'
+import type { TemporaryInputs } from '@/api/mutations'
 import { useDagList, useNodePrototypes } from '@/api/queries'
 import { entityColor } from '@/lib/colors'
 import type { DagNodeRecord, DagState, DagStatus, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
 import { CanvasContextMenu } from './CanvasContextMenu'
+import { TemporaryInputDialog } from '@/components/TemporaryInputDialog'
 import { QuickAddPanel } from './QuickAddPanel'
 import {
   buildSearchItems,
@@ -155,6 +157,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [retryingNodeIds, setRetryingNodeIds] = useState<Set<string>>(() => new Set())
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null)
+  const [retryDialog, setRetryDialog] = useState<{ nodeIds: string[]; mode: 'single' | 'cascade' } | null>(null)
   const [contextNodeIds, setContextNodeIds] = useState<string[]>([])
   const pendingDraftRef = useRef<string | null>(null)
 
@@ -643,11 +646,11 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
     setSelectedNode(null)
   }, [setSelectedNode])
 
-  const retryNodes = useCallback((nodeIds: string[], mode: 'single' | 'cascade') => {
+  const retryNodes = useCallback((nodeIds: string[], mode: 'single' | 'cascade', temporaryInputs?: TemporaryInputs) => {
     if (!retryRunId) return
     clearNodeSelection()
     retryNode.mutate(
-      { dagName, runId: retryRunId, nodeIds, mode },
+      { dagName, runId: retryRunId, nodeIds, mode, temporaryInputs },
       {
         onSuccess: (data) => {
           setRetryingNodeIds(new Set(data.retry_nodes))
@@ -808,10 +811,22 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
         onSelect: () => retryNodes(nodeIds, 'single'),
       },
       {
+        label: isBatch ? `配置并重试 ${nodeIds.length} 个节点` : '配置并重试节点',
+        disabled: retryDisabled,
+        tooltip: retryTooltip,
+        onSelect: () => setRetryDialog({ nodeIds, mode: 'single' }),
+      },
+      {
         label: isBatch ? `重试 ${nodeIds.length} 个节点及下游` : '重试节点及下游',
         disabled: retryDisabled,
         tooltip: retryTooltip,
         onSelect: () => retryNodes(nodeIds, 'cascade'),
+      },
+      {
+        label: isBatch ? `配置并重试 ${nodeIds.length} 个节点及下游` : '配置并重试节点及下游',
+        disabled: retryDisabled,
+        tooltip: retryTooltip,
+        onSelect: () => setRetryDialog({ nodeIds, mode: 'cascade' }),
       },
       { label: '删除节点', tone: 'danger' as const, onSelect: () => void deleteNodeById(contextMenu.id) },
       { label: '断开所有连线', onSelect: () => disconnectNodeById(contextMenu.id) },
@@ -836,6 +851,15 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
           if (item.source === 'dag') addDagNode(item.name, center)
           else addExistingNode(item.name, center)
           setSearchOpen(false)
+        }}
+      />
+      <TemporaryInputDialog
+        open={retryDialog !== null}
+        title="Retry 临时输入"
+        onClose={() => setRetryDialog(null)}
+        onSubmit={(inputs) => {
+          if (!retryDialog) return
+          retryNodes(retryDialog.nodeIds, retryDialog.mode, inputs)
         }}
       />
       <ReactFlow

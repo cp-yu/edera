@@ -122,8 +122,24 @@ class GrpcClient:
         )
         return _json_response(response)
 
-    async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
-        response = await self.dags.Run(pb2.DagRunRequest(name=name, inputs_json=json.dumps(payload) if payload is not None else ""))
+    async def dag_run(
+        self,
+        name: str,
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: list[str] | None = None,
+    ) -> dict[str, object]:
+        response = await self.dags.Run(
+            pb2.DagRunRequest(
+                name=name,
+                inputs_json=json.dumps(payload) if payload is not None else "",
+                source_shared_inputs_json=json.dumps(source_shared_inputs) if source_shared_inputs is not None else "",
+                node_inputs_json=json.dumps(node_inputs) if node_inputs is not None else "",
+                append_nodes_json=json.dumps(append_nodes) if append_nodes is not None else "",
+            )
+        )
         return {"run_id": response.run_id}
 
     async def event_emit(
@@ -214,7 +230,18 @@ class GrpcClient:
     async def dag_stop(self, dag_name: str, force: bool = False) -> dict[str, object]:
         return _json_response(await self.dags.Stop(pb2.DagStopRequest(dag_name=dag_name, force=force)))
 
-    async def dag_retry(self, dag_name: str, run_id: str = "", node_ids: list[str] | None = None, mode: str = "single", payload: object | None = None) -> dict[str, object]:
+    async def dag_retry(
+        self,
+        dag_name: str,
+        run_id: str = "",
+        node_ids: list[str] | None = None,
+        mode: str = "single",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: list[str] | None = None,
+    ) -> dict[str, object]:
         return _json_response(
             await self.dags.Retry(
                 pb2.DagRetryRequest(
@@ -223,6 +250,9 @@ class GrpcClient:
                     node_ids=node_ids or [],
                     mode=mode,
                     payload_json=json.dumps(payload) if payload is not None else "",
+                    source_shared_inputs_json=json.dumps(source_shared_inputs) if source_shared_inputs is not None else "",
+                    node_inputs_json=json.dumps(node_inputs) if node_inputs is not None else "",
+                    append_nodes_json=json.dumps(append_nodes) if append_nodes is not None else "",
                 )
             )
         )

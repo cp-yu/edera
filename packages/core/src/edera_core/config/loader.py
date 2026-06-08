@@ -22,7 +22,7 @@ from edera_core.errors import ConfigError
 
 
 LOGGER = logging.getLogger(__name__)
-CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource"}
+CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource", "input_mapping"}
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -460,6 +460,23 @@ def _default_core_entity_types() -> dict[str, EntityTypeConfig]:
                     "required": ["permits"],
                     "properties": {
                         "permits": {"type": "integer", "minimum": 1},
+                    },
+                },
+            }
+        ),
+        "input_mapping": EntityTypeConfig.model_validate(
+            {
+                "display_name": "Input Mapping",
+                "business_id_field": "name",
+                "display_template": "{name}",
+                "system_protected": True,
+                "schema": {
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "shared": {"type": "object"},
+                        "nodes": {"type": "object"},
+                        "append_nodes": {"type": "array"},
                     },
                 },
             }

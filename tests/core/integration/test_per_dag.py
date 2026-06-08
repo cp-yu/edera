@@ -88,14 +88,53 @@ class FakeController(DagController):
 
 class FakeGrpcClient:
     last_payload: object | None = None
+    last_run_options: dict[str, object | None] | None = None
+    last_retry_options: dict[str, object | None] | None = None
     closed = False
 
     async def close(self) -> None:
         self.closed = True
 
-    async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
+    async def dag_run(
+        self,
+        name: str,
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: list[str] | None = None,
+    ) -> dict[str, object]:
         self.last_payload = payload
+        self.last_run_options = {
+            "source_shared_inputs": source_shared_inputs,
+            "node_inputs": node_inputs,
+            "append_nodes": append_nodes,
+        }
         return {"run_id": f"run-{name}-manual"}
+
+    async def dag_retry(
+        self,
+        dag_name: str,
+        run_id: str = "",
+        node_ids: list[str] | None = None,
+        mode: str = "single",
+        payload: object | None = None,
+        *,
+        source_shared_inputs: object | None = None,
+        node_inputs: dict[str, object] | None = None,
+        append_nodes: list[str] | None = None,
+    ) -> dict[str, object]:
+        self.last_retry_options = {
+            "dag_name": dag_name,
+            "run_id": run_id,
+            "node_ids": node_ids,
+            "mode": mode,
+            "payload": payload,
+            "source_shared_inputs": source_shared_inputs,
+            "node_inputs": node_inputs,
+            "append_nodes": append_nodes,
+        }
+        return {"run_id": "retry-1"}
 
     async def dag_status(self, name: str) -> dict[str, object]:
         return {"dag_name": name, "current_run_id": f"run-{name}-manual"}
@@ -142,6 +181,47 @@ async def _save_default_node_a_dag(session) -> None:
             attributes={"name": "default", "nodes": [{"id": "node-a", "type": "node-a"}], "edges": []},
         ),
     )
+
+
+async def _node_trigger_capture_controller(tmp_path: Path):
+    _write_dag_config(tmp_path)
+    (tmp_path / "dags" / "default.yaml").write_text(
+        "name: default\nnodes:\n- id: node-a\n  type: node-a\nedges: []\n",
+        encoding="utf-8",
+    )
+
+    class NodeTriggerCaptureController(FakeController):
+        calls: list[tuple[str, dict[str, object] | None, set[str] | None]]
+
+        def __init__(self, config_dir: Path) -> None:
+            super().__init__(config_dir)
+            self.calls = []
+
+        async def _run_single_node(
+            self,
+            run_id,
+            source,
+            dag_name,
+            instance,
+            payload,
+            stop_event,
+            snapshot=None,
+            *,
+            node_inputs=None,
+            append_nodes=None,
+            **_kwargs,
+        ):
+            self.calls.append((run_id, node_inputs, append_nodes))
+            await asyncio.sleep(60)
+
+    ctrl = NodeTriggerCaptureController(tmp_path)
+    await ctrl.start(run_startup=False)
+    async with ctrl._factory()() as session:
+        await create_dag_run(session, "run-original", "manual", dag_name="default")
+        await finish_dag_run(session, "run-original", "succeeded")
+        await _save_default_node_a_dag(session)
+        await session.commit()
+    return ctrl
 
 
 # --- PLACEHOLDER_TESTS ---
@@ -404,6 +484,30 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
         await ctrl.shutdown()
 
     assert ctrl.calls == [(run_id, "manual", "default", {"symbol": "TEST"})]
+
+
+@pytest.mark.asyncio
+async def test_trigger_replace(tmp_path: Path) -> None:
+    ctrl = await _node_trigger_capture_controller(tmp_path)
+    try:
+        run_id = await ctrl.run_node_trigger("default/node-a", {"symbol": "TEST"})
+        await asyncio.sleep(0)
+    finally:
+        await ctrl.shutdown()
+
+    assert ctrl.calls == [(run_id, {"node-a": {"symbol": "TEST"}}, set())]
+
+
+@pytest.mark.asyncio
+async def test_trigger_append(tmp_path: Path) -> None:
+    ctrl = await _node_trigger_capture_controller(tmp_path)
+    try:
+        run_id = await ctrl.run_node_trigger("default/node-a", {"symbol": "TEST"}, append=True)
+        await asyncio.sleep(0)
+    finally:
+        await ctrl.shutdown()
+
+    assert ctrl.calls == [(run_id, {"node-a": {"symbol": "TEST"}}, {"node-a"})]
 
 
 @pytest.mark.asyncio
@@ -785,6 +889,57 @@ async def test_dag_run_api_unwraps_inputs_body(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_run_with_temp_inputs(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/dags/default/run",
+            json={
+                "sourceSharedInputs": {"symbol": "AAPL"},
+                "nodeInputs": {"worker": {"limit": 5}},
+                "appendNodes": ["worker"],
+            },
+        )
+    assert response.status_code == 200
+    assert grpc.last_run_options == {
+        "source_shared_inputs": {"symbol": "AAPL"},
+        "node_inputs": {"worker": {"limit": 5}},
+        "append_nodes": ["worker"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_retry_with_temp_inputs(tmp_path: Path) -> None:
+    _write_dag_config(tmp_path)
+    grpc = FakeGrpcClient()
+    app = create_app(grpc)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/dags/default/retry",
+            json={
+                "run_id": "run-1",
+                "node_ids": ["worker"],
+                "sourceSharedInputs": {"symbol": "AAPL"},
+                "nodeInputs": {"worker": {"limit": 5}},
+                "appendNodes": ["worker"],
+            },
+        )
+    assert response.status_code == 200
+    assert grpc.last_retry_options == {
+        "dag_name": "default",
+        "run_id": "run-1",
+        "node_ids": ["worker"],
+        "mode": "single",
+        "payload": None,
+        "source_shared_inputs": {"symbol": "AAPL"},
+        "node_inputs": {"worker": {"limit": 5}},
+        "append_nodes": ["worker"],
+    }
+
+
+@pytest.mark.asyncio
 async def test_web_token_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     app = create_app(FakeGrpcClient())
@@ -801,7 +956,15 @@ async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
     class RecordingGrpcClient(FakeGrpcClient):
         payload: object | None = None
 
-        async def dag_run(self, name: str, payload: object | None = None) -> dict[str, object]:
+        async def dag_run(
+            self,
+            name: str,
+            payload: object | None = None,
+            *,
+            source_shared_inputs: object | None = None,
+            node_inputs: dict[str, object] | None = None,
+            append_nodes: list[str] | None = None,
+        ) -> dict[str, object]:
             assert name == "default"
             self.payload = payload
             return {"run_id": "grpc-run"}

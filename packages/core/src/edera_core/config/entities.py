@@ -21,7 +21,7 @@ from edera_core.errors import ConfigEditError, ConfigError
 
 logger = logging.getLogger(__name__)
 PERMISSIONS: tuple[FieldPermission, ...] = ("none", "read-only", "write-only", "read-write")
-CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource"}
+CORE_ENTITY_TYPES = {"node", "dag", "trigger", "resource", "input_mapping"}
 _ALLOWED_PERMISSION_OVERRIDES: dict[FieldPermission, set[FieldPermission]] = {
     "none": {"none", "read-only", "write-only", "read-write"},
     "read-only": {"read-only", "read-write"},

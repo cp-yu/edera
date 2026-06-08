@@ -205,6 +205,9 @@ message DagRetryRequest {
   repeated string node_ids = 3;
   string mode = 4;
   string payload_json = 5;
+  string source_shared_inputs_json = 6;
+  string node_inputs_json = 7;
+  string append_nodes_json = 8;
 }
 
 message EmitRequest {
@@ -251,6 +254,9 @@ message DagRef {
 message DagRunRequest {
   string name = 1;
   string inputs_json = 2;
+  string source_shared_inputs_json = 3;
+  string node_inputs_json = 4;
+  string append_nodes_json = 5;
 }
 
 message DagRunRef {

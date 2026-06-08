@@ -23,6 +23,7 @@ from edera_core.storage.materialization import (
 from edera_core.storage.entities import EdgeInput, EntityRelation, InstalledExtension, NodeOutputEntity, NodeRun, DagRun, Skill, SourceRecovery, utc_now
 from edera_core.storage.entities import (
     CoreEntityDag,
+    CoreEntityInputMapping,
     CoreEntityNode,
     CoreEntityResource,
     CoreEntityTrigger,
@@ -34,6 +35,7 @@ from edera_core.storage.entities import (
 CORE_ENTITY_TABLES = {
     "node": "entity_node",
     "dag": "entity_dag",
+    "input_mapping": "entity_input_mapping",
     "trigger": "entity_trigger",
     "resource": "entity_resource",
 }
@@ -158,6 +160,8 @@ async def save_core_entity(session: AsyncSession, entity: EntityConfig) -> Entit
         return core_trigger_to_entity(await _save_core_trigger(session, entity))
     if entity.type == "resource":
         return core_resource_to_entity(await _save_core_resource(session, entity))
+    if entity.type == "input_mapping":
+        return core_input_mapping_to_entity(await _save_core_input_mapping(session, entity))
     raise ValueError(f"unsupported core entity type: {entity.type}")
 
 
@@ -170,6 +174,8 @@ async def list_core_entities(session: AsyncSession, entity_type: str | None = No
         return [core_trigger_to_entity(item) for item in await _all(session, CoreEntityTrigger)]
     if entity_type == "resource":
         return [core_resource_to_entity(item) for item in await _all(session, CoreEntityResource)]
+    if entity_type == "input_mapping":
+        return [core_input_mapping_to_entity(item) for item in await _all(session, CoreEntityInputMapping)]
     if entity_type is not None:
         return []
     entities: list[EntityConfig] = []
@@ -721,11 +727,14 @@ def _core_model(entity_type: str):
         return CoreEntityTrigger
     if entity_type == "resource":
         return CoreEntityResource
+    if entity_type == "input_mapping":
+        return CoreEntityInputMapping
     raise ValueError(f"unsupported core entity type: {entity_type}")
 
 
 async def _save_core_node(session: AsyncSession, entity: EntityConfig) -> CoreEntityNode:
     attrs = dict(entity.attributes)
+    attrs.pop("input_binding", None)
     row = await _one_by_entity_id(session, CoreEntityNode, entity.id)
     if row is None:
         row = CoreEntityNode(entity_id=entity.id, name=str(attrs.get("name") or entity.id), node_type=str(attrs.get("type") or "function"), input_type=str(attrs.get("input_type") or "Any"), output_type=str(attrs.get("output_type") or "Any"))
@@ -744,7 +753,6 @@ async def _save_core_node(session: AsyncSession, entity: EntityConfig) -> CoreEn
     row.source_names = _str_list(attrs.get("source_names"))
     row.parameters = _dict(attrs.get("parameters"))
     row.parameters_schema = _dict(attrs.get("parameters_schema"))
-    row.input_binding = _str_or_none(attrs.get("input_binding"))
     row.model = _str_or_none(attrs.get("model"))
     row.workdir = _str_or_none(attrs.get("workdir"))
     row.dag_ref = _str_or_none(attrs.get("dag_ref"))
@@ -762,7 +770,6 @@ async def _save_core_dag(session: AsyncSession, entity: EntityConfig) -> CoreEnt
     if row is None:
         row = CoreEntityDag(entity_id=entity.id, name=str(attrs.get("name") or entity.id))
     row.name = str(attrs["name"])
-    row.inputs = _dict_list(attrs.get("inputs"))
     row.nodes = _dict_list(attrs["nodes"])
     row.edges = _dict_list(attrs["edges"])
     row.ui = _dict(attrs.get("ui"))
@@ -803,6 +810,22 @@ async def _save_core_resource(session: AsyncSession, entity: EntityConfig) -> Co
     return row
 
 
+async def _save_core_input_mapping(session: AsyncSession, entity: EntityConfig) -> CoreEntityInputMapping:
+    attrs = dict(entity.attributes)
+    row = await _one_by_entity_id(session, CoreEntityInputMapping, entity.id)
+    if row is None:
+        row = CoreEntityInputMapping(entity_id=entity.id, name=str(attrs.get("name") or entity.id))
+    row.name = str(attrs["name"])
+    row.shared = _dict(attrs.get("shared"))
+    row.nodes = _dict(attrs.get("nodes"))
+    row.append_nodes = _str_list(attrs.get("append_nodes"))
+    row.attributes_json = _extra_attrs(attrs, {"name", "shared", "nodes", "append_nodes"})
+    row.updated_at = utc_now()
+    session.add(row)
+    await session.flush()
+    return row
+
+
 async def _one_by_entity_id(session: AsyncSession, model, entity_id: str):
     result = await session.exec(select(model).where(model.entity_id == entity_id))
     return result.first()
@@ -824,7 +847,6 @@ _NODE_COLUMNS = {
     "source_names",
     "parameters",
     "parameters_schema",
-    "input_binding",
     "model",
     "workdir",
     "dag_ref",
@@ -858,7 +880,6 @@ def core_node_to_entity(row: CoreEntityNode) -> EntityConfig:
     _set_if_not_none(attrs, "handler", row.handler)
     _set_if_not_none(attrs, "system_prompt_file", row.system_prompt_file)
     _set_if_not_none(attrs, "system_prompt", row.system_prompt)
-    _set_if_not_none(attrs, "input_binding", row.input_binding)
     _set_if_not_none(attrs, "model", row.model)
     _set_if_not_none(attrs, "workdir", row.workdir)
     _set_if_not_none(attrs, "dag_ref", row.dag_ref)
@@ -874,7 +895,7 @@ def _node_config(row: CoreEntityNode) -> NodeConfig:
 
 def core_dag_to_entity(row: CoreEntityDag) -> EntityConfig:
     attrs = dict(row.attributes_json)
-    attrs.update({"name": row.name, "inputs": row.inputs, "nodes": row.nodes, "edges": row.edges, "ui": row.ui})
+    attrs.update({"name": row.name, "nodes": row.nodes, "edges": row.edges, "ui": row.ui})
     return EntityConfig(id=row.entity_id, type="dag", attributes=attrs)
 
 
@@ -893,6 +914,19 @@ def core_resource_to_entity(row: CoreEntityResource) -> EntityConfig:
     attrs = dict(row.attributes_json)
     attrs.update({"id": row.resource_id, "permits": row.permits})
     return EntityConfig(id=row.entity_id, type="resource", attributes=attrs)
+
+
+def core_input_mapping_to_entity(row: CoreEntityInputMapping) -> EntityConfig:
+    attrs = dict(row.attributes_json)
+    attrs.update(
+        {
+            "name": row.name,
+            "shared": row.shared,
+            "nodes": row.nodes,
+            "append_nodes": row.append_nodes,
+        }
+    )
+    return EntityConfig(id=row.entity_id, type="input_mapping", attributes=attrs)
 
 
 def _extra_attrs(attrs: dict[str, object], column_names: set[str]) -> dict[str, object]:

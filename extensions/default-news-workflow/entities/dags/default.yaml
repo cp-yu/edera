@@ -2,7 +2,6 @@ id: default
 type: dag
 attributes:
   name: default
-  inputs: []
   nodes:
   - id: 0194f7a6-7b17-7c01-b601-000000000001
     type: rss-fetcher

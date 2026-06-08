@@ -45,11 +45,20 @@ def test_node_config_discriminated_union() -> None:
         NodeConfig.model_validate({"name": "bad", "type": "agent", "input_type": "Any", "output_type": "Any"})
 
 
-def test_dag_config_inputs_and_optional_edges() -> None:
+def test_dag_config_rejects_inputs_and_loads_optional_edges() -> None:
+    with pytest.raises(ValidationError, match="DAG.inputs"):
+        DagConfig.model_validate(
+            {
+                "name": "d",
+                "inputs": [{"name": "ticker", "type": "string"}],
+                "nodes": [{"id": "source", "type": "source"}],
+                "edges": [],
+            }
+        )
+
     dag = DagConfig.model_validate(
         {
             "name": "d",
-            "inputs": [{"name": "ticker", "type": "string"}],
             "nodes": [{"id": "source", "type": "source"}, {"id": "sink", "type": "sink"}],
             "edges": [{"from": "source", "to": "sink", "optional": True}],
         }
@@ -60,12 +69,11 @@ def test_dag_config_inputs_and_optional_edges() -> None:
     }
     graph = load_graph(dag, nodes)
 
-    assert dag.inputs[0].name == "ticker"
     assert ("source", "sink") in graph.optional_edges
 
 
 @pytest.mark.asyncio
-async def test_dag_input_binding_and_optional_barrier(tmp_path: Path) -> None:
+async def test_runtime_inputs_and_optional_barrier(tmp_path: Path) -> None:
     nodes = {
         "source": NodeConfig(
             name="source",
@@ -73,7 +81,6 @@ async def test_dag_input_binding_and_optional_barrier(tmp_path: Path) -> None:
             handler="source",
             input_type="Any",
             output_type="Any",
-            input_binding="ticker",
         ),
         "optional": NodeConfig(name="optional", role="source", handler="optional", input_type="Any", output_type="Any"),
         "sink": NodeConfig(name="sink", handler="sink", input_type="Any", output_type="Any"),
@@ -103,11 +110,11 @@ async def test_dag_input_binding_and_optional_barrier(tmp_path: Path) -> None:
         snapshot=create_test_snapshot(nodes, handlers),
         instances=graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {"ticker": "AAPL"})
+    result = await DagRunner(executor).run(graph, "run", {}, source_shared_inputs={"ticker": "AAPL"})
 
-    assert result.node_outputs["source"].payload == "AAPL"
+    assert result.node_outputs["source"].payload == {"ticker": "AAPL"}
     assert result.node_outputs["sink"].ok
-    assert result.node_outputs["sink"].payload == "AAPL"
+    assert result.node_outputs["sink"].payload == {"ticker": "AAPL"}
 
 
 @pytest.mark.asyncio
@@ -486,7 +493,7 @@ async def test_daemon_dag_edit_persists_config(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_daemon_dag_run_routes_through_emit(tmp_path: Path) -> None:
+async def test_daemon_dag_run_starts_controller_run(tmp_path: Path) -> None:
     config_dir = _minimal_config(tmp_path)
     daemon = Server(tmp_path / "edera", "127.0.0.1:0", config_dir)
 
@@ -494,21 +501,36 @@ async def test_daemon_dag_run_routes_through_emit(tmp_path: Path) -> None:
         def __init__(self) -> None:
             self.calls = []
 
-        async def emit(self, event, payload=None, *, source="rpc", depth=0):
-            self.calls.append((event, payload, source, depth))
-            return ["run-1"]
+        async def start_run(
+            self,
+            source="manual",
+            dag_name="default",
+            payload=None,
+            *,
+            source_shared_inputs=None,
+            node_inputs=None,
+            append_nodes=None,
+        ):
+            self.calls.append((source, dag_name, payload, source_shared_inputs, node_inputs, append_nodes))
+            return "run-1"
 
     controller = Controller()
     daemon.controller = controller
     service = _DagService(daemon)
 
     response = await service.Run(
-        daemon.pb2.DagRunRequest(name="default", inputs_json='{"symbol":"TEST"}'),
+        daemon.pb2.DagRunRequest(
+            name="default",
+            inputs_json='{"symbol":"TEST"}',
+            source_shared_inputs_json='{"shared":true}',
+            node_inputs_json='{"reader":{"limit":5}}',
+            append_nodes_json='["reader"]',
+        ),
         _FakeGrpcContext(),
     )
 
     assert response.run_id == "run-1"
-    assert controller.calls == [("manual:dag:default", {"symbol": "TEST"}, "dag-service", 0)]
+    assert controller.calls == [("dag-service", "default", {"symbol": "TEST"}, {"shared": True}, {"reader": {"limit": 5}}, {"reader"})]
 
 
 @pytest.mark.asyncio

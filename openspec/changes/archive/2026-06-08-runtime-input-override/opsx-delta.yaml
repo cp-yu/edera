@@ -1,0 +1,37 @@
+schema_version: 1
+
+ADDED:
+  capabilities:
+    - id: cap.core.runtime-temporary-input
+      type: capability
+      intent: 运行时临时输入机制，支持 sourceSharedInputs、nodeInputs、appendNodes 三种参数，覆盖或追加节点输入
+    - id: cap.core.input-mapping-entity
+      type: capability
+      intent: InputMapping 核心 Entity Type，用于 Sub-DAG 的持久化输入映射配置
+  relations:
+    - from: cap.core.runtime-temporary-input
+      type: contains
+      to: dom.core
+    - from: cap.core.input-mapping-entity
+      type: contains
+      to: dom.core
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.dag-input-parameters
+      intent: 运行时参数传递机制，移除 DAG.inputs 和 input_binding，改用 sourceSharedInputs 和 nodeInputs
+    - id: cap.core.sub-dag-execution
+      intent: Sub-DAG 执行的 input_mapping 支持 dict 或 entity 引用
+    - id: cap.operations.dag-control
+      intent: DAG 控制器增加临时输入参数支持
+    - id: cap.operations.multi-node-retry
+      intent: 多节点重试增加临时输入参数支持
+    - id: cap.core.manual-trigger-prefix
+      intent: manual:node 触发增加 append 参数支持
+    - id: cap.web.edera-web-bff
+      intent: Web BFF API 增加临时输入参数
+    - id: cap.web.node-graph-dag-editor
+      intent: Web Console 增加临时输入配置 UI
+
+REMOVED:
+  capabilities: []

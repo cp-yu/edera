@@ -30,18 +30,11 @@ capabilities:
 - **THEN** 系统 MUST 保存该 Node 的 `failed` 状态和错误信息
 
 ### Requirement: Manual run control
+系统 SHALL 支持用户从 Web 控制台或 API 手动运行指定 DAG。DAG run 启动时 SHALL 接受 `sourceSharedInputs`、`nodeInputs`、`appendNodes` 参数用于临时覆盖或追加节点输入。
 
-系统 SHALL 支持用户从 Web 控制台或 API 手动运行指定 DAG。DAG run 启动时 MUST 由 DagController 从 DB-backed source of truth 构建 `DAG execution closure` 和 `DagExecutionSnapshot`，MUST NOT 依赖全量 `RuntimeControlSnapshot` DAG/Node map。
-
-#### Scenario: Start manual run for named DAG
-
-- **WHEN** 没有该 DAG 的运行中任务且用户触发手动运行
-- **THEN** 系统 SHALL 构建指定 DAG 的 `DagExecutionSnapshot`，启动指定 DAG 并返回新 run_id
-
-#### Scenario: Reject concurrent run for same DAG
-
-- **WHEN** 指定 DAG 已有运行中任务且用户再次触发手动运行
-- **THEN** 系统 MUST 拒绝并返回当前运行中的 run_id
+#### Scenario: 手动运行时传递临时输入
+- **WHEN** 用户通过 API 手动运行 DAG 并传入 `{sourceSharedInputs: {...}, nodeInputs: {...}}`
+- **THEN** 系统 SHALL 将临时输入参数传递给 DagRunner
 
 ### Requirement: Stop current run
 
