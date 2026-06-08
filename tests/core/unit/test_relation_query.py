@@ -3,14 +3,14 @@ from __future__ import annotations
 from edera_core.config.entities import EntityStore
 from edera_core.config.schema import (
     EntitiesConfig,
+    EntityConfig,
     EntityRelationsConfig,
-    EntityRelationConfig,
     EntityTypeConfig,
 )
 from edera_core.server import _query_relations, _relation_filters
 
 
-def _store(*, relations: list[EntityRelationConfig] | None = None) -> EntityStore:
+def _store(*, relations: list[EntityConfig] | None = None) -> EntityStore:
     entity_types = {
         "stock": EntityTypeConfig(
             display_name="Stock",
@@ -26,9 +26,9 @@ def _store(*, relations: list[EntityRelationConfig] | None = None) -> EntityStor
         ),
     }
     return EntityStore(
-        EntitiesConfig(entities=[]),
+        EntitiesConfig(entities=relations or []),
         entity_types,
-        EntityRelationsConfig(relations=relations or []),
+        EntityRelationsConfig(),
         None,
     )
 
@@ -37,8 +37,19 @@ def _relation(
     id: str = "r1",
     entities: list[str] | None = None,
     type: str = "reflects",
-) -> EntityRelationConfig:
-    return EntityRelationConfig(id=id, entities=entities or ["stock:A", "stock:B"], type=type, metadata={})
+) -> EntityConfig:
+    refs = entities or ["stock:A", "stock:B"]
+    return EntityConfig(
+        id=id,
+        type="relation",
+        attributes={
+            "entities": refs,
+            "relation_type": type,
+            "from": refs[0],
+            "to": refs[1],
+            "metadata": {},
+        },
+    )
 
 
 # --- _relation_filters ---
@@ -59,7 +70,7 @@ def test_non_relation_type_returns_none():
 
 def test_extracts_relation_type():
     result = _relation_filters(["type=relation", "relation_type=uses-source"])
-    assert result == {"type": "uses-source"}
+    assert result == {"relation_type": "uses-source"}
 
 
 def test_extracts_from_to():
@@ -69,30 +80,30 @@ def test_extracts_from_to():
 
 def test_combined_filters():
     result = _relation_filters(["type=relation", "relation_type=X", "from=stock:A"])
-    assert result == {"type": "X", "from": "stock:A"}
+    assert result == {"relation_type": "X", "from": "stock:A"}
 
 
 # --- _query_relations ---
 
 
-def test_returns_all_with_empty_filters():
+async def test_returns_all_with_empty_filters():
     rels = [_relation(id="r1"), _relation(id="r2")]
     store = _store(relations=rels)
-    result = _query_relations(store, {})
+    result = await _query_relations(store, {})
     assert len(result) == 2
 
 
-def test_filters_by_type():
+async def test_filters_by_type():
     rels = [_relation(id="r1", type="uses-source"), _relation(id="r2", type="reflects")]
     store = _store(relations=rels)
-    result = _query_relations(store, {"type": "uses-source"})
+    result = await _query_relations(store, {"relation_type": "uses-source"})
     assert len(result) == 1
     assert result[0].attributes["relation_type"] == "uses-source"
 
 
-def test_result_has_relation_structure():
+async def test_result_has_relation_structure():
     store = _store(relations=[_relation(id="r1", entities=["stock:A", "stock:B"], type="reflects")])
-    result = _query_relations(store, {})
+    result = await _query_relations(store, {})
     assert result[0].type == "relation"
     attrs = result[0].attributes
     assert attrs["relation_type"] == "reflects"

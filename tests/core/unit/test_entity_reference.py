@@ -1,16 +1,18 @@
 from pathlib import Path
 
 from edera_core.config.entities import EntityStore
-from edera_core.config.loader import (
-    load_entities_config,
-    load_entity_type_configs,
-)
-from edera_core.config.schema import EntityRelationsConfig
+from edera_core.config.loader import load_entity_type_configs
+from edera_core.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig
 
 
 def _store() -> EntityStore:
     schemas = load_entity_type_configs(Path("schemas/entity-types"))
-    entities = load_entities_config(Path("config/entities.yaml"), schemas)
+    entities = EntitiesConfig(
+        entities=[
+            EntityConfig(id="stock-00700-hk", type="stock", attributes={"code": "00700.HK"}),
+            EntityConfig(id="stock-00100-hk", type="stock", attributes={"code": "00100.HK"}),
+        ]
+    )
     relations = EntityRelationsConfig(relations=[])
     return EntityStore(entities, schemas, relations)
 

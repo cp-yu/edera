@@ -187,7 +187,6 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         _snapshot(config, bootstrap),
         data_graph.instances,
         store,
-        extension_tables=bootstrap.table_names,
     )
     original_execute = data_executor.execute
 
@@ -208,7 +207,6 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         _snapshot(config, bootstrap),
         scoring_graph.instances,
         store,
-        extension_tables=bootstrap.table_names,
     )
     scoring_result = await DagRunner(scoring_executor, dags=config.dags, nodes=config.nodes).run(
         scoring_graph, "run", data_result.payload, retry_nodes={"score_dimensions"}
@@ -235,7 +233,6 @@ async def test_function_stage_dags_mock(tmp_path: Path) -> None:
             _snapshot(config, bootstrap),
             graph.instances,
             store,
-            extension_tables=bootstrap.table_names,
         )
         retry_nodes = {"score_dimensions"} if dag_name == "uzi-scoring-synthesis" else None
         result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(
@@ -271,7 +268,6 @@ async def test_scoring_dag_runs_three_analyst_agents(tmp_path: Path) -> None:
         _snapshot(config, bootstrap),
         graph.instances,
         store,
-        extension_tables=bootstrap.table_names,
         daemon_data_dir=tmp_path / "agents",
     )
     prefilled = {
@@ -310,7 +306,6 @@ async def test_rendering_assembles_report(tmp_path: Path) -> None:
         _snapshot(config, bootstrap),
         graph.instances,
         store,
-        extension_tables=bootstrap.table_names,
     )
     result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"score": 1})
 
@@ -333,7 +328,6 @@ async def test_rendering_omits_failed_optional_section(tmp_path: Path) -> None:
         _snapshot(config, bootstrap),
         graph.instances,
         store,
-        extension_tables=bootstrap.table_names,
     )
     original_execute = executor.execute
 

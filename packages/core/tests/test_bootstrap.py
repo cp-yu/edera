@@ -8,14 +8,15 @@ from edera_core.storage.repository import save_installed_extension
 
 
 @pytest.mark.asyncio
-async def test_load_without_registry(tmp_path):
+async def test_load_installed_extensions_returns_bootstrap_metadata(tmp_path):
     async with await _session(tmp_path) as session:
         await _install(session)
         result = await load_installed_extensions(session, tmp_path / "handlers")
 
-    assert not hasattr(result, "handler_registry")
-    assert not hasattr(result, "entity_type_registry")
     assert [manifest.name for manifest in result.manifests] == ["demo-ext"]
+    assert result.storage_tables == {"demo-ext": []}
+    assert result.table_names == {"demo-ext": {}}
+    assert result.extension_roots == {"demo-ext": tmp_path / "handlers" / "demo-ext"}
 
 
 @pytest.mark.asyncio

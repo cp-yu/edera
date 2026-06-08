@@ -325,7 +325,10 @@ async def _node_controller(tmp_path) -> DagController:
             ),
         )
         await session.commit()
-    controller = DagController(tmp_path / "config")
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "system.toml").write_text("", encoding="utf-8")
+    controller = DagController(config_dir)
     controller.engine = engine
     controller.factory = factory
     controller._runtime_config = SimpleNamespace(dags={}, system=SystemConfig())

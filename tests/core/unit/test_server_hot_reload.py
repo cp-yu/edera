@@ -11,13 +11,12 @@ from edera_core.config_service import _ConfigService
 from edera_core.config.loader import load_app_config
 from edera_core.config.schema import EntityConfig
 from edera_core.dag_controller import DagController
-from edera_core.errors import ConfigError
+from edera_core.errors import ConfigError, DagError
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.query_service import _QueryService
-from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.server import Server, _DagService, _EntityService, _NodeService
-from edera_core.storage.repository import save_core_entity
+from edera_core.storage.repository import save_core_entity, save_ordinary_entity
 
 
 class _Controller:
@@ -29,7 +28,7 @@ class _Controller:
         return [event]
 
     async def load_bootstrap(self) -> BootstrapResult:
-        return BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})
+        return BootstrapResult([], {}, {}, {})
 
 
 class _Context:
@@ -86,8 +85,8 @@ async def test_reload_installs_snapshot(tmp_path: Path) -> None:
 
         await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
 
-        assert controller.runtime_snapshot().config.dags["default"].nodes[0].type == "worker"
-        assert controller.runtime_snapshot().config.nodes["worker"].handler == "worker-v2"
+        assert controller.runtime_config().dags["default"].nodes[0].type == "worker"
+        assert controller.runtime_config().nodes["worker"].handler == "worker-v2"
     finally:
         await controller.shutdown()
 
@@ -104,11 +103,12 @@ async def test_runtime_read_api_committed_snapshot(tmp_path: Path) -> None:
         _write_dag(tmp_path, nodes=["worker"])
         _write_node(tmp_path, "worker", handler="worker-v2")
         _write_stock(tmp_path, "NEW")
-        await _save_core_node(controller, "worker", "worker-v2")
-        await _save_core_dag(controller, ["worker"])
 
         before = json.loads((await graph.ListDags(pb2.EmptyRequest(), _Context())).json)
         before_types = json.loads((await graph.ListNodeTypes(pb2.EmptyRequest(), _Context())).json)
+        await _save_core_node(controller, "worker", "worker-v2")
+        await _save_core_dag(controller, ["worker"])
+        await _save_stock(controller, "NEW")
         await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
         after = json.loads((await graph.GetDag(pb2.NameRequest(name="default"), _Context())).json)
         after_types = json.loads((await graph.ListNodeTypes(pb2.EmptyRequest(), _Context())).json)
@@ -183,14 +183,15 @@ async def test_query_runtime_api_committed_snapshot(monkeypatch: pytest.MonkeyPa
         monkeypatch.setattr("edera_core.query_service.source_execution_logs", fake_source_execution_logs)
         _write_rss_source(tmp_path, "candidate")
         _write_named_dag(tmp_path, "candidate")
-        await _save_core_node(controller, "worker", "worker")
-        await _save_core_dag(controller, ["worker"], name="candidate")
 
         await query.SourceHealth(pb2.EmptyRequest(), _Context())
         await query.SourceLogs(pb2.SourceLogsRequest(), _Context())
         with pytest.raises(AssertionError, match="dag 'candidate' not found"):
             await query.NodeHistory(pb2.NodeHistoryRequest(dag_name="candidate", node_id="worker"), _Context())
 
+        await _save_core_node(controller, "worker", "worker")
+        await _save_core_dag(controller, ["worker"], name="candidate")
+        await _save_rss_source(controller, "candidate")
         await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
         await query.SourceHealth(pb2.EmptyRequest(), _Context())
         await query.SourceLogs(pb2.SourceLogsRequest(), _Context())
@@ -239,7 +240,7 @@ async def test_control_api_uses_committed_snapshot_not_yaml(tmp_path: Path) -> N
 
         with pytest.raises(AssertionError, match="dag 'candidate' not found"):
             await dags.Stop(pb2.DagStopRequest(dag_name="candidate"), _Context())
-        with pytest.raises(AssertionError, match="dag 'candidate' not found"):
+        with pytest.raises(DagError, match="missing DAG config: candidate"):
             await dags.Retry(pb2.DagRetryRequest(dag_name="candidate", node_ids=["worker"]), _Context())
         with pytest.raises(AssertionError, match="node 'worker' not found"):
             await nodes.Stop(pb2.NodeRef(id="worker"), _Context())
@@ -270,7 +271,8 @@ async def test_dag_edit_updates_db_snapshot_not_yaml(tmp_path: Path) -> None:
         )
 
         assert json.loads(result.json) == {"updated": True, "dag": "default"}
-        assert [node.type for node in controller.runtime_snapshot().config.dags["default"].nodes] == ["worker"]
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
+        assert [node.type for node in controller.runtime_config().dags["default"].nodes] == ["worker"]
         assert not yaml_path.exists()
     finally:
         await controller.shutdown()
@@ -300,7 +302,8 @@ async def test_graph_core_mutations_update_db_snapshot_not_yaml(tmp_path: Path) 
             _Context(),
         )
 
-        app = controller.runtime_snapshot().config
+        await daemon._reload_config(load_app_config(tmp_path), await controller.load_bootstrap())
+        app = controller.runtime_config()
         assert "scratch" in app.dags
         assert "worker-db" in app.nodes
         assert "worker-in-dag" in app.nodes
@@ -318,7 +321,7 @@ def _write_config(root: Path) -> None:
     (root / "skills").mkdir()
     (root.parent / "schemas" / "entity-types").mkdir(parents=True, exist_ok=True)
     (root.parent / "schemas" / "entity-types" / "stock.yaml").write_text(
-        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nschema: {}\n",
+        "display_name: Stock\nbusiness_id_field: code\ndisplay_template: '{code}'\nstorage_tier: database\nschema: {}\n",
         encoding="utf-8",
     )
     (root / "entities.yaml").write_text("entities: []\n", encoding="utf-8")
@@ -363,7 +366,7 @@ def _write_stock(root: Path, code: str) -> None:
 
 def _write_source_schema(root: Path) -> None:
     (root.parent / "schemas" / "entity-types" / "rss-source.yaml").write_text(
-        "display_name: RSS Source\nbusiness_id_field: name\ndisplay_template: '{name}'\nschema: {}\n",
+        "display_name: RSS Source\nbusiness_id_field: name\ndisplay_template: '{name}'\nstorage_tier: database\nschema: {}\n",
         encoding="utf-8",
     )
 
@@ -390,6 +393,26 @@ async def _save_core_node(controller: DagController, name: str, handler: str) ->
                     "output_type": "Any",
                 },
             ),
+        )
+        await session.commit()
+
+
+async def _save_stock(controller: DagController, code: str) -> None:
+    async with controller._factory()() as session:
+        await save_ordinary_entity(
+            session,
+            EntityConfig(id=f"stock-{code.lower()}", type="stock", attributes={"code": code}),
+            controller.runtime_config().entity_types["stock"],
+        )
+        await session.commit()
+
+
+async def _save_rss_source(controller: DagController, name: str) -> None:
+    async with controller._factory()() as session:
+        await save_ordinary_entity(
+            session,
+            EntityConfig(id=f"source-{name}", type="rss-source", attributes={"name": name}),
+            controller.runtime_config().entity_types["rss-source"],
         )
         await session.commit()
 

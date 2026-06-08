@@ -121,9 +121,9 @@ async def test_manual_node_prefix() -> None:
     store = EntityStore(_triggers(), _types(), EntityRelationsConfig())
     executor = TriggerExecutor(store, run_node=lambda name, payload: _record(fired, f"node:{name}"))
 
-    assert await executor.emit("manual:node:reader") == ["node:reader"]
+    assert await executor.emit("manual:node:default/reader") == ["node:default/reader"]
     assert executor.events.events == set()
-    assert fired == ["node:reader"]
+    assert fired == ["node:default/reader"]
 
 
 @pytest.mark.asyncio

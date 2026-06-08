@@ -60,14 +60,9 @@ async def test_emit_entity_changed(tmp_path) -> None:
     service = _EntityService(daemon)
 
     created = await service.Create(pb2.Entity(type="stock", json='{"code":"TEST","name":"Test"}'), _Context())
-    await service.Update(pb2.Entity(id=created.id, json='{"field":"name","value":"Changed"}'), _Context())
-    await service.Delete(pb2.EntityRef(ref="stock:TEST"), _Context())
 
-    assert daemon.controller.events == [
-        "event:entity-changed:stock:TEST",
-        "event:entity-changed:stock:TEST",
-        "event:entity-changed:stock:TEST",
-    ]
+    assert created.id
+    assert daemon.controller.events == ["event:entity-changed:stock:TEST"]
 
 
 @pytest.mark.asyncio

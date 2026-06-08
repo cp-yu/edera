@@ -28,7 +28,7 @@ async def test_create_snapshot_for_dag_execution(tmp_path):
 
     assert isinstance(executor.snapshot, DagExecutionSnapshot)
     assert executor.snapshot.dag_config.name == "demo"
-    assert not hasattr(controller.runtime_snapshot(), "config")
+    assert controller.runtime_config().dags["demo"].name == "demo"
 
 
 @pytest.mark.asyncio

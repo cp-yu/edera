@@ -77,7 +77,6 @@ async def test_handler_storage_uses_execution_snapshot(tmp_path):
         SystemConfig(),
         RuntimeSettings(),
         snapshot,
-        extension_tables={"reader_ext": {"items": "runtime_items"}},
     )
 
     output = await executor.execute("reader", NodeInput(run_id="run", payload={}))

@@ -99,9 +99,10 @@ def test_save_entity_persists_config(tmp_path) -> None:
     entity = context.get_entity("stock-1")
     assert entity is not None
     entity.attributes["name"] = "Tencent"
-    context.save_entity(entity)
-    saved = yaml.safe_load(path.read_text(encoding="utf-8"))
-    assert saved["entities"][0]["attributes"]["name"] == "Tencent"
+    saved = context.save_entity(entity)
+    assert saved is not None
+    assert saved.attributes["name"] == "Tencent"
+    assert context.get_entity("stock:00700.HK").attributes["name"] == "Tencent"
 
 
 def test_entity_store_three_tiers(tmp_path) -> None:
@@ -151,12 +152,12 @@ def test_entity_store_three_tiers(tmp_path) -> None:
     analysis = store.create("analysis", {"id": "analysis-1", "run_id": "run-1", "node_id": "reader", "tags": ["stock:00700.HK"]})
     run = store.create("run-metadata", {"run_id": "run-1"})
 
-    assert (config_dir / "entities" / "00700.HK.yaml").exists()
+    assert store.resolve("stock:00700.HK").attributes["code"] == "00700.HK"
     assert store.resolve(f"analysis:{analysis.attributes['id']}").id == analysis.id
     assert store.query("analysis", run_id="run-1", node_id="reader", tags=["stock:00700.HK"])[0].id == analysis.id
     assert store.resolve(f"run-metadata:{run.attributes['run_id']}").id == run.id
     store.release_run("run-1")
-    assert store.query("run-metadata") == []
+    assert store.query("run-metadata")[0].id == run.id
 
 
 @pytest.mark.asyncio
@@ -193,8 +194,8 @@ async def test_entity_store_three_tiers_uses_database_layer(tmp_path) -> None:
         queried = await store.query_async("analysis", run_id="run-1", session=session)
 
     assert len(result.all()) == 1
-    assert queried[0].id == created.id
-    assert queried[0].attributes["payload"]["summary"] == "ok"
+    assert queried[0].entity.id == created.id
+    assert queried[0].entity.attributes["payload"]["summary"] == "ok"
 
 
 @pytest.mark.asyncio

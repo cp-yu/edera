@@ -14,7 +14,7 @@ from edera_core.dag.resources import clear_semaphore_cache, get_semaphore
 from edera_core.dag.runner import DagRunner
 from edera_core.errors import ConfigError
 from edera_core.extension_manager import ExtensionManager
-from edera_core.node.executor import NodeExecutor as _RuntimeNodeExecutor
+from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeInput
 from edera_core.resolver import HandlerMeta, StaticHandlerResolver
 from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
@@ -74,22 +74,6 @@ async def _install_default_extensions(engine, handlers_dir: Path, entity_types: 
         "default-news-workflow",
     ]:
         await manager.install(name)
-
-
-def NodeExecutor(
-    nodes,
-    system,
-    runtime,
-    snapshot=None,
-    instances=None,
-    entity_store=None,
-    **kwargs,
-):
-    if isinstance(snapshot, dict):
-        snapshot = _test_snapshot(snapshot)
-    if snapshot is None:
-        snapshot = _test_snapshot({})
-    return _RuntimeNodeExecutor(nodes, system, runtime, snapshot, instances, entity_store, **kwargs)
 
 
 def _test_snapshot(handlers: dict[str, object]) -> DagExecutionSnapshot:
@@ -183,7 +167,7 @@ async def test_release_on_failure() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": fail, "fetch-web": _delayed_handler("second", [], 0)},
+        _test_snapshot({"fetch-rss": fail, "fetch-web": _delayed_handler("second", [], 0)}),
         graph.instances,
         store,
     )
@@ -216,8 +200,8 @@ async def test_cross_dag_sharing() -> None:
 
     graph_a = _single_resource_graph(config, "dag-a", "rss-fetcher")
     graph_b = _single_resource_graph(config, "dag-b", "web-scraper")
-    runner_a = DagRunner(NodeExecutor(nodes, config.system, config.runtime, {"fetch-rss": first}, graph_a.instances, store))
-    runner_b = DagRunner(NodeExecutor(nodes, config.system, config.runtime, {"fetch-web": second}, graph_b.instances, store))
+    runner_a = DagRunner(NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": first}), graph_a.instances, store))
+    runner_b = DagRunner(NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-web": second}), graph_b.instances, store))
 
     task_a = asyncio.create_task(runner_a.run(graph_a, "run-a", {}))
     await started.wait()
@@ -257,7 +241,7 @@ async def test_cancel_releases_resource() -> None:
             nodes,
             config.system,
             config.runtime,
-            {"fetch-rss": blocked},
+            _test_snapshot({"fetch-rss": blocked}),
             graph.instances,
             _resource_store(1),
         )
@@ -315,7 +299,7 @@ async def test_accumulate_resource_nodes_are_limited() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": source, "fetch-web": source, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": source, "fetch-web": source, "generate-advice": sink}),
         graph.instances,
         _resource_store(1),
     )
@@ -371,7 +355,7 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": holder, "fetch-web": source, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": holder, "fetch-web": source, "generate-advice": sink}),
         graph.instances,
         _resource_store(1),
     )
@@ -441,7 +425,7 @@ async def _run_resource_dag(resources: list[str | None], permits: int) -> tuple[
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": handler},
+        _test_snapshot({"fetch-rss": handler}),
         graph.instances,
         _resource_store(permits, resource_ids),
     )

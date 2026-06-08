@@ -11,7 +11,8 @@ from edera_core.config.schema import EntityConfig, EntityTypeConfig
 from edera_core.config.schema import NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.engine import Engine
 from edera_core.node.executor import NodeExecutor
-from edera_core.registry import HandlerRegistry
+from edera_core.resolver import HandlerMeta, StaticHandlerResolver
+from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import save_installed_extension, save_ordinary_entity, seed_entity_type_records
 from edera_types import NodeInput
@@ -32,8 +33,8 @@ async def test_load_installed_extensions_registers_manifest_handlers(tmp_path: P
                 import_records=[],
             )
             result = await load_installed_extensions(session, Path("handlers"))
-        assert "fetch-rss" in result.handler_registry
-        assert "rss-source" in result.entity_type_registry
+        assert _handler_names(result) == {"fetch-rss"}
+        assert _entity_type_names(result) == {"rss-source"}
     finally:
         await engine.dispose()
 
@@ -105,8 +106,8 @@ async def test_load_installed_extensions_parses_manifest_entity_imports(tmp_path
             result = await load_installed_extensions(session, tmp_path)
 
         assert manifest.entity_imports == ["dags/default/dag.yaml"]
-        assert "demo" in result.handler_registry
-        assert "article" in result.entity_type_registry
+        assert _handler_names(result) == {"demo"}
+        assert _entity_type_names(result) == {"article"}
         assert result.table_names["demo-extension"]["raw_items"] == "ext_demo_extension_raw_items"
     finally:
         await engine.dispose()
@@ -187,13 +188,6 @@ async def test_entity_and_extension_table_names_do_not_collide(tmp_path: Path) -
         await engine.dispose()
 
 
-def test_handler_registry_rejects_duplicate_names() -> None:
-    registry = HandlerRegistry()
-    registry.register("x", "/tmp/a.py")
-    with pytest.raises(ValueError, match="duplicate handler"):
-        registry.register("x", "/tmp/b.py")
-
-
 @pytest.mark.asyncio
 async def test_node_executor_calls_handler_context(tmp_path: Path) -> None:
     handler = tmp_path / "handler.py"
@@ -202,8 +196,6 @@ async def test_node_executor_calls_handler_context(tmp_path: Path) -> None:
         "    return {'payload': ctx.input.payload, 'node': ctx.node_name, 'param': ctx.params['x']}\n",
         encoding="utf-8",
     )
-    registry = HandlerRegistry()
-    registry.register("demo", handler)
     executor = NodeExecutor(
         {
             "demo": NodeConfig(
@@ -218,7 +210,7 @@ async def test_node_executor_calls_handler_context(tmp_path: Path) -> None:
         },
         SystemConfig(),
         RuntimeSettings(),
-        registry.seal(),
+        _test_snapshot({"demo": HandlerMeta(handler)}),
     )
     output = await executor.execute("demo", NodeInput(run_id="run", payload={"ok": True}))
     assert output.ok
@@ -230,8 +222,6 @@ async def test_node_executor_exposes_declared_extension_table(tmp_path: Path) ->
     handler = tmp_path / "demo-extension" / "handler.py"
     handler.parent.mkdir()
     handler.write_text("async def run(ctx):\n    return ctx.storage.table('raw_items')\n", encoding="utf-8")
-    registry = HandlerRegistry()
-    registry.register("demo", handler)
     executor = NodeExecutor(
         {
             "demo": NodeConfig(
@@ -245,8 +235,10 @@ async def test_node_executor_exposes_declared_extension_table(tmp_path: Path) ->
         },
         SystemConfig(),
         RuntimeSettings(),
-        registry.seal(),
-        extension_tables={"demo-extension": {"raw_items": "ext_demo_extension_raw_items"}},
+        _test_snapshot(
+            {"demo": HandlerMeta(handler, extension_name="demo-extension")},
+            extension_table_names={"demo-extension": {"raw_items": "ext_demo_extension_raw_items"}},
+        ),
     )
 
     output = await executor.execute("demo", NodeInput(run_id="run", payload={}))
@@ -286,3 +278,24 @@ def _manifest_snapshot(path: Path) -> dict[str, object]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     assert isinstance(data, dict)
     return data
+
+
+def _handler_names(result) -> set[str]:
+    return {handler.name for manifest in result.manifests for handler in manifest.handlers}
+
+
+def _entity_type_names(result) -> set[str]:
+    return {entity_type.name for manifest in result.manifests for entity_type in manifest.entity_types}
+
+
+def _test_snapshot(
+    handlers: dict[str, HandlerMeta],
+    extension_table_names: dict[str, dict[str, str]] | None = None,
+) -> DagExecutionSnapshot:
+    return DagExecutionSnapshot(
+        DagExecutionClosure("test", {}, {}),
+        {},
+        StaticHandlerResolver(handlers),
+        extension_table_names or {},
+        {},
+    )

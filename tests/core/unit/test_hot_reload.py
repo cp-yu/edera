@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 
 import pytest
-import yaml
 
 from edera_core.bootstrap import BootstrapResult
 from edera_core.config.loader import load_app_config
 from edera_core.config.schema import EntityConfig
 from edera_core.dag.models import DagGraph
 from edera_core.dag_controller import DagController
+from edera_core.extension_manager import ExtensionManager
 from edera_core.hot_reload import HotReloader
-from edera_core.registry import EntityTypeRegistry, HandlerRegistry
 from edera_core.storage.repository import save_core_entity, save_installed_extension
 
 
@@ -32,8 +30,7 @@ async def test_snapshot_commit_success(tmp_path: Path) -> None:
 
     assert controller.runtime_snapshot() is snapshot
     assert snapshot is not old_snapshot
-    assert "new-handler" in snapshot.bootstrap.handler_registry
-    assert "new-handler" in controller.runtime_snapshot().bootstrap.handler_registry
+    assert _bootstrap_handler_names(controller.bootstrap_result()) == {"new-handler"}
     assert snapshot.trigger_executor is controller.trigger_executor
     assert snapshot.cron_emitter is controller.cron_emitter
     await controller.shutdown()
@@ -56,7 +53,7 @@ async def test_snapshot_commit_failure(monkeypatch: pytest.MonkeyPatch, tmp_path
         await controller.install_snapshot(load_app_config(tmp_path), await _install_extensions(controller, extensions))
 
     assert controller.runtime_snapshot() is old_snapshot
-    assert "failed-handler" not in controller.runtime_snapshot().bootstrap.handler_registry
+    assert "failed-handler" not in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 
@@ -88,7 +85,7 @@ async def test_snapshot_commit_serialized(monkeypatch: pytest.MonkeyPatch, tmp_p
     )
 
     assert max_active == 1
-    assert "serial-handler" in controller.runtime_snapshot().bootstrap.handler_registry
+    assert "serial-handler" in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 
@@ -132,7 +129,7 @@ async def test_new_run_uses_committed_snapshot(monkeypatch: pytest.MonkeyPatch, 
     captured: list[list[str]] = []
 
     async def fake_run(*_args, snapshot=None, **_kwargs):
-        captured.append([node.type for node in snapshot.config.dags["default"].nodes])
+        captured.append([node.type for node in controller.runtime_config().dags["default"].nodes])
 
     monkeypatch.setattr(controller, "_run", fake_run)
     await controller.run_now("manual")
@@ -154,24 +151,32 @@ async def test_handler_reload_new_executor_only(tmp_path: Path) -> None:
     _write_extension(extensions, "first-handler")
     controller = DagController(tmp_path, extensions_dirs=[extensions])
     await controller.start(run_startup=False)
+    await _save_core_node(controller, "first-handler", "first-handler")
+    await _save_core_dag(controller, ["first-handler"])
     graph = DagGraph("default", [], {}, {}, {})
-    old_executor = controller._build_run_executor(
-        controller.runtime_snapshot(),
-        graph,
-    )
+    async with controller._factory()() as session:
+        old_executor = await controller._build_run_executor(
+            controller.runtime_snapshot(),
+            graph,
+            session,
+        )
     old_executor._modules["first-handler"] = object()  # type: ignore[assignment]
     _write_dag(tmp_path, nodes=["second-handler"])
     _write_extension(extensions, "second-handler")
+    await _save_core_node(controller, "second-handler", "second-handler")
+    await _save_core_dag(controller, ["second-handler"])
 
     await controller.install_snapshot(load_app_config(tmp_path), await _install_extensions(controller, extensions))
-    new_executor = controller._build_run_executor(
-        controller.runtime_snapshot(),
-        graph,
-    )
+    async with controller._factory()() as session:
+        new_executor = await controller._build_run_executor(
+            controller.runtime_snapshot(),
+            graph,
+            session,
+        )
 
     assert old_executor._modules == {"first-handler": old_executor._modules["first-handler"]}
     assert new_executor._modules == {}
-    assert "second-handler" in new_executor.handler_registry
+    assert "second-handler" in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 
@@ -184,13 +189,13 @@ async def test_handler_manifest_deletion_rebuilds_registry(tmp_path: Path) -> No
     await controller.start(run_startup=False)
     await _save_installed_handler(controller, "removed-handler", handlers=True)
     await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
-    assert "removed-handler" in controller.runtime_snapshot().bootstrap.handler_registry
+    assert "removed-handler" in _bootstrap_handler_names(controller.bootstrap_result())
 
     await _save_installed_handler(controller, "removed-handler", handlers=False)
 
     await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
 
-    assert "removed-handler" not in controller.runtime_snapshot().bootstrap.handler_registry
+    assert "removed-handler" not in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 
@@ -485,31 +490,18 @@ async def _save_installed_handler(controller: DagController, name: str, handlers
 
 async def _install_extensions(controller: DagController, extensions_dir: Path) -> BootstrapResult:
     for manifest_path in sorted(extensions_dir.glob("*/manifest.yaml")):
-        root = manifest_path.parent
-        target = controller.handlers_dir / root.name
-        if target.exists():
-            shutil.rmtree(target)
-        target.mkdir(parents=True)
-        for item in root.iterdir():
-            if item.name in {"manifest.yaml", "entities", "_lib"}:
-                continue
-            destination = target / item.name
-            if item.is_dir():
-                shutil.copytree(item, destination)
-            else:
-                shutil.copy2(item, destination)
-        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
-        async with controller._factory()() as session:
-            await save_installed_extension(
-                session,
-                name=str(manifest["name"]),
-                version=str(manifest["version"]),
-                manifest_snapshot=manifest,
-                import_records=[],
-            )
-            await session.commit()
+        await ExtensionManager(
+            extensions_dir=extensions_dir,
+            handlers_dir=controller.handlers_dir,
+            engine=controller.engine,
+            config_entity_types=load_app_config(controller.config_dir).entity_types,
+        ).install(manifest_path.parent.name)
     return await controller.load_bootstrap()
 
 
 def _empty_bootstrap() -> BootstrapResult:
-    return BootstrapResult(HandlerRegistry().seal(), EntityTypeRegistry(), [], {}, {}, {})
+    return BootstrapResult([], {}, {}, {})
+
+
+def _bootstrap_handler_names(bootstrap: BootstrapResult) -> set[str]:
+    return {handler.name for manifest in bootstrap.manifests for handler in manifest.handlers}

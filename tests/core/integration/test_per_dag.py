@@ -8,7 +8,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 import edera_core.dag_controller as dag_controller_module
-from edera_core.bootstrap import load_installed_extensions
 from edera_core.config.schema import EntityConfig
 from edera_core.config.loader import _load_runtime_base_config
 from edera_core.errors import DagError
@@ -37,9 +36,7 @@ class FakeController(DagController):
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
         config = _load_runtime_base_config(self.config_dir)
-        await _install_default_extensions(self.engine, self.handlers_dir, config.entity_types)
-        async with self.factory() as session:
-            bootstrap = await load_installed_extensions(session, self.handlers_dir)
+        bootstrap = await self.load_bootstrap()
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
 
@@ -120,25 +117,6 @@ class FakeGrpcClient:
 
     async def config_list_entity_types(self) -> dict[str, object]:
         return {"types": {}}
-
-
-async def _install_default_extensions(engine, handlers_dir: Path, entity_types: dict[str, object]) -> None:
-    manager = ExtensionManager(
-        extensions_dir=Path("extensions"),
-        handlers_dir=handlers_dir,
-        engine=engine,
-        config_entity_types=entity_types,
-    )
-    for name in [
-        "rss-fetcher",
-        "api-fetcher",
-        "reader",
-        "advisor",
-        "briefing-generator",
-        "notifier",
-        "default-news-workflow",
-    ]:
-        await manager.install(name)
 
 
 async def _install_controller_extensions(ctrl: DagController, extensions_dir: Path, names: list[str]) -> None:

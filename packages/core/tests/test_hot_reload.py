@@ -37,7 +37,10 @@ async def test_hot_reload_without_registry(tmp_path):
 async def test_control_snapshot_commit_failure_preserves_old_snapshot(monkeypatch, tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
     await init_db(engine)
-    controller = DagController(tmp_path / "config")
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "system.toml").write_text("", encoding="utf-8")
+    controller = DagController(config_dir)
     controller.engine = engine
     old_config = _config()
     old_snapshot = RuntimeControlSnapshot(SystemConfig(), RuntimeSettings(), None, None, generation=7)

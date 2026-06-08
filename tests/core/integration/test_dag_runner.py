@@ -12,7 +12,7 @@ from edera_core.dag.loader import load_graph, topological_layers, validate_sub_d
 from edera_core.dag.runner import DagRunner, EdgeInputFact
 from edera_core.errors import DagError
 from edera_core.extension_manager import ExtensionManager
-from edera_core.node.executor import NodeExecutor as _RuntimeNodeExecutor
+from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import FunctionHandler, NodeInput
 from edera_core.resolver import HandlerMeta, StaticHandlerResolver
 from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
@@ -69,22 +69,6 @@ async def _install_default_extensions(engine, handlers_dir: Path, entity_types: 
         await manager.install(name)
 
 
-def NodeExecutor(
-    nodes,
-    system,
-    runtime,
-    snapshot=None,
-    instances=None,
-    entity_store=None,
-    **kwargs,
-):
-    if isinstance(snapshot, dict):
-        snapshot = _test_snapshot(snapshot)
-    if snapshot is None:
-        snapshot = _test_snapshot({})
-    return _RuntimeNodeExecutor(nodes, system, runtime, snapshot, instances, entity_store, **kwargs)
-
-
 def _test_snapshot(handlers: dict[str, object]) -> DagExecutionSnapshot:
     entries: dict[str, HandlerMeta] = {}
     root = Path(tempfile.mkdtemp(prefix="edera-handlers-"))
@@ -121,7 +105,7 @@ async def test_default_dag_runs_with_fake_handlers() -> None:
         "notify-ntfy": _handler([{"skipped": True}]),
     }
     config.nodes["reader"].type = "function"
-    executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
+    executor = NodeExecutor(config.nodes, config.system, config.runtime, _test_snapshot(handlers))
     graph = load_graph(config.dags["default"], config.nodes)
     result = await DagRunner(executor).run(graph, "run", {"source_names": ["hn-rss"]})
     assert result.payload == [{"skipped": True}]
@@ -141,7 +125,7 @@ async def test_single_source_failure_does_not_block() -> None:
         "notify-ntfy": _handler([{"skipped": True}]),
     }
     config.nodes["reader"].type = "function"
-    executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
+    executor = NodeExecutor(config.nodes, config.system, config.runtime, _test_snapshot(handlers))
     graph = load_graph(config.dags["default"], config.nodes)
     result = await DagRunner(executor).run(graph, "run", {"source_names": ["cls-telegraph"]})
     assert _instance_id(graph, "rss-fetcher") in result.failures
@@ -169,7 +153,7 @@ async def test_node_entity_execution() -> None:
         "generate-briefing": _handler({"content": "briefing"}),
         "notify-ntfy": _handler([{"skipped": True}]),
     }
-    executor = NodeExecutor(config.nodes, config.system, config.runtime, handlers)
+    executor = NodeExecutor(config.nodes, config.system, config.runtime, _test_snapshot(handlers))
     output = await executor.execute("rss-fetcher", NodeInput(run_id="run", payload={}))
     assert output.ok
     assert output.payload == [{"url": "a"}]
@@ -208,7 +192,7 @@ async def test_condition_branch() -> None:
         "generate-advice": _handler({"routed": "negative"}),
         "generate-briefing": _handler({"routed": "positive"}),
     }
-    executor = NodeExecutor(_condition_nodes(), config.system, config.runtime, handlers, graph.instances)
+    executor = NodeExecutor(_condition_nodes(), config.system, config.runtime, _test_snapshot(handlers), graph.instances)
     result = await DagRunner(executor).run(graph, "run", {})
 
     assert set(result.node_outputs) == {"source", "negative", "positive"}
@@ -236,7 +220,7 @@ async def test_dead_path_detection() -> None:
         "fetch-rss": _handler({"sentiment": "positive"}),
         "generate-advice": _handler({"routed": "negative"}),
     }
-    executor = NodeExecutor(_condition_nodes(), config.system, config.runtime, handlers, graph.instances)
+    executor = NodeExecutor(_condition_nodes(), config.system, config.runtime, _test_snapshot(handlers), graph.instances)
     result = await DagRunner(executor).run(graph, "run", {})
 
     assert set(result.node_outputs) == {"source"}
@@ -273,7 +257,7 @@ async def test_single_node_loop() -> None:
         _condition_nodes(),
         config.system,
         config.runtime,
-        {"fetch-rss": parallel_handler, "generate-advice": serial_handler},
+        _test_snapshot({"fetch-rss": parallel_handler, "generate-advice": serial_handler}),
         graph.instances,
     )
     result = await DagRunner(executor).run(graph, "run", {"seed": True})
@@ -328,7 +312,7 @@ async def test_fan_in_stream() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(graph, "run", {})
@@ -374,7 +358,7 @@ async def test_event_driven_dispatch_does_not_wait_for_layer() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
     await DagRunner(executor).run(graph, "run", {})
@@ -419,7 +403,7 @@ async def test_fan_in_barrier_waits_for_all_upstreams() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(graph, "run", {})
@@ -465,7 +449,7 @@ async def test_fan_in_accumulate_spawns_per_upstream_task() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(graph, "run", {})
@@ -503,7 +487,7 @@ async def test_fan_out_splits_list_payload_to_concurrent_downstream_runs() -> No
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": source, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": source, "generate-advice": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(graph, "run", {})
@@ -541,7 +525,7 @@ async def test_soft_stop_finishes_running_node_without_starting_downstream() -> 
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": source, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": source, "generate-advice": sink}),
         graph.instances,
     )
     task = asyncio.create_task(DagRunner(executor).run(graph, "run", {}, stop_event=stop_event))
@@ -591,7 +575,7 @@ async def test_required_upstream_failure_does_not_record_summary_for_unstarted_n
         nodes,
         SystemConfig(),
         RuntimeSettings(),
-        {"source": source, "other": other, "sink": sink},
+        _test_snapshot({"source": source, "other": other, "sink": sink}),
         graph.instances,
         execution_summary_recorder=summary_recorder,
     )
@@ -630,7 +614,7 @@ async def test_retry_single_uses_prefilled_upstream_outputs() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": source, "generate-advice": sink},
+        _test_snapshot({"fetch-rss": source, "generate-advice": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(
@@ -681,7 +665,7 @@ async def test_retry_single_multiple_nodes_propagates_new_outputs() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": source, "generate-advice": middle, "generate-briefing": sink},
+        _test_snapshot({"fetch-rss": source, "generate-advice": middle, "generate-briefing": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(
@@ -737,7 +721,7 @@ async def test_retry_single_disconnected_nodes_run_independently() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": fetch_rss, "fetch-web": fetch_web, "generate-advice": sink_a, "generate-briefing": sink_b},
+        _test_snapshot({"fetch-rss": fetch_rss, "fetch-web": fetch_web, "generate-advice": sink_a, "generate-briefing": sink_b}),
         graph.instances,
     )
     result = await DagRunner(executor).run(
@@ -792,7 +776,7 @@ async def test_retry_cascade_reruns_target_and_downstream_only() -> None:
         nodes,
         config.system,
         config.runtime,
-        {"fetch-rss": source, "generate-advice": middle, "generate-briefing": sink},
+        _test_snapshot({"fetch-rss": source, "generate-advice": middle, "generate-briefing": sink}),
         graph.instances,
     )
     result = await DagRunner(executor).run(
@@ -830,7 +814,7 @@ async def test_sub_dag_execution() -> None:
         {**nodes, "child": nodes["rss-fetcher"]},
         config.system,
         config.runtime,
-        {"fetch-rss": _handler({"from": "child"})},
+        _test_snapshot({"fetch-rss": _handler({"from": "child"})}),
         graph.instances,
     )
     node_runs: list[tuple[str, str, str, str | None, str | None, dict[str, object] | None]] = []
@@ -878,7 +862,7 @@ async def test_explicit_sub_dag_execution_with_emit_callback() -> None:
         nodes,
         SystemConfig(),
         RuntimeSettings(),
-        {"fetch-rss": _handler({"from": "child"})},
+        _test_snapshot({"fetch-rss": _handler({"from": "child"})}),
         graph.instances,
     )
 
@@ -926,12 +910,14 @@ async def test_optional_failure_excluded_from_payload_and_required_failure_recor
         nodes,
         config.system,
         config.runtime,
-        {
-            "fetch-rss": _failing_handler,
-            "generate-advice": _failing_handler,
-            "source-a": _handler(["raw"]),
-            "generate-briefing": _handler({"done": True}),
-        },
+        _test_snapshot(
+            {
+                "fetch-rss": _failing_handler,
+                "generate-advice": _failing_handler,
+                "source-a": _handler(["raw"]),
+                "generate-briefing": _handler({"done": True}),
+            }
+        ),
         graph.instances,
     )
 
@@ -980,7 +966,7 @@ async def test_sub_dag_depth_and_cycle_rejected() -> None:
         {"name": "parent", "nodes": [{"id": "child-node", "type": "child"}], "edges": []}
     )
     graph = load_graph(parent, {**nodes, "child": nodes["rss-fetcher"]})
-    executor = NodeExecutor({**nodes, "child": nodes["rss-fetcher"]}, config.system, config.runtime, {}, graph.instances)
+    executor = NodeExecutor({**nodes, "child": nodes["rss-fetcher"]}, config.system, config.runtime, _test_snapshot({}), graph.instances)
 
     run = await DagRunner(executor, dags={"child": child}, nodes={**nodes, "child": nodes["rss-fetcher"]}).run(
         graph, "run", {}
@@ -1017,7 +1003,7 @@ async def test_node_emits() -> None:
         {"sentiment": node},
         config.system,
         config.runtime,
-        {"sentiment": _handler({"sentiment": "negative"})},
+        _test_snapshot({"sentiment": _handler({"sentiment": "negative"})}),
         graph.instances,
     )
 
@@ -1048,7 +1034,7 @@ async def test_node_emits_skip_false_conditions() -> None:
         {"sentiment": node},
         config.system,
         config.runtime,
-        {"sentiment": _handler({"sentiment": "positive"})},
+        _test_snapshot({"sentiment": _handler({"sentiment": "positive"})}),
         graph.instances,
     )
 
@@ -1088,7 +1074,7 @@ async def test_node_emits_evaluate_each_declaration() -> None:
         {"sentiment": node},
         config.system,
         config.runtime,
-        {"sentiment": _handler({"sentiment": "negative"})},
+        _test_snapshot({"sentiment": _handler({"sentiment": "negative"})}),
         graph.instances,
     )
 
@@ -1125,7 +1111,7 @@ async def test_node_emits_condition_error_does_not_fail_dag() -> None:
         {"sentiment": node},
         config.system,
         config.runtime,
-        {"sentiment": _handler({"sentiment": "negative"})},
+        _test_snapshot({"sentiment": _handler({"sentiment": "negative"})}),
         graph.instances,
     )
 
@@ -1171,7 +1157,7 @@ async def test_instance_emits_override_type_emits() -> None:
         {"sentiment": node},
         config.system,
         config.runtime,
-        {"sentiment": _handler({"sentiment": "negative"})},
+        _test_snapshot({"sentiment": _handler({"sentiment": "negative"})}),
         graph.instances,
     )
 
