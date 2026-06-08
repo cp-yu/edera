@@ -12,9 +12,14 @@ optimization:
 git:
   merge:
     strategy: no-ff
-    messageFrom: artifacts
+    commitMessage:
+      convention: openspec-merge-summary
   branch:
     deleteAfterArchive: true
+  autoCommit: auto
+  archive:
+    commitMessage:
+      convention: openspec-archive
 apply:
   defaultIsolation: branch
 
