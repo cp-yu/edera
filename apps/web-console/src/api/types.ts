@@ -9,13 +9,6 @@ export interface DagEdge {
   targetHandle?: string
 }
 
-export interface DagInputDefinition {
-  name: string
-  type: string
-  required?: boolean
-  default?: unknown
-}
-
 export type NodeRole = 'source' | 'processor' | 'sink'
 
 export interface InspectorSchemaProperty {
@@ -56,7 +49,7 @@ export interface NodeInstance extends NodeType {
   id: string
   type_name: string
   dag_ref?: string | null
-  input_mapping?: Record<string, string>
+  input_mapping?: Record<string, string> | string
   alias?: string | null
   config?: Record<string, unknown>
   optional?: boolean
@@ -102,7 +95,7 @@ export interface DagNodeRecord {
   id: string
   type: string
   dag_ref?: string | null
-  input_mapping?: Record<string, string>
+  input_mapping?: Record<string, string> | string
   alias?: string | null
   config?: Record<string, unknown>
   optional?: boolean
@@ -115,7 +108,6 @@ export interface DagUi {
 
 export interface DagState {
   name: string
-  inputs: DagInputDefinition[]
   nodes: NodeInstance[]
   edges: DagEdge[]
   ui: DagUi

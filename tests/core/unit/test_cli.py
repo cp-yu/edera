@@ -503,9 +503,20 @@ def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
             assert address == "127.0.0.1:9090"
             assert identity == "human"
 
-        async def dag_run(self, dag_name: str, payload: object | None = None) -> dict[str, object]:
+        async def dag_run(
+            self,
+            dag_name: str,
+            payload: object | None = None,
+            *,
+            source_shared_inputs: object | None = None,
+            node_inputs: dict[str, object] | None = None,
+            append_nodes: list[str] | None = None,
+        ) -> dict[str, object]:
             assert dag_name == "default"
             assert payload == {"symbol": "AAPL"}
+            assert source_shared_inputs is None
+            assert node_inputs is None
+            assert append_nodes is None
             return {"run_id": "run-1"}
 
         async def close(self) -> None:
@@ -514,6 +525,56 @@ def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
     monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
     monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
     monkeypatch.setattr("sys.argv", ["edera", "dag", "run", "default", "--inputs", '{"symbol":"AAPL"}'])
+
+    main()
+
+    assert '"run_id": "run-1"' in capsys.readouterr().out
+
+
+def test_cli_dag_run_temporary_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def dag_run(
+            self,
+            dag_name: str,
+            payload: object | None = None,
+            *,
+            source_shared_inputs: object | None = None,
+            node_inputs: dict[str, object] | None = None,
+            append_nodes: list[str] | None = None,
+        ) -> dict[str, object]:
+            assert dag_name == "default"
+            assert payload == {"symbol": "AAPL"}
+            assert source_shared_inputs == {"shared": True}
+            assert node_inputs == {"worker": "entity://custom"}
+            assert append_nodes == ["worker"]
+            return {"run_id": "run-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "edera",
+            "dag",
+            "run",
+            "default",
+            "--inputs",
+            '{"symbol":"AAPL"}',
+            "--source-shared-inputs",
+            '{"shared":true}',
+            "--node-inputs",
+            '{"worker":"entity://custom"}',
+            "--append-nodes",
+            "worker",
+        ],
+    )
 
     main()
 

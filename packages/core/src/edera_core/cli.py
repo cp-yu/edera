@@ -168,6 +168,9 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     run.add_argument("--payload", default="{}")
     run.add_argument("--inputs", default="")
     run.add_argument("--input", action="append", default=[])
+    run.add_argument("--source-shared-inputs", default="")
+    run.add_argument("--node-inputs", default="")
+    run.add_argument("--append-nodes", default="")
     status = subparsers.add_parser("status")
     status.add_argument("dag_name")
     stop = subparsers.add_parser("stop")
@@ -503,7 +506,13 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
             return await client.dag_retry(args.dag_name, args.run_id, _node_ids(args.nodes), args.mode, _optional_json(args.payload))
         if args.dag_command == "edit":
             return await client.dag_edit(args.dag_name, args.edit_command, _dag_edit_payload(args))
-        return await client.dag_run(args.dag_name, _dag_run_payload(args))
+        return await client.dag_run(
+            args.dag_name,
+            _dag_run_payload(args),
+            source_shared_inputs=_optional_json(args.source_shared_inputs),
+            node_inputs=_optional_json(args.node_inputs),
+            append_nodes=_node_ids(args.append_nodes) if args.append_nodes else None,
+        )
     finally:
         await client.close()
 

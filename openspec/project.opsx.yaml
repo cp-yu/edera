@@ -57,7 +57,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.node-graph-dag-editor
-    intent: Node Graph DAG 编辑器，覆盖图编辑交互、DAG 保存、Inspector 配置和运行状态覆盖
+    intent: Web Console 增加临时输入配置 UI
     type: capability
     domain: dom.web
   - id: cap.web.node-instance-model
@@ -65,7 +65,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.dag-control
-    intent: DAG run、retry、resume 和 node trigger 统一通过 DagController 构建 per-run execution snapshot；node trigger target 使用 node:<dag_name>/<node_id>。
+    intent: DAG 控制器增加临时输入参数支持
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
@@ -168,7 +168,7 @@ capabilities:
     type: capability
     domain: dom.operations
   - id: cap.operations.multi-node-retry
-    intent: 多节点批量重试能力，覆盖 API 参数泛化、多起点拓扑调度、prefilled 数据加载和前端批量选择交互
+    intent: 多节点重试增加临时输入参数支持
     type: capability
   - id: cap.core.dag-resource-semaphore
     intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
@@ -186,10 +186,10 @@ capabilities:
     intent: Agent 节点默认获得简短 runtime context，并通过 CLI export 按需获取 payload 文件
     type: capability
   - id: cap.core.sub-dag-execution
-    intent: 子 DAG 执行支持从父 DAG run 和父节点实例解析对应 child run。
+    intent: Sub-DAG 执行的 input_mapping 支持 dict 或 entity 引用
     type: capability
   - id: cap.core.dag-input-parameters
-    intent: DAG 输入参数声明，覆盖 inputs schema 定义、source 节点 input_binding、运行时参数注入和 CLI/API/Web 触发
+    intent: 运行时参数传递机制，移除 DAG.inputs 和 input_binding，改用 sourceSharedInputs 和 nodeInputs
     type: capability
   - id: cap.core.edge-optional
     intent: 边级 optional 是唯一执行语义；DagNodeInstance.optional 与 NodeConfig.optional 作为不同作用域的出边 optional 语法糖
@@ -202,7 +202,7 @@ capabilities:
     type: capability
     domain: dom.core
   - id: cap.web.edera-web-bff
-    intent: edera-web 网页 BFF 作为服务端本机进程通过 gRPC 调用 edera-server，覆盖 HTTP/SSE 网关、节点 execution logs 查询、token 认证和静态文件服务
+    intent: Web BFF API 增加临时输入参数
     type: capability
     domain: dom.web
   - id: cap.core.agent-realtime-observability
@@ -248,7 +248,7 @@ capabilities:
     intent: emit 深度计数器与可配阈值（max_trigger_depth），循环触发防护机制
     type: capability
   - id: cap.core.manual-trigger-prefix
-    intent: manual:node 保留前缀使用 manual:node:<dag_name>/<node_id>，直接 fire DAG-scoped node target 且不置位 event bit。
+    intent: manual:node 触发增加 append 参数支持
     type: capability
   - id: cap.core.node-emits-declaration
     intent: Node Type emits 字段声明（含 instance 级覆盖）与 DAG Runner 的条件求值/emit 集成
@@ -327,4 +327,10 @@ capabilities:
     type: capability
   - id: cap.core.runtime-skill-reload
     intent: 运行时刷新 skill 配置的 API
+    type: capability
+  - id: cap.core.runtime-temporary-input
+    intent: 运行时临时输入机制，支持 sourceSharedInputs、nodeInputs、appendNodes 三种参数，覆盖或追加节点输入
+    type: capability
+  - id: cap.core.input-mapping-entity
+    intent: InputMapping 核心 Entity Type，用于 Sub-DAG 的持久化输入映射配置
     type: capability

@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { Settings2 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useDagList } from '@/api/queries'
-import { useCreateDag, useRunDag, useStopDag } from '@/api/mutations'
+import { useCreateDag, useRunDag, useStopDag, type TemporaryInputs } from '@/api/mutations'
 import { EntityFilter } from './EntityFilter'
+import { TemporaryInputDialog } from '@/components/TemporaryInputDialog'
 import type { DagState, DagStatus } from '@/api/types'
 
 interface Props {
@@ -19,14 +21,9 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
   const dagList = useDagList()
   const [creating, setCreating] = useState(false)
   const [newDagName, setNewDagName] = useState('')
-  const [inputs, setInputs] = useState<Record<string, string>>({})
+  const [temporaryInputs, setTemporaryInputs] = useState<TemporaryInputs>({})
+  const [temporaryDialogOpen, setTemporaryDialogOpen] = useState(false)
   const dagOptions = Array.from(new Set([...(dagList.data?.dags ?? ['default']), selectedDagName, dag?.name].filter(Boolean) as string[]))
-  const dagInputs = dag?.inputs ?? []
-  const runInputs = Object.fromEntries(
-    dagInputs
-      .map((input) => [input.name, inputs[input.name] ?? input.default])
-      .filter(([, value]) => value !== undefined && value !== ''),
-  )
   const submitCreate = () => {
     const name = newDagName.trim()
     if (!name) return
@@ -76,27 +73,21 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
           停止
         </button>
       ) : (
-        <button
-          onClick={() => runDag.mutate({ dagName: selectedDagName, inputs: runInputs })}
-          className="rounded bg-primary px-3 py-1 text-primary-foreground text-xs"
-        >
-          运行
-        </button>
-      )}
-
-      {dagInputs.length > 0 && !isRunning && (
-        <div className="flex min-w-0 items-center gap-2">
-          {dagInputs.map((input) => (
-            <label key={input.name} className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span>{input.name}</span>
-              <input
-                value={inputs[input.name] ?? ''}
-                onChange={(event) => setInputs((current) => ({ ...current, [input.name]: event.target.value }))}
-                className="h-7 w-32 rounded border bg-background px-2 text-xs text-foreground"
-                placeholder={String(input.default ?? input.type)}
-              />
-            </label>
-          ))}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => runDag.mutate({ dagName: selectedDagName, temporaryInputs })}
+            className="rounded bg-primary px-3 py-1 text-primary-foreground text-xs"
+          >
+            运行
+          </button>
+          <button
+            type="button"
+            title="临时输入"
+            onClick={() => setTemporaryDialogOpen(true)}
+            className="flex h-7 w-7 items-center justify-center rounded border hover:bg-accent"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -109,6 +100,14 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
       <div className="ml-auto">
         <EntityFilter />
       </div>
+
+      <TemporaryInputDialog
+        open={temporaryDialogOpen}
+        title="运行临时输入"
+        initial={temporaryInputs}
+        onClose={() => setTemporaryDialogOpen(false)}
+        onSubmit={setTemporaryInputs}
+      />
     </div>
   )
 }

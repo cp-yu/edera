@@ -1,6 +1,7 @@
 from edera_core.storage.database import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.entities import (
     CoreEntityDag,
+    CoreEntityInputMapping,
     CoreEntityNode,
     CoreEntityResource,
     CoreEntityTrigger,
@@ -19,6 +20,7 @@ from edera_core.storage.entities import (
 
 __all__ = [
     "CoreEntityDag",
+    "CoreEntityInputMapping",
     "CoreEntityNode",
     "CoreEntityResource",
     "CoreEntityTrigger",

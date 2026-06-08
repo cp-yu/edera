@@ -41,7 +41,6 @@ INSTANCE_CONFIG_FIELDS = {
     "session_dir",
     "workdir",
     "tools",
-    "input_binding",
 }
 SOURCE_ENTITY_TYPES = {"rss-source", "web-source", "api-source"}
 
@@ -385,7 +384,6 @@ def _graph_dag_state(
             })
     return {
         "name": dag.name,
-        "inputs": [item.model_dump(mode="json") for item in dag.inputs],
         "nodes": node_instances,
         "edges": [{"from": e.from_, "to": e.to, "fan_out": e.fan_out, "fan_in": e.fan_in, "optional": e.optional, "fan_in_mode": e.fan_in_mode} for e in dag.edges],
         "ui": dag.ui,

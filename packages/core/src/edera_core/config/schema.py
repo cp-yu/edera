@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -153,7 +153,13 @@ class FunctionNodeConfig(NodeConfigBase):
     source_names: list[str] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
     parameters_schema: dict[str, Any] = Field(default_factory=dict)
-    input_binding: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_input_binding(cls, value: object) -> object:
+        if isinstance(value, dict) and "input_binding" in value:
+            raise ValueError("input_binding is removed; use sourceSharedInputs or nodeInputs")
+        return value
 
     @field_validator("skills", mode="before")
     @classmethod
@@ -212,11 +218,13 @@ class AgentNodeConfig(NodeConfigBase):
 class DagNodeConfig(NodeConfigBase):
     type: Literal["dag"]
     dag_ref: str
-    input_mapping: dict[str, str] = Field(default_factory=dict)
+    input_mapping: dict[str, str] | str = Field(default_factory=dict)
 
     @field_validator("input_mapping")
     @classmethod
-    def _json_like_input_mapping(cls, value: dict[str, str]) -> dict[str, str]:
+    def _json_like_input_mapping(cls, value: dict[str, str] | str) -> dict[str, str] | str:
+        if isinstance(value, str):
+            return value
         return {str(key): str(item) for key, item in value.items()}
 
 
@@ -355,7 +363,7 @@ class DagNodeInstance(BaseModel):
     id: str
     type: str
     dag_ref: str | None = None
-    input_mapping: dict[str, str] = Field(default_factory=dict)
+    input_mapping: dict[str, str] | str = Field(default_factory=dict)
     alias: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
     optional: bool = False
@@ -381,7 +389,9 @@ class DagNodeInstance(BaseModel):
 
     @field_validator("input_mapping")
     @classmethod
-    def _json_like_input_mapping(cls, value: dict[str, str]) -> dict[str, str]:
+    def _json_like_input_mapping(cls, value: dict[str, str] | str) -> dict[str, str] | str:
+        if isinstance(value, str):
+            return value
         return {str(key): str(item) for key, item in value.items()}
 
 
@@ -395,11 +405,19 @@ class DagInputConfig(BaseModel):
 
 
 class DagConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
-    inputs: list[DagInputConfig] = Field(default_factory=list)
     nodes: list[DagNodeInstance]
     edges: list[DagEdge]
     ui: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_inputs(cls, value: object) -> object:
+        if isinstance(value, dict) and "inputs" in value:
+            raise ValueError("DAG.inputs is removed; use sourceSharedInputs or nodeInputs")
+        return value
 
 
 class AppConfig(BaseModel):

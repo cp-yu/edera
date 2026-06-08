@@ -296,7 +296,7 @@ async def test_run_node_trigger_uses_dag_scope(monkeypatch, tmp_path):
     controller._locks["demo"] = asyncio.Lock()
     captured: dict[str, object] = {}
 
-    async def fake_run_single_node(run_id, source, dag_name, instance, payload, stop_event, snapshot, execution_snapshot=None):
+    async def fake_run_single_node(run_id, source, dag_name, instance, payload, stop_event, snapshot, execution_snapshot=None, **_kwargs):
         captured["dag_name"] = dag_name
         captured["node_id"] = instance.id
         captured["payload"] = payload

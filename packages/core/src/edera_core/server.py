@@ -488,11 +488,20 @@ class _DagService:
     async def Run(self, request, context):
         await _identity(context)
         payload = json.loads(request.inputs_json) if request.inputs_json else None
+        source_shared_inputs = json.loads(request.source_shared_inputs_json) if request.source_shared_inputs_json else None
+        node_inputs = json.loads(request.node_inputs_json) if request.node_inputs_json else None
+        append_nodes = set(json.loads(request.append_nodes_json)) if request.append_nodes_json else None
         try:
-            fired = await self.daemon.controller.emit(f"manual:dag:{request.name}", payload, source="dag-service")
+            run_id = await self.daemon.controller.start_run(
+                "dag-service",
+                request.name,
+                payload,
+                source_shared_inputs=source_shared_inputs,
+                node_inputs=node_inputs,
+                append_nodes=append_nodes,
+            )
         except RunAlreadyActiveError as exc:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, exc.run_id)
-        run_id = fired[0] if fired else ""
         return self.pb2.DagRunRef(run_id=run_id)
 
     async def Status(self, request, context):
@@ -524,6 +533,9 @@ class _DagService:
         if not request.node_ids:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "node_ids is required")
         payload = json.loads(request.payload_json) if request.payload_json else None
+        source_shared_inputs = json.loads(request.source_shared_inputs_json) if request.source_shared_inputs_json else None
+        node_inputs = json.loads(request.node_inputs_json) if request.node_inputs_json else None
+        append_nodes = set(json.loads(request.append_nodes_json)) if request.append_nodes_json else None
         try:
             result = await self.daemon.controller.retry_node(
                 request.dag_name,
@@ -531,6 +543,9 @@ class _DagService:
                 list(request.node_ids),
                 request.mode or "single",
                 payload,
+                source_shared_inputs=source_shared_inputs,
+                node_inputs=node_inputs,
+                append_nodes=append_nodes,
             )
         except RunAlreadyActiveError as exc:
             await context.abort(grpc.StatusCode.ALREADY_EXISTS, exc.run_id)
