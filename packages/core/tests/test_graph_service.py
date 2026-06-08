@@ -4,6 +4,7 @@ import json
 
 import grpc
 import pytest
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from edera_core.graph_service import _GraphService
 from edera_core.proto import edera_pb2 as pb2
@@ -17,6 +18,18 @@ from edera_core.storage.repository import get_skill
 
 from fixtures.entity_fixtures import seed_entity_records
 from service_fakes import AbortError, FakeContext, FakeDaemon
+
+
+_ENGINES: list[AsyncEngine] = []
+
+
+@pytest.fixture(autouse=True)
+async def _dispose_engines():
+    try:
+        yield
+    finally:
+        while _ENGINES:
+            await _ENGINES.pop().dispose()
 
 
 @pytest.mark.asyncio
@@ -283,6 +296,7 @@ async def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
     root = tmp_path / "config"
     _write_graph_config(root)
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'handlers.db'}")
+    _ENGINES.append(engine)
     await init_db(engine)
     factory = session_factory(engine)
     handlers = []
@@ -323,6 +337,7 @@ class _FakeSnapshot:
 
 async def _graph_daemon(root, tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
+    _ENGINES.append(engine)
     await init_db(engine)
     config = _load_runtime_base_config(root)
     factory = session_factory(engine)

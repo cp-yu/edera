@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import pytest
 import yaml
 
@@ -20,7 +22,7 @@ async def test_import_entities(tmp_path):
     path = tmp_path / "entities.yaml"
     path.write_text("entities:\n- id: stock:test\n  type: stock\n  attributes:\n    code: TEST\n", encoding="utf-8")
 
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         result = await import_entities_from_yaml(session, path, entity_types)
         entity = await get_ordinary_entity(session, "stock", "stock:test", entity_types)
 
@@ -34,7 +36,7 @@ async def test_import_conflict(tmp_path):
     path = tmp_path / "entities.yaml"
     path.write_text("entities:\n- id: stock:test\n  type: stock\n  attributes:\n    code: TEST\n    name: New\n", encoding="utf-8")
 
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST", "name": "Old"}, entity_types)
         result = await import_entities_from_yaml(session, path, entity_types)
         entity = await get_ordinary_entity(session, "stock", "stock:test", entity_types)
@@ -47,7 +49,7 @@ async def test_import_conflict(tmp_path):
 async def test_export_entities(tmp_path):
     entity_types = _entity_types()
     path = tmp_path / "entities.yaml"
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, entity_types)
 
         result = await export_entities_to_yaml(session, path, entity_types)
@@ -80,7 +82,7 @@ async def test_import_entities_routes_relation_entities(tmp_path):
         encoding="utf-8",
     )
 
-    async with await _seeded_session(tmp_path, entity_types) as session:
+    async with _seeded_session(tmp_path, entity_types) as session:
         result = await import_entities_from_yaml(session, path, entity_types)
         relations = await list_relations(session)
 
@@ -119,7 +121,7 @@ async def test_import_entities_routes_core_entities(tmp_path):
         encoding="utf-8",
     )
 
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         result = await import_entities_from_yaml(session, path, entity_types)
         node = await get_core_entity(session, "node:reader", entity_types)
         stock = await get_ordinary_entity(session, "stock", "stock:test", entity_types)
@@ -135,7 +137,7 @@ async def test_import_relations(tmp_path):
     path = tmp_path / "relations.yaml"
     path.write_text("relations:\n- entities: [stock:test, source:test]\n  type: uses-source\n", encoding="utf-8")
 
-    async with await _seeded_session(tmp_path, entity_types) as session:
+    async with _seeded_session(tmp_path, entity_types) as session:
         result = await import_relations_from_yaml(session, path, entity_types)
         relations = await list_relations(session)
 
@@ -149,7 +151,7 @@ async def test_import_invalid_relations(tmp_path):
     path = tmp_path / "relations.yaml"
     path.write_text("relations:\n- entities: [stock:test, missing:test]\n  type: uses-source\n", encoding="utf-8")
 
-    async with await _seeded_session(tmp_path, entity_types) as session:
+    async with _seeded_session(tmp_path, entity_types) as session:
         result = await import_relations_from_yaml(session, path, entity_types)
         relations = await list_relations(session)
 
@@ -162,7 +164,7 @@ async def test_import_invalid_relations(tmp_path):
 async def test_export_relations(tmp_path):
     entity_types = _entity_types()
     path = tmp_path / "relations.yaml"
-    async with await _seeded_session(tmp_path, entity_types) as session:
+    async with _seeded_session(tmp_path, entity_types) as session:
         await import_relations_from_yaml(
             session,
             _write_yaml(tmp_path / "input-relations.yaml", {"relations": [{"entities": ["stock:test", "source:test"], "type": "uses-source"}]}),
@@ -181,7 +183,7 @@ async def test_import_relations_allows_core_entity_refs(tmp_path):
     path = tmp_path / "relations.yaml"
     path.write_text("relations:\n- entities: [node:reader, stock:test]\n  type: uses-entity\n", encoding="utf-8")
 
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await save_core_entity(
             session,
             EntityConfig(
@@ -216,17 +218,23 @@ def _entity_type(business_id_field: str) -> EntityTypeConfig:
     )
 
 
+@asynccontextmanager
 async def _session(tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
-    return session_factory(engine)()
+    try:
+        await init_db(engine)
+        async with session_factory(engine)() as session:
+            yield session
+    finally:
+        await engine.dispose()
 
 
+@asynccontextmanager
 async def _seeded_session(tmp_path, entity_types):
-    session = await _session(tmp_path)
-    await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, entity_types)
-    await create_ordinary_entity(session, "rss-source", "source:test", {"url": "https://example.test/rss"}, entity_types)
-    return session
+    async with _session(tmp_path) as session:
+        await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, entity_types)
+        await create_ordinary_entity(session, "rss-source", "source:test", {"url": "https://example.test/rss"}, entity_types)
+        yield session
 
 
 def _write_yaml(path, payload):

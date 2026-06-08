@@ -17,12 +17,15 @@ async def test_runtime_config_loads_skills_from_database(tmp_path):
         encoding="utf-8",
     )
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
-    async with session_factory(engine)() as session:
-        await create_skill(session, "db-skill", [{"path": "SKILL.md", "content": "# DB"}], description="db")
-        await session.commit()
+    try:
+        await init_db(engine)
+        async with session_factory(engine)() as session:
+            await create_skill(session, "db-skill", [{"path": "SKILL.md", "content": "# DB"}], description="db")
+            await session.commit()
 
-    config = await materialize_runtime_app_config(root, _load_runtime_base_config(root), engine)
+        config = await materialize_runtime_app_config(root, _load_runtime_base_config(root), engine)
+    finally:
+        await engine.dispose()
 
     assert sorted(config.skills) == ["db-skill"]
     assert config.skills["db-skill"].files == [{"path": "SKILL.md", "content": "# DB"}]

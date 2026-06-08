@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import pytest
 
 from edera_core.config.schema import EntityTypeConfig
@@ -10,7 +12,7 @@ from edera_core.storage.repository import create_ordinary_entity, create_relatio
 @pytest.mark.asyncio
 async def test_create_relation(tmp_path):
     entity_types = _entity_types()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await _seed_entities(session, entity_types)
 
         relation = await create_relation(session, "stock:test", "source:test", "uses-source", entity_types=entity_types)
@@ -23,7 +25,7 @@ async def test_create_relation(tmp_path):
 @pytest.mark.asyncio
 async def test_list_relations_filter(tmp_path):
     entity_types = _entity_types()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await _seed_entities(session, entity_types)
         await create_relation(session, "stock:test", "source:test", "uses-source", entity_types=entity_types)
         await create_relation(session, "stock:test", "source:other", "mentions", entity_types=entity_types)
@@ -58,7 +60,12 @@ async def _seed_entities(session, entity_types):
     await create_ordinary_entity(session, "rss-source", "source:other", {"url": "https://example.test/other"}, entity_types)
 
 
+@asynccontextmanager
 async def _session(tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
-    return session_factory(engine)()
+    try:
+        await init_db(engine)
+        async with session_factory(engine)() as session:
+            yield session
+    finally:
+        await engine.dispose()

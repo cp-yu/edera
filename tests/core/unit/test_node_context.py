@@ -1,5 +1,6 @@
 import pytest
 import yaml
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from sqlmodel import select
 
@@ -174,11 +175,7 @@ async def test_entity_store_three_tiers_uses_database_layer(tmp_path) -> None:
         )
     }
     store = EntityStore(EntitiesConfig(), entity_types, EntityRelationsConfig())
-    engine = create_engine(sqlite_url(tmp_path / "entities.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "entities.db") as session:
         created = await store.create_async(
             "analysis",
             {
@@ -200,11 +197,7 @@ async def test_entity_store_three_tiers_uses_database_layer(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_runtime_fact_tables_and_upserts(tmp_path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "runtime.db") as session:
         await upsert_edge_input(session, "run-1", "source", "sink", True, "failed", False, "node failed")
         await upsert_edge_input(session, "run-1", "source", "sink", True, "unknown", False, None)
         await upsert_source_recovery(
@@ -234,11 +227,7 @@ async def test_runtime_fact_tables_and_upserts(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_source_health_reads_source_recoveries(tmp_path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "runtime.db") as session:
         await upsert_source_recovery(
             session,
             "run-1",
@@ -259,11 +248,7 @@ async def test_source_health_reads_source_recoveries(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_source_execution_logs_exclude_unconfigured_node_runs(tmp_path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "runtime.db") as session:
         session.add(DagRun(run_id="run-1", source="manual", status="failed", dag_name="default"))
         session.add(NodeRun(run_id="run-1", node_name="hn-rss", status="failed", error="timeout"))
         session.add(NodeRun(run_id="run-1", node_name="ordinary-node", status="succeeded"))
@@ -284,11 +269,7 @@ async def test_source_execution_logs_exclude_unconfigured_node_runs(tmp_path) ->
 
 @pytest.mark.asyncio
 async def test_source_execution_logs_without_source_set_only_returns_recovery_logs(tmp_path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "runtime.db") as session:
         session.add(DagRun(run_id="run-1", source="manual", status="succeeded", dag_name="default"))
         session.add(NodeRun(run_id="run-1", node_name="ordinary-node", status="succeeded"))
         await upsert_source_recovery(
@@ -306,11 +287,7 @@ async def test_source_execution_logs_without_source_set_only_returns_recovery_lo
 
 @pytest.mark.asyncio
 async def test_source_execution_logs_rejects_unconfigured_explicit_source(tmp_path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "runtime.db") as session:
         session.add(DagRun(run_id="run-1", source="manual", status="succeeded", dag_name="default"))
         session.add(NodeRun(run_id="run-1", node_name="ordinary-node", status="succeeded"))
         await session.commit()
@@ -321,11 +298,7 @@ async def test_source_execution_logs_rejects_unconfigured_explicit_source(tmp_pa
 
 @pytest.mark.asyncio
 async def test_source_execution_logs_sorts_merged_logs_before_limiting(tmp_path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    await init_db(engine)
-    factory = session_factory(engine)
-
-    async with factory() as session:
+    async with _session(tmp_path, "runtime.db") as session:
         session.add(DagRun(run_id="run-1", source="manual", status="failed", dag_name="default"))
         session.add(
             NodeRun(
@@ -348,3 +321,14 @@ async def test_source_execution_logs_sorts_merged_logs_before_limiting(tmp_path)
         logs = await source_execution_logs(session, limit=1, source_names=["hn-rss"])
 
     assert [log["node_id"] for log in logs] == ["hn-rss"]
+
+
+@asynccontextmanager
+async def _session(tmp_path, name: str):
+    engine = create_engine(sqlite_url(tmp_path / name))
+    try:
+        await init_db(engine)
+        async with session_factory(engine)() as session:
+            yield session
+    finally:
+        await engine.dispose()

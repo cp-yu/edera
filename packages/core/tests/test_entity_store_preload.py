@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import pytest
 
 from edera_core.config.entities import EntityStore
@@ -12,7 +14,7 @@ from edera_core.storage.repository import create_ordinary_entity, create_relatio
 @pytest.mark.asyncio
 async def test_query_result_wrapper(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
 
         result = await store.query_one_async("stock:test", session=session)
@@ -26,7 +28,7 @@ async def test_query_result_wrapper(tmp_path):
 @pytest.mark.asyncio
 async def test_preload_for_dag(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
 
         await store.preload_for_dag("run-1", ["stock:test"], session=session)
@@ -37,7 +39,7 @@ async def test_preload_for_dag(tmp_path):
 @pytest.mark.asyncio
 async def test_preload_for_dag_caches_related_database_entities(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
         await create_ordinary_entity(session, "rss-source", "source:rss", {"name": "rss"}, store.entity_types)
         await create_relation(session, "stock:TEST", "rss-source:rss", "uses-source", {}, store.entity_types)
@@ -51,7 +53,7 @@ async def test_preload_for_dag_caches_related_database_entities(tmp_path):
 @pytest.mark.asyncio
 async def test_query_from_cache(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
         await store.preload_for_dag("run-1", ["stock:test"], session=session)
 
@@ -64,7 +66,7 @@ async def test_query_from_cache(tmp_path):
 @pytest.mark.asyncio
 async def test_query_fallback_to_db(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
 
         result = await store.query_one_async("stock:test", dag_run_id="run-1", session=session)
@@ -76,7 +78,7 @@ async def test_query_fallback_to_db(tmp_path):
 @pytest.mark.asyncio
 async def test_query_without_dag_context(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
 
         result = await store.query_one_async("stock:test", session=session)
@@ -88,7 +90,7 @@ async def test_query_without_dag_context(tmp_path):
 @pytest.mark.asyncio
 async def test_query_async_wraps_dag_cache_results(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
         await store.preload_for_dag("run-1", ["stock:test"], session=session)
 
@@ -100,7 +102,7 @@ async def test_query_async_wraps_dag_cache_results(tmp_path):
 @pytest.mark.asyncio
 async def test_clear_cache(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_ordinary_entity(session, "stock", "stock:test", {"code": "TEST"}, store.entity_types)
         await store.preload_for_dag("run-1", ["stock:test"], session=session)
 
@@ -112,7 +114,7 @@ async def test_clear_cache(tmp_path):
 @pytest.mark.asyncio
 async def test_preload_entity_not_found(tmp_path):
     store = _store()
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         with pytest.raises(ValueError, match="entity not found"):
             await store.preload_for_dag("run-1", ["missing:test"], session=session)
 
@@ -156,7 +158,12 @@ def _store() -> EntityStore:
     )
 
 
+@asynccontextmanager
 async def _session(tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
-    return session_factory(engine)()
+    try:
+        await init_db(engine)
+        async with session_factory(engine)() as session:
+            yield session
+    finally:
+        await engine.dispose()

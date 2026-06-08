@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import pytest
 
 from edera_core.skills.import_export import export_skill, import_skill_dir, import_skills_batch
@@ -14,7 +16,7 @@ async def test_import_skill_dir(tmp_path):
     (source / "SKILL.md").write_text("# Skill", encoding="utf-8")
     (source / "prompts" / "main.txt").write_text("prompt", encoding="utf-8")
 
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         skill = await import_skill_dir(session, source)
         await session.commit()
 
@@ -31,7 +33,7 @@ async def test_import_skills_batch(tmp_path):
         (root / "SKILL.md").write_text(name, encoding="utf-8")
     (batch / "not-a-skill").mkdir()
 
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         imported = await import_skills_batch(session, batch)
         await session.commit()
 
@@ -40,7 +42,7 @@ async def test_import_skills_batch(tmp_path):
 
 @pytest.mark.asyncio
 async def test_export_skill(tmp_path):
-    async with await _session(tmp_path) as session:
+    async with _session(tmp_path) as session:
         await create_skill(
             session,
             "demo",
@@ -58,7 +60,12 @@ async def test_export_skill(tmp_path):
     assert (output / "prompts" / "main.txt").read_text(encoding="utf-8") == "prompt"
 
 
+@asynccontextmanager
 async def _session(tmp_path):
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
-    return session_factory(engine)()
+    try:
+        await init_db(engine)
+        async with session_factory(engine)() as session:
+            yield session
+    finally:
+        await engine.dispose()

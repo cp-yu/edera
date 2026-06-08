@@ -14,16 +14,19 @@ async def test_materialize_migrates_entity_yaml_to_database(tmp_path):
     root = tmp_path / "config"
     _write_runtime_config(root)
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
+    try:
+        await init_db(engine)
 
-    config = await materialize_runtime_app_config(root, _load_runtime_base_config(root), engine)
+        config = await materialize_runtime_app_config(root, _load_runtime_base_config(root), engine)
 
-    assert [entity.id for entity in config.entities.entities if entity.type == "stock"] == []
-    assert [entity.id for entity in config.entities.entities if entity.type == "relation"] == []
-    assert config.entity_relations.relations == []
-    async with session_factory(engine)() as session:
-        ordinary_entities = await list_ordinary_entities(session, config.entity_types)
-        relation_records = await list_relations(session)
+        assert [entity.id for entity in config.entities.entities if entity.type == "stock"] == []
+        assert [entity.id for entity in config.entities.entities if entity.type == "relation"] == []
+        assert config.entity_relations.relations == []
+        async with session_factory(engine)() as session:
+            ordinary_entities = await list_ordinary_entities(session, config.entity_types)
+            relation_records = await list_relations(session)
+    finally:
+        await engine.dispose()
     assert [entity.id for entity in ordinary_entities if entity.type == "stock"] == ["stock-row-1"]
     assert [relation.relation_type for relation in relation_records] == ["uses-source"]
     assert [(relation.from_entity_id, relation.to_entity_id) for relation in relation_records] == [
@@ -90,9 +93,12 @@ async def test_materialize_keeps_legacy_yaml_on_migration_failure(tmp_path):
         encoding="utf-8",
     )
     engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
-    await init_db(engine)
+    try:
+        await init_db(engine)
 
-    config = await materialize_runtime_app_config(root, _load_runtime_base_config(root), engine)
+        config = await materialize_runtime_app_config(root, _load_runtime_base_config(root), engine)
+    finally:
+        await engine.dispose()
 
     assert config.entities.entities == []
     assert (root / "entities.yaml").exists()
