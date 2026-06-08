@@ -429,11 +429,27 @@ def _analyst_output(item: Any) -> dict[str, Any] | None:
     if not isinstance(stdout, str) or not stdout.strip():
         return None
     text = stdout.strip()
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
+    parsed = _json_output(text)
+    if parsed is None:
         return {"stdout": text}
     return parsed if isinstance(parsed, dict) else {"result": parsed}
+
+
+def _json_output(text: str) -> Any:
+    candidates = [text]
+    lines = text.splitlines()
+    if len(lines) >= 3 and lines[0].strip().startswith("```") and lines[-1].strip() == "```":
+        candidates.append("\n".join(lines[1:-1]).strip())
+    start = text.find("{")
+    end = text.rfind("}")
+    if 0 <= start < end:
+        candidates.append(text[start : end + 1])
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+    return None
 
 
 def _fallback_analyst_output(item: Any, investors: Any) -> dict[str, Any] | None:

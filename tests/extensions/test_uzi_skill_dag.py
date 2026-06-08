@@ -32,7 +32,7 @@ async def test_uzi_stage_dags_load(tmp_path: Path) -> None:
 
     assert list(graphs["uzi-skill-analysis"].nodes) == ["data_collection", "scoring_synthesis", "rendering"]
     assert len(graphs["uzi-data-collection"].nodes) == 26
-    assert len(graphs["uzi-scoring-synthesis"].nodes) == 54
+    assert len(graphs["uzi-scoring-synthesis"].nodes) == 6
     assert len(graphs["uzi-rendering"].nodes) == 22
 
 
@@ -53,6 +53,7 @@ async def test_uzi_skill_dag_uses_business_node_types(tmp_path: Path) -> None:
     handlers = {getattr(config.nodes[instance.type], "handler", None) for instance in instances}
     assert handlers == {"legacy-script-adapter", None}
     assert config.nodes["uzi-investor-analyst"].type == "agent"
+    assert config.nodes["uzi-investor-analyst"].model == "newapi/GLM-5.1"
 
 
 @pytest.mark.asyncio
@@ -100,9 +101,9 @@ async def test_uzi_sub_dag_topology(tmp_path: Path) -> None:
     assert data_graph.edges["aggregate_results"] == []
     assert all(data_graph.instances[node].optional for node in _FETCH_NODES)
     analyst_nodes = [node for node in scoring_graph.nodes if node.startswith("analyst_")]
-    assert len(scoring_graph.nodes) == 54
-    assert len(analyst_nodes) == 51
-    assert sum(len(edges) for edges in scoring_graph.edges.values()) == 104
+    assert len(scoring_graph.nodes) == 6
+    assert len(analyst_nodes) == 3
+    assert sum(len(edges) for edges in scoring_graph.edges.values()) == 8
     assert scoring_graph.reverse_edges["score_dimensions"] == []
     assert scoring_graph.edges["generate_panel"] == [*analyst_nodes, "generate_synthesis"]
     assert scoring_graph.edges["generate_synthesis"] == []
@@ -249,7 +250,7 @@ async def test_function_stage_dags_mock(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_scoring_dag_runs_five_analyst_agents(tmp_path: Path) -> None:
+async def test_scoring_dag_runs_three_analyst_agents(tmp_path: Path) -> None:
     config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     fake_pi = tmp_path / "pi"
     fake_pi.write_text(
@@ -262,7 +263,7 @@ async def test_scoring_dag_runs_five_analyst_agents(tmp_path: Path) -> None:
     config.runtime = config.runtime.model_copy(update={"pi_bin": str(fake_pi)})
     store = _store(config)
     graph = load_graph(config.dags["uzi-scoring-synthesis"], config.nodes)
-    analyst_nodes = [node for node in graph.nodes if node.startswith("analyst_")][:5]
+    analyst_nodes = [node for node in graph.nodes if node.startswith("analyst_")]
     executor = NodeExecutor(
         config.nodes,
         config.system,

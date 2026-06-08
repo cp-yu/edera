@@ -32,9 +32,9 @@ async def test_uzi_subdag_runtime_topology(tmp_path: Path) -> None:
         "12_capital_flow": "v8_isolate",
     }
     analyst_nodes = [node for node in scoring.nodes if node.startswith("analyst_")]
-    assert len(scoring.nodes) == 54
-    assert len(analyst_nodes) == 51
-    assert sum(len(edges) for edges in scoring.edges.values()) == 104
+    assert len(scoring.nodes) == 6
+    assert len(analyst_nodes) == 3
+    assert sum(len(edges) for edges in scoring.edges.values()) == 8
     assert scoring.edges["generate_panel"] == [*analyst_nodes, "generate_synthesis"]
     assert all(scoring.instances[node].type == "uzi-investor-analyst" for node in analyst_nodes)
     assert all(scoring.instances[node].resource == "pi_agent" for node in analyst_nodes)

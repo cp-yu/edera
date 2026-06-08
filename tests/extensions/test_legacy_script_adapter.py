@@ -322,6 +322,23 @@ def test_generate_synthesis_wrapper_accepts_named_upstreams(monkeypatch: pytest.
     assert seen["panel"]["agent_evaluations"] == [{"investor_id": "buffett", "signal": "bullish", "score": 90}]
 
 
+def test_generate_synthesis_wrapper_accepts_fenced_agent_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = {}
+
+    def fake_call(name, raw, dims_scored, panel):
+        seen["panel"] = panel
+        return {"verdict": "ok"}
+
+    monkeypatch.setattr(adapter, "_call_run_real_test", fake_call)
+
+    adapter.generate_synthesis_from_panel({
+        "generate_panel": {"raw": {"ticker": "300470.SZ"}, "dims_scored": {"score": 80}, "panel": {"investors": []}},
+        "analyst_buffett": {"stdout": "```json\n{\"investor_id\":\"buffett\",\"signal\":\"bullish\",\"score\":90}\n```"},
+    })
+
+    assert seen["panel"]["agent_evaluations"] == [{"investor_id": "buffett", "signal": "bullish", "score": 90}]
+
+
 def test_generate_synthesis_wrapper_falls_back_for_empty_agent_stdout(monkeypatch: pytest.MonkeyPatch) -> None:
     seen = {}
 
