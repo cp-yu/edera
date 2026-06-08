@@ -43,6 +43,7 @@ def discover_available_extensions(extensions_dirs: list[Path] | None = None) -> 
 
 async def load_installed_extensions(session, handlers_dir: Path = Path("handlers")) -> BootstrapResult:
     _ensure_path(handlers_dir)
+    _ensure_installed_libraries(handlers_dir.parent / "libs")
     manifests: list[ExtensionManifest] = []
     storage_tables: dict[str, list[StorageTableDescriptor]] = {}
     table_names: dict[str, dict[str, str]] = {}
@@ -85,6 +86,14 @@ def _ensure_path(path: Path) -> None:
     value = str(path.resolve())
     if value not in sys.path:
         sys.path.insert(0, value)
+
+
+def _ensure_installed_libraries(libs_dir: Path) -> None:
+    if not libs_dir.exists():
+        return
+    for item in sorted(libs_dir.iterdir()):
+        if item.is_dir():
+            _ensure_path(item)
 
 
 def _column_sql(column: Any) -> str:

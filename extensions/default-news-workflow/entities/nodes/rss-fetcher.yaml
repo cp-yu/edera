@@ -4,7 +4,7 @@ attributes:
   name: rss-fetcher
   type: function
   role: source
-  handler: fetch-rss
+  handler: default-news-workflow.rss-fetcher.fetch-rss
   input_type: Any
   output_type: list[RawItem]
   source_names:

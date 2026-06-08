@@ -5,7 +5,7 @@ attributes:
   type: function
   role: processor
   skills: []
-  handler: generate-advice
+  handler: default-news-workflow.advisor.generate-advice
   system_prompt_file: null
   system_prompt: null
   input_type: list[AnalysisResult]

@@ -1,0 +1,53 @@
+schema_version: 1
+
+ADDED:
+  capabilities:
+    - id: cap.core.extension-glob-imports
+      type: capability
+      intent: Manifest imports 支持 glob patterns 用于批量匹配 entity 文件路径
+    - id: cap.core.workflow-extension-type
+      type: capability
+      intent: 识别 workflow_extension 类型并递归处理 imports.providers 和 imports.libraries
+    - id: cap.core.handler-namespace
+      type: capability
+      intent: Handler 使用包点处理器命名空间路径避免冲突
+
+  relations:
+    - from: cap.core.extension-glob-imports
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.workflow-extension-type
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.workflow-extension-type
+      type: depends_on
+      to: cap.core.extension-glob-imports
+    - from: cap.core.handler-namespace
+      type: depends_on
+      to: cap.core.database-handler-resolver
+    - from: dom.core
+      type: contains
+      to: cap.core.extension-glob-imports
+    - from: dom.core
+      type: contains
+      to: cap.core.workflow-extension-type
+    - from: dom.core
+      type: contains
+      to: cap.core.handler-namespace
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-manifest-system
+      intent: Manifest schema 支持 type、imports.providers、imports.libraries 字段，imports 路径支持 glob patterns
+    - id: cap.core.extension-installation-lifecycle
+      intent: 安装逻辑识别 workflow_extension 类型，递归处理 imports.providers，复制 imports.libraries，展开所有 glob patterns
+    - id: cap.core.extension-cli-commands
+      intent: CLI export 命令打包 _providers/ 和 _lib/，install 命令递归安装 providers，输出包含 provider 安装进度
+    - id: cap.core.extension-grpc-service
+      intent: InstallExtension RPC 支持 workflow_extension 类型，递归处理 providers，展开 glob patterns
+    - id: cap.core.database-handler-resolver
+      intent: Handler resolver 支持 {package}.{handler} 命名空间路径查找
+    - id: cap.core.default-news-workflow
+      intent: default-news-workflow 重组为 workflow extension 包结构，manifest 使用 glob patterns，包含 7 个内部 providers 和 _lib
+    - id: cap.core.uzi-skill-dag-instance
+      intent: uzi-skill manifest 使用 glob patterns 替代 59 行手动列举

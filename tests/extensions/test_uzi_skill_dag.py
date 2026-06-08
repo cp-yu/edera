@@ -51,7 +51,7 @@ async def test_uzi_skill_dag_uses_business_node_types(tmp_path: Path) -> None:
     assert all(instance.type != "legacy-script-adapter" for instance in instances)
     assert all(instance.alias for instance in instances)
     handlers = {getattr(config.nodes[instance.type], "handler", None) for instance in instances}
-    assert handlers == {"legacy-script-adapter", None}
+    assert handlers == {"uzi-skill.legacy-script-adapter", None}
     assert config.nodes["uzi-investor-analyst"].type == "agent"
     assert config.nodes["uzi-investor-analyst"].model == "newapi/GLM-5.1"
 
@@ -184,7 +184,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         config.nodes,
         config.system,
         config.runtime,
-        _snapshot(config, bootstrap),
+        _snapshot(config, bootstrap, tmp_path / "handlers"),
         data_graph.instances,
         store,
     )
@@ -204,7 +204,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         config.nodes,
         config.system,
         config.runtime,
-        _snapshot(config, bootstrap),
+        _snapshot(config, bootstrap, tmp_path / "handlers"),
         scoring_graph.instances,
         store,
     )
@@ -230,7 +230,7 @@ async def test_function_stage_dags_mock(tmp_path: Path) -> None:
             config.nodes,
             config.system,
             config.runtime,
-            _snapshot(config, bootstrap),
+            _snapshot(config, bootstrap, tmp_path / "handlers"),
             graph.instances,
             store,
         )
@@ -265,7 +265,7 @@ async def test_scoring_dag_runs_three_analyst_agents(tmp_path: Path) -> None:
         config.nodes,
         config.system,
         config.runtime,
-        _snapshot(config, bootstrap),
+                _snapshot(config, bootstrap, tmp_path / "handlers"),
         graph.instances,
         store,
         daemon_data_dir=tmp_path / "agents",
@@ -303,7 +303,7 @@ async def test_rendering_assembles_report(tmp_path: Path) -> None:
         config.nodes,
         config.system,
         config.runtime,
-        _snapshot(config, bootstrap),
+        _snapshot(config, bootstrap, tmp_path / "handlers"),
         graph.instances,
         store,
     )
@@ -325,7 +325,7 @@ async def test_rendering_omits_failed_optional_section(tmp_path: Path) -> None:
         config.nodes,
         config.system,
         config.runtime,
-        _snapshot(config, bootstrap),
+        _snapshot(config, bootstrap, tmp_path / "handlers"),
         graph.instances,
         store,
     )
@@ -398,12 +398,12 @@ async def _install_uzi_extension(engine, tmp_path: Path) -> None:
     await manager.install("uzi-skill", installed_by="test")
 
 
-def _snapshot(config, bootstrap) -> DagExecutionSnapshot:
+def _snapshot(config, bootstrap, handlers_dir: Path) -> DagExecutionSnapshot:
     handlers = {}
     for manifest in bootstrap.manifests:
-        root = bootstrap.extension_roots[manifest.name]
         for handler in manifest.handlers:
-            handlers[handler.name] = HandlerMeta(root / handler.entry, extension_name=manifest.name)
+            package = getattr(handler, "package", "") or handler.name
+            handlers[handler.name] = HandlerMeta(handlers_dir / package / handler.entry, extension_name=manifest.name)
     return DagExecutionSnapshot(
         DagExecutionClosure("uzi-test", config.dags, config.nodes),
         config.entity_types,

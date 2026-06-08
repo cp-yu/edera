@@ -9,7 +9,7 @@ from edera_core.errors import NodeExecutionError
 from edera_types import NodeInput
 
 
-_LLM_PATH = Path(__file__).parents[2] / "extensions" / "_lib" / "llm.py"
+_LLM_PATH = Path(__file__).parents[2] / "extensions" / "default-news-workflow" / "_lib" / "common" / "_lib" / "llm.py"
 _SPEC = importlib.util.spec_from_file_location("test_llm_module", _LLM_PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 _LLM = importlib.util.module_from_spec(_SPEC)

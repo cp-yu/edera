@@ -31,7 +31,7 @@ async def import_manifest_entities(
         for record in existing_records or []
         if record.get("import_path") is not None
     }
-    for import_path in manifest.entity_imports:
+    for import_path in expand_import_paths(extension_root, manifest.entity_imports):
         if import_path in imported_paths:
             continue
         content = (extension_root / import_path).read_bytes()
@@ -86,3 +86,27 @@ async def _save_entity(
 def _entity_digest(entity: EntityConfig) -> str:
     content = json.dumps(entity.model_dump(mode="json"), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def expand_import_paths(root: Path, imports: list[str], *, files_only: bool = True) -> list[str]:
+    paths: list[str] = []
+    for item in imports:
+        matches = _import_matches(root, item, files_only=files_only)
+        if not matches:
+            raise ValueError(f"glob pattern matched no files: {item}")
+        for path in matches:
+            relative = path.relative_to(root).as_posix()
+            if relative not in paths:
+                paths.append(relative)
+    return paths
+
+
+def _import_matches(root: Path, item: str, *, files_only: bool) -> list[Path]:
+    if not _is_glob(item):
+        return [root / item]
+    matches = sorted(root.glob(item))
+    return [path for path in matches if path.is_file()] if files_only else matches
+
+
+def _is_glob(value: str) -> bool:
+    return any(char in value for char in "*?[")

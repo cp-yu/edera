@@ -125,7 +125,7 @@ capabilities:
     intent: 系统内核 entity type 的保护机制，覆盖 system_protected 字段声明、后端 403 拒绝和前端只读展示
     type: capability
   - id: cap.core.extension-manifest-system
-    intent: Bootstrap 只加载已安装 extension metadata；`extensions/` 是可安装来源，运行时通过 DB-backed resolver 使用 `SystemConfig.handlers_dir` 下的已安装 handler 目录，不再构建 HandlerRegistry 和 EntityTypeRegistry。
+    intent: Manifest schema 支持 type、imports.providers、imports.libraries 字段，imports 路径支持 glob patterns
     type: capability
   - id: cap.core.core-bootstrap
     intent: 核心 bootstrap 和启动入口迁移到 Edera 命名，核心包为 edera_core，项目主入口命令为 edera
@@ -174,7 +174,7 @@ capabilities:
     intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
     type: capability
   - id: cap.core.uzi-skill-dag-instance
-    intent: UZI-Skill DAG 实例配置从扁平化 53 节点结构改为 3 层 Sub DAG 嵌套结构（data-collection、scoring-synthesis、rendering），保持原有数据采集、评分、渲染逻辑不变
+    intent: uzi-skill manifest 使用 glob patterns 替代 59 行手动列举
     type: capability
   - id: cap.core.legacy-script-adapter
     intent: 通用 LegacyScriptAdapter handler，将 HandlerContext 转为外部 Python 脚本调用约定
@@ -278,7 +278,7 @@ capabilities:
     intent: 扩展安装时导入 Entity 实例，导入记录合并到 installed_extensions.import_records JSON 字段
     type: capability
   - id: cap.core.default-news-workflow
-    intent: 默认新闻工作流作为 extension-owned package 导入 default DAG、默认节点、默认 cron trigger 和 DAG 直接引用的信息源 seed Entity
+    intent: default-news-workflow 重组为 workflow extension 包结构，manifest 使用 glob patterns，包含 7 个内部 providers 和 _lib
     type: capability
   - id: cap.core.uzi-subdag-structure
     intent: UZI-Skill 分层 Sub DAG 结构，定义数据采集、评分综合、渲染三阶段的子图组织和数据流契约
@@ -287,19 +287,19 @@ capabilities:
     intent: 增强 Sub DAG 循环检测错误消息，提供节点级路径追踪和具体修复建议
     type: capability
   - id: cap.core.extension-installation-lifecycle
-    intent: Extension lifecycle 以显式 install/uninstall/reactivate 管理 `installed_extensions` metadata、导入实体、扩展表和 `handlers_dir/<name>/` 运行 handler 目录；启动不自动迁移或复制扩展。
+    intent: 安装逻辑识别 workflow_extension 类型，递归处理 imports.providers，复制 imports.libraries，展开所有 glob patterns
     type: capability
   - id: cap.core.extension-cli-commands
-    intent: CLI edera extension 子命令集，覆盖 list/show/install/uninstall/reactivate/import/export/export-entities
+    intent: CLI export 命令打包 _providers/ 和 _lib/，install 命令递归安装 providers，输出包含 provider 安装进度
     type: capability
   - id: cap.core.extension-grpc-service
-    intent: gRPC ExtensionService 提供扩展管理 RPC 接口，支撑 CLI 和 WebConsole 操作
+    intent: InstallExtension RPC 支持 workflow_extension 类型，递归处理 providers，展开 glob patterns
     type: capability
   - id: cap.web.extension-management-web
     intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
     type: capability
   - id: cap.core.database-handler-resolver
-    intent: DatabaseHandlerResolver 从 `installed_extensions.manifest_snapshot` 冻结 enabled handler metadata，并以 `SystemConfig.handlers_dir`（默认 `data/handlers`）计算运行时 handler 路径。
+    intent: Handler resolver 支持 {package}.{handler} 命名空间路径查找
     type: capability
   - id: cap.core.dag-execution-snapshot
     intent: DAG run 启动时由 DagController 构建 DAG execution closure，并在 DagExecutionSnapshot 中冻结 DAG/Node 闭包、entity_types、handler resolver、extension table mapping 和 run-needed skills。
@@ -333,4 +333,13 @@ capabilities:
     type: capability
   - id: cap.core.input-mapping-entity
     intent: InputMapping 核心 Entity Type，用于 Sub-DAG 的持久化输入映射配置
+    type: capability
+  - id: cap.core.extension-glob-imports
+    intent: Manifest imports 支持 glob patterns 用于批量匹配 entity 文件路径
+    type: capability
+  - id: cap.core.workflow-extension-type
+    intent: 识别 workflow_extension 类型并递归处理 imports.providers 和 imports.libraries
+    type: capability
+  - id: cap.core.handler-namespace
+    intent: Handler 使用包点处理器命名空间路径避免冲突
     type: capability

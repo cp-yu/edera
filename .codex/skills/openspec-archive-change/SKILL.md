@@ -13,7 +13,7 @@ Archive a completed change in the experimental workflow.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-Before archiving, run `openspec config project --json` and consume git policy from its normalized project config: `git.merge.strategy`, `git.merge.messageFrom`, and `git.branch.deleteAfterArchive`; do not parse raw YAML inside the skill.
+Before archiving, run `openspec config project --json` and consume git policy from its normalized project config: `git.autoCommit`, `git.archive.commitMessage.convention`, `git.merge.strategy`, `git.merge.commitMessage.convention`, and `git.branch.deleteAfterArchive`; do not parse raw YAML inside the skill.
 
 **Steps**
 
@@ -47,10 +47,10 @@ Before archiving, run `openspec config project --json` and consume git policy fr
    Create `openspec/changes/archive`, fail if `YYYY-MM-DD-<change-name>` exists, then move the change directory there. Preserve `.openspec.yaml`.
 
 7. **Create archive commit**
-   Add the archive/synced paths and run `git commit -F -` with the fixed docs-style archive message. Record `git rev-parse HEAD`. If `git.merge.messageFrom: manual`, write `.merge-message.draft`, skip automatic merge, and report manual merge.
+   If `git.autoCommit: manual`, skip archive commit, merge, and cleanup; report manual status and leave the moved/synced files in the worktree. Otherwise add only the archive/synced paths and run `git commit -F -` with the fixed docs-style archive message using `git.archive.commitMessage.convention`. Record `git rev-parse HEAD`.
 
 8. **Merge archived branch**
-   After Step 7, apply the compiled merge strategy: `git merge --no-ff --no-commit` then `git commit -F -`, or `git merge --ff-only`, or `git merge --squash` then `git commit -F -`. On conflicts run `git merge --abort`, preserve the archive commit, and report recovery. Record merge SHA/status.
+   After Step 7, apply the compiled merge strategy: `git merge --no-ff --no-commit` then `git commit -F -`, or `git merge --ff-only`, or `git merge --squash` then `git commit -F -`. Use `git.merge.commitMessage.convention` for merge/squash commit messages. On conflicts run `git merge --abort`, preserve the archive commit, and report recovery. Record merge SHA/status.
 
 9. **Cleanup feature branch and worktree**
    Read archived `.apply-isolation.json`. Resolve missing `originalBranch` with `git symbolic-ref refs/remotes/origin/HEAD --short` or ask. Never silently remove worktrees or switch branches. If deletion is enabled and non-squash, confirm merged with `git branch --merged` before branch deletion. Build paths with `path.join()`, `path.resolve()`, and `path.normalize()`.
@@ -69,6 +69,7 @@ Before archiving, run `openspec config project --json` and consume git policy fr
 **Verify Gate:** Fresh PASS or PASS_WITH_WARNINGS result confirmed
 **Specs / OPSX:** ✓ Synced to main specs and project OPSX (or "No deltas" or "Skipped all archive-time sync writes")
 **Archive Commit SHA:** <sha>
+**Auto Commit:** <git.autoCommit>
 **Merge Strategy:** <git.merge.strategy>
 **Merge SHA / Status:** <sha or skipped/manual/aborted>
 **Feature Branch:** <deleted/kept/worktree kept/manual cleanup required>

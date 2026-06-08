@@ -63,9 +63,9 @@ async def test_snapshot_freezes_handler_metadata(tmp_path):
         )
         await session.commit()
 
-    meta = await executor.snapshot.handler_resolver.get("reader")
+    meta = await executor.snapshot.handler_resolver.get("demo-ext.reader")
 
-    assert meta.path == tmp_path / "handlers" / "demo-ext" / "handler.py"
+    assert meta.path == tmp_path / "handlers" / "demo-ext.reader" / "handler.py"
 
 
 @pytest.mark.asyncio
@@ -427,7 +427,7 @@ def _reader_node() -> dict[str, object]:
     return {
         "name": "reader",
         "type": "function",
-        "handler": "reader",
+        "handler": "demo-ext.reader",
         "input_type": "Any",
         "output_type": "Any",
     }
@@ -484,7 +484,7 @@ async def _install(session) -> None:
         manifest_snapshot={
             "name": "demo-ext",
             "version": "1.0.0",
-            "handlers": [{"name": "reader", "entry": "handler.py"}],
+            "handlers": [{"name": "demo-ext.reader", "package": "demo-ext.reader", "entry": "handler.py"}],
         },
     )
     await session.commit()

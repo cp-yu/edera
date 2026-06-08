@@ -8,8 +8,10 @@ from edera_core.bootstrap import discover_available_extensions
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import load_runtime_app_config
 from edera_core.dag.loader import load_graph
+from edera_core.extension_manager import ExtensionManager
 from edera_core.manifest import parse_manifest
-from edera_core.storage import create_engine, init_db, sqlite_url
+from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.storage.repository import get_core_entity, get_ordinary_entity
 
 
 DEFAULT_NODE_TYPES = {
@@ -33,37 +35,18 @@ DEFAULT_SOURCE_REFS = {
 def test_default_news_manifest_imports() -> None:
     manifest = parse_manifest(Path("extensions/default-news-workflow/manifest.yaml"))
 
-    assert manifest.depends == [
-        "rss-fetcher",
-        "api-fetcher",
-        "reader",
-        "advisor",
-        "briefing-generator",
-        "notifier",
-    ]
-    assert set(manifest.entity_imports) == {
-        "entities/dags/default.yaml",
-        "entities/nodes/rss-fetcher.yaml",
-        "entities/nodes/api-fetcher.yaml",
-        "entities/nodes/reader.yaml",
-        "entities/nodes/advisor.yaml",
-        "entities/nodes/briefing-generator.yaml",
-        "entities/nodes/notifier.yaml",
-        "entities/triggers/default-default-cron.yaml",
-        "entities/sources/hn-rss.yaml",
-        "entities/sources/cls-telegraph.yaml",
-        "entities/sources/jqka.yaml",
-        "entities/sources/solidot.yaml",
-        "entities/sources/ithome.yaml",
-        "entities/sources/github.yaml",
-    }
-    assert all("entity-relations" not in item and "stock" not in item for item in manifest.entity_imports)
+    assert manifest.type == "workflow_extension"
+    assert manifest.depends == []
+    assert manifest.entity_imports == ["entities/**/*.yaml"]
+    assert manifest.provider_imports == ["_providers/*/manifest.yaml"]
+    assert manifest.library_imports == ["_lib/common"]
 
 
 def test_default_news_dependencies_are_declared() -> None:
     manifests = discover_available_extensions([Path("extensions")])
 
-    assert any(manifest.name == "default-news-workflow" for manifest in manifests)
+    manifest = next(item for item in manifests if item.name == "default-news-workflow")
+    assert manifest.type == "workflow_extension"
 
 
 def test_default_workflow_top_level_sources_removed() -> None:
@@ -85,11 +68,18 @@ async def test_imported_default_workflow_loads(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_default_source_seeds_imported(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
+    config, engine = await _runtime_config_with_engine(tmp_path)
+    factory = session_factory(engine)
 
-    for ref in DEFAULT_SOURCE_REFS:
-        assert store.resolve(ref).type in {"rss-source", "api-source"}
+    try:
+        async with factory() as session:
+            for ref in DEFAULT_SOURCE_REFS:
+                entity_type = ref.split(":", 1)[0]
+                entity = await get_ordinary_entity(session, entity_type, ref, config.entity_types)
+                assert entity is not None
+                assert entity.type in {"rss-source", "api-source"}
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -109,19 +99,37 @@ async def test_default_source_node_configs_preserved(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_default_trigger_imported(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    store = EntityStore(config.entities, config.entity_types, config.entity_relations)
-    trigger = store.resolve("trigger:default-default-cron")
+    config, engine = await _runtime_config_with_engine(tmp_path)
+    factory = session_factory(engine)
+    try:
+        async with factory() as session:
+            trigger = await get_core_entity(session, "trigger:default-default-cron", config.entity_types)
+    finally:
+        await engine.dispose()
 
+    assert trigger is not None
     assert trigger.attributes["wait_for"] == 'cron:"*/30 * * * *"'
     assert trigger.attributes["target"] == "dag:default"
     assert trigger.attributes["enabled"] is True
 
 
 async def _runtime_config(tmp_path: Path):
+    config, engine = await _runtime_config_with_engine(tmp_path)
+    await engine.dispose()
+    return config
+
+
+async def _runtime_config_with_engine(tmp_path: Path):
     engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
-    try:
-        await init_db(engine)
-        return await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
-    finally:
-        await engine.dispose()
+    await init_db(engine)
+    from edera_core.config.loader import _load_runtime_base_config
+
+    config = _load_runtime_base_config(Path("config"))
+    manager = ExtensionManager(
+        extensions_dir=Path("extensions"),
+        handlers_dir=tmp_path / "handlers",
+        engine=engine,
+        config_entity_types=config.entity_types,
+    )
+    await manager.install("default-news-workflow", installed_by="test")
+    return await load_runtime_app_config(Path("config"), engine, [Path("extensions")]), engine

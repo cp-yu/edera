@@ -8,16 +8,32 @@ capabilities:
 定义 Default news workflow extension package、Default DAG topology is preserved、Default workflow seed sources are extension-owned、Default workflow trigger is imported等能力。
 ## Requirements
 ### Requirement: Default news workflow extension package
-系统 SHALL 提供 `extensions/default-news-workflow/manifest.yaml` 作为默认新闻工作流 package。该 manifest MUST 声明 package name、version、handler provider dependencies，并通过 `imports.entities` 显式列出本 package 拥有的 DAG、node、trigger 和 source seed Entity 文件。
 
-#### Scenario: Manifest declares workflow imports
-- **WHEN** bootstrap 扫描 `extensions/default-news-workflow/manifest.yaml`
-- **THEN** manifest SHALL 包含 `imports.entities` 条目覆盖 `default` DAG、6 个默认节点、`default-default-cron` trigger 和默认 DAG 直接引用的 RSS/API source Entity
-- **AND** manifest MUST NOT 依赖目录扫描隐式导入 Entity
+系统 SHALL 提供 `extensions/default-news-workflow/manifest.yaml` 作为默认新闻工作流 package。该 manifest MUST 声明 `type: workflow_extension`、package name、version、内部 handler provider dependencies，并通过 `imports.entities`、`imports.providers`、`imports.libraries` 显式列出本 package 拥有的 DAG、node、trigger、source seed Entity、内部 providers 和共享库。所有路径 MUST 支持 glob patterns。
 
-#### Scenario: Dependencies are declared
-- **WHEN** bootstrap 校验 `default-news-workflow` manifest
-- **THEN** manifest MUST 声明对 `rss-fetcher`、`api-fetcher`、`reader`、`advisor`、`briefing-generator` 和 `notifier` provider extensions 的依赖
+#### Scenario: Manifest 声明 workflow extension 类型
+
+- **WHEN** 读取 `extensions/default-news-workflow/manifest.yaml`
+- **THEN** manifest MUST 包含 `type: workflow_extension`
+- **AND** manifest MUST 包含 `name: default-news-workflow` 和 `version` 字段
+
+#### Scenario: Manifest 使用 glob patterns 声明 entities
+
+- **WHEN** 读取 manifest 的 `imports.entities`
+- **THEN** manifest MUST 使用 `entities/**/*.yaml` 替代手动列举
+- **AND** 实际导入时 glob pattern MUST 展开为所有 DAG、node、trigger、source 文件
+
+#### Scenario: Manifest 声明内部 providers
+
+- **WHEN** 读取 manifest 的 `imports.providers`
+- **THEN** manifest MUST 包含 `["_providers/rss-fetcher", "_providers/api-fetcher", "_providers/reader", "_providers/advisor", "_providers/briefing-generator", "_providers/notifier", "_providers/web-scraper"]`
+- **AND** 安装时 MUST 递归读取每个 provider 的 manifest
+
+#### Scenario: Manifest 声明共享库
+
+- **WHEN** 读取 manifest 的 `imports.libraries`
+- **THEN** manifest MUST 包含 `["_lib/http_fetch"]`
+- **AND** 安装时 MUST 复制 `_lib/http_fetch/` 到 `handlers_dir/_libs/default-news-workflow.http_fetch/`
 
 ### Requirement: Default DAG topology is preserved
 导入后的 `default` DAG Entity SHALL 保留现有新闻工作流拓扑：`rss-fetcher` 和 `api-fetcher` 并行进入 `reader`，再依次执行 `advisor`、`briefing-generator` 和 `notifier`。节点 alias、node type、config、edge optional 语义和 UI layout SHALL 与迁移前等价。
@@ -33,17 +49,14 @@ capabilities:
 - **AND** `api-fetcher` 节点 MUST 继续引用 `api-source:cls-telegraph`、`api-source:jqka`、`api-source:solidot`、`api-source:ithome` 和 `api-source:github`
 
 ### Requirement: Default workflow seed sources are extension-owned
+
 `default-news-workflow` SHALL import `default` DAG 直接引用的 source seed Entity。该 package MUST own `rss-source:hn-rss` and the five `api-source` Entity records used by the default DAG. Stock Entity 和 entity relation seed MUST remain outside this workflow package.
 
 #### Scenario: Source seeds imported with workflow
-- **WHEN** `default-news-workflow` imports are applied to an empty DB
-- **THEN** Entity Store SHALL contain `rss-source:hn-rss`
-- **AND** Entity Store SHALL contain `api-source:cls-telegraph`、`api-source:jqka`、`api-source:solidot`、`api-source:ithome` 和 `api-source:github`
 
-#### Scenario: Stock seeds remain outside package
-- **WHEN** reviewing `extensions/default-news-workflow/manifest.yaml`
-- **THEN** `imports.entities` MUST NOT include stock Entity files
-- **AND** MUST NOT include `entity-relations` seed files
+- **WHEN** 安装 `default-news-workflow`
+- **THEN** 系统 SHALL 导入 6 个 source seed entities（从 `entities/sources/*.yaml`）
+- **AND** 这些 sources MUST 包含 `hn-rss`, `cls-telegraph`, `jqka`, `solidot`, `ithome`, `github`
 
 ### Requirement: Default workflow trigger is imported
 `default-news-workflow` SHALL import the `default-default-cron` Trigger Entity. The trigger MUST keep `wait_for = cron:"*/30 * * * *"`, `target = dag:default`, and `enabled = true`.

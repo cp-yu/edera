@@ -16,7 +16,7 @@ async def test_get_handler_from_installed_extension(tmp_path):
         await _install(session)
         meta = await DatabaseHandlerResolver(session, tmp_path / "handlers").get("reader")
 
-    assert meta.path == tmp_path / "handlers" / "demo-ext" / "handler.py"
+    assert meta.path == tmp_path / "handlers" / "demo-ext.reader" / "handler.py"
     assert meta.function == "execute"
 
 
@@ -34,7 +34,7 @@ async def test_compute_handler_path(tmp_path):
         await _install(session, entry="src/main.py")
         meta = await DatabaseHandlerResolver(session, tmp_path / "handlers").get("reader")
 
-    assert meta.path == tmp_path / "handlers" / "demo-ext" / "src" / "main.py"
+    assert meta.path == tmp_path / "handlers" / "demo-ext.reader" / "src" / "main.py"
 
 
 @pytest.mark.asyncio
@@ -44,6 +44,21 @@ async def test_default_function_name(tmp_path):
         meta = await DatabaseHandlerResolver(session, tmp_path / "handlers").get("reader")
 
     assert meta.function == "run"
+
+
+@pytest.mark.asyncio
+async def test_namespaced_handler_uses_package_provider_path(tmp_path):
+    async with _session(tmp_path) as session:
+        await _install(
+            session,
+            extension="workflow",
+            handler_name="workflow.reader.read",
+            handler_package="workflow.reader",
+        )
+        meta = await DatabaseHandlerResolver(session, tmp_path / "handlers").get("workflow.reader.read")
+
+    assert meta.path == tmp_path / "handlers" / "workflow.reader" / "handler.py"
+    assert meta.extension_name == "workflow"
 
 
 @asynccontextmanager
@@ -57,14 +72,25 @@ async def _session(tmp_path):
         await engine.dispose()
 
 
-async def _install(session, entry: str = "handler.py", function: str | None = "execute") -> None:
-    handler = {"name": "reader", "entry": entry}
+async def _install(
+    session,
+    entry: str = "handler.py",
+    function: str | None = "execute",
+    extension: str = "demo-ext",
+    handler_name: str = "reader",
+    handler_package: str | None = None,
+) -> None:
+    handler = {"name": handler_name, "entry": entry}
+    if handler_package is None:
+        handler["package"] = f"{extension}.{handler_name}"
+    if handler_package is not None:
+        handler["package"] = handler_package
     if function is not None:
         handler["function"] = function
     await save_installed_extension(
         session,
-        name="demo-ext",
+        name=extension,
         version="1.0.0",
-        manifest_snapshot={"name": "demo-ext", "version": "1.0.0", "handlers": [handler]},
+        manifest_snapshot={"name": extension, "version": "1.0.0", "handlers": [handler]},
     )
     await session.commit()

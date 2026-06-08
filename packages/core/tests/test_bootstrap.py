@@ -26,7 +26,7 @@ async def test_manifest_in_database(tmp_path):
     async with _session(tmp_path) as session:
         row = await _install(session)
 
-    assert row.manifest_data["handlers"][0]["name"] == "reader"
+    assert row.manifest_data["handlers"][0]["name"] == "demo-ext.reader"
 
 
 @asynccontextmanager
@@ -48,7 +48,15 @@ async def _install(session):
         manifest_snapshot={
             "name": "demo-ext",
             "version": "1.0.0",
-            "handlers": [{"name": "reader", "role": "processor", "input_type": "Any", "entry": "handler.py"}],
+            "handlers": [
+                {
+                    "name": "demo-ext.reader",
+                    "package": "demo-ext.reader",
+                    "role": "processor",
+                    "input_type": "Any",
+                    "entry": "handler.py",
+                }
+            ],
         },
     )
     await session.commit()

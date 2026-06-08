@@ -1591,7 +1591,10 @@ def _write_run_pi_extension(path: Path) -> None:
     extension.mkdir(parents=True)
     lib = extension / "_lib"
     lib.mkdir()
-    (lib / "llm.py").write_text(Path("extensions/_lib/llm.py").read_text(encoding="utf-8"), encoding="utf-8")
+    (lib / "llm.py").write_text(
+        Path("extensions/default-news-workflow/_lib/common/_lib/llm.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     extension.joinpath("manifest.yaml").write_text(
         "name: run-pi\n"
         "version: 0.1.0\n"

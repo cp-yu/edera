@@ -1,21 +1,23 @@
-name: rss-fetcher
+name: web-scraper
 version: 0.1.0
-depends: [_lib/http_fetch]
+depends: [_lib/common]
 handlers:
-  - name: fetch-rss
+  - name: fetch-web
     entry: handler.py
     role: source
     input_type: Any
     output_type: list[RawItem]
 entity_types:
-  - name: rss-source
-    display_name: RSS 信息源
+  - name: web-source
+    display_name: Web 信息源
     business_id_field: name
     display_template: "{name}"
-    storage_tier: database
+    storage_tier: filesystem
     schema:
       type: object
       required: [name, url]
       properties:
         name: {type: string}
         url: {type: string}
+        selector: {type: string}
+        regex: {type: string}

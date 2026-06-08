@@ -261,3 +261,24 @@ relations:
   - from: cap.core.input-mapping-entity
     type: contains
     to: dom.core
+  - from: cap.core.extension-glob-imports
+    type: depends_on
+    to: cap.core.extension-manifest-system
+  - from: cap.core.workflow-extension-type
+    type: depends_on
+    to: cap.core.extension-manifest-system
+  - from: cap.core.workflow-extension-type
+    type: depends_on
+    to: cap.core.extension-glob-imports
+  - from: cap.core.handler-namespace
+    type: depends_on
+    to: cap.core.database-handler-resolver
+  - from: dom.core
+    type: contains
+    to: cap.core.extension-glob-imports
+  - from: dom.core
+    type: contains
+    to: cap.core.workflow-extension-type
+  - from: dom.core
+    type: contains
+    to: cap.core.handler-namespace
