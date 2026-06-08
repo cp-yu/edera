@@ -1,6 +1,6 @@
 name: api-fetcher
 version: 0.1.0
-depends: [_lib/http_fetch]
+depends: [_lib/common]
 handlers:
   - name: fetch-api
     entry: handler.py

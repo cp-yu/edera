@@ -301,10 +301,11 @@ async def _daemon_with_handlers(tmp_path, handler_files: dict[str, str]):
     factory = session_factory(engine)
     handlers = []
     for name, content in handler_files.items():
-        path = tmp_path / "data" / "handlers" / "demo-ext" / f"{name}.py"
+        package = f"demo-ext.{name}"
+        path = tmp_path / "data" / "handlers" / package / f"{name}.py"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
-        handlers.append({"name": name, "entry": f"{name}.py"})
+        handlers.append({"name": f"demo-ext.{name}", "package": package, "entry": f"{name}.py"})
     async with factory() as session:
         await save_installed_extension(
             session,
@@ -397,17 +398,17 @@ async def test_list_handlers_from_database(tmp_path):
     result = await service.ListHandlers(pb2.EmptyRequest(), FakeContext())
     payload = json.loads(result.json)
     names = [h["name"] for h in payload["handlers"]]
-    assert "reader" in names
-    assert "fetcher" in names
+    assert "demo-ext.reader" in names
+    assert "demo-ext.fetcher" in names
 
 
 @pytest.mark.asyncio
 async def test_get_handler_reads_from_database_path(tmp_path):
     daemon = await _daemon_with_handlers(tmp_path, {"reader": "async def run(ctx): return []\n"})
     service = _GraphService(daemon)
-    result = await service.GetHandler(pb2.NameRequest(name="reader"), FakeContext())
+    result = await service.GetHandler(pb2.NameRequest(name="demo-ext.reader"), FakeContext())
     payload = json.loads(result.json)
-    assert payload["name"] == "reader"
+    assert payload["name"] == "demo-ext.reader"
     assert payload["code"] == "async def run(ctx): return []\n"
 
 
@@ -425,12 +426,12 @@ async def test_save_handler_writes_to_database_path(tmp_path):
     daemon = await _daemon_with_handlers(tmp_path, {"reader": "def run(): pass"})
     service = _GraphService(daemon)
     result = await service.SaveHandler(
-        pb2.NamedTextRequest(name="reader", content="def run(): updated"),
+        pb2.NamedTextRequest(name="demo-ext.reader", content="def run(): updated"),
         FakeContext(),
     )
     payload = json.loads(result.json)
     assert payload["code"] == "def run(): updated"
-    handler_path = tmp_path / "data" / "handlers" / "demo-ext" / "reader.py"
+    handler_path = tmp_path / "data" / "handlers" / "demo-ext.reader" / "reader.py"
     assert handler_path.read_text(encoding="utf-8") == "def run(): updated"
 
 

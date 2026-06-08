@@ -25,7 +25,7 @@ async def test_purge(tmp_path: Path) -> None:
         assert result["deleted_entities"] == 1
         assert installed is None
         assert entity is None
-        assert not (tmp_path / "handlers" / "demo").exists()
+        assert not (tmp_path / "handlers" / "demo.demo-handler").exists()
     finally:
         await engine.dispose()
 
@@ -55,7 +55,7 @@ async def test_keep_modified(tmp_path: Path) -> None:
         assert entity is not None
         assert entity.attributes["name"] == "Modified"
         assert installed is None
-        assert not (tmp_path / "handlers" / "demo").exists()
+        assert not (tmp_path / "handlers" / "demo.demo-handler").exists()
     finally:
         await engine.dispose()
 

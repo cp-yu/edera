@@ -28,8 +28,8 @@ async def test_no_auto_scan(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_load_installed(tmp_path: Path) -> None:
     handlers = tmp_path / "handlers"
-    (handlers / "demo").mkdir(parents=True)
-    (handlers / "demo" / "handler.py").write_text("def run(payload):\n    return payload\n", encoding="utf-8")
+    (handlers / "demo.demo-handler").mkdir(parents=True)
+    (handlers / "demo.demo-handler" / "handler.py").write_text("def run(payload):\n    return payload\n", encoding="utf-8")
     engine = create_engine(sqlite_url(tmp_path / "edera.db"))
     try:
         await init_db(engine)
@@ -49,7 +49,7 @@ async def test_load_installed(tmp_path: Path) -> None:
             bootstrap = await load_installed_extensions(session, handlers)
 
         assert bootstrap.extension_roots["demo"] == handlers / "demo"
-        assert bootstrap.manifests[0].handlers[0].name == "demo-handler"
+        assert bootstrap.manifests[0].handlers[0].name == "demo.demo-handler"
         assert bootstrap.manifests[0].entity_types[0].name == "demo_entity"
         assert [manifest.name for manifest in bootstrap.manifests] == ["demo"]
     finally:
@@ -96,7 +96,8 @@ def _manifest(name: str, version: str) -> dict[str, object]:
         "version": version,
         "handlers": [
             {
-                "name": "demo-handler",
+                "name": "demo.demo-handler",
+                "package": "demo.demo-handler",
                 "role": "processor",
                 "input_type": "Any",
                 "output_type": "Any",

@@ -54,7 +54,7 @@ async def test_uzi_subdag_imports_aggregate_node(tmp_path: Path) -> None:
     aggregate = config.nodes["uzi-aggregate-collection-results"]
 
     assert aggregate.type == "function"
-    assert aggregate.handler == "legacy-script-adapter"
+    assert aggregate.handler == "uzi-skill.legacy-script-adapter"
     assert {"uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering"}.issubset(config.dags)
 
 

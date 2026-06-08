@@ -1,6 +1,6 @@
 name: reader
 version: 0.1.0
-depends: [_lib/llm]
+depends: [_lib/common]
 handlers:
   - name: summarize
     entry: handler.py

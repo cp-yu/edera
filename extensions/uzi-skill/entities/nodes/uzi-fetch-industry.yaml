@@ -4,7 +4,7 @@ attributes:
   name: uzi-fetch-industry
   type: function
   role: processor
-  handler: legacy-script-adapter
+  handler: uzi-skill.legacy-script-adapter
   input_type: Any
   output_type: Any
   parameters:

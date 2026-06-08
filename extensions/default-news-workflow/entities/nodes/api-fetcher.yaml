@@ -4,7 +4,7 @@ attributes:
   name: api-fetcher
   type: function
   role: source
-  handler: fetch-api
+  handler: default-news-workflow.api-fetcher.fetch-api
   input_type: Any
   output_type: list[RawItem]
   timeout_seconds: 15.0

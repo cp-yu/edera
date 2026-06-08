@@ -49,12 +49,15 @@ class StorageTableDescriptor:
 class ExtensionManifest:
     name: str
     version: str
+    type: str = "handler_provider"
     description: str | None = None
     depends: list[str] = field(default_factory=list)
     handlers: list[NodeTypeDescriptor] = field(default_factory=list)
     entity_types: list[EntityTypeDescriptor] = field(default_factory=list)
     storage_tables: list[StorageTableDescriptor] = field(default_factory=list)
     entity_imports: list[str] = field(default_factory=list)
+    provider_imports: list[str] = field(default_factory=list)
+    library_imports: list[str] = field(default_factory=list)
 
 
 def parse_manifest(path: Path) -> ExtensionManifest:
@@ -72,16 +75,21 @@ def manifest_from_mapping(raw: Any, path: Path | None = None) -> ExtensionManife
     handlers = [_parse_handler(item, source) for item in _list(raw.get("handlers"))]
     entity_types = [_parse_entity_type(item, source) for item in _list(raw.get("entity_types"))]
     storage_tables = [_parse_storage_table(item, source) for item in _list(raw.get("storage"), "tables")]
-    entity_imports = [_parse_entity_import(item, source) for item in _list(raw.get("imports"), "entities")]
+    entity_imports = [_parse_relative_import(item, source, "entity import") for item in _list(raw.get("imports"), "entities")]
+    provider_imports = [_parse_relative_import(item, source, "provider import") for item in _list(raw.get("imports"), "providers")]
+    library_imports = [_parse_relative_import(item, source, "library import") for item in _list(raw.get("imports"), "libraries")]
     return ExtensionManifest(
         name=str(raw["name"]),
         version=str(raw["version"]),
+        type=_parse_manifest_type(raw.get("type"), source),
         description=str(raw["description"]) if isinstance(raw.get("description"), str) else None,
         depends=[str(item) for item in _list(raw.get("depends"))],
         handlers=handlers,
         entity_types=entity_types,
         storage_tables=storage_tables,
         entity_imports=entity_imports,
+        provider_imports=provider_imports,
+        library_imports=library_imports,
     )
 
 
@@ -153,12 +161,19 @@ def _parse_storage_table(raw: Any, path: Path) -> StorageTableDescriptor:
     return StorageTableDescriptor(name=str(raw["name"]), columns=columns)
 
 
-def _parse_entity_import(raw: Any, path: Path) -> str:
+def _parse_manifest_type(raw: Any, path: Path) -> str:
+    value = str(raw) if isinstance(raw, str) and raw else "handler_provider"
+    if value not in {"workflow_extension", "handler_provider"}:
+        raise ValueError(f"unsupported manifest type in {path}: {value}; supported: workflow_extension, handler_provider")
+    return value
+
+
+def _parse_relative_import(raw: Any, path: Path, label: str) -> str:
     if not isinstance(raw, str) or not raw:
-        raise ValueError(f"invalid entity import path in {path}: {raw}")
+        raise ValueError(f"invalid {label} path in {path}: {raw}")
     import_path = Path(raw)
     if import_path.is_absolute() or ".." in import_path.parts:
-        raise ValueError(f"invalid entity import path in {path}: {raw}")
+        raise ValueError(f"invalid {label} path in {path}: {raw}")
     return raw
 
 

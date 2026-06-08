@@ -4,7 +4,12 @@ import pytest
 from sqlalchemy import text
 
 from edera_core.config.schema import EntityConfig, EntityTypeConfig
+from edera_core.config.schema import RuntimeSettings, SystemConfig
+from edera_core.bootstrap import load_installed_extensions
 from edera_core.extension_manager import ExtensionManager
+from edera_core.node.executor import NodeExecutor
+from edera_core.resolver import HandlerMeta, StaticHandlerResolver
+from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
 from edera_core.storage.repository import get_installed_extension, get_ordinary_entity, save_ordinary_entity
 from edera_core.storage.repository import save_installed_extension
@@ -37,7 +42,7 @@ async def test_install_complete(tmp_path: Path) -> None:
         assert installed.import_record_data[0]["status"] == "imported"
         assert entity is not None
         assert entity.attributes["name"] == "Tencent"
-        assert (tmp_path / "handlers" / "demo" / "handler.py").exists()
+        assert (tmp_path / "handlers" / "demo.demo-handler" / "handler.py").exists()
         assert (tmp_path / "handlers" / "_lib" / "shared.py").exists()
         assert extension_root.exists()
     finally:
@@ -112,7 +117,7 @@ async def test_install_failure_rolls_back_handlers_and_tables(tmp_path: Path) ->
         async with engine.begin() as conn:
             tables = [row[0] for row in (await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))).all()]
         assert "ext_demo_raw_items" not in tables
-        assert not (tmp_path / "handlers" / "demo").exists()
+        assert not (tmp_path / "handlers" / "demo.demo-handler").exists()
     finally:
         await engine.dispose()
 
@@ -178,6 +183,201 @@ async def test_install_imports_entity_type_declared_by_same_manifest(tmp_path: P
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_install_standalone_handler_uses_namespace(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        await manager.install("demo")
+
+        factory = session_factory(engine)
+        async with factory() as session:
+            installed = await get_installed_extension(session, "demo")
+
+        assert installed is not None
+        assert installed.manifest_data["handlers"][0]["name"] == "demo.demo-handler"
+        assert installed.manifest_data["handlers"][0]["package"] == "demo.demo-handler"
+        assert (tmp_path / "handlers" / "demo.demo-handler" / "handler.py").exists()
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_install_workflow_extension_recursively_installs_providers(tmp_path: Path) -> None:
+    _write_workflow_extension(tmp_path)
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        result = await manager.install("workflow")
+
+        factory = session_factory(engine)
+        async with factory() as session:
+            installed = await get_installed_extension(session, "workflow")
+
+        assert result == {"handlers": 2, "entities": 1, "providers": 2, "libraries": 1}
+        assert installed is not None
+        assert installed.manifest_data["type"] == "workflow_extension"
+        assert [handler["name"] for handler in installed.manifest_data["handlers"]] == [
+            "workflow.reader.read",
+            "workflow.reader-alt.read",
+        ]
+        assert (tmp_path / "handlers" / "workflow.reader" / "handler.py").exists()
+        assert (tmp_path / "handlers" / "workflow.reader-alt" / "handler.py").exists()
+        assert (tmp_path / "libs" / "workflow.http_fetch" / "client.py").exists()
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_install_workflow_extension_expands_library_glob(tmp_path: Path) -> None:
+    root = _write_workflow_extension(tmp_path)
+    manifest = root / "manifest.yaml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace("    - _lib/http_fetch\n", "    - _lib/*\n"),
+        encoding="utf-8",
+    )
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        await manager.install("workflow")
+
+        factory = session_factory(engine)
+        async with factory() as session:
+            installed = await get_installed_extension(session, "workflow")
+
+        assert installed is not None
+        assert installed.manifest_data["imports"]["libraries"] == ["_lib/http_fetch"]
+        assert (tmp_path / "libs" / "workflow.http_fetch" / "client.py").exists()
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_installed_workflow_handler_imports_packaged_lib(tmp_path: Path) -> None:
+    root = _write_workflow_extension(tmp_path)
+    lib = root / "_lib" / "http_fetch"
+    (lib / "_lib").mkdir()
+    (lib / "_lib" / "__init__.py").write_text("", encoding="utf-8")
+    (lib / "_lib" / "shared.py").write_text("VALUE = 42\n", encoding="utf-8")
+    provider = root / "_providers" / "reader"
+    (provider / "handler.py").write_text(
+        "from _lib.shared import VALUE\n"
+        "async def run(ctx):\n"
+        "    return VALUE\n",
+        encoding="utf-8",
+    )
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+        await manager.install("workflow")
+        factory = session_factory(engine)
+        async with factory() as session:
+            await load_installed_extensions(session, tmp_path / "handlers")
+
+        meta_path = tmp_path / "handlers" / "workflow.reader" / "handler.py"
+        snapshot = DagExecutionSnapshot(
+            DagExecutionClosure("test", {}, {}),
+            {},
+            StaticHandlerResolver({"workflow.reader.read": HandlerMeta(meta_path)}),
+            {},
+            {},
+        )
+        executor = NodeExecutor({}, SystemConfig(), RuntimeSettings(), snapshot)
+        result = await executor._load_handler("workflow.reader.read")
+
+        assert result is not None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_install_fails_when_manifest_glob_has_no_matches(tmp_path: Path) -> None:
+    root = tmp_path / "extensions" / "demo"
+    root.mkdir(parents=True)
+    (root / "manifest.yaml").write_text(
+        "name: demo\n"
+        "version: 0.1.0\n"
+        "imports:\n"
+        "  entities:\n"
+        "    - entities/**/*.yaml\n",
+        encoding="utf-8",
+    )
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        with pytest.raises(ValueError, match=r"glob pattern matched no files: entities/\*\*/\*\.yaml"):
+            await manager.install("demo")
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_install_rejects_duplicate_handler_namespace(tmp_path: Path) -> None:
+    root = _write_workflow_extension(tmp_path)
+    duplicate = root / "_providers" / "dupe"
+    duplicate.mkdir(parents=True)
+    (duplicate / "handler.py").write_text("def run(payload):\n    return payload\n", encoding="utf-8")
+    (duplicate / "manifest.yaml").write_text(
+        "name: reader\n"
+        "version: 0.1.0\n"
+        "handlers:\n"
+        "  - name: read\n"
+        "    role: processor\n"
+        "    input_type: Any\n"
+        "    entry: handler.py\n",
+        encoding="utf-8",
+    )
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        with pytest.raises(ValueError, match="handler namespace conflict: workflow.reader"):
+            await manager.install("workflow")
+    finally:
+        await engine.dispose()
+
+
 def _write_extension(
     tmp_path: Path,
     name: str,
@@ -220,6 +420,52 @@ def _write_extension(
         "imports:\n"
         "  entities:\n"
         "    - entities/stock.yaml\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+def _write_workflow_extension(tmp_path: Path) -> Path:
+    root = tmp_path / "extensions" / "workflow"
+    (root / "entities" / "nested").mkdir(parents=True)
+    (root / "_lib" / "http_fetch").mkdir(parents=True)
+    (root / "_providers" / "reader").mkdir(parents=True)
+    (root / "_providers" / "reader-alt").mkdir(parents=True)
+    (root / "_lib" / "http_fetch" / "client.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (root / "entities" / "nested" / "stock.yaml").write_text(
+        "type: stock\n"
+        "id: stock-1\n"
+        "attributes:\n"
+        "  code: '00700'\n"
+        "  name: Tencent\n",
+        encoding="utf-8",
+    )
+    for provider in ("reader", "reader-alt"):
+        provider_root = root / "_providers" / provider
+        (provider_root / "handler.py").write_text("def run(payload):\n    return payload\n", encoding="utf-8")
+        (provider_root / "manifest.yaml").write_text(
+            f"name: {provider}\n"
+            "version: 0.1.0\n"
+            "depends:\n"
+            "  - _lib/http_fetch\n"
+            "handlers:\n"
+            "  - name: read\n"
+            "    role: processor\n"
+            "    input_type: Any\n"
+            "    entry: handler.py\n",
+            encoding="utf-8",
+        )
+    (root / "manifest.yaml").write_text(
+        "name: workflow\n"
+        "version: 0.1.0\n"
+        "type: workflow_extension\n"
+        "imports:\n"
+        "  entities:\n"
+        "    - entities/**/*.yaml\n"
+        "  providers:\n"
+        "    - _providers/*/manifest.yaml\n"
+        "  libraries:\n"
+        "    - _lib/http_fetch\n",
         encoding="utf-8",
     )
     return root

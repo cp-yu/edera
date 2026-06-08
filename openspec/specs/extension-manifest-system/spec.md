@@ -9,7 +9,7 @@ capabilities:
 ## Requirements
 ### Requirement: Manifest 文件解析
 
-核心 SHALL 解析扩展目录下的 `manifest.yaml` 文件，提取 handler 声明、entity type 声明、依赖信息和 import 声明。Manifest MUST 遵循固定 schema：顶层字段 `name`（必填）、`version`（必填）、`description`（可选）、`depends`（可选）、`handlers`（可选）、`entity_types`（可选）、`storage`（可选）、`imports`（可选）。解析后的 manifest 数据 SHALL 持久化到数据库，不再构建内存 Registry。
+核心 SHALL 解析扩展目录下的 `manifest.yaml` 文件，提取 handler 声明、entity type 声明、依赖信息和 import 声明。Manifest MUST 遵循固定 schema：顶层字段 `name`（必填）、`version`（必填）、`type`（可选，默认 `handler_provider`）、`description`（可选）、`depends`（可选）、`handlers`（可选）、`entity_types`（可选）、`storage`（可选）、`imports`（可选）。`imports` 字段 MUST 支持 `entities`、`providers`、`libraries` 子字段，且所有路径支持 glob patterns。解析后的 manifest 数据 SHALL 持久化到数据库，不再构建内存 Registry。
 
 #### Scenario: 解析完整 manifest
 
@@ -33,6 +33,29 @@ capabilities:
 - **WHEN** workflow extension manifest 包含 `imports.entities`
 - **THEN** 核心 SHALL 解析并保留这些 Entity import declaration
 - **AND** scan 阶段 MUST NOT 直接写入 DB Entity
+
+#### Scenario: 解析 type 字段
+
+- **WHEN** manifest 包含 `type: workflow_extension`
+- **THEN** 核心 SHALL 识别为 workflow extension 类型
+- **AND** 解析 `imports.providers` 和 `imports.libraries` 字段
+
+#### Scenario: 解析 imports.providers 并展开 glob
+
+- **WHEN** manifest 包含 `imports.providers: ["_providers/*/manifest.yaml"]`
+- **THEN** 核心 MUST 展开 glob pattern 为具体 provider 目录列表
+- **AND** 递归读取每个 provider 的 manifest
+
+#### Scenario: 解析 imports.libraries 并展开 glob
+
+- **WHEN** manifest 包含 `imports.libraries: ["_lib/*"]`
+- **THEN** 核心 MUST 展开 glob pattern 为具体 library 目录列表
+- **AND** 记录每个 library 的路径到 manifest_snapshot
+
+#### Scenario: Glob pattern 无匹配时报错
+
+- **WHEN** manifest 包含 glob pattern 但无任何匹配路径
+- **THEN** 核心 MUST 拒绝加载并报告未匹配的 pattern
 
 ### Requirement: Handler 描述符提取
 

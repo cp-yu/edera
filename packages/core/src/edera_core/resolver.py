@@ -52,8 +52,10 @@ class DatabaseHandlerResolver:
         if not isinstance(entry, str) or not entry:
             raise HandlerNotFoundError(handler.get("name"))
         function = handler.get("function")
+        package = handler.get("package")
+        handler_root = package if isinstance(package, str) and package else extension_name
         return HandlerMeta(
-            self.handlers_dir / extension_name / entry,
+            self.handlers_dir / handler_root / entry,
             function if isinstance(function, str) and function else "run",
             extension_name,
         )

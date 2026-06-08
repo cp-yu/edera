@@ -29,7 +29,7 @@ async def test_load_installed_extensions_registers_manifest_handlers(tmp_path: P
                 session,
                 name="rss-fetcher",
                 version="0.1.0",
-                manifest_snapshot=_manifest_snapshot(Path("extensions/rss-fetcher/manifest.yaml")),
+                manifest_snapshot=_manifest_snapshot(Path("extensions/default-news-workflow/_providers/rss-fetcher/manifest.yaml")),
                 import_records=[],
             )
             result = await load_installed_extensions(session, Path("handlers"))

@@ -733,9 +733,10 @@ def _extension_export(
         root = Path(tmp) / name
         root.mkdir()
         (root / "manifest.yaml").write_text(yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8")
-        handler_root = handlers_dir / name
-        if handler_root.exists() and handler_root.is_dir():
-            shutil.copytree(handler_root, root, dirs_exist_ok=True)
+        if isinstance(manifest, dict) and manifest.get("type") == "workflow_extension":
+            warnings.extend(_export_workflow_artifacts(root, handlers_dir, name, manifest))
+        elif (handlers_dir / name).exists() and (handlers_dir / name).is_dir():
+            shutil.copytree(handlers_dir / name, root, dirs_exist_ok=True)
         elif _manifest_handler_entries(manifest):
             warnings.append(f"handler code not included: {handlers_dir / name} is missing")
         for entry in _manifest_handler_entries(manifest):
@@ -753,6 +754,55 @@ def _extension_export(
             (root / "import_records.json").write_text(json.dumps(import_records, ensure_ascii=False), encoding="utf-8")
         _write_tar(path, root)
     return warnings
+
+
+def _export_workflow_artifacts(root: Path, handlers_dir: Path, name: str, manifest: dict[str, object]) -> list[str]:
+    warnings: list[str] = []
+    for handler in _manifest_handler_packages(manifest):
+        package = handler["package"]
+        source = handlers_dir / package
+        provider = package.removeprefix(f"{name}.")
+        if not source.exists():
+            warnings.append(f"handler code not included: {source} is missing")
+            continue
+        shutil.copytree(source, root / "_providers" / provider, dirs_exist_ok=True)
+    libs_dir = handlers_dir.parent / "libs"
+    for item in _manifest_library_imports(manifest):
+        library_name = Path(item).name
+        source = libs_dir / f"{name}.{library_name}"
+        if not source.exists():
+            warnings.append(f"library code not included: {source} is missing")
+            continue
+        target = root / "_lib" / library_name
+        if source.is_dir():
+            shutil.copytree(source, target, dirs_exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+    return warnings
+
+
+def _manifest_handler_packages(manifest: dict[str, object]) -> list[dict[str, str]]:
+    handlers = manifest.get("handlers")
+    if not isinstance(handlers, list):
+        return []
+    packages: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for handler in handlers:
+        if not isinstance(handler, dict):
+            continue
+        package = handler.get("package")
+        if not isinstance(package, str) or "." not in package or package in seen:
+            continue
+        seen.add(package)
+        packages.append({"package": package})
+    return packages
+
+
+def _manifest_library_imports(manifest: dict[str, object]) -> list[str]:
+    imports = manifest.get("imports")
+    libraries = imports.get("libraries") if isinstance(imports, dict) else None
+    return [item for item in libraries if isinstance(item, str)] if isinstance(libraries, list) else []
 
 
 def _manifest_handler_entries(manifest: object) -> list[str]:

@@ -1,7 +1,7 @@
 name: web-scraper
 type: function
 role: source
-handler: fetch-web
+handler: default-news-workflow.web-scraper.fetch-web
 input_type: Any
 output_type: list[RawItem]
 timeout_seconds: 13.0

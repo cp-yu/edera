@@ -150,7 +150,7 @@ async def _install(session) -> None:
         manifest_snapshot={
             "name": "demo-ext",
             "version": "1.0.0",
-            "handlers": [{"name": "reader", "entry": "handler.py"}],
+            "handlers": [{"name": "demo-ext.reader", "package": "demo-ext.reader", "entry": "handler.py"}],
         },
     )
     await session.commit()
