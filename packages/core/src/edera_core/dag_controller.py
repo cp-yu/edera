@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import importlib.util
 import json
 import os
 from collections import defaultdict
@@ -689,7 +688,6 @@ class DagController:
                     config.system.retention_count,
                     config.system.retention_hours,
                 )
-            _cleanup_sandboxes(config.system, execution_snapshot.dag_closure.dags.values())
             error = "; ".join(
                 f"{node}: {message}"
                 for node, message in result.failures.items()
@@ -1318,32 +1316,3 @@ def _parse_node_trigger_target(target: str) -> tuple[str, str]:
         raise ValueError("node trigger target must be '<dag_name>/<node_id>'")
     return dag_name, node_id
 
-
-def _cleanup_sandboxes(system: SystemConfig, dags) -> None:
-    cleanup_sandboxes = _load_default_workflow_llm_cleanup()
-    if cleanup_sandboxes is None:
-        return
-    cleanup_sandboxes(system, _referenced_sandboxes(dags))
-
-
-def _load_default_workflow_llm_cleanup():
-    path = Path("extensions/default-news-workflow/_lib/common/_lib/llm.py")
-    if not path.exists():
-        return None
-    spec = importlib.util.spec_from_file_location("edera_default_workflow_llm", path)
-    if spec is None or spec.loader is None:
-        return None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    cleanup = getattr(module, "cleanup_sandboxes", None)
-    return cleanup if callable(cleanup) else None
-
-
-def _referenced_sandboxes(dags) -> set[str]:
-    refs: set[str] = set()
-    for dag in dags:
-        for instance in dag.nodes:
-            value = instance.config.get("session_dir")
-            if isinstance(value, str) and value.startswith("sandbox:") and not value.endswith(":latest"):
-                refs.add(value)
-    return refs

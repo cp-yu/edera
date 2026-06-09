@@ -1,0 +1,131 @@
+{
+  "timestamp": "2026-06-09T05:31:01.720Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "5c07fb941402fefb834f8b6800a14c7f0fb97d49cf13c08d7dfa2b942caf0ddc",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "extension-test-template/test_dag_e2e.py.template",
+      "extensions/uzi-skill/tests/test_dag_e2e.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/extension_manager.py",
+      "packages/core/src/edera_core/node/executor.py",
+      "packages/core/src/edera_core/snapshot.py",
+      "packages/edera-testing/src/edera_testing/fixtures.py"
+    ],
+    "evidenceFingerprint": "961ab97cf71f24d27b5b045f7d9b69e755dec116bc77109401cc361d1f4cb5c0",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "extension-test-template/test_dag_e2e.py.template",
+        "hash": "209201da9103d1d3291520e480bf0a60eaa4530f609a0975536492af23726748"
+      },
+      {
+        "path": "extensions/uzi-skill/tests/test_dag_e2e.py",
+        "hash": "4ce005d958e163460d5e4fb95ff40a9f7cdd6a3935ee0dd4c1f27a9ce536b603"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "9135c08f194edeeeb206e423d6e8c1d4c53114232012e658ab4bc1d0b6370452"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_manager.py",
+        "hash": "27a4d14d7b8b1edccea5997a5458c73638075dab9aa24dcf330a639bcd111846"
+      },
+      {
+        "path": "packages/core/src/edera_core/node/executor.py",
+        "hash": "833d141d5a0aa1fb9f4b3636bc3e1841fc205b5ae268410d38ab86632c1746c8"
+      },
+      {
+        "path": "packages/core/src/edera_core/snapshot.py",
+        "hash": "aa79b3bb1ad8e13e0252b8678257e363521b9e420064e53fd653a788e9b8865e"
+      },
+      {
+        "path": "packages/edera-testing/src/edera_testing/fixtures.py",
+        "hash": "75c41d4dc5e0648622c4499f72c5e92056f091c8951f61af1fee3916f61e7e3e"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "0bc957a8f20fac073f0f10e7602f4460573e56da"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-09T05:35:34.950Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Deduplicate ExtensionManager handler package copy logic by sharing the excluded-name set and copy loop between root handlers and provider handlers.",
+        "files": [
+          "packages/core/src/edera_core/extension_manager.py"
+        ]
+      },
+      {
+        "timestamp": "2026-06-09T05:37:38.637Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/extension_manager.py": "ba8a02ce34870bbc9cbf0dd0428f00054629301699a641c7c76666d3c2792c7f"
+    },
+    "baseline": {
+      "timestamp": "2026-06-09T05:31:01.720Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "5c07fb941402fefb834f8b6800a14c7f0fb97d49cf13c08d7dfa2b942caf0ddc",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "extension-test-template/test_dag_e2e.py.template",
+          "extensions/uzi-skill/tests/test_dag_e2e.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/extension_manager.py",
+          "packages/core/src/edera_core/node/executor.py",
+          "packages/core/src/edera_core/snapshot.py",
+          "packages/edera-testing/src/edera_testing/fixtures.py"
+        ],
+        "evidenceFingerprint": "a2d1e706b0c68d96467f49b0ff9ddafe1be02a77d090f8ced5af2aa5f3f1bda5",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "extension-test-template/test_dag_e2e.py.template",
+            "hash": "209201da9103d1d3291520e480bf0a60eaa4530f609a0975536492af23726748"
+          },
+          {
+            "path": "extensions/uzi-skill/tests/test_dag_e2e.py",
+            "hash": "4ce005d958e163460d5e4fb95ff40a9f7cdd6a3935ee0dd4c1f27a9ce536b603"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "9135c08f194edeeeb206e423d6e8c1d4c53114232012e658ab4bc1d0b6370452"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_manager.py",
+            "hash": "ba8a02ce34870bbc9cbf0dd0428f00054629301699a641c7c76666d3c2792c7f"
+          },
+          {
+            "path": "packages/core/src/edera_core/node/executor.py",
+            "hash": "833d141d5a0aa1fb9f4b3636bc3e1841fc205b5ae268410d38ab86632c1746c8"
+          },
+          {
+            "path": "packages/core/src/edera_core/snapshot.py",
+            "hash": "aa79b3bb1ad8e13e0252b8678257e363521b9e420064e53fd653a788e9b8865e"
+          },
+          {
+            "path": "packages/edera-testing/src/edera_testing/fixtures.py",
+            "hash": "75c41d4dc5e0648622c4499f72c5e92056f091c8951f61af1fee3916f61e7e3e"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0bc957a8f20fac073f0f10e7602f4460573e56da"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

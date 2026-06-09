@@ -282,3 +282,9 @@ relations:
   - from: dom.core
     type: contains
     to: cap.core.handler-namespace
+  - from: cap.core.extension-testing-framework
+    type: contains
+    to: dom.core
+  - from: cap.core.extension-test-template
+    type: contains
+    to: dom.core

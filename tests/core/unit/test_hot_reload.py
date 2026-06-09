@@ -30,7 +30,7 @@ async def test_snapshot_commit_success(tmp_path: Path) -> None:
 
     assert controller.runtime_snapshot() is snapshot
     assert snapshot is not old_snapshot
-    assert _bootstrap_handler_names(controller.bootstrap_result()) == {"new-handler"}
+    assert _bootstrap_handler_names(controller.bootstrap_result()) == {"new-handler.new-handler"}
     assert snapshot.trigger_executor is controller.trigger_executor
     assert snapshot.cron_emitter is controller.cron_emitter
     await controller.shutdown()
@@ -53,7 +53,7 @@ async def test_snapshot_commit_failure(monkeypatch: pytest.MonkeyPatch, tmp_path
         await controller.install_snapshot(load_app_config(tmp_path), await _install_extensions(controller, extensions))
 
     assert controller.runtime_snapshot() is old_snapshot
-    assert "failed-handler" not in _bootstrap_handler_names(controller.bootstrap_result())
+    assert "failed-handler.failed-handler" not in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 
@@ -85,7 +85,7 @@ async def test_snapshot_commit_serialized(monkeypatch: pytest.MonkeyPatch, tmp_p
     )
 
     assert max_active == 1
-    assert "serial-handler" in _bootstrap_handler_names(controller.bootstrap_result())
+    assert "serial-handler.serial-handler" in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 
@@ -176,7 +176,7 @@ async def test_handler_reload_new_executor_only(tmp_path: Path) -> None:
 
     assert old_executor._modules == {"first-handler": old_executor._modules["first-handler"]}
     assert new_executor._modules == {}
-    assert "second-handler" in _bootstrap_handler_names(controller.bootstrap_result())
+    assert "second-handler.second-handler" in _bootstrap_handler_names(controller.bootstrap_result())
     await controller.shutdown()
 
 

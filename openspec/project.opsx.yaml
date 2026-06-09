@@ -343,3 +343,9 @@ capabilities:
   - id: cap.core.handler-namespace
     intent: Handler 使用包点处理器命名空间路径避免冲突
     type: capability
+  - id: cap.core.extension-testing-framework
+    intent: 提供 edera-testing 测试框架包，包含 fixtures（extension_runtime、mock_pi_binary、mock_handler_context、mock_entity_store）、assertions（assert_handler_signature、assert_manifest_valid）和 mocks（FakePIBinary、MockScript），供扩展开发者编写独立测试
+    type: capability
+  - id: cap.core.extension-test-template
+    intent: 提供扩展测试模板，包含 conftest.py.template、pytest.ini.template、test_handler_unit.py.template、test_dag_e2e.py.template 和详细的 README.md，规范扩展测试结构和最佳实践
+    type: capability

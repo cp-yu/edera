@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from edera_types import HandlerContext, NodeInput
+from edera_testing.fixtures import create_mock_handler_context
 
-_ADAPTER_PATH = Path(__file__).parents[2] / "extensions" / "uzi-skill" / "adapter.py"
+_ADAPTER_PATH = Path(__file__).parents[1] / "adapter.py"
 _SPEC = importlib.util.spec_from_file_location("test_uzi_skill_adapter", _ADAPTER_PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 adapter = importlib.util.module_from_spec(_SPEC)
@@ -438,26 +438,15 @@ def _ctx(
     payload: object,
     metadata: dict[str, object] | None = None,
 ) -> HandlerContext:
-    return HandlerContext(
-        input=NodeInput(run_id="run", payload=payload, metadata=metadata or {}),
+    return create_mock_handler_context(
+        input_payload=payload,
+        input_metadata=metadata or {},
         params={"module_path": str(root / f"{module}.py"), "function": "main", "args_map": args_map},
         node_name="node",
         node_type="legacy-script-adapter",
         run_id="run",
-        entity_store=_EmptyStore(),
     )
 
 
 def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
-
-
-class _EmptyStore:
-    def query(self, type: str | None = None) -> list[object]:
-        return []
-
-    def resolve(self, ref: str) -> object:
-        raise KeyError(ref)
-
-    def related_refs(self, ref: str) -> list[str]:
-        return []
