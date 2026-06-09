@@ -8,7 +8,6 @@ import {
   MarkerType,
   useReactFlow,
   useViewport,
-  useNodes,
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
@@ -25,7 +24,6 @@ import { CustomNode } from './nodes/CustomNode'
 import { useRetryDagNode, useSaveDag } from '@/api/mutations'
 import type { TemporaryInputs } from '@/api/mutations'
 import { useDagList, useNodePrototypes } from '@/api/queries'
-import { entityColor } from '@/lib/colors'
 import type { DagNodeRecord, DagState, DagStatus, NodeInstance, NodeType, RuntimeStatus } from '@/api/types'
 import { CanvasContextMenu } from './CanvasContextMenu'
 import { TemporaryInputDialog } from '@/components/TemporaryInputDialog'
@@ -140,7 +138,6 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const saveDag = useSaveDag(dagName)
   const retryNode = useRetryDagNode()
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
-  const internalNodes = useNodes<WorkbenchNode>()
   const viewport = useViewport()
   const canvasRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<number | null>(null)
@@ -504,48 +501,6 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
     }))
     return filterSearchItems([...dagItems, ...buildSearchItems(prototypes, nodes.map((node) => node.data))], searchQuery)
   }, [dagCandidates, nodes, prototypes, searchQuery])
-
-  const groupedEntities = useMemo(() => {
-    const groups = new Map<string, WorkbenchNode[]>()
-
-    for (const node of internalNodes) {
-      for (const entity of node.data.entities ?? []) {
-        const list = groups.get(entity) ?? []
-        list.push(node)
-        groups.set(entity, list)
-      }
-    }
-
-    const padding = 30
-    return Array.from(groups.entries()).map(([entity, groupedNodes]) => {
-      const positions = groupedNodes.map((node) => {
-        const size = getNodeSize(node.data.visualKind)
-        const width = node.measured?.width ?? node.width ?? size.width
-        const height = node.measured?.height ?? node.height ?? size.height
-
-        return {
-          left: node.position.x,
-          top: node.position.y,
-          right: node.position.x + width,
-          bottom: node.position.y + height,
-        }
-      })
-
-      const minLeft = Math.min(...positions.map((p) => p.left)) - padding
-      const minTop = Math.min(...positions.map((p) => p.top)) - padding
-      const maxRight = Math.max(...positions.map((p) => p.right)) + padding
-      const maxBottom = Math.max(...positions.map((p) => p.bottom)) + padding
-
-      return {
-        entity,
-        x: minLeft,
-        y: minTop,
-        width: maxRight - minLeft,
-        height: maxBottom - minTop,
-        color: entityColor(entity),
-      }
-    })
-  }, [internalNodes])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: WorkbenchNode) => {
     setSelectedNode(node.id)
@@ -958,29 +913,6 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
           nodeColor={(node) => getNodeEdgeColor((node.data as WorkbenchNode['data']).visualKind)}
         />
         <ViewportPortal>
-          {groupedEntities.map((group) => (
-            <div
-              key={group.entity}
-              className="pointer-events-none absolute rounded-[28px] border border-dashed"
-              style={{
-                transform: `translate(${group.x}px, ${group.y}px)`,
-                width: group.width,
-                height: group.height,
-                backgroundColor: group.color.replace('rgb', 'rgba').replace(')', ', 0.08)'),
-                borderColor: group.color.replace('rgb', 'rgba').replace(')', ', 0.32)'),
-              }}
-            >
-              <span
-                className="absolute left-4 top-3 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{
-                  backgroundColor: group.color.replace('rgb', 'rgba').replace(')', ', 0.14)'),
-                  color: group.color,
-                }}
-              >
-                {group.entity}
-              </span>
-            </div>
-          ))}
           {guideLines.map((guide, index) => (
             <div
               key={`${guide.axis}-${index}-${guide.value}`}

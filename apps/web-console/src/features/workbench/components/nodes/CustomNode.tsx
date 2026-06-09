@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
 import { Bot, CheckCircle2, Clock, Cpu, GitMerge, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { blendEntityColors } from '@/lib/colors'
 import { getNodeEdgeColor, getRuntimeState, type HandleSpec, type WorkbenchNodeData } from '../../lib/graph'
 import { AgentInterventionDialog } from '../AgentInterventionDialog'
 
@@ -133,7 +132,6 @@ export function CustomNode({ id, data, selected }: NodeProps) {
   const kindStyle = KIND_STYLES[node.visualKind]
   const Icon = KIND_ICONS[node.visualKind]
   const edgeColor = getNodeEdgeColor(node.visualKind)
-  const entityBorderColor = node.entities?.length ? blendEntityColors(node.entities) : undefined
   const title = node.alias || node.type_name
   const canIntervene = node.type === 'agent'
 
@@ -149,7 +147,6 @@ export function CustomNode({ id, data, selected }: NodeProps) {
         selected && 'outline outline-[3px] outline-offset-[5px] outline-cyan-300',
         node.retrying && 'ring-2 ring-amber-300/70',
       )}
-      style={entityBorderColor ? { boxShadow: `inset 3px 0 0 ${entityBorderColor}` } : undefined}
     >
       <StatusBadge status={node.status} />
       <RetryBadge active={node.retrying} />
