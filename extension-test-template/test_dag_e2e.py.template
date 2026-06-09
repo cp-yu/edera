@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+import os
+
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_extension_runtime_loads(extension_runtime):
+    assert extension_runtime.dags
+    assert extension_runtime.nodes
+    assert extension_runtime.entity_types
+
+
+@pytest.mark.asyncio
+async def test_dag_config(extension_runtime):
+    dag = next(iter(extension_runtime.dags.values()))
+
+    assert dag.nodes
+
+
+def test_agent_binary(mock_pi_binary):
+    pi = mock_pi_binary()
+
+    assert os.access(pi, os.X_OK)
+
+
+@pytest.mark.asyncio
+async def test_dag_execution(extension_runtime, mock_pi_binary):
+    from edera_core.dag.loader import load_graph
+    from edera_core.dag.runner import DagRunner
+    from edera_core.node.executor import NodeExecutor
+    from edera_core.snapshot import DagExecutionSnapshot
+    from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+
+    pi = mock_pi_binary()
+    dag = next(iter(extension_runtime.dags.values()))
+    engine = create_engine(sqlite_url(".edera-test/runtime.db"))
+    await init_db(engine)
+    try:
+        factory = session_factory(engine)
+        async with factory() as session:
+            snapshot = await DagExecutionSnapshot.create(
+                dag,
+                extension_runtime.nodes,
+                extension_runtime.entity_types,
+                session,
+                ".edera-test/handlers",
+                skills=extension_runtime.skills,
+            )
+        executor = NodeExecutor(
+            extension_runtime.nodes,
+            extension_runtime.system,
+            extension_runtime.runtime.model_copy(update={"pi_bin": str(pi)}),
+            snapshot,
+        )
+        graph = load_graph(dag, extension_runtime.nodes, extension_runtime.dags)
+
+        result = await DagRunner(executor, dags=extension_runtime.dags, nodes=extension_runtime.nodes).run(
+            graph,
+            "test-run",
+            {},
+        )
+    finally:
+        await engine.dispose()
+
+    assert result is not None

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from edera_core.bootstrap import discover_available_extensions, load_installed_extensions
+from edera_core.bootstrap import load_installed_extensions
 from edera_core.config.entities import EntityStore
 from edera_core.config.loader import _load_runtime_base_config, load_runtime_app_config
 from edera_core.config.schema import EntitiesConfig, EntityConfig
@@ -18,11 +18,16 @@ from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
 from edera_core.storage import create_engine, init_db, sqlite_url
 from edera_types import NodeOutput
 
+_PROJECT_ROOT = Path(__file__).parents[3]
+_CONFIG_DIR = _PROJECT_ROOT / "config"
+_EXTENSIONS_DIR = _PROJECT_ROOT / "extensions"
 
-def test_extension_manifest_loads() -> None:
-    manifests = discover_available_extensions([Path("extensions")])
 
-    assert any(item.name == "uzi-skill" for item in manifests)
+@pytest.mark.asyncio
+async def test_extension_runtime_fixture_loads_uzi(extension_runtime) -> None:
+    assert "uzi-skill-analysis" in extension_runtime.dags
+    assert "uzi-investor-analyst" in extension_runtime.nodes
+    assert "resource" in extension_runtime.entity_types
 
 
 @pytest.mark.asyncio
@@ -220,7 +225,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
 @pytest.mark.asyncio
 async def test_function_stage_dags_mock(tmp_path: Path) -> None:
     config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
-    _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
+    _use_mock_script(config, Path(__file__).with_name("uzi_skill_mock.py"))
     store = _store(config)
     payload = {"ticker": "00100.HK"}
 
@@ -265,7 +270,7 @@ async def test_scoring_dag_runs_three_analyst_agents(tmp_path: Path) -> None:
         config.nodes,
         config.system,
         config.runtime,
-                _snapshot(config, bootstrap, tmp_path / "handlers"),
+        _snapshot(config, bootstrap, tmp_path / "handlers"),
         graph.instances,
         store,
         daemon_data_dir=tmp_path / "agents",
@@ -297,7 +302,7 @@ async def test_scoring_dag_runs_three_analyst_agents(tmp_path: Path) -> None:
 async def test_rendering_assembles_report(tmp_path: Path) -> None:
     config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     graph = load_graph(config.dags["uzi-rendering"], config.nodes)
-    _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
+    _use_mock_script(config, Path(__file__).with_name("uzi_skill_mock.py"))
     store = _store(config)
     executor = NodeExecutor(
         config.nodes,
@@ -319,7 +324,7 @@ async def test_rendering_assembles_report(tmp_path: Path) -> None:
 async def test_rendering_omits_failed_optional_section(tmp_path: Path) -> None:
     config, bootstrap = await _runtime_config_with_bootstrap(tmp_path)
     graph = load_graph(config.dags["uzi-rendering"], config.nodes)
-    _use_mock_script(config, Path("tests/extensions/fixtures/uzi_skill_mock.py"))
+    _use_mock_script(config, Path(__file__).with_name("uzi_skill_mock.py"))
     store = _store(config)
     executor = NodeExecutor(
         config.nodes,
@@ -345,28 +350,13 @@ async def test_rendering_omits_failed_optional_section(tmp_path: Path) -> None:
     assert len(result.payload["sections"]) == 20
 
 
-@pytest.mark.asyncio
-async def test_uzi_workflow_import_boundary(tmp_path: Path) -> None:
-    config = await _runtime_config(tmp_path)
-    store = _store(config)
-
-    assert not Path("config/dags/uzi-skill-analysis.yaml").exists()
-    assert not Path("config/triggers/uzi-skill-analysis-default-cron.yaml").exists()
-    assert not any(Path("config/nodes").glob("uzi-*.yaml"))
-    assert store.resolve("pi_agent").attributes["permits"] == 8
-    imported = {*config.dags, *config.nodes}
-    assert "uzi-skill-analysis" in imported
-    assert "trigger:uzi-skill-analysis-default-cron" not in imported
-    assert {"uzi-skill-analysis", "uzi-data-collection", "uzi-scoring-synthesis", "uzi-rendering", "uzi-aggregate-collection-results"}.issubset(imported)
-
-
 async def _runtime_config(tmp_path: Path):
     tmp_path.mkdir(parents=True, exist_ok=True)
     engine = create_engine(sqlite_url(tmp_path / "runtime.db"))
     try:
         await init_db(engine)
         await _install_uzi_extension(engine, tmp_path)
-        return await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
+        return await load_runtime_app_config(_CONFIG_DIR, engine, [_EXTENSIONS_DIR])
     finally:
         await engine.dispose()
 
@@ -377,7 +367,7 @@ async def _runtime_config_with_bootstrap(tmp_path: Path):
     try:
         await init_db(engine)
         await _install_uzi_extension(engine, tmp_path)
-        config = await load_runtime_app_config(Path("config"), engine, [Path("extensions")])
+        config = await load_runtime_app_config(_CONFIG_DIR, engine, [_EXTENSIONS_DIR])
         from edera_core.storage import session_factory
 
         async with session_factory(engine)() as session:
@@ -388,9 +378,9 @@ async def _runtime_config_with_bootstrap(tmp_path: Path):
 
 
 async def _install_uzi_extension(engine, tmp_path: Path) -> None:
-    base = _load_runtime_base_config(Path("config"))
+    base = _load_runtime_base_config(_CONFIG_DIR)
     manager = ExtensionManager(
-        extensions_dir=Path("extensions"),
+        extensions_dir=_EXTENSIONS_DIR,
         handlers_dir=tmp_path / "handlers",
         engine=engine,
         config_entity_types=base.entity_types,

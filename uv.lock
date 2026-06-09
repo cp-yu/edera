@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "edera-core",
+    "edera-testing",
     "edera-types",
 ]
 
@@ -403,6 +404,25 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.6.8" },
+]
+
+[[package]]
+name = "edera-testing"
+version = "0.1.0"
+source = { editable = "packages/edera-testing" }
+dependencies = [
+    { name = "edera-core" },
+    { name = "edera-types" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "edera-core", editable = "packages/core" },
+    { name = "edera-types", editable = "packages/core-types" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
 ]
 
 [[package]]

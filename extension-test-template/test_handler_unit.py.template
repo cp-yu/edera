@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+from edera_testing import assert_handler_signature
+
+
+def load_handler(path: Path):
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_handler_signature():
+    handler = load_handler(Path("handler.py"))
+
+    assert_handler_signature(handler)
+
+
+@pytest.mark.asyncio
+async def test_handler_call(mock_handler_context):
+    handler = load_handler(Path("handler.py"))
+    ctx = mock_handler_context(params={"ticker": "00100.HK"}, input_payload={"source": "test"})
+
+    result = await handler.run(ctx)
+
+    assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_handler_error(mock_handler_context):
+    handler = load_handler(Path("handler.py"))
+    ctx = mock_handler_context(params={"invalid": True})
+
+    with pytest.raises(Exception):
+        await handler.run(ctx)

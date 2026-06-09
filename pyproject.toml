@@ -2,6 +2,7 @@
 members = [
     "packages/core",
     "packages/core-types",
+    "packages/edera-testing",
 ]
 
 [tool.ruff]
@@ -16,7 +17,7 @@ exclude = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["edera_core", "edera_types"]
+packages = ["edera_core", "edera_types", "edera_testing"]
 
 [[tool.mypy.overrides]]
 module = [

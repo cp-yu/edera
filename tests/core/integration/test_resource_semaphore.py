@@ -64,16 +64,7 @@ async def _install_default_extensions(engine, handlers_dir: Path, entity_types: 
         engine=engine,
         config_entity_types=entity_types,
     )
-    for name in [
-        "rss-fetcher",
-        "api-fetcher",
-        "reader",
-        "advisor",
-        "briefing-generator",
-        "notifier",
-        "default-news-workflow",
-    ]:
-        await manager.install(name)
+    await manager.install("default-news-workflow")
 
 
 def _test_snapshot(handlers: dict[str, object]) -> DagExecutionSnapshot:
@@ -90,6 +81,9 @@ def _test_snapshot(handlers: dict[str, object]) -> DagExecutionSnapshot:
             encoding="utf-8",
         )
         entries[name] = HandlerMeta(path)
+        namespaced = _default_workflow_handler_name(name)
+        if namespaced is not None:
+            entries[namespaced] = HandlerMeta(path)
     return DagExecutionSnapshot(
         DagExecutionClosure("test", {}, {}),
         {},
@@ -97,6 +91,20 @@ def _test_snapshot(handlers: dict[str, object]) -> DagExecutionSnapshot:
         {},
         {},
     )
+
+
+def _default_workflow_handler_name(name: str) -> str | None:
+    provider = {
+        "fetch-rss": "rss-fetcher",
+        "fetch-api": "api-fetcher",
+        "fetch-web": "web-scraper",
+        "summarize": "reader",
+        "classify-sentiment": "reader",
+        "generate-advice": "advisor",
+        "generate-briefing": "briefing-generator",
+        "notify-ntfy": "notifier",
+    }.get(name)
+    return f"default-news-workflow.{provider}.{name}" if provider else None
 
 
 def test_get_semaphore_caches() -> None:

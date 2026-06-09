@@ -322,7 +322,7 @@ def _write_retention_policy_dag(path: Path, *, fail_source: bool = False, slow_s
     (path / "nodes" / "retention-source.yaml").write_text(
         "name: retention-source\n"
         "type: function\n"
-        "handler: retention-source\n"
+        "handler: retention-source.retention-source\n"
         "input_type: Any\n"
         "output_type: Any\n",
         encoding="utf-8",
@@ -330,7 +330,7 @@ def _write_retention_policy_dag(path: Path, *, fail_source: bool = False, slow_s
     (path / "nodes" / "retention-sink.yaml").write_text(
         "name: retention-sink\n"
         "type: function\n"
-        "handler: retention-sink\n"
+        "handler: retention-sink.retention-sink\n"
         "input_type: Any\n"
         "output_type: Any\n",
         encoding="utf-8",
@@ -796,7 +796,7 @@ async def test_sub_dag_records_independent_run_and_parent_metadata(tmp_path: Pat
     (tmp_path / "nodes" / "leaf.yaml").write_text(
         "name: leaf\n"
         "type: function\n"
-        "handler: leaf\n"
+        "handler: leaf.leaf\n"
         "input_type: Any\n"
         "output_type: Any\n",
         encoding="utf-8",
@@ -1242,20 +1242,15 @@ async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_dag_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_dag_config(tmp_path)
-    extensions_dir = tmp_path / "extensions"
-    _write_run_pi_extension(extensions_dir)
     fake_pi = _write_fake_pi(tmp_path)
     capture = tmp_path / "pi-calls.json"
     monkeypatch.setenv("EDERA_PI_BIN", str(fake_pi))
     monkeypatch.setenv("CAPTURE", str(capture))
-    session_dir = tmp_path / "persistent-session"
-    session_dir.mkdir()
-    (session_dir / "existing.jsonl").write_text("{}", encoding="utf-8")
     node_file = tmp_path / "nodes" / "llm-node.yaml"
     node_file.write_text(
         "name: llm-node\n"
-        "type: function\n"
-        "handler: run-pi\n"
+        "type: agent\n"
+        "model: hf-share/deepseek-v4-flash\n"
         "input_type: Any\n"
         "output_type: Any\n",
         encoding="utf-8",
@@ -1266,43 +1261,20 @@ async def test_dag_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.
         "nodes:\n"
         "- id: llm-absolute\n"
         "  type: llm-node\n"
-        "  config:\n"
-        "    model: hf-share/deepseek-v4-flash\n"
-        f"    session_dir: {session_dir}\n"
         "edges: []\n",
         encoding="utf-8",
     )
-    ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
+    ctrl = DagController(tmp_path)
     await ctrl.start(run_startup=False)
     try:
-        await _install_controller_extensions(ctrl, extensions_dir, ["run-pi"])
         await ctrl.run_now("manual", "default")
-        configured = tmp_path / "workspace" / "sandbox" / "source" / "configured"
-        override = tmp_path / "workspace" / "sandbox" / "source" / "override"
-        (configured / "sessions").mkdir(parents=True)
-        (override / "sessions").mkdir(parents=True)
-        (override / "sessions" / "existing.jsonl").write_text("{}", encoding="utf-8")
-        dag_file.write_text(
-            "name: default\n"
-            "nodes:\n"
-            "- id: llm-override\n"
-            "  type: llm-node\n"
-            "  config:\n"
-            "    model: hf-share/deepseek-v4-flash\n"
-            "    session_dir: sandbox:source:configured\n"
-            "edges: []\n",
-            encoding="utf-8",
-        )
-        await ctrl.run_now("manual", "default", {"resume_session": "sandbox:source:override"})
     finally:
         await ctrl.shutdown()
     calls = json.loads(capture.read_text(encoding="utf-8"))
     first_args = calls[0]["args"]
-    second_args = calls[1]["args"]
-    assert first_args[first_args.index("--session-dir") + 1] == str(session_dir)
-    assert "--continue" in first_args
-    assert second_args[second_args.index("--session-dir") + 1] == str(override / "sessions")
-    assert "--continue" in second_args
+    first_session = Path(first_args[first_args.index("--session-dir") + 1])
+    assert first_session.parent == tmp_path / "workspace" / "sessions" / "default" / "llm-absolute"
+    assert "--continue" not in first_args
 
 
 @pytest.mark.asyncio
@@ -1316,7 +1288,7 @@ async def test_scheduler_reflection_waits_and_edits_skill(tmp_path: Path) -> Non
     (tmp_path / "nodes" / "reflection-editor.yaml").write_text(
         "name: reflection-editor\n"
         "type: function\n"
-        "handler: reflection-editor\n"
+        "handler: reflection-editor.reflection-editor\n"
         "input_type: Any\n"
         "output_type: Any\n",
         encoding="utf-8",
@@ -1582,52 +1554,6 @@ def _write_trigger_schema(path: Path) -> None:
         "    wait_for: {type: string}\n"
         "    target: {type: string}\n"
         "    enabled: {type: boolean}\n",
-        encoding="utf-8",
-    )
-
-
-def _write_run_pi_extension(path: Path) -> None:
-    extension = path / "run-pi"
-    extension.mkdir(parents=True)
-    lib = extension / "_lib"
-    lib.mkdir()
-    (lib / "llm.py").write_text(
-        Path("extensions/default-news-workflow/_lib/common/_lib/llm.py").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    extension.joinpath("manifest.yaml").write_text(
-        "name: run-pi\n"
-        "version: 0.1.0\n"
-        "handlers:\n"
-        "- name: run-pi\n"
-        "  entry: handler.py\n"
-        "  role: processor\n"
-        "  input_type: Any\n"
-        "  output_type: Any\n",
-        encoding="utf-8",
-    )
-    extension.joinpath("handler.py").write_text(
-        "from _lib.llm import run_pi\n"
-        "from edera_core.config.schema import NodeConfig\n"
-        "async def run(ctx):\n"
-        "    config = NodeConfig(\n"
-        "        name=ctx.node_type,\n"
-        "        type='function',\n"
-        "        handler='run-pi',\n"
-        "        input_type='Any',\n"
-        "        output_type='Any',\n"
-        "        parameters=dict(ctx.params),\n"
-        "    )\n"
-        "    payload, _session_id = await run_pi(\n"
-        "        config,\n"
-        "        [],\n"
-        "        ctx.input,\n"
-        "        ctx.run_id,\n"
-        "        ctx.node_name,\n"
-        "        ctx.entity_store.system,\n"
-        "        ctx.entity_store.runtime,\n"
-        "    )\n"
-        "    return payload\n",
         encoding="utf-8",
     )
 

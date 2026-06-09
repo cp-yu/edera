@@ -27,6 +27,8 @@ from edera_core.storage.repository import (
     seed_entity_type_records,
 )
 
+_HANDLER_PACKAGE_EXCLUDED = {"manifest.yaml", "entities", "_lib", "_providers"}
+
 
 class ExtensionManager:
     def __init__(
@@ -149,21 +151,10 @@ class ExtensionManager:
         return entity_types
 
     def _copy_handlers(self, root: Path, manifest: ExtensionManifest) -> None:
-        if not [item for item in root.iterdir() if item.name not in {"manifest.yaml", "entities", "_lib", "_providers"}]:
+        if not [item for item in root.iterdir() if item.name not in _HANDLER_PACKAGE_EXCLUDED]:
             return
         for handler in manifest.handlers:
-            target = self.handlers_dir / f"{manifest.name}.{handler.name}"
-            if target.exists():
-                shutil.rmtree(target)
-            target.mkdir(parents=True, exist_ok=True)
-            for item in root.iterdir():
-                if item.name in {"manifest.yaml", "entities", "_lib", "_providers"}:
-                    continue
-                destination = target / item.name
-                if item.is_dir():
-                    shutil.copytree(item, destination)
-                else:
-                    shutil.copy2(item, destination)
+            self._copy_handler_package(root, self.handlers_dir / f"{manifest.name}.{handler.name}")
         shared = root / "_lib"
         if shared.exists():
             lib_target = self.handlers_dir / "_lib"
@@ -179,18 +170,20 @@ class ExtensionManager:
 
     def _copy_provider_handlers(self, plan: "_InstallPlan") -> None:
         for provider in plan.providers:
-            target = self.handlers_dir / provider.package
-            if target.exists():
-                shutil.rmtree(target)
-            target.mkdir(parents=True, exist_ok=True)
-            for item in provider.root.iterdir():
-                if item.name in {"manifest.yaml", "entities", "_lib", "_providers"}:
-                    continue
-                destination = target / item.name
-                if item.is_dir():
-                    shutil.copytree(item, destination)
-                else:
-                    shutil.copy2(item, destination)
+            self._copy_handler_package(provider.root, self.handlers_dir / provider.package)
+
+    def _copy_handler_package(self, source: Path, target: Path) -> None:
+        if target.exists():
+            shutil.rmtree(target)
+        target.mkdir(parents=True, exist_ok=True)
+        for item in source.iterdir():
+            if item.name in _HANDLER_PACKAGE_EXCLUDED:
+                continue
+            destination = target / item.name
+            if item.is_dir():
+                shutil.copytree(item, destination)
+            else:
+                shutil.copy2(item, destination)
 
     def _copy_libraries(self, root: Path, name: str, libraries: list[Path]) -> None:
         for source in libraries:
