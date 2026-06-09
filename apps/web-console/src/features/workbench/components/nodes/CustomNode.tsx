@@ -62,7 +62,7 @@ function StatusBadge({ status }: { status?: string }) {
           ? 'bg-red-500 shadow-[0_0_0_4px_rgba(220,38,38,0.16)]'
           : 'bg-slate-400 shadow-[0_0_0_4px_rgba(148,163,184,0.16)]'
 
-  return <span className={cn('absolute left-3 top-3 h-3 w-3 rounded-full', tone)} />
+  return <span className={cn('h-3 w-3 shrink-0 rounded-full', tone)} />
 }
 
 function RetryBadge({ active }: { active?: boolean }) {
@@ -148,7 +148,6 @@ export function CustomNode({ id, data, selected }: NodeProps) {
         node.retrying && 'ring-2 ring-amber-300/70',
       )}
     >
-      <StatusBadge status={node.status} />
       <RetryBadge active={node.retrying} />
       <SelectionBadge active={selected} />
       <HandleRail
@@ -159,12 +158,13 @@ export function CustomNode({ id, data, selected }: NodeProps) {
       />
       <HandleRail handles={node.outputHandles} position={Position.Right} color={edgeColor} />
 
-      <div className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em]', kindStyle.header)}>
+      <div className={cn('rounded-t-2xl px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em]', kindStyle.header)}>
         <div className="flex items-center gap-2">
           <Icon size={14} strokeWidth={2.2} />
           <span data-node-type-context className="min-w-0 flex-1 truncate">
             {node.type_name}
           </span>
+          <StatusBadge status={node.status} />
         </div>
       </div>
       <div className="space-y-3 px-4 py-3">
