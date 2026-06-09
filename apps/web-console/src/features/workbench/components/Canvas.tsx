@@ -8,6 +8,7 @@ import {
   MarkerType,
   useReactFlow,
   useViewport,
+  useNodes,
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
@@ -139,6 +140,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const saveDag = useSaveDag(dagName)
   const retryNode = useRetryDagNode()
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
+  const internalNodes = useNodes<WorkbenchNode>()
   const viewport = useViewport()
   const canvasRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<number | null>(null)
@@ -506,7 +508,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const groupedEntities = useMemo(() => {
     const groups = new Map<string, WorkbenchNode[]>()
 
-    for (const node of nodes) {
+    for (const node of internalNodes) {
       for (const entity of node.data.entities ?? []) {
         const list = groups.get(entity) ?? []
         list.push(node)
@@ -514,22 +516,25 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
       }
     }
 
+    const padding = 30
     return Array.from(groups.entries()).map(([entity, groupedNodes]) => {
-      const padding = 30
       const positions = groupedNodes.map((node) => {
         const size = getNodeSize(node.data.visualKind)
+        const width = node.measured?.width ?? node.width ?? size.width
+        const height = node.measured?.height ?? node.height ?? size.height
+
         return {
           left: node.position.x,
           top: node.position.y,
-          right: node.position.x + size.width,
-          bottom: node.position.y + size.height,
+          right: node.position.x + width,
+          bottom: node.position.y + height,
         }
       })
 
-      const minLeft = Math.min(...positions.map((item) => item.left)) - padding
-      const minTop = Math.min(...positions.map((item) => item.top)) - padding
-      const maxRight = Math.max(...positions.map((item) => item.right)) + padding
-      const maxBottom = Math.max(...positions.map((item) => item.bottom)) + padding
+      const minLeft = Math.min(...positions.map((p) => p.left)) - padding
+      const minTop = Math.min(...positions.map((p) => p.top)) - padding
+      const maxRight = Math.max(...positions.map((p) => p.right)) + padding
+      const maxBottom = Math.max(...positions.map((p) => p.bottom)) + padding
 
       return {
         entity,
@@ -540,7 +545,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
         color: entityColor(entity),
       }
     })
-  }, [nodes])
+  }, [internalNodes])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: WorkbenchNode) => {
     setSelectedNode(node.id)

@@ -177,7 +177,7 @@ export function createWorkbenchNode(
     type: 'custom',
     position,
     data,
-    style: size,
+    style: { width: size.width },
   }
 }
 
