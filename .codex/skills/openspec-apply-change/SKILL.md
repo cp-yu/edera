@@ -47,7 +47,7 @@ Invoke reviewer subagent, persist `openspec verify phase1 "<change-name>" --inpu
 
 ### Phase 2: Optimize under checkpoint protection
 
-You MUST read `references/apply-phase2-optimization.md` before Phase 2. Checkpoints are git stash entries, not git tags. Respect `--skip-optimization`; read `optimization.optRetries`; create the initial stash checkpoint `apply-opt-checkpoint-r0` with git stash; invoke Optimizer subagent; use `openspec verify phase2`; record each failed direction.
+You MUST read `references/apply-phase2-optimization.md` before Phase 2. Checkpoints are git commits, not git stash entries or git tags. Respect `--skip-optimization`; read `optimization.optRetries`; create the initial checkpoint commit with `git add -A && git commit -m "wip: opt-checkpoint-r0 (baseline)"`; invoke Optimizer subagent; use `openspec verify phase2`; create an incremental checkpoint commit for each successful optimization round; record each failed direction.
 
 ### Phase 3: Seal final result
 

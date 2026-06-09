@@ -189,7 +189,7 @@ For each pending coarse task:
 
    - Skip Phase 2 only when the user requested `--skip-optimization` or `optimization.enabled: false`; record `SKIPPED` through `openspec verify phase2`
    - Read `optimization.optRetries` from `openspec/config.yaml`; default to `2`
-   - Before the first optimization attempt, create a checkpoint: `git stash push -u -m "apply-opt-checkpoint-r0"`
+   - Before the first optimization attempt, create a checkpoint commit: `git add -A && git commit -m "wip: opt-checkpoint-r0 (baseline)"`
    - Each complete proposal + patch + reviewer re-verify loop consumes one `optRetries` budget, whether it passes or fails
    - Format or Search/Replace matching problems are handled by the main agent and do not consume retry budget
    - Optimizer subagent: spawn and instruct to invoke the `openspec-optimizer` skill (loads full optimizer contract: role, constraints, optimization principles, Search/Replace format, failed directions protocol). Proposes Search/Replace blocks only; it MUST NOT edit files
@@ -197,9 +197,9 @@ For each pending coarse task:
      1. Main agent calls `openspec verify phase2 "<change-name>" --type=optimization --files "<affected-files>" --input '<json>'` to record `OPTIMIZATION_PROPOSED` with pre-patch file hashes (disk MUST still be in pre-patch state at this point)
      2. Main agent applies Search/Replace blocks atomically (disk transitions to post-patch state)
      3. Main agent spawns the reviewer subagent for speculative Phase 1 re-verification
-   - On speculative PASS, record `verification PASS`, and continue until no opportunities remain or `optRetries` is exhausted
-   - On speculative FAIL, restore the latest checkpoint with `git reset --hard HEAD`, `git clean -fd`, then `git stash apply stash@{0}`; record the failed direction in `.verify-result.json`
-   - When all attempts finish, consume all `apply-opt-checkpoint-*` stash entries only after the final safe workspace state is confirmed
+   - On speculative PASS, record `verification PASS`, create an incremental checkpoint commit for that successful round, then continue until no opportunities remain or `optRetries` is exhausted
+   - On speculative FAIL, restore the latest commit with `git reset --hard HEAD` and `git clean -fd`; record the failed direction in `.verify-result.json`
+   - When all attempts finish, keep all `wip: opt-*` commits as audit history
 
 **Simple Change Fast Path**:
 - You MUST spawn the optimizer subagent at least once for every change, including pure deletions, renames, or parameter removals
