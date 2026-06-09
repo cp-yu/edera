@@ -32,6 +32,11 @@ const fixtures = {
       model: 'hf-share/deepseek-v4-flash',
       system_prompt_file: 'prompts/advisor.md',
     }),
+    nodeType('agent-reader', 'agent', 'processor', 'list[RawItem]', 'AnalysisResult', {
+      model: 'hf-share/deepseek-v4-flash',
+      system_prompt_file: 'prompts/agent-reader.md',
+    }),
+    nodeType('approval-wait', 'wait', 'processor', 'AnalysisResult', 'AnalysisResult'),
     nodeType('notifier', 'function', 'sink', 'Advice', 'Any', {
       handler: 'notify-ntfy',
     }),
@@ -158,7 +163,7 @@ async function verifyGraphLogic(cdp) {
         role: 'processor',
         input_type: 'PriceTick',
         output_type: 'Any',
-        visualKind: 'aggregator',
+        visualKind: 'function',
         inputHandles: [],
         outputHandles: [],
       }
@@ -166,7 +171,7 @@ async function verifyGraphLogic(cdp) {
         ...reader,
         id: 'processor-target',
         input_type: 'PriceTick',
-        visualKind: 'processor',
+        visualKind: 'function',
         inputHandles: [],
         outputHandles: [],
       }
@@ -175,16 +180,26 @@ async function verifyGraphLogic(cdp) {
       const sourceHandles = graph.getHandleSpecs(source.id, source, [])
       const readerHandles = graph.getHandleSpecs(reader.id, reader, [])
       const sinkHandles = graph.getHandleSpecs(sink.id, sink, [])
-      const uziFetchKind = graph.getNodeKind({
-        ...reader,
-        name: 'uzi-fetch-basic',
-        type_name: 'uzi-fetch-basic',
-      })
-      const uziAssembleKind = graph.getNodeKind({
-        ...reader,
-        name: 'uzi-assemble-report',
-        type_name: 'uzi-assemble-report',
-      })
+      const handleEdges = [
+        { from: 'source-a', to: 'processor-a' },
+        { from: 'source-b', to: 'processor-a' },
+        { from: 'processor-a', to: 'sink-a' },
+        { from: 'processor-a', to: 'sink-b' },
+      ]
+      const processorFunction = { ...reader, id: 'processor-a', type: 'function', role: 'processor' }
+      const processorAgent = { ...reader, id: 'processor-a', type: 'agent', role: 'processor' }
+      const processorFunctionHandles = graph.getHandleSpecs(processorFunction.id, processorFunction, handleEdges)
+      const processorAgentHandles = graph.getHandleSpecs(processorAgent.id, processorAgent, handleEdges)
+      const visualKinds = {
+        functionSource: graph.getNodeKind({ ...source, type: 'function', role: 'source' }),
+        functionProcessor: graph.getNodeKind({ ...reader, type: 'function', role: 'processor' }),
+        functionSink: graph.getNodeKind({ ...sink, type: 'function', role: 'sink' }),
+        agentSource: graph.getNodeKind({ ...source, type: 'agent', role: 'source' }),
+        agentProcessor: graph.getNodeKind({ ...reader, type: 'agent', role: 'processor' }),
+        agentSink: graph.getNodeKind({ ...sink, type: 'agent', role: 'sink' }),
+        dag: graph.getNodeKind({ ...reader, type: 'dag', role: 'processor' }),
+        wait: graph.getNodeKind({ ...reader, type: 'wait', role: 'processor' }),
+      }
       const search = graph.filterSearchItems(
         graph.buildSearchItems(${JSON.stringify(fixtures.nodeTypes)}, [{ ...reader, alias: 'alias-hit' }]),
         'alias-hit',
@@ -200,7 +215,7 @@ async function verifyGraphLogic(cdp) {
             type_name: 'dag',
             dag_ref: 'common-subdag',
             input_mapping: { topic: 'payload.topic' },
-            visualKind: 'processor',
+            visualKind: 'dag',
             inputHandles: [],
             outputHandles: [],
           },
@@ -210,8 +225,18 @@ async function verifyGraphLogic(cdp) {
         sourceRoleHandles: sourceHandles.inputHandles.length === 0 && sourceHandles.outputHandles.length === 1,
         processorHandles: readerHandles.inputHandles.length === 1 && readerHandles.outputHandles.length === 1,
         sinkRoleHandles: sinkHandles.inputHandles.length === 1 && sinkHandles.outputHandles.length === 0,
-        uziFetchKind: uziFetchKind === 'fetcher',
-        uziAssembleKind: uziAssembleKind === 'aggregator',
+        functionKindAcrossRoles: visualKinds.functionSource === 'function'
+          && visualKinds.functionProcessor === 'function'
+          && visualKinds.functionSink === 'function',
+        agentKindAcrossRoles: visualKinds.agentSource === 'agent'
+          && visualKinds.agentProcessor === 'agent'
+          && visualKinds.agentSink === 'agent',
+        functionAgentVisualsDiffer: visualKinds.functionProcessor !== visualKinds.agentProcessor,
+        dagKind: visualKinds.dag === 'dag',
+        waitKind: visualKinds.wait === 'wait',
+        functionAgentHandlesMatch: JSON.stringify(processorFunctionHandles) === JSON.stringify(processorAgentHandles),
+        processorConnectivityHandles: processorFunctionHandles.inputHandles.length === 2
+          && processorFunctionHandles.outputHandles.length === 2,
         rejectsInputToSource: graph.isValidConnection(reader, source) === false,
         rejectsFunctionMismatch: graph.isValidConnection(source, functionTarget) === false,
         rejectsProcessorMismatch: graph.isValidConnection(source, processorTarget) === false,

@@ -495,7 +495,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
     const dagItems: SearchItem[] = dagCandidates.map((name) => ({
       name,
       type: 'dag',
-      kind: 'processor',
+      kind: 'dag',
       role: 'processor',
       aliases: [],
       source: 'dag',

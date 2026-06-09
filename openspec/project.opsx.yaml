@@ -49,7 +49,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.node-visual-system
-    intent: 节点视觉系统，覆盖 alias 优先的 Canvas 节点标题、类型差异化外观、动态 Handle、运行状态 badge 和分组可视化
+    intent: 节点视觉系统，覆盖 alias 优先的 Canvas 节点标题、type-driven 视觉家族、role-driven 动态 Handle、运行状态 badge 和分组可视化
     type: capability
     domain: dom.web
   - id: cap.web.graph-layout-engine
