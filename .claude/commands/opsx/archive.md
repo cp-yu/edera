@@ -43,10 +43,10 @@ Before archiving, run `openspec config project --json` and consume git policy fr
    Create `openspec/changes/archive`, fail if `YYYY-MM-DD-<change-name>` exists, then move the change directory there. Preserve `.openspec.yaml`.
 
 7. **Create archive commit**
-   If `git.autoCommit: manual`, skip archive commit, merge, and cleanup; report manual status and leave the moved/synced files in the worktree. Otherwise add only the archive/synced paths and run `git commit -F -` with the fixed docs-style archive message using `git.archive.commitMessage.convention`. Record `git rev-parse HEAD`.
+   If `git.autoCommit: manual`, skip archive commit, merge, and cleanup; report manual status and leave the moved/synced files in the worktree. Otherwise read `references/archive-commit-message.md` before creating the archive commit, add only the archive/synced paths, and run `git commit -F -` with the fixed docs-style archive message using `git.archive.commitMessage.convention`. Record `git rev-parse HEAD`.
 
 8. **Merge archived branch**
-   After Step 7, apply the compiled merge strategy: `git merge --no-ff --no-commit` then `git commit -F -`, or `git merge --ff-only`, or `git merge --squash` then `git commit -F -`. Use `git.merge.commitMessage.convention` for merge/squash commit messages. On conflicts run `git merge --abort`, preserve the archive commit, and report recovery. Record merge SHA/status.
+   After Step 7, apply the compiled merge strategy: `git merge --no-ff --no-commit` then `git commit -F -`, or `git merge --ff-only`, or `git merge --squash` then `git commit -F -`. Read `references/merge-summary-message.md` before creating a merge or squash commit message, and use `git.merge.commitMessage.convention` for that message. On conflicts run `git merge --abort`, preserve the archive commit, and report recovery. Record merge SHA/status.
 
 9. **Cleanup feature branch and worktree**
    Read archived `.apply-isolation.json`. Resolve missing `originalBranch` with `git symbolic-ref refs/remotes/origin/HEAD --short` or ask. Never silently remove worktrees or switch branches. If deletion is enabled and non-squash, confirm merged with `git branch --merged` before branch deletion. Build paths with `path.join()`, `path.resolve()`, and `path.normalize()`.
