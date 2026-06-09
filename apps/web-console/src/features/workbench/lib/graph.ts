@@ -1,7 +1,7 @@
 import type { Edge, Node, XYPosition } from '@xyflow/react'
 import type { DagEdge, DagNodeRecord, DagState, NodeInstance, NodeRole, NodeType, RuntimeStatus } from '@/api/types'
 
-export type NodeKind = 'fetcher' | 'processor' | 'aggregator' | 'unknown'
+export type NodeKind = 'function' | 'agent' | 'dag' | 'wait' | 'unknown'
 export type RuntimeNodeState = 'pending' | 'running' | 'succeeded' | 'failed'
 
 export interface HandleSpec {
@@ -67,16 +67,18 @@ type EdgeLike =
   | Pick<WorkbenchEdge, 'source' | 'target'>
 
 const NODE_SIZE: Record<NodeKind, { width: number; height: number }> = {
-  fetcher: { width: 220, height: 104 },
-  processor: { width: 240, height: 112 },
-  aggregator: { width: 230, height: 108 },
+  function: { width: 230, height: 108 },
+  agent: { width: 248, height: 116 },
+  dag: { width: 240, height: 112 },
+  wait: { width: 220, height: 104 },
   unknown: { width: 220, height: 104 },
 }
 
 const NODE_COLORS: Record<NodeKind, { edge: string }> = {
-  fetcher: { edge: '#2563eb' },
-  processor: { edge: '#7c3aed' },
-  aggregator: { edge: '#16a34a' },
+  function: { edge: '#2563eb' },
+  agent: { edge: '#7c3aed' },
+  dag: { edge: '#16a34a' },
+  wait: { edge: '#ca8a04' },
   unknown: { edge: '#64748b' },
 }
 
@@ -84,12 +86,11 @@ export function getDraftStorageKey(dagName: string): string {
   return `workbench:draft:${dagName}`
 }
 
-export function getNodeKind(node: Pick<NodeType, 'name' | 'type' | 'role'>): NodeKind {
-  if (node.name === 'uzi-preflight' || node.name.startsWith('uzi-fetch-')) return 'fetcher'
-  if (node.name === 'uzi-assemble-report') return 'aggregator'
-  if (node.role === 'source') return 'fetcher'
-  if (node.role === 'processor') return 'processor'
-  if (node.type === 'function') return 'aggregator'
+export function getNodeKind(node: Pick<NodeType, 'type'>): NodeKind {
+  if (node.type === 'function') return 'function'
+  if (node.type === 'agent') return 'agent'
+  if (node.type === 'dag') return 'dag'
+  if (node.type === 'wait') return 'wait'
   return 'unknown'
 }
 

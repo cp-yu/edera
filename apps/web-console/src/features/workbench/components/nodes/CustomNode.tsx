@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
-import { CheckCircle2, Database, Cpu, GitMerge, MessageSquare } from 'lucide-react'
+import { Bot, CheckCircle2, Clock, Cpu, GitMerge, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { blendEntityColors } from '@/lib/colors'
 import { getNodeEdgeColor, getRuntimeState, type HandleSpec, type WorkbenchNodeData } from '../../lib/graph'
@@ -15,27 +15,33 @@ const handleBase = {
 } as const
 
 const KIND_ICONS = {
-  fetcher: Database,
-  processor: Cpu,
-  aggregator: GitMerge,
+  function: Cpu,
+  agent: Bot,
+  dag: GitMerge,
+  wait: Clock,
   unknown: GitMerge,
 } as const
 
 const KIND_STYLES = {
-  fetcher: {
+  function: {
     shell: 'border-blue-600/70 bg-slate-950/95 text-slate-50 shadow-blue-950/30',
     header: 'bg-blue-700/90 text-blue-50',
     accent: 'text-blue-200',
   },
-  processor: {
+  agent: {
     shell: 'border-violet-600/70 bg-slate-950/95 text-slate-50 shadow-violet-950/30',
     header: 'bg-violet-700/90 text-violet-50',
     accent: 'text-violet-200',
   },
-  aggregator: {
+  dag: {
     shell: 'border-emerald-600/70 bg-slate-950/95 text-slate-50 shadow-emerald-950/30',
     header: 'bg-emerald-700/90 text-emerald-50',
     accent: 'text-emerald-200',
+  },
+  wait: {
+    shell: 'border-amber-600/70 bg-slate-950/95 text-slate-50 shadow-amber-950/30',
+    header: 'bg-amber-700/90 text-amber-50',
+    accent: 'text-amber-200',
   },
   unknown: {
     shell: 'border-slate-600/70 bg-slate-950/95 text-slate-50 shadow-slate-950/30',

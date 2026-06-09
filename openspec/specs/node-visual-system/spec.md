@@ -9,22 +9,34 @@ capabilities:
 定义 Workbench 节点视觉系统，覆盖类型差异化外观、动态 Handle、运行状态 badge 和节点分组可视化。
 ## Requirements
 ### Requirement: Type-differentiated node appearance
-系统 SHALL 为不同类型的节点提供差异化的视觉外观，使大规模 DAG 场景下快速辨识节点类型。
+系统 SHALL 按节点 `type` 提供差异化视觉外观，使 function、agent、dag、wait 节点在 Workbench Canvas 中可快速辨识。节点 `role` SHALL NOT 改变视觉家族；`role` 仅用于 Handle 拓扑和 Palette 分组。
 
-#### Scenario: Fetcher node style
-- **WHEN** 画布渲染 type 为 `fetcher` 的节点
-- **THEN** 系统 SHALL 使用蓝色系配色和数据源图标
+#### Scenario: Function node style
+- **WHEN** 画布渲染 `type: function` 的节点
+- **THEN** 系统 SHALL 使用 function 视觉家族的图标、配色和卡片样式
 
-#### Scenario: LLM node style
-- **WHEN** 画布渲染 type 为 `llm` 的节点
-- **THEN** 系统 SHALL 使用紫色系配色和 AI 图标
+#### Scenario: Agent node style
+- **WHEN** 画布渲染 `type: agent` 的节点
+- **THEN** 系统 SHALL 使用不同于 function 的 agent 视觉家族图标、配色和卡片样式
 
-#### Scenario: Aggregator node style
-- **WHEN** 画布渲染 type 为 `aggregator` 的节点
-- **THEN** 系统 SHALL 使用绿色系配色和汇聚图标
+#### Scenario: DAG node style
+- **WHEN** 画布渲染 `type: dag` 的节点
+- **THEN** 系统 SHALL 使用 dag 视觉家族的图标、配色和卡片样式
+
+#### Scenario: Wait node style
+- **WHEN** 画布渲染 `type: wait` 的节点
+- **THEN** 系统 SHALL 使用 wait 视觉家族的图标、配色和卡片样式
+
+#### Scenario: Role does not change visual family
+- **WHEN** 画布分别渲染 `role: source`、`role: processor`、`role: sink` 且 `type` 相同的节点
+- **THEN** 系统 SHALL 保持相同的视觉家族
+
+#### Scenario: Agent intervention remains available
+- **WHEN** 画布渲染 `type: agent` 的节点
+- **THEN** 系统 SHALL 保留 agent intervention 入口
 
 ### Requirement: Dynamic handle generation
-系统 SHALL 根据节点 role 和连接关系动态生成 Handle：source 节点仅生成输出 Handle，sink 节点仅生成输入 Handle，processor 节点两侧均生成。
+系统 SHALL 根据节点 role 和连接关系动态生成 Handle：source 节点仅生成输出 Handle，sink 节点仅生成输入 Handle，processor 节点两侧均生成。节点 `type` SHALL NOT 改变 Handle 拓扑。
 
 #### Scenario: Source node handle generation
 - **WHEN** 画布渲染 `role: source` 的节点
@@ -37,6 +49,10 @@ capabilities:
 #### Scenario: Processor handle count follows connectivity
 - **WHEN** processor 节点存在 N 条入边或出边
 - **THEN** 系统 SHALL 在对应侧生成不少于 N 个 Handle，并保持均匀分布
+
+#### Scenario: Handle topology remains role-driven
+- **WHEN** function 与 agent 节点具有相同 `role` 和连接关系
+- **THEN** 系统 SHALL 为它们生成相同的 Handle 拓扑
 
 ### Requirement: Runtime status badge
 系统 SHALL 在节点左上角显示轻量运行状态 badge。
@@ -102,3 +118,4 @@ Canvas 中的自定义节点 SHALL 使用实例 `alias` 作为主标题；当 `a
 #### Scenario: Alias display does not change identity
 - **WHEN** Canvas 使用 `alias` 显示节点标题
 - **THEN** 系统 MUST 继续使用节点实例 UUID 作为 edge 的 `from` 和 `to` 引用
+

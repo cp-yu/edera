@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-06-09T03:48:55.276Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "7e0e2235cb1f4bac6855878b8e88bf6ed9a0cac77d7d3bbd81483be30df829cf",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "read-only workspace review; apps/web-console npm run verify passed",
+    "evidenceFiles": [
+      "apps/web-console/scripts/verify-node-instance-model.mjs",
+      "apps/web-console/src/features/workbench/components/Canvas.tsx",
+      "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+      "apps/web-console/src/features/workbench/lib/graph.ts",
+      "openspec/changes/differentiate-agent-function-node-visuals/design.md",
+      "openspec/changes/differentiate-agent-function-node-visuals/proposal.md",
+      "openspec/changes/differentiate-agent-function-node-visuals/specs/node-visual-system/spec.md",
+      "openspec/changes/differentiate-agent-function-node-visuals/tasks.md"
+    ],
+    "evidenceFingerprint": "e37be94aea21c5f54912417508a4528caab762bc8793c9f83d4b2f5e35acd317",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+        "hash": "0b974221146919b9846cede2e8fa5d2e1b22472630f4adc0d518fbe18ef26cbc"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+        "hash": "f9e071c6f3751cb1e137c198d007d2c1e50a76a481a99b8da771227ffde2285e"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+        "hash": "b2c9fe37a4650488df9e469065d04ea30d396d8c2e6031306a05ccc9dcdc468c"
+      },
+      {
+        "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+        "hash": "3364c25dd495dee0370d1ff0e4fd6483261391994a0764c6777bc6a0dc1dbf51"
+      },
+      {
+        "path": "openspec/changes/differentiate-agent-function-node-visuals/design.md",
+        "hash": "62a834a1bf82b281eb42d323517247eb0da7a65907ede606ae8775e553f7574f"
+      },
+      {
+        "path": "openspec/changes/differentiate-agent-function-node-visuals/proposal.md",
+        "hash": "87898200f4f774db03feb2cbe07a5a349f3c2b8a29e2b2c2036d80a441a0695a"
+      },
+      {
+        "path": "openspec/changes/differentiate-agent-function-node-visuals/specs/node-visual-system/spec.md",
+        "hash": "3790b0564a4f0ef81fd11e1e6aea716d4546c19fe9e1088d69c00ec55b707685"
+      },
+      {
+        "path": "openspec/changes/differentiate-agent-function-node-visuals/tasks.md",
+        "hash": "7e0e2235cb1f4bac6855878b8e88bf6ed9a0cac77d7d3bbd81483be30df829cf"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "70aeaf56ab4b9279739585696092297fe8997b13"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-09T03:51:03.314Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "目标文件已经以最小范围完成 type-driven 视觉迁移；未发现不偏离需求的行为保持优化。"
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-09T03:48:55.276Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "7e0e2235cb1f4bac6855878b8e88bf6ed9a0cac77d7d3bbd81483be30df829cf",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "read-only workspace review; apps/web-console npm run verify passed",
+        "evidenceFiles": [
+          "apps/web-console/scripts/verify-node-instance-model.mjs",
+          "apps/web-console/src/features/workbench/components/Canvas.tsx",
+          "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+          "apps/web-console/src/features/workbench/lib/graph.ts",
+          "openspec/changes/differentiate-agent-function-node-visuals/design.md",
+          "openspec/changes/differentiate-agent-function-node-visuals/proposal.md",
+          "openspec/changes/differentiate-agent-function-node-visuals/specs/node-visual-system/spec.md",
+          "openspec/changes/differentiate-agent-function-node-visuals/tasks.md"
+        ],
+        "evidenceFingerprint": "e37be94aea21c5f54912417508a4528caab762bc8793c9f83d4b2f5e35acd317",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "apps/web-console/scripts/verify-node-instance-model.mjs",
+            "hash": "0b974221146919b9846cede2e8fa5d2e1b22472630f4adc0d518fbe18ef26cbc"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/Canvas.tsx",
+            "hash": "f9e071c6f3751cb1e137c198d007d2c1e50a76a481a99b8da771227ffde2285e"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx",
+            "hash": "b2c9fe37a4650488df9e469065d04ea30d396d8c2e6031306a05ccc9dcdc468c"
+          },
+          {
+            "path": "apps/web-console/src/features/workbench/lib/graph.ts",
+            "hash": "3364c25dd495dee0370d1ff0e4fd6483261391994a0764c6777bc6a0dc1dbf51"
+          },
+          {
+            "path": "openspec/changes/differentiate-agent-function-node-visuals/design.md",
+            "hash": "62a834a1bf82b281eb42d323517247eb0da7a65907ede606ae8775e553f7574f"
+          },
+          {
+            "path": "openspec/changes/differentiate-agent-function-node-visuals/proposal.md",
+            "hash": "87898200f4f774db03feb2cbe07a5a349f3c2b8a29e2b2c2036d80a441a0695a"
+          },
+          {
+            "path": "openspec/changes/differentiate-agent-function-node-visuals/specs/node-visual-system/spec.md",
+            "hash": "3790b0564a4f0ef81fd11e1e6aea716d4546c19fe9e1088d69c00ec55b707685"
+          },
+          {
+            "path": "openspec/changes/differentiate-agent-function-node-visuals/tasks.md",
+            "hash": "7e0e2235cb1f4bac6855878b8e88bf6ed9a0cac77d7d3bbd81483be30df829cf"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "70aeaf56ab4b9279739585696092297fe8997b13"
+      }
+    }
+  }
+}
