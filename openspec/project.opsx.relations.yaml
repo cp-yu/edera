@@ -288,3 +288,24 @@ relations:
   - from: cap.core.extension-test-template
     type: contains
     to: dom.core
+  - from: cap.core.edera-cli-control-plane
+    type: contains
+    to: dom.core
+  - from: cap.core.edera-cli-control-plane
+    type: depends_on
+    to: cap.core.edera-cli
+  - from: cap.core.edera-cli-control-plane
+    type: depends_on
+    to: cap.core.grpc-graph-service
+  - from: cap.core.edera-cli-control-plane
+    type: depends_on
+    to: cap.core.grpc-config-service
+  - from: cap.core.edera-cli-control-plane
+    type: depends_on
+    to: cap.core.grpc-query-service
+  - from: cap.core.edera-cli-control-plane
+    type: depends_on
+    to: cap.core.grpc-control-services
+  - from: cap.core.edera-cli-control-plane
+    type: depends_on
+    to: cap.web.source-health-monitoring
