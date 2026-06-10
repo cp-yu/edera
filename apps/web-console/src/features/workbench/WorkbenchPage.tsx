@@ -11,7 +11,9 @@ export function WorkbenchPage() {
   const activeDagName = subDagView?.childDagName ?? selectedDagName
   const rootDag = useDag(selectedDagName)
   const activeDag = useDag(activeDagName)
-  const dagStatus = useDagStatus(selectedDagName, !!rootDag.data)
+  const rootDagData = (rootDag.isError || rootDag.data?.name !== selectedDagName) ? null : (rootDag.data ?? null)
+  const activeDagData = (activeDag.isError || activeDag.data?.name !== activeDagName) ? null : (activeDag.data ?? null)
+  const dagStatus = useDagStatus(selectedDagName, !!rootDagData)
   const isRunning = !!dagStatus.data?.current_run_id
   const childRun = useChildRun(subDagView?.parentRunId, subDagView?.parentNodeId)
   const childRunId = childRun.data?.child_run_id
@@ -21,12 +23,12 @@ export function WorkbenchPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 overflow-hidden">
-        <Palette dag={activeDag.data ?? null} excludedDagNames={[selectedDagName, activeDagName]} />
+        <Palette dag={activeDagData} excludedDagNames={[selectedDagName, activeDagName]} />
         <ReactFlowProvider>
           <div className="flex-1 relative">
             <Canvas
               dagName={activeDagName}
-              dag={activeDag.data ?? null}
+              dag={activeDagData}
               dagStatus={dagStatus.data ?? null}
               runtimeStatus={runtime.data ?? null}
               isRunning={isRunning}
@@ -35,12 +37,12 @@ export function WorkbenchPage() {
         </ReactFlowProvider>
         <Inspector
           dagName={activeDagName}
-          dag={activeDag.data ?? null}
+          dag={activeDagData}
           runtimeStatus={runtime.data ?? null}
           subDagRuntimeEmpty={subDagRuntimeEmpty}
         />
       </div>
-      <BottomToolbar dag={rootDag.data ?? null} dagStatus={dagStatus.data ?? null} isRunning={isRunning} />
+      <BottomToolbar dag={rootDagData} dagStatus={dagStatus.data ?? null} isRunning={isRunning} />
     </div>
   )
 }

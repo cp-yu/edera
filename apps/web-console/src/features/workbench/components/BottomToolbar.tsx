@@ -23,7 +23,7 @@ export function BottomToolbar({ dag, dagStatus, isRunning }: Props) {
   const [newDagName, setNewDagName] = useState('')
   const [temporaryInputs, setTemporaryInputs] = useState<TemporaryInputs>({})
   const [temporaryDialogOpen, setTemporaryDialogOpen] = useState(false)
-  const dagOptions = Array.from(new Set([...(dagList.data?.dags ?? ['default']), selectedDagName, dag?.name].filter(Boolean) as string[]))
+  const dagOptions = Array.from(new Set([...(dagList.data?.dags ?? []), ...(dag ? [dag.name] : [])].filter(Boolean) as string[]))
   const submitCreate = () => {
     const name = newDagName.trim()
     if (!name) return
