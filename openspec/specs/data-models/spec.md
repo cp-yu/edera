@@ -66,12 +66,8 @@ capabilities:
 - **WHEN** 用户查询特定 run 的简报
 - **THEN** 系统 SHALL 通过 `run_id` 字段过滤（如 `WHERE run_id = 'abc123'`）
 
-### Requirement: 数据库引擎与 Migration
-系统 SHALL 使用 SQLite（WAL 模式）+ aiosqlite 异步驱动，MUST 使用 Alembic 管理所有 schema 变更。
-
-#### Scenario: 初始 Migration
-- **WHEN** 首次运行 Alembic migration
-- **THEN** 创建所有表结构（raw_items、analysis_results、advices、briefings）
+### Requirement: 数据库引擎
+系统 SHALL 使用 SQLite（WAL 模式）+ aiosqlite 异步驱动，通过 SQLModel metadata.create_all 自动建表。
 
 #### Scenario: WAL 模式
 - **WHEN** 数据库引擎初始化

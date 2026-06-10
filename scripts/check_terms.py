@@ -66,7 +66,6 @@ SKIP_DIRS = {
 SKIP_PATH_PREFIXES = (
     Path("openspec/changes/archive"),
     Path("openspec/changes/terminology-unification"),
-    Path("alembic/versions"),
 )
 SKIP_PATHS = {Path("scripts/check_terms.py")}
 LINE_ALLOWLIST = {

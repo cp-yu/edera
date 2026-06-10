@@ -55,7 +55,6 @@ nodes:
       - path: schemas/entity-types/resource.yaml
   - id: cap.core.db-backed-core-entities
     refs:
-      - path: alembic/versions/0009_db_backed_core_entities.py
       - path: packages/core/src/edera_core/config/schema.py
       - path: packages/core/src/edera_core/service_common.py
       - path: packages/core/src/edera_core/storage/entities.py
@@ -195,7 +194,6 @@ nodes:
       - path: packages/core/src/edera_core/dag/runner.py
   - id: cap.data.data-models
     refs:
-      - path: alembic/versions
       - path: packages/core/src/edera_core/query_service.py
       - path: packages/core/src/edera_core/storage/database.py
       - path: packages/core/src/edera_core/storage/entities.py
@@ -412,7 +410,6 @@ nodes:
       - path: proto/edera.proto
   - id: dom.data
     refs:
-      - path: alembic/versions
       - path: packages/core/src/edera_core/query_service.py
       - path: packages/core/src/edera_core/storage
   - id: dom.operations

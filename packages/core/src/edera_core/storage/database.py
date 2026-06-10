@@ -26,11 +26,6 @@ def create_engine(database_url: str) -> AsyncEngine:
 async def init_db(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-        await _ensure_dag_retry_of(conn)
-        await _ensure_node_run_failure_kind(conn)
-        await _ensure_node_run_metadata(conn)
-        await _ensure_log_index_kind(conn)
-        await _ensure_entity_type_materialization_metadata(conn)
         result = await conn.execute(text("PRAGMA journal_mode"))
         mode = result.scalar_one()
         if str(mode).lower() != "wal":
@@ -57,39 +52,3 @@ def sqlite_url(path: str | Path) -> str:
     db_path = Path(path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return f"sqlite+aiosqlite:///{db_path}"
-
-
-async def _has_column(conn, table_name: str, column_name: str) -> bool:
-    result = await conn.execute(text(f"PRAGMA table_info({table_name})"))
-    return column_name in {row[1] for row in result.fetchall()}
-
-
-async def _ensure_dag_retry_of(conn) -> None:
-    if await _has_column(conn, "dag_runs", "retry_of"):
-        return
-    await conn.execute(text("ALTER TABLE dag_runs ADD COLUMN retry_of VARCHAR"))
-
-
-async def _ensure_node_run_failure_kind(conn) -> None:
-    if await _has_column(conn, "node_runs", "failure_kind"):
-        return
-    await conn.execute(text("ALTER TABLE node_runs ADD COLUMN failure_kind VARCHAR"))
-
-
-async def _ensure_node_run_metadata(conn) -> None:
-    if await _has_column(conn, "node_runs", "metadata"):
-        return
-    await conn.execute(text("ALTER TABLE node_runs ADD COLUMN metadata JSON NOT NULL DEFAULT '{}'"))
-
-
-async def _ensure_log_index_kind(conn) -> None:
-    if await _has_column(conn, "log_index", "kind"):
-        return
-    await conn.execute(text("ALTER TABLE log_index ADD COLUMN kind VARCHAR NOT NULL DEFAULT 'raw'"))
-
-
-async def _ensure_entity_type_materialization_metadata(conn) -> None:
-    for column, default in (("materialized_fields", "{}"), ("deprecated_fields", "[]")):
-        if await _has_column(conn, "entity_types", column):
-            continue
-        await conn.execute(text(f"ALTER TABLE entity_types ADD COLUMN {column} JSON NOT NULL DEFAULT '{default}'"))
