@@ -12,6 +12,9 @@
 | # | 任务 | 来源 | 状态 |
 |---|------|------|------|
 | 0.1 | CLI 补全 help 文档 | `todo/feat.md` | ⬜ |
+| | 0.1a · `harden-edera-cli-core-gaps` — 新增命令同步补齐 help 描述文字 | | ⬜ |
+| | 0.1b · `expand-edera-cli-control-plane` — 新暴露命令同步补齐 help 描述文字 | | ⬜ |
+| | 0.1c · `improve-edera-cli-operator-ux` — 统一 help 输出格式、shell completion 等 UX 层面 | | ⬜ |
 | 0.2 | `session_dir` 语义修正 — 控制存放 session 的路径，非 CLI 工作目录 | `todo.md` | ⬜ |
 | 0.3 | Extension 导入去重 — DB 记录已导入 extension，避免重复扫描覆写配置 | `todo/feat.md` | ⬜ |
 | 0.4 | Extension 卸载 API 设计（先设计，本期不强制实现） | `todo/feat.md` | ⬜ |

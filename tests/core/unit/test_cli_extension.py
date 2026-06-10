@@ -2,6 +2,7 @@ from pathlib import Path
 import tarfile
 
 import pytest
+import yaml
 
 from edera_core.cli import main
 
@@ -231,7 +232,7 @@ def test_export_workflow_extension_includes_providers_and_libraries(
 ) -> None:
     package = tmp_path / "workflow.tar.gz"
     handlers_dir = tmp_path / "handlers"
-    libs_dir = tmp_path / "libs"
+    libs_dir = handlers_dir / "_libs"
     (handlers_dir / "workflow.reader").mkdir(parents=True)
     (handlers_dir / "workflow.reader" / "handler.py").write_text("def run():\n    return None\n", encoding="utf-8")
     (libs_dir / "workflow.http_fetch").mkdir(parents=True)
@@ -251,7 +252,15 @@ def test_export_workflow_extension_includes_providers_and_libraries(
                         "providers": ["_providers/*/manifest.yaml"],
                         "libraries": ["_lib/http_fetch"],
                     },
-                    "handlers": [{"name": "workflow.reader.read", "package": "workflow.reader", "entry": "handler.py"}],
+                    "handlers": [
+                        {
+                            "name": "workflow.reader.read",
+                            "package": "workflow.reader",
+                            "entry": "handler.py",
+                            "role": "processor",
+                            "input_type": "Any",
+                        }
+                    ],
                 },
                 "import_records": [],
             }
@@ -281,5 +290,82 @@ def test_export_workflow_extension_includes_providers_and_libraries(
     assert '"warnings": []' in capsys.readouterr().out
     with tarfile.open(package, "r:gz") as archive:
         names = set(archive.getnames())
+        provider_manifest = archive.extractfile("workflow/_providers/reader/manifest.yaml")
+        assert provider_manifest is not None
+        assert yaml.safe_load(provider_manifest.read().decode("utf-8"))["handlers"][0]["name"] == "read"
         assert "workflow/_providers/reader/handler.py" in names
         assert "workflow/_lib/http_fetch/client.py" in names
+
+
+def test_export_workflow_extension_warns_for_missing_provider_or_library(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    package = tmp_path / "workflow.tar.gz"
+    handlers_dir = tmp_path / "handlers"
+    (handlers_dir / "workflow.reader").mkdir(parents=True)
+    (handlers_dir / "workflow.reader" / "handler.py").write_text("def run():\n    return None\n", encoding="utf-8")
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def extension_show(self, name: str) -> dict[str, object]:
+            return {
+                "manifest": {
+                    "name": name,
+                    "version": "0.1.0",
+                    "type": "workflow_extension",
+                    "imports": {
+                        "providers": ["_providers/reader/manifest.yaml", "_providers/missing/manifest.yaml"],
+                        "libraries": ["_lib/http_fetch"],
+                    },
+                    "handlers": [
+                        {
+                            "name": "workflow.reader.read",
+                            "package": "workflow.reader",
+                            "entry": "handler.py",
+                            "role": "processor",
+                            "input_type": "Any",
+                        },
+                        {
+                            "name": "workflow.missing.read",
+                            "package": "workflow.missing",
+                            "entry": "handler.py",
+                            "role": "processor",
+                            "input_type": "Any",
+                        },
+                    ],
+                },
+                "import_records": [],
+            }
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "edera",
+            "--server",
+            "127.0.0.1:0",
+            "extension",
+            "export",
+            "workflow",
+            "-o",
+            str(package),
+            "--handlers-dir",
+            str(handlers_dir),
+        ],
+    )
+
+    main()
+
+    output = capsys.readouterr().out
+    assert "provider code not included" in output
+    assert "library code not included" in output
+    with tarfile.open(package, "r:gz") as archive:
+        names = set(archive.getnames())
+        assert "workflow/_providers/reader/handler.py" in names

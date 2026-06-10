@@ -135,6 +135,8 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     output = subparsers.add_parser("output")
     output.add_argument("output_args", nargs="*")
     output.add_argument("--run-id")
+    output.add_argument("--node")
+    output.add_argument("--out", type=Path)
     logs = subparsers.add_parser("logs")
     logs.add_argument("node_id")
     logs.add_argument("--run-id", required=True)
@@ -182,6 +184,9 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     retry.add_argument("--nodes", default="")
     retry.add_argument("--mode", default="single")
     retry.add_argument("--payload", default="")
+    retry.add_argument("--source-shared-inputs", default="")
+    retry.add_argument("--node-inputs", default="")
+    retry.add_argument("--append-nodes", default="")
     edit = subparsers.add_parser("edit")
     edit.add_argument("dag_name")
     edit_sub = edit.add_subparsers(dest="edit_command", required=True)
@@ -213,6 +218,8 @@ def _system_parser(parser: argparse.ArgumentParser) -> None:
     subparsers.add_parser("pause-scheduler")
     subparsers.add_parser("resume-scheduler")
     subparsers.add_parser("scheduler-status")
+    repair_source = subparsers.add_parser("repair-source")
+    repair_source.add_argument("source_name")
 
 
 def _client_parser(parser: argparse.ArgumentParser) -> None:
@@ -439,6 +446,8 @@ async def _grpc_entity_type(args: argparse.Namespace) -> object:
 
 
 async def _grpc_node(args: argparse.Namespace) -> object:
+    if args.node_command == "output" and args.output_args[:1] == ["export"] and args.out is None:
+        raise ValueError("Missing required parameter: --out")
     client = GrpcClient(args.server, identity=args.identity)
     try:
         if args.node_command == "status":
@@ -448,6 +457,15 @@ async def _grpc_node(args: argparse.Namespace) -> object:
         if args.node_command == "resume":
             return await client.node_resume(args.node_id, args.run_id, args.prompt)
         if args.node_command == "output":
+            if args.output_args[:1] == ["export"]:
+                node_id = args.node or (args.output_args[1] if len(args.output_args) > 1 else None)
+                if not node_id:
+                    raise ValueError("node_id is required")
+                outputs = await client.node_output(node_id, args.run_id)
+                payloads = _node_output_payloads(outputs)
+                args.out.parent.mkdir(parents=True, exist_ok=True)
+                args.out.write_text(json.dumps(payloads, ensure_ascii=False, default=str), encoding="utf-8")
+                return {"exported": node_id, "run_id": args.run_id, "file": str(args.out), "entries": len(payloads)}
             node_id = args.output_args[1] if args.output_args[:1] == ["query"] and len(args.output_args) > 1 else None
             node_id = node_id or (args.output_args[0] if args.output_args else None)
             if not node_id:
@@ -503,15 +521,20 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
         if args.dag_command == "stop":
             return await client.dag_stop(args.dag_name, args.force)
         if args.dag_command == "retry":
-            return await client.dag_retry(args.dag_name, args.run_id, _node_ids(args.nodes), args.mode, _optional_json(args.payload))
+            return await client.dag_retry(
+                args.dag_name,
+                args.run_id,
+                _node_ids(args.nodes),
+                args.mode,
+                _optional_json(args.payload),
+                **_dag_temporary_inputs(args),
+            )
         if args.dag_command == "edit":
             return await client.dag_edit(args.dag_name, args.edit_command, _dag_edit_payload(args))
         return await client.dag_run(
             args.dag_name,
             _dag_run_payload(args),
-            source_shared_inputs=_optional_json(args.source_shared_inputs),
-            node_inputs=_optional_json(args.node_inputs),
-            append_nodes=_node_ids(args.append_nodes) if args.append_nodes else None,
+            **_dag_temporary_inputs(args),
         )
     finally:
         await client.close()
@@ -537,6 +560,8 @@ async def _grpc_system(args: argparse.Namespace) -> object:
             return await client.system_resume_scheduler()
         if args.system_command == "scheduler-status":
             return await client.system_scheduler_status()
+        if args.system_command == "repair-source":
+            return await client.system_create_repair_task(args.source_name)
     finally:
         await client.close()
     raise ValueError(f"unknown system command: {args.system_command}")
@@ -616,6 +641,30 @@ def _node_ids(value: str) -> list[str]:
 
 def _optional_json(value: str) -> object | None:
     return json.loads(value) if value else None
+
+
+def _dag_temporary_inputs(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "source_shared_inputs": _optional_json(args.source_shared_inputs),
+        "node_inputs": _optional_json(args.node_inputs),
+        "append_nodes": _node_ids(args.append_nodes) if args.append_nodes else None,
+    }
+
+
+def _node_output_payloads(outputs: object) -> list[object]:
+    records = outputs if isinstance(outputs, list) else [outputs]
+    payloads: list[object] = []
+    for record in records:
+        if isinstance(record, dict):
+            attributes = record.get("attributes")
+            if isinstance(attributes, dict) and "payload" in attributes:
+                payloads.append(attributes["payload"])
+                continue
+            if "payload" in record:
+                payloads.append(record["payload"])
+                continue
+        payloads.append(record)
+    return payloads
 
 
 def _dag_edit_payload(args: argparse.Namespace) -> dict[str, object]:
@@ -758,20 +807,24 @@ def _extension_export(
 
 def _export_workflow_artifacts(root: Path, handlers_dir: Path, name: str, manifest: dict[str, object]) -> list[str]:
     warnings: list[str] = []
-    for handler in _manifest_handler_packages(manifest):
+    for handler in _workflow_provider_packages(manifest, name):
         package = handler["package"]
         source = handlers_dir / package
         provider = package.removeprefix(f"{name}.")
         if not source.exists():
-            warnings.append(f"handler code not included: {source} is missing")
+            warnings.append(f"provider code not included: {source} is missing")
             continue
-        shutil.copytree(source, root / "_providers" / provider, dirs_exist_ok=True)
-    libs_dir = handlers_dir.parent / "libs"
+        target = root / "_providers" / provider
+        shutil.copytree(source, target, dirs_exist_ok=True)
+        manifest_path = target / "manifest.yaml"
+        if not manifest_path.exists():
+            provider_manifest = _provider_manifest(manifest, provider, package)
+            manifest_path.write_text(yaml.safe_dump(provider_manifest, allow_unicode=True, sort_keys=False), encoding="utf-8")
     for item in _manifest_library_imports(manifest):
         library_name = Path(item).name
-        source = libs_dir / f"{name}.{library_name}"
-        if not source.exists():
-            warnings.append(f"library code not included: {source} is missing")
+        source = _workflow_library_source(handlers_dir, name, library_name)
+        if source is None:
+            warnings.append(f"library code not included: {handlers_dir / '_libs' / f'{name}.{library_name}'} is missing")
             continue
         target = root / "_lib" / library_name
         if source.is_dir():
@@ -780,6 +833,69 @@ def _export_workflow_artifacts(root: Path, handlers_dir: Path, name: str, manife
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
     return warnings
+
+
+def _workflow_provider_packages(manifest: dict[str, object], name: str) -> list[dict[str, str]]:
+    packages = _manifest_handler_packages(manifest)
+    providers = _manifest_provider_names(manifest)
+    if not providers:
+        return packages
+    expected = {f"{name}.{provider}" for provider in providers}
+    return [item for item in packages if item["package"] in expected]
+
+
+def _manifest_provider_names(manifest: dict[str, object]) -> list[str]:
+    imports = manifest.get("imports")
+    providers = imports.get("providers") if isinstance(imports, dict) else None
+    if not isinstance(providers, list):
+        return []
+    result: list[str] = []
+    for item in providers:
+        if not isinstance(item, str):
+            continue
+        parts = Path(item).parts
+        if len(parts) >= 3 and parts[-1] == "manifest.yaml" and "*" not in parts[-2]:
+            result.append(parts[-2])
+    return result
+
+
+def _provider_manifest(manifest: dict[str, object], provider: str, package: str) -> dict[str, object]:
+    result: dict[str, object] = {
+        "name": provider,
+        "version": str(manifest.get("version") or ""),
+        "handlers": [_provider_handler(handler, package) for handler in _manifest_provider_handlers(manifest, package)],
+    }
+    libraries = _manifest_library_imports(manifest)
+    if libraries:
+        result["depends"] = libraries
+    return result
+
+
+def _manifest_provider_handlers(manifest: dict[str, object], package: str) -> list[dict[str, object]]:
+    handlers = manifest.get("handlers")
+    if not isinstance(handlers, list):
+        return []
+    return [handler for handler in handlers if isinstance(handler, dict) and handler.get("package") == package]
+
+
+def _provider_handler(handler: dict[str, object], package: str) -> dict[str, object]:
+    prefix = f"{package}."
+    name = str(handler.get("name") or "")
+    result: dict[str, object] = {"name": name.removeprefix(prefix)}
+    for key in ("entry", "role", "input_type", "output_type", "timeout_seconds"):
+        if key in handler:
+            result[key] = handler[key]
+    return result
+
+
+def _workflow_library_source(handlers_dir: Path, extension_name: str, library_name: str) -> Path | None:
+    for source in (
+        handlers_dir / "_libs" / f"{extension_name}.{library_name}",
+        handlers_dir.parent / "libs" / f"{extension_name}.{library_name}",
+    ):
+        if source.exists():
+            return source
+    return None
 
 
 def _manifest_handler_packages(manifest: dict[str, object]) -> list[dict[str, str]]:

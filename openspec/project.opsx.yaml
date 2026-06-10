@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；extension export 从配置的 `handlers_dir` 读取已安装 handler 代码。
+    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；包含 node output payload export、dag retry 临时输入、source repair task 入口，并确保 extension export 从配置的 `handlers_dir` 导出完整 workflow extension 包。
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -168,7 +168,7 @@ capabilities:
     type: capability
     domain: dom.operations
   - id: cap.operations.multi-node-retry
-    intent: 多节点重试增加临时输入参数支持
+    intent: 多节点重试 API 和 CLI 均支持临时输入参数，包括 sourceSharedInputs、nodeInputs 和 appendNodes。
     type: capability
   - id: cap.core.dag-resource-semaphore
     intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
@@ -215,7 +215,7 @@ capabilities:
     intent: Edera 项目 canonical identity，覆盖项目名、slug、包命名、命令名（edera/edera-server/edera-web 三件套，移除 rig 别名）、环境变量前缀、默认路径和 README 名称来源说明
     type: capability
   - id: cap.core.runtime-input-context
-    intent: Runtime facts 以具体表持久化并投影为 runtime entities，同时明确运行中调度状态以内存 runtime state 和 committed snapshot 为准
+    intent: Runtime facts 以具体表持久化并投影为 runtime entities，agent 可通过 edera node output export 显式导出指定 run/node 的业务 payload。
     type: capability
   - id: cap.web.source-health-monitoring
     intent: 信息源健康与执行日志能力，覆盖 source health API、source recovery 状态、信息源日志契约、监控页面展示和错误反馈
@@ -230,7 +230,7 @@ capabilities:
     intent: QueryService runtime read validation 使用 DB-backed repositories 和 runtime facts，不依赖 runtime_snapshot().config DAG/Node mirror。
     type: capability
   - id: cap.core.grpc-control-services
-    intent: gRPC 控制面服务，覆盖 DagService run/stop/retry、SystemService scheduler/source repair task 和 EventService emit
+    intent: gRPC 控制面服务覆盖 DagService run/stop/retry、SystemService scheduler/source repair task、EventService emit，并由 edera system CLI 暴露 source repair task 创建入口。
     type: capability
   - id: cap.core.trigger-expression-language
     intent: 触发器布尔表达式语言（AND/OR/括号），cron token 引号语义，bit→trigger 反向索引求值
@@ -290,7 +290,7 @@ capabilities:
     intent: 安装逻辑识别 workflow_extension 类型，递归处理 imports.providers，复制 imports.libraries，展开所有 glob patterns
     type: capability
   - id: cap.core.extension-cli-commands
-    intent: CLI export 命令打包 _providers/ 和 _lib/，install 命令递归安装 providers，输出包含 provider 安装进度
+    intent: CLI export 命令打包 workflow extension 的 _providers/ provider manifests、provider handler 代码和 _lib/ libraries，install 命令递归安装 providers，输出包含 provider 安装进度。
     type: capability
   - id: cap.core.extension-grpc-service
     intent: InstallExtension RPC 支持 workflow_extension 类型，递归处理 providers，展开 glob patterns

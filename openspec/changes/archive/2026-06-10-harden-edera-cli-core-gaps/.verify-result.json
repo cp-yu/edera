@@ -1,0 +1,201 @@
+{
+  "timestamp": "2026-06-10T06:15:47.858Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-orchestrated",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "openspec/changes/harden-edera-cli-core-gaps/.apply-isolation.json",
+      "openspec/changes/harden-edera-cli-core-gaps/.verify-result.json",
+      "openspec/changes/harden-edera-cli-core-gaps/design.md",
+      "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+      "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_cli_extension.py"
+    ],
+    "evidenceFingerprint": "7ef067ed651717ed81ea8ecad487f542317198e79c9512c32916341c2e542f3a",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/.apply-isolation.json",
+        "hash": "9a14a9e3dfcf5d00fd82fb645fcdcc619183c0a936e1ee5831e4d7c6468f5463"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/design.md",
+        "hash": "9699a3230f14293a0bf650a16a43f1d70602dfc8f5c7d53a251773f428c0fd93"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+        "hash": "c71b04e65b92a8aff62e6a5087ffd444dc34fa707217a289fb468c2880bf7c86"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+        "hash": "aa0362752b04927667f5c6a152fc634ae030117b174258dc7481288b1e822b02"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+        "hash": "ff810c962aaddf87f10e1d2a6d84b2da5a961441a8bf564167c278bfa1deb391"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+        "hash": "2fea0710bf9fa8fcd446852561bb6f7f6b0a5773684a60d6530077872292c5b9"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+        "hash": "5d4c506538a8ed3857574b22768a58ef900ade3cf1ba2457334007d4a3a9c29c"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+        "hash": "2f50004db8868d8715713dd67e79309f7fb3d3a0b23a8e12aece8633560497e8"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+        "hash": "7d136cab0235c449db351a04e14970d28c5f3966a17630f9166de0b70a0f97a0"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+        "hash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "ab7facdb3a92dc6a8d42264e20c3dfbb0a123c97496af0367cf305cb60649a6b"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+      },
+      {
+        "path": "tests/core/unit/test_cli_extension.py",
+        "hash": "5dbd9516f4f4ab60d04c7b3371ab32ca23d24974cb2585e630c87afd7811e3db"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "e26b6a18254f3a31af34740f4431076d8c118220a6b88d4c9f75ef8249f82f28"
+      }
+    ],
+    "skippedEvidenceFiles": [
+      "openspec/changes/harden-edera-cli-core-gaps/.verify-result.json"
+    ],
+    "gitHeadCommit": "6feee7c5787afea4d7e46134e6da29aa250e8772"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-10T06:29:12.477Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Phase 1 passed with no failedDirections, and the changed implementation in packages/core/src/edera_core/cli.py already uses scoped helpers for temporary DAG inputs, node output payload extraction, workflow provider selection, provider manifest generation, and library source resolution. Remaining duplication is either pre-existing broad CLI structure or too small to justify behavior-preserving Search/Replace optimization within this change scope."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-10T06:15:47.858Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-orchestrated",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "openspec/changes/harden-edera-cli-core-gaps/.apply-isolation.json",
+          "openspec/changes/harden-edera-cli-core-gaps/.verify-result.json",
+          "openspec/changes/harden-edera-cli-core-gaps/design.md",
+          "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+          "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_cli_extension.py"
+        ],
+        "evidenceFingerprint": "7ef067ed651717ed81ea8ecad487f542317198e79c9512c32916341c2e542f3a",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/.apply-isolation.json",
+            "hash": "9a14a9e3dfcf5d00fd82fb645fcdcc619183c0a936e1ee5831e4d7c6468f5463"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/design.md",
+            "hash": "9699a3230f14293a0bf650a16a43f1d70602dfc8f5c7d53a251773f428c0fd93"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+            "hash": "c71b04e65b92a8aff62e6a5087ffd444dc34fa707217a289fb468c2880bf7c86"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+            "hash": "aa0362752b04927667f5c6a152fc634ae030117b174258dc7481288b1e822b02"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+            "hash": "ff810c962aaddf87f10e1d2a6d84b2da5a961441a8bf564167c278bfa1deb391"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+            "hash": "2fea0710bf9fa8fcd446852561bb6f7f6b0a5773684a60d6530077872292c5b9"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+            "hash": "5d4c506538a8ed3857574b22768a58ef900ade3cf1ba2457334007d4a3a9c29c"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+            "hash": "2f50004db8868d8715713dd67e79309f7fb3d3a0b23a8e12aece8633560497e8"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+            "hash": "7d136cab0235c449db351a04e14970d28c5f3966a17630f9166de0b70a0f97a0"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+            "hash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "ab7facdb3a92dc6a8d42264e20c3dfbb0a123c97496af0367cf305cb60649a6b"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+          },
+          {
+            "path": "tests/core/unit/test_cli_extension.py",
+            "hash": "5dbd9516f4f4ab60d04c7b3371ab32ca23d24974cb2585e630c87afd7811e3db"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "e26b6a18254f3a31af34740f4431076d8c118220a6b88d4c9f75ef8249f82f28"
+          }
+        ],
+        "skippedEvidenceFiles": [
+          "openspec/changes/harden-edera-cli-core-gaps/.verify-result.json"
+        ],
+        "gitHeadCommit": "6feee7c5787afea4d7e46134e6da29aa250e8772"
+      }
+    }
+  }
+}

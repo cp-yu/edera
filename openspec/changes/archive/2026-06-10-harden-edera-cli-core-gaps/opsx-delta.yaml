@@ -1,0 +1,18 @@
+schema_version: 1
+
+ADDED: {}
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.edera-cli
+      intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；包含 node output payload export、dag retry 临时输入、source repair task 入口，并确保 extension export 从配置的 `handlers_dir` 导出完整 workflow extension 包。
+    - id: cap.operations.multi-node-retry
+      intent: 多节点重试 API 和 CLI 均支持临时输入参数，包括 sourceSharedInputs、nodeInputs 和 appendNodes。
+    - id: cap.core.runtime-input-context
+      intent: Runtime facts 以具体表持久化并投影为 runtime entities，agent 可通过 edera node output export 显式导出指定 run/node 的业务 payload。
+    - id: cap.core.extension-cli-commands
+      intent: CLI export 命令打包 workflow extension 的 _providers/ provider manifests、provider handler 代码和 _lib/ libraries，install 命令递归安装 providers，输出包含 provider 安装进度。
+    - id: cap.core.grpc-control-services
+      intent: gRPC 控制面服务覆盖 DagService run/stop/retry、SystemService scheduler/source repair task、EventService emit，并由 edera system CLI 暴露 source repair task 创建入口。
+
+REMOVED: {}
