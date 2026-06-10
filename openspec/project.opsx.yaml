@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力；包含 node output payload export、dag retry 临时输入、source repair task 入口，并确保 extension export 从配置的 `handlers_dir` 导出完整 workflow extension 包。
+    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力，并通过控制面命令组暴露 DAG 定义、node type、handler、config、query 和 source 运维能力。
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -348,4 +348,7 @@ capabilities:
     type: capability
   - id: cap.core.extension-test-template
     intent: 提供扩展测试模板，包含 conftest.py.template、pytest.ini.template、test_handler_unit.py.template、test_dag_e2e.py.template 和详细的 README.md，规范扩展测试结构和最佳实践
+    type: capability
+  - id: cap.core.edera-cli-control-plane
+    intent: edera CLI 暴露 GraphService、ConfigService、QueryService 和 source 运维读写入口，覆盖 DAG 定义、node type、handler、config、query 和 source 命令组。
     type: capability

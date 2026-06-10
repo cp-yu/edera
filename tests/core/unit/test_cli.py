@@ -105,6 +105,35 @@ def test_client_init_uses_force_insecure(monkeypatch: pytest.MonkeyPatch) -> Non
     assert calls == [("127.0.0.1:9091", True)]
 
 
+def test_cli_help_lists_control_plane_commands(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr("sys.argv", ["edera", "--help"])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 0
+    output = capsys.readouterr().out
+    for command in (
+        "entity",
+        "relation",
+        "entity-type",
+        "node",
+        "node-type",
+        "skill",
+        "dag",
+        "event",
+        "system",
+        "client",
+        "config",
+        "query",
+        "source",
+        "handler",
+        "handler-validate",
+        "extension",
+    ):
+        assert command in output
+
+
 def test_cli_entity_query_uses_running_server(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -439,6 +468,436 @@ def test_cli_dag_status_uses_grpc(
     main()
 
     assert '"dag_name": "default"' in capsys.readouterr().out
+
+
+def test_cli_dag_definition_commands_use_graph_service(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    dag_file = tmp_path / "dag.json"
+    dag_file.write_text('{"nodes":[{"id":"reader"}]}', encoding="utf-8")
+    exported = tmp_path / "exported.json"
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def graph_list_dags(self) -> dict[str, object]:
+            calls.append("list")
+            return {"dags": [{"name": "default"}]}
+
+        async def graph_get_dag(self, name: str) -> dict[str, object]:
+            calls.append(("show", name))
+            return {"name": name, "nodes": []}
+
+        async def graph_create_dag(self, name: str) -> dict[str, object]:
+            calls.append(("create", name))
+            return {"created": name}
+
+        async def graph_save_dag(self, name: str, payload: dict[str, object]) -> dict[str, object]:
+            calls.append(("save", name, payload))
+            return {"saved": name}
+
+        async def graph_runtime_status(self, run_id: str = "") -> dict[str, object]:
+            calls.append(("runtime-status", run_id))
+            return {"run_id": run_id, "nodes": []}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "dag", "list"],
+        ["edera", "dag", "show", "default"],
+        ["edera", "dag", "create", "new-dag"],
+        ["edera", "dag", "save", "default", "--file", str(dag_file)],
+        ["edera", "dag", "export", "default", "--file", str(exported)],
+        ["edera", "dag", "import", "default", "--file", str(dag_file)],
+        ["edera", "dag", "runtime-status", "--run-id", "run-1"],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    assert calls == [
+        "list",
+        ("show", "default"),
+        ("create", "new-dag"),
+        ("save", "default", {"nodes": [{"id": "reader"}]}),
+        ("show", "default"),
+        ("save", "default", {"nodes": [{"id": "reader"}]}),
+        ("runtime-status", "run-1"),
+    ]
+    assert json.loads(exported.read_text(encoding="utf-8")) == {"name": "default", "nodes": []}
+
+
+def test_cli_node_type_commands_use_graph_service(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    node_type_file = tmp_path / "node-type.json"
+    node_type_file.write_text('{"name":"fetch-rss","handler":"rss.fetch"}', encoding="utf-8")
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def graph_list_node_types(self) -> dict[str, object]:
+            calls.append("list")
+            return {"node_types": [{"name": "fetch-rss"}]}
+
+        async def graph_get_node_type(self, name: str) -> dict[str, object]:
+            calls.append(("show", name))
+            return {"name": name}
+
+        async def graph_create_node_type(self, name: str, payload: dict[str, object]) -> dict[str, object]:
+            calls.append(("create", name, payload))
+            return {"created": name}
+
+        async def graph_save_node_type(self, name: str, payload: dict[str, object]) -> dict[str, object]:
+            calls.append(("save", name, payload))
+            return {"saved": name}
+
+        async def graph_delete_node_type(self, name: str) -> dict[str, object]:
+            calls.append(("delete", name))
+            return {"deleted": name}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "node-type", "list"],
+        ["edera", "node-type", "show", "fetch-rss"],
+        ["edera", "node-type", "create", "fetch-rss", "--file", str(node_type_file)],
+        ["edera", "node-type", "save", "fetch-rss", "--file", str(node_type_file)],
+        ["edera", "node-type", "delete", "fetch-rss"],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    assert calls == [
+        "list",
+        ("show", "fetch-rss"),
+        ("create", "fetch-rss", {"name": "fetch-rss", "handler": "rss.fetch"}),
+        ("save", "fetch-rss", {"name": "fetch-rss", "handler": "rss.fetch"}),
+        ("delete", "fetch-rss"),
+    ]
+
+
+def test_cli_handler_commands_use_graph_service(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    handler_file = tmp_path / "handler.py"
+    handler_file.write_text("def run(ctx):\n    return {}\n", encoding="utf-8")
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def graph_list_handlers(self) -> dict[str, object]:
+            calls.append("list")
+            return {"handlers": [{"name": "rss.fetch"}]}
+
+        async def graph_get_handler(self, name: str) -> dict[str, object]:
+            calls.append(("show", name))
+            return {"name": name, "content": "def run(ctx):\n    return {}\n"}
+
+        async def graph_save_handler(self, name: str, code: str) -> dict[str, object]:
+            calls.append(("save", name, code))
+            return {"saved": name}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "handler", "list"],
+        ["edera", "handler", "show", "rss.fetch"],
+        ["edera", "handler", "save", "rss.fetch", "--file", str(handler_file)],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    monkeypatch.setattr("edera_core.cli.validate_handler", lambda path: [])
+    monkeypatch.setattr("sys.argv", ["edera", "handler-validate", str(handler_file)])
+    main()
+
+    assert calls == [
+        "list",
+        ("show", "rss.fetch"),
+        ("save", "rss.fetch", "def run(ctx):\n    return {}\n"),
+    ]
+    assert '"ok": true' in capsys.readouterr().out
+
+
+def test_cli_config_system_and_generic_commands_use_config_service(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    system_file = tmp_path / "system.toml"
+    system_file.write_text("handlers_dir = 'handlers'\n", encoding="utf-8")
+    dag_file = tmp_path / "default.yaml"
+    dag_file.write_text("name: default\n", encoding="utf-8")
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def config_list(self) -> dict[str, object]:
+            calls.append("list")
+            return {"configs": [{"kind": "dag", "name": "default.yaml"}]}
+
+        async def config_read_system(self) -> dict[str, object]:
+            calls.append("system-show")
+            return {"content": "handlers_dir = 'handlers'\n"}
+
+        async def config_save_system(self, content: str) -> dict[str, object]:
+            calls.append(("system-save", content))
+            return {"saved": "system"}
+
+        async def config_read(self, kind: str, name: str) -> dict[str, object]:
+            calls.append(("read", kind, name))
+            return {"kind": kind, "name": name, "content": "name: default\n"}
+
+        async def config_save(self, kind: str, name: str, content: str) -> dict[str, object]:
+            calls.append(("save", kind, name, content))
+            return {"saved": name}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "config", "list"],
+        ["edera", "config", "system", "show"],
+        ["edera", "config", "system", "save", "--file", str(system_file)],
+        ["edera", "config", "read", "dag", "default.yaml"],
+        ["edera", "config", "save", "dag", "default.yaml", "--file", str(dag_file)],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    assert calls == [
+        "list",
+        "system-show",
+        ("system-save", "handlers_dir = 'handlers'\n"),
+        ("read", "dag", "default.yaml"),
+        ("save", "dag", "default.yaml", "name: default\n"),
+    ]
+
+
+def test_cli_config_entity_type_commands_use_config_service(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    entity_type_file = tmp_path / "stock.yaml"
+    entity_type_file.write_text("name: stock\n", encoding="utf-8")
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def config_list_entity_types(self) -> dict[str, object]:
+            calls.append("list")
+            return {"entity_types": [{"name": "stock"}]}
+
+        async def config_get_entity_type(self, name: str) -> dict[str, object]:
+            calls.append(("show", name))
+            return {"name": name, "content": "name: stock\n"}
+
+        async def config_create_entity_type(self, name: str, content: str) -> dict[str, object]:
+            calls.append(("create", name, content))
+            return {"created": name}
+
+        async def config_save_entity_type(self, name: str, content: str) -> dict[str, object]:
+            calls.append(("save", name, content))
+            return {"saved": name}
+
+        async def config_delete_entity_type(self, name: str, cascade: bool = False) -> dict[str, object]:
+            calls.append(("delete", name, cascade))
+            return {"deleted": name}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "config", "entity-type", "list"],
+        ["edera", "config", "entity-type", "show", "stock"],
+        ["edera", "config", "entity-type", "create", "stock", "--file", str(entity_type_file)],
+        ["edera", "config", "entity-type", "save", "stock", "--file", str(entity_type_file)],
+        ["edera", "config", "entity-type", "delete", "stock", "--cascade"],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    assert calls == [
+        "list",
+        ("show", "stock"),
+        ("create", "stock", "name: stock\n"),
+        ("save", "stock", "name: stock\n"),
+        ("delete", "stock", True),
+    ]
+
+
+def test_cli_query_commands_use_query_service(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def query_latest_briefing(self) -> dict[str, object]:
+            calls.append("briefing-latest")
+            return {"briefing": "latest"}
+
+        async def query_list_briefings(self, created_from: str = "", created_to: str = "", limit: int = 50) -> dict[str, object]:
+            calls.append(("briefing-list", created_from, created_to, limit))
+            return {"briefings": []}
+
+        async def query_get_briefing(self, briefing_id: str) -> dict[str, object]:
+            calls.append(("briefing-show", briefing_id))
+            return {"id": briefing_id}
+
+        async def query_list_advices(
+            self,
+            stock_code: str = "",
+            direction: str = "",
+            created_from: str = "",
+            created_to: str = "",
+            limit: int = 50,
+        ) -> dict[str, object]:
+            calls.append(("advice-list", stock_code, direction, created_from, created_to, limit))
+            return {"advices": []}
+
+        async def query_get_advice(self, advice_id: str) -> dict[str, object]:
+            calls.append(("advice-show", advice_id))
+            return {"id": advice_id}
+
+        async def query_results_summary(
+            self,
+            stock_code: str = "",
+            direction: str = "",
+            created_from: str = "",
+            created_to: str = "",
+        ) -> dict[str, object]:
+            calls.append(("results-summary", stock_code, direction, created_from, created_to))
+            return {"summary": []}
+
+        async def query_node_outputs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+            calls.append(("node-outputs", node_id, run_id, limit))
+            return {"outputs": []}
+
+        async def query_node_history(self, dag_name: str, node_id: str, limit: int = 50) -> dict[str, object]:
+            calls.append(("node-history", dag_name, node_id, limit))
+            return {"history": []}
+
+        async def query_child_run_for_parent(self, parent_run_id: str, parent_node_id: str) -> dict[str, object]:
+            calls.append(("child-run", parent_run_id, parent_node_id))
+            return {"run_id": "child-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "query", "briefing", "latest"],
+        ["edera", "query", "briefing", "list", "--limit", "20"],
+        ["edera", "query", "briefing", "show", "briefing-1"],
+        ["edera", "query", "advice", "list", "--stock-code", "600000", "--direction", "buy", "--limit", "20"],
+        ["edera", "query", "advice", "show", "advice-1"],
+        ["edera", "query", "results", "summary", "--stock-code", "600000"],
+        ["edera", "query", "node-outputs", "--node-id", "reader", "--run-id", "run-1", "--limit", "10"],
+        ["edera", "query", "node-history", "default", "reader", "--limit", "10"],
+        ["edera", "query", "child-run", "--parent-run-id", "parent-1", "--parent-node-id", "subdag-node"],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    assert calls == [
+        "briefing-latest",
+        ("briefing-list", "", "", 20),
+        ("briefing-show", "briefing-1"),
+        ("advice-list", "600000", "buy", "", "", 20),
+        ("advice-show", "advice-1"),
+        ("results-summary", "600000", "", "", ""),
+        ("node-outputs", "reader", "run-1", 10),
+        ("node-history", "default", "reader", 10),
+        ("child-run", "parent-1", "subdag-node"),
+    ]
+
+
+def test_cli_source_commands_use_query_and_system_services(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def query_source_health(self) -> dict[str, object]:
+            calls.append("health")
+            return {"sources": []}
+
+        async def query_source_logs(self, source_name: str = "", limit: int = 50) -> dict[str, object]:
+            calls.append(("logs", source_name, limit))
+            return {"logs": []}
+
+        async def system_create_repair_task(self, source_name: str) -> dict[str, object]:
+            calls.append(("repair-task", source_name))
+            return {"task_id": "task-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    for argv in (
+        ["edera", "source", "health"],
+        ["edera", "source", "logs", "--source-name", "rss-main", "--limit", "20"],
+        ["edera", "source", "repair-task", "rss-main"],
+    ):
+        monkeypatch.setattr("sys.argv", argv)
+        main()
+        capsys.readouterr()
+
+    assert calls == ["health", ("logs", "rss-main", 20), ("repair-task", "rss-main")]
 
 
 def test_cli_node_logs_uses_grpc_query(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

@@ -13,7 +13,7 @@ capabilities:
 #### Scenario: CLI 可执行
 
 - **WHEN** 用户或 agent 在终端执行 `edera --help`
-- **THEN** 系统 SHALL 输出可用子命令列表（entity、node、dag、event、system、client、handler-validate、extension）
+- **THEN** 系统 SHALL 输出可用子命令列表（entity、relation、entity-type、node、node-type、skill、dag、event、system、client、config、query、source、handler、handler-validate、extension）
 
 #### Scenario: 版本查询
 

@@ -28,11 +28,16 @@ def main() -> None:
     _relation_parser(subparsers.add_parser("relation"))
     _entity_type_parser(subparsers.add_parser("entity-type"))
     _node_parser(subparsers.add_parser("node"))
+    _node_type_parser(subparsers.add_parser("node-type"))
     _skill_parser(subparsers.add_parser("skill"))
     _dag_parser(subparsers.add_parser("dag"))
     _event_parser(subparsers.add_parser("event"))
     _system_parser(subparsers.add_parser("system"))
     _client_parser(subparsers.add_parser("client"))
+    _config_parser(subparsers.add_parser("config"))
+    _query_parser(subparsers.add_parser("query"))
+    _source_parser(subparsers.add_parser("source"))
+    _handler_parser(subparsers.add_parser("handler"))
     _extension_parser(subparsers.add_parser("extension"))
     handler_validate = subparsers.add_parser("handler-validate")
     handler_validate.add_argument("path", type=Path)
@@ -142,6 +147,19 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     logs.add_argument("--run-id", required=True)
 
 
+def _node_type_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="node_type_command", required=True)
+    subparsers.add_parser("list")
+    show = subparsers.add_parser("show")
+    show.add_argument("name")
+    for command in ("create", "save"):
+        item = subparsers.add_parser(command)
+        item.add_argument("name")
+        item.add_argument("--file", required=True, type=Path)
+    delete = subparsers.add_parser("delete")
+    delete.add_argument("name")
+
+
 def _skill_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="skill_command", required=True)
     subparsers.add_parser("list")
@@ -165,6 +183,20 @@ def _skill_parser(parser: argparse.ArgumentParser) -> None:
 
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="dag_command", required=True)
+    subparsers.add_parser("list")
+    show = subparsers.add_parser("show")
+    show.add_argument("dag_name")
+    create = subparsers.add_parser("create")
+    create.add_argument("dag_name")
+    for command in ("save", "import"):
+        item = subparsers.add_parser(command)
+        item.add_argument("dag_name")
+        item.add_argument("--file", required=True, type=Path)
+    export = subparsers.add_parser("export")
+    export.add_argument("dag_name")
+    export.add_argument("--file", required=True, type=Path)
+    runtime_status = subparsers.add_parser("runtime-status")
+    runtime_status.add_argument("--run-id", default="")
     run = subparsers.add_parser("run")
     run.add_argument("dag_name")
     run.add_argument("--payload", default="{}")
@@ -229,6 +261,98 @@ def _client_parser(parser: argparse.ArgumentParser) -> None:
     init.add_argument("--common-name", default=os.environ.get("EDERA_IDENTITY", "human:default"))
 
 
+def _config_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="config_command", required=True)
+    subparsers.add_parser("list")
+    system = subparsers.add_parser("system")
+    system_sub = system.add_subparsers(dest="system_command", required=True)
+    system_sub.add_parser("show")
+    system_save = system_sub.add_parser("save")
+    system_save.add_argument("--file", required=True, type=Path)
+    read = subparsers.add_parser("read")
+    read.add_argument("kind")
+    read.add_argument("name")
+    save = subparsers.add_parser("save")
+    save.add_argument("kind")
+    save.add_argument("name")
+    save.add_argument("--file", required=True, type=Path)
+    entity_type = subparsers.add_parser("entity-type")
+    entity_type_sub = entity_type.add_subparsers(dest="entity_type_command", required=True)
+    entity_type_sub.add_parser("list")
+    show = entity_type_sub.add_parser("show")
+    show.add_argument("name")
+    for command in ("create", "save"):
+        item = entity_type_sub.add_parser(command)
+        item.add_argument("name")
+        item.add_argument("--file", required=True, type=Path)
+    delete = entity_type_sub.add_parser("delete")
+    delete.add_argument("name")
+    delete.add_argument("--cascade", action="store_true")
+
+
+def _handler_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="handler_command", required=True)
+    subparsers.add_parser("list")
+    show = subparsers.add_parser("show")
+    show.add_argument("name")
+    save = subparsers.add_parser("save")
+    save.add_argument("name")
+    save.add_argument("--file", required=True, type=Path)
+
+
+def _query_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="query_command", required=True)
+    briefing = subparsers.add_parser("briefing")
+    briefing_sub = briefing.add_subparsers(dest="briefing_command", required=True)
+    briefing_sub.add_parser("latest")
+    briefing_list = briefing_sub.add_parser("list")
+    _time_range_arguments(briefing_list)
+    show_briefing = briefing_sub.add_parser("show")
+    show_briefing.add_argument("briefing_id")
+    advice = subparsers.add_parser("advice")
+    advice_sub = advice.add_subparsers(dest="advice_command", required=True)
+    advice_list = advice_sub.add_parser("list")
+    advice_list.add_argument("--stock-code", default="")
+    advice_list.add_argument("--direction", default="")
+    _time_range_arguments(advice_list)
+    show_advice = advice_sub.add_parser("show")
+    show_advice.add_argument("advice_id")
+    results = subparsers.add_parser("results")
+    results_sub = results.add_subparsers(dest="results_command", required=True)
+    summary = results_sub.add_parser("summary")
+    summary.add_argument("--stock-code", default="")
+    summary.add_argument("--direction", default="")
+    summary.add_argument("--created-from", default="")
+    summary.add_argument("--created-to", default="")
+    node_outputs = subparsers.add_parser("node-outputs")
+    node_outputs.add_argument("--node-id", default="")
+    node_outputs.add_argument("--run-id", default="")
+    node_outputs.add_argument("--limit", type=int, default=100)
+    node_history = subparsers.add_parser("node-history")
+    node_history.add_argument("dag_name")
+    node_history.add_argument("node_id")
+    node_history.add_argument("--limit", type=int, default=50)
+    child_run = subparsers.add_parser("child-run")
+    child_run.add_argument("--parent-run-id", required=True)
+    child_run.add_argument("--parent-node-id", required=True)
+
+
+def _time_range_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--created-from", default="")
+    parser.add_argument("--created-to", default="")
+    parser.add_argument("--limit", type=int, default=50)
+
+
+def _source_parser(parser: argparse.ArgumentParser) -> None:
+    subparsers = parser.add_subparsers(dest="source_command", required=True)
+    subparsers.add_parser("health")
+    logs = subparsers.add_parser("logs")
+    logs.add_argument("--source-name", default="")
+    logs.add_argument("--limit", type=int, default=50)
+    repair_task = subparsers.add_parser("repair-task")
+    repair_task.add_argument("source_name")
+
+
 def _extension_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="extension_command", required=True)
     list_ = subparsers.add_parser("list")
@@ -268,6 +392,8 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _run_grpc(_grpc_entity_type(args))
     if args.command == "node":
         return _run_grpc(_grpc_node(args))
+    if args.command == "node-type":
+        return _run_grpc(_grpc_node_type(args))
     if args.command == "skill":
         return _run_grpc(_grpc_skill(args))
     if args.command == "dag":
@@ -280,6 +406,14 @@ def _dispatch(args: argparse.Namespace) -> object:
         return _run_grpc(_grpc_extension(args))
     if args.command == "client":
         return _client(args)
+    if args.command == "config":
+        return _run_grpc(_grpc_config(args))
+    if args.command == "query":
+        return _run_grpc(_grpc_query(args))
+    if args.command == "source":
+        return _run_grpc(_grpc_source(args))
+    if args.command == "handler":
+        return _run_grpc(_grpc_handler(args))
     if args.command == "handler-validate":
         return _handler_validate(args.path)
     raise ValueError(f"unknown command: {args.command}")
@@ -478,6 +612,24 @@ async def _grpc_node(args: argparse.Namespace) -> object:
     raise ValueError(f"unknown node command: {args.node_command}")
 
 
+async def _grpc_node_type(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.node_type_command == "list":
+            return await client.graph_list_node_types()
+        if args.node_type_command == "show":
+            return await client.graph_get_node_type(args.name)
+        if args.node_type_command == "create":
+            return await client.graph_create_node_type(args.name, _read_json_object(args.file))
+        if args.node_type_command == "save":
+            return await client.graph_save_node_type(args.name, _read_json_object(args.file))
+        if args.node_type_command == "delete":
+            return await client.graph_delete_node_type(args.name)
+    finally:
+        await client.close()
+    raise ValueError(f"unknown node-type command: {args.node_type_command}")
+
+
 async def _grpc_skill(args: argparse.Namespace) -> object:
     client = GrpcClient(args.server, identity=args.identity)
     try:
@@ -516,6 +668,20 @@ async def _grpc_skill(args: argparse.Namespace) -> object:
 async def _grpc_dag(args: argparse.Namespace) -> object:
     client = GrpcClient(args.server, identity=args.identity)
     try:
+        if args.dag_command == "list":
+            return await client.graph_list_dags()
+        if args.dag_command == "show":
+            return await client.graph_get_dag(args.dag_name)
+        if args.dag_command == "create":
+            return await client.graph_create_dag(args.dag_name)
+        if args.dag_command in {"save", "import"}:
+            return await client.graph_save_dag(args.dag_name, _read_json_object(args.file))
+        if args.dag_command == "export":
+            payload = await client.graph_get_dag(args.dag_name)
+            _write_json(args.file, payload)
+            return {"exported": args.dag_name, "file": str(args.file)}
+        if args.dag_command == "runtime-status":
+            return await client.graph_runtime_status(args.run_id)
         if args.dag_command == "status":
             return await client.dag_status(args.dag_name)
         if args.dag_command == "stop":
@@ -531,13 +697,15 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
             )
         if args.dag_command == "edit":
             return await client.dag_edit(args.dag_name, args.edit_command, _dag_edit_payload(args))
-        return await client.dag_run(
-            args.dag_name,
-            _dag_run_payload(args),
-            **_dag_temporary_inputs(args),
-        )
+        if args.dag_command == "run":
+            return await client.dag_run(
+                args.dag_name,
+                _dag_run_payload(args),
+                **_dag_temporary_inputs(args),
+            )
     finally:
         await client.close()
+    raise ValueError(f"unknown dag command: {args.dag_command}")
 
 
 async def _grpc_event(args: argparse.Namespace) -> object:
@@ -565,6 +733,93 @@ async def _grpc_system(args: argparse.Namespace) -> object:
     finally:
         await client.close()
     raise ValueError(f"unknown system command: {args.system_command}")
+
+
+async def _grpc_config(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.config_command == "list":
+            return await client.config_list()
+        if args.config_command == "system":
+            if args.system_command == "show":
+                return await client.config_read_system()
+            if args.system_command == "save":
+                return await client.config_save_system(args.file.read_text(encoding="utf-8"))
+        if args.config_command == "read":
+            return await client.config_read(args.kind, args.name)
+        if args.config_command == "save":
+            return await client.config_save(args.kind, args.name, args.file.read_text(encoding="utf-8"))
+        if args.config_command == "entity-type":
+            if args.entity_type_command == "list":
+                return await client.config_list_entity_types()
+            if args.entity_type_command == "show":
+                return await client.config_get_entity_type(args.name)
+            if args.entity_type_command == "create":
+                return await client.config_create_entity_type(args.name, args.file.read_text(encoding="utf-8"))
+            if args.entity_type_command == "save":
+                return await client.config_save_entity_type(args.name, args.file.read_text(encoding="utf-8"))
+            if args.entity_type_command == "delete":
+                return await client.config_delete_entity_type(args.name, args.cascade)
+    finally:
+        await client.close()
+    raise ValueError(f"unknown config command: {args.config_command}")
+
+
+async def _grpc_handler(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.handler_command == "list":
+            return await client.graph_list_handlers()
+        if args.handler_command == "show":
+            return await client.graph_get_handler(args.name)
+        if args.handler_command == "save":
+            return await client.graph_save_handler(args.name, args.file.read_text(encoding="utf-8"))
+    finally:
+        await client.close()
+    raise ValueError(f"unknown handler command: {args.handler_command}")
+
+
+async def _grpc_query(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.query_command == "briefing":
+            if args.briefing_command == "latest":
+                return await client.query_latest_briefing()
+            if args.briefing_command == "list":
+                return await client.query_list_briefings(args.created_from, args.created_to, args.limit)
+            if args.briefing_command == "show":
+                return await client.query_get_briefing(args.briefing_id)
+        if args.query_command == "advice":
+            if args.advice_command == "list":
+                return await client.query_list_advices(args.stock_code, args.direction, args.created_from, args.created_to, args.limit)
+            if args.advice_command == "show":
+                return await client.query_get_advice(args.advice_id)
+        if args.query_command == "results":
+            if args.results_command == "summary":
+                return await client.query_results_summary(args.stock_code, args.direction, args.created_from, args.created_to)
+        if args.query_command == "node-outputs":
+            return await client.query_node_outputs(args.node_id, args.run_id, args.limit)
+        if args.query_command == "node-history":
+            return await client.query_node_history(args.dag_name, args.node_id, args.limit)
+        if args.query_command == "child-run":
+            return await client.query_child_run_for_parent(args.parent_run_id, args.parent_node_id)
+    finally:
+        await client.close()
+    raise ValueError(f"unknown query command: {args.query_command}")
+
+
+async def _grpc_source(args: argparse.Namespace) -> object:
+    client = GrpcClient(args.server, identity=args.identity)
+    try:
+        if args.source_command == "health":
+            return await client.query_source_health()
+        if args.source_command == "logs":
+            return await client.query_source_logs(args.source_name, args.limit)
+        if args.source_command == "repair-task":
+            return await client.system_create_repair_task(args.source_name)
+    finally:
+        await client.close()
+    raise ValueError(f"unknown source command: {args.source_command}")
 
 
 async def _grpc_extension(args: argparse.Namespace) -> object:
@@ -989,6 +1244,18 @@ def _json_value(value: str) -> object:
         return json.loads(value)
     except json.JSONDecodeError:
         return value
+
+
+def _read_json_object(path: Path) -> dict[str, object]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("JSON file must contain an object")
+    return payload
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
 
 
 def _arg_path(args: argparse.Namespace) -> Path:
