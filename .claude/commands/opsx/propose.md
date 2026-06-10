@@ -70,9 +70,14 @@ Tasks output:
    - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
    - `artifacts`: list of all artifacts with their status and dependencies
 
-Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX YAML files directly.
-- Run `openspec list --specs --json` to get specs and their `capabilities` string arrays.
-- For known or affected OPSX node IDs, run `openspec opsx query <node-id> --json` to get node details, relations, and code-map refs.
+Before reading other context files, check whether `openspec/project.opsx.yaml` exists.
+- If it exists, read it first for domains → capabilities structure
+- Read the `project:` block for project intent and scope
+- Treat it as navigation context, not as a replacement for change artifacts
+
+After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surfaces for node details.
+- Run `openspec list --specs --json` to get specs and their `capabilities` string arrays; specs without frontmatter return `capabilities: []`.
+- For known or affected OPSX node IDs, run `openspec opsx query <node-id...> --json` to get node details, relations and code-map refs in one batch; add `--depth 2` when broader related context is needed.
 - Treat CLI output as navigation context, not as a replacement for change artifacts.
 
 4. **Create artifacts in sequence until apply-ready**
@@ -121,7 +126,7 @@ Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX
 - Use the returned `template`, `instruction`, and `outputPath` to generate `opsx-delta.yaml`
 - Read `proposal.md` to extract the capability list
 - Read all delta specs in `openspec/changes/<name>/specs/*/spec.md`
-- For existing capability or domain IDs, run `openspec opsx query <node-id> --json` for current-system context
+- For existing capability or domain IDs, run `openspec opsx query <node-id...> --json` for current-system context in one batch; add `--depth 2` when related context is needed
 - Treat `ADDED`, `MODIFIED`, and `REMOVED` as YAML object keys, not Markdown headings
 - Follow a concrete YAML object structure such as:
   ```yaml

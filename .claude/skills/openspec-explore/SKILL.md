@@ -36,8 +36,7 @@ Do not read `openspec-impact-sweeper/SKILL.md` directly in the main agent.
 
 Before reading other context files, check whether `openspec/project.opsx.yaml` exists.
 - If it exists, read it first for domains → capabilities structure
-- Check `openspec/project.opsx.code-map.yaml` for code location references
-- Check `openspec/specs/` for behavior documentation
+- Read the `project:` block for project intent and scope
 - Treat it as navigation context, not as a replacement for change artifacts
 
 **OPSX-first navigation**:

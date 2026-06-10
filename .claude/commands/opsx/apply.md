@@ -49,9 +49,14 @@ Implement tasks from an OpenSpec change.
 
 4. **Read context files**
 
-   Use OpenSpec CLI query surfaces for architecture context instead of reading OPSX YAML files directly.
-- Run `openspec list --specs --json` to get specs and their `capabilities` string arrays.
-- For known or affected OPSX node IDs, run `openspec opsx query <node-id> --json` to get node details, relations, and code-map refs.
+   Before reading other context files, check whether `openspec/project.opsx.yaml` exists.
+- If it exists, read it first for domains → capabilities structure
+- Read the `project:` block for project intent and scope
+- Treat it as navigation context, not as a replacement for change artifacts
+
+   After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surfaces for node details.
+- Run `openspec list --specs --json` to get specs and their `capabilities` string arrays; specs without frontmatter return `capabilities: []`.
+- For known or affected OPSX node IDs, run `openspec opsx query <node-id...> --json` to get node details, relations and code-map refs in one batch; add `--depth 2` when broader related context is needed.
 - Treat CLI output as navigation context, not as a replacement for change artifacts.
 
    Read the files listed in `contextFiles` from the apply instructions output.
