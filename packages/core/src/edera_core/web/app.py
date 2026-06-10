@@ -42,7 +42,7 @@ def create_app(grpc_client: GrpcClient) -> FastAPI:
 
 
 def _mount_web_console(app: FastAPI) -> None:
-    static_dir = Path(os.environ.get("EDERA_WEB_CONSOLE_DIR", "apps/web-console"))
+    static_dir = Path(os.environ.get("EDERA_WEB_CONSOLE_DIR", "apps/web-console/dist"))
     if (static_dir / "index.html").exists():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="web-console")
 

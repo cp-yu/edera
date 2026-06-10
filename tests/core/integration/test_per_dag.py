@@ -1370,6 +1370,22 @@ async def test_bff_serves_web_console_index(tmp_path: Path, monkeypatch: pytest.
 
 
 @pytest.mark.asyncio
+async def test_bff_default_web_console_dir_uses_built_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_dag_config(tmp_path)
+    source_dir = tmp_path / "apps" / "web-console"
+    source_dir.mkdir(parents=True)
+    (source_dir / "index.html").write_text('<script type="module" src="/src/main.tsx"></script>', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("EDERA_WEB_CONSOLE_DIR", raising=False)
+
+    app = create_app(FakeGrpcClient())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_cors_middleware(tmp_path: Path) -> None:
     """C6: CORS middleware allows localhost:5173."""
     _write_dag_config(tmp_path)
