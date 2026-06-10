@@ -1,0 +1,178 @@
+{
+  "timestamp": "2026-06-10T05:20:08.207Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-orchestrated",
+    "evidenceFiles": [
+      "CLAUDE.md",
+      "openspec/changes/harden-edera-cli-core-gaps/design.md",
+      "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+      "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+      "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "tests/core/unit/test_cli.py",
+      "tests/core/unit/test_cli_extension.py"
+    ],
+    "evidenceFingerprint": "2148aca0ebd29ab15eef87b74537ea6a65bd4269588a76eb657fa2bd4a58fafa",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "CLAUDE.md",
+        "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/design.md",
+        "hash": "9699a3230f14293a0bf650a16a43f1d70602dfc8f5c7d53a251773f428c0fd93"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+        "hash": "c71b04e65b92a8aff62e6a5087ffd444dc34fa707217a289fb468c2880bf7c86"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+        "hash": "aa0362752b04927667f5c6a152fc634ae030117b174258dc7481288b1e822b02"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+        "hash": "ff810c962aaddf87f10e1d2a6d84b2da5a961441a8bf564167c278bfa1deb391"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+        "hash": "2fea0710bf9fa8fcd446852561bb6f7f6b0a5773684a60d6530077872292c5b9"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+        "hash": "5d4c506538a8ed3857574b22768a58ef900ade3cf1ba2457334007d4a3a9c29c"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+        "hash": "2f50004db8868d8715713dd67e79309f7fb3d3a0b23a8e12aece8633560497e8"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+        "hash": "7d136cab0235c449db351a04e14970d28c5f3966a17630f9166de0b70a0f97a0"
+      },
+      {
+        "path": "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+        "hash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "facc6893a89bccb46c3ded6072a7415a1be815dea8eee90bd7f022b6ac5f00d3"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+      },
+      {
+        "path": "tests/core/unit/test_cli_extension.py",
+        "hash": "5dbd9516f4f4ab60d04c7b3371ab32ca23d24974cb2585e630c87afd7811e3db"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "e26b6a18254f3a31af34740f4431076d8c118220a6b88d4c9f75ef8249f82f28"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "cd192c8b2d8a453376aa560ed1eea56858f2ab2e"
+  },
+  "optimization": {
+    "status": "PENDING_VERIFICATION",
+    "attempts": [],
+    "baseline": {
+      "timestamp": "2026-06-10T05:20:08.207Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-orchestrated",
+        "evidenceFiles": [
+          "CLAUDE.md",
+          "openspec/changes/harden-edera-cli-core-gaps/design.md",
+          "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+          "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+          "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "tests/core/unit/test_cli.py",
+          "tests/core/unit/test_cli_extension.py"
+        ],
+        "evidenceFingerprint": "2148aca0ebd29ab15eef87b74537ea6a65bd4269588a76eb657fa2bd4a58fafa",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "CLAUDE.md",
+            "hash": "f5b0cf63173f01321fd938728defbdab743bbd5cdb30ba7ce5f95e10fe3bb2e5"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/design.md",
+            "hash": "9699a3230f14293a0bf650a16a43f1d70602dfc8f5c7d53a251773f428c0fd93"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/opsx-delta.yaml",
+            "hash": "c71b04e65b92a8aff62e6a5087ffd444dc34fa707217a289fb468c2880bf7c86"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/proposal.md",
+            "hash": "aa0362752b04927667f5c6a152fc634ae030117b174258dc7481288b1e822b02"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/edera-cli/spec.md",
+            "hash": "ff810c962aaddf87f10e1d2a6d84b2da5a961441a8bf564167c278bfa1deb391"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/extension-cli-commands/spec.md",
+            "hash": "2fea0710bf9fa8fcd446852561bb6f7f6b0a5773684a60d6530077872292c5b9"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/grpc-control-services/spec.md",
+            "hash": "5d4c506538a8ed3857574b22768a58ef900ade3cf1ba2457334007d4a3a9c29c"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/multi-node-retry/spec.md",
+            "hash": "2f50004db8868d8715713dd67e79309f7fb3d3a0b23a8e12aece8633560497e8"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/specs/runtime-input-context/spec.md",
+            "hash": "7d136cab0235c449db351a04e14970d28c5f3966a17630f9166de0b70a0f97a0"
+          },
+          {
+            "path": "openspec/changes/harden-edera-cli-core-gaps/tasks.md",
+            "hash": "9f6c549a6a063bf877bc377f7a63abfe21d93f14318d07a2b08c268b09254b98"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "facc6893a89bccb46c3ded6072a7415a1be815dea8eee90bd7f022b6ac5f00d3"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+          },
+          {
+            "path": "tests/core/unit/test_cli_extension.py",
+            "hash": "5dbd9516f4f4ab60d04c7b3371ab32ca23d24974cb2585e630c87afd7811e3db"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "e26b6a18254f3a31af34740f4431076d8c118220a6b88d4c9f75ef8249f82f28"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "cd192c8b2d8a453376aa560ed1eea56858f2ab2e"
+      }
+    }
+  }
+}

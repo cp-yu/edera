@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 import asyncio
+import grpc
 import pytest
 import yaml
 
@@ -497,6 +499,91 @@ def test_cli_node_output_remains_business_only(monkeypatch: pytest.MonkeyPatch, 
     assert '"payload": {"value": 1}' in capsys.readouterr().out
 
 
+def test_cli_node_output_export_writes_payload_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    target = tmp_path / "payload.json"
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def node_output(self, node_id: str, run_id: str | None = None) -> list[dict[str, object]]:
+            assert node_id == "reader"
+            assert run_id == "run-1"
+            return [{"payload": {"value": 1}}]
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "node", "output", "export", "--run-id", "run-1", "--node", "reader", "--out", str(target)],
+    )
+
+    main()
+
+    assert json.loads(target.read_text(encoding="utf-8")) == [{"value": 1}]
+    assert '"entries": 1' in capsys.readouterr().out
+
+
+def test_cli_node_output_export_does_not_query_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    target = tmp_path / "payload.json"
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            pass
+
+        async def node_output(self, node_id: str, run_id: str | None = None) -> list[dict[str, object]]:
+            return [{"payload": {"business": True}}]
+
+        async def query_node_logs(self, *_args, **_kwargs) -> dict[str, object]:
+            raise AssertionError("export must not query logs")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "node", "output", "export", "--run-id", "run-1", "--node", "reader", "--out", str(target)],
+    )
+
+    main()
+
+    assert "execution log" not in target.read_text(encoding="utf-8")
+    capsys.readouterr()
+
+
+def test_cli_node_output_export_requires_out(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            raise AssertionError("invalid export must not open gRPC client")
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "node", "output", "export", "--run-id", "run-1", "--node", "reader"])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code != 0
+    assert "--out" in capsys.readouterr().err
+
+
 def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     class FakeClient:
         def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
@@ -617,12 +704,19 @@ def test_cli_dag_retry(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFi
             node_ids: list[str] | None = None,
             mode: str = "single",
             payload: object | None = None,
+            *,
+            source_shared_inputs: object | None = None,
+            node_inputs: dict[str, object] | None = None,
+            append_nodes: list[str] | None = None,
         ) -> dict[str, object]:
             assert dag_name == "default"
             assert run_id == "run-1"
             assert node_ids == ["node-a", "node-b"]
             assert mode == "multi"
             assert payload == {"reason": "test"}
+            assert source_shared_inputs is None
+            assert node_inputs is None
+            assert append_nodes is None
             return {"run_id": "retry-run-1"}
 
         async def close(self) -> None:
@@ -638,6 +732,167 @@ def test_cli_dag_retry(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFi
     main()
 
     assert '"run_id": "retry-run-1"' in capsys.readouterr().out
+
+
+def test_cli_dag_retry_source_shared_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            pass
+
+        async def dag_retry(
+            self,
+            dag_name: str,
+            run_id: str = "",
+            node_ids: list[str] | None = None,
+            mode: str = "single",
+            payload: object | None = None,
+            *,
+            source_shared_inputs: object | None = None,
+            node_inputs: dict[str, object] | None = None,
+            append_nodes: list[str] | None = None,
+        ) -> dict[str, object]:
+            assert source_shared_inputs == {"entity": "entity://fix"}
+            return {"run_id": "retry-run-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "dag", "retry", "default", "--nodes", "reader", "--source-shared-inputs", '{"entity":"entity://fix"}'],
+    )
+
+    main()
+
+    assert '"run_id": "retry-run-1"' in capsys.readouterr().out
+
+
+def test_cli_dag_retry_node_inputs_and_append_nodes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            pass
+
+        async def dag_retry(
+            self,
+            dag_name: str,
+            run_id: str = "",
+            node_ids: list[str] | None = None,
+            mode: str = "single",
+            payload: object | None = None,
+            *,
+            source_shared_inputs: object | None = None,
+            node_inputs: dict[str, object] | None = None,
+            append_nodes: list[str] | None = None,
+        ) -> dict[str, object]:
+            assert node_inputs == {"analyzer": {"test_mode": True}}
+            assert append_nodes == ["analyzer"]
+            return {"run_id": "retry-run-1"}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "edera",
+            "dag",
+            "retry",
+            "default",
+            "--nodes",
+            "analyzer",
+            "--node-inputs",
+            '{"analyzer":{"test_mode":true}}',
+            "--append-nodes",
+            "analyzer",
+        ],
+    )
+
+    main()
+
+    assert '"run_id": "retry-run-1"' in capsys.readouterr().out
+
+
+def test_cli_dag_retry_rejects_invalid_json(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            pass
+
+        async def dag_retry(self, *_args, **_kwargs) -> dict[str, object]:
+            raise AssertionError("invalid JSON must not call retry")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "retry", "default", "--node-inputs", "{bad-json}"])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1
+    assert "Expecting property name" in capsys.readouterr().err
+
+
+def test_cli_system_repair_source(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            pass
+
+        async def system_create_repair_task(self, source_name: str) -> dict[str, object]:
+            assert source_name == "rss-main"
+            return {
+                "task_id": "task-1",
+                "task_path": "/tmp/task.json",
+                "source_name": source_name,
+                "created_at": "2026-06-10T00:00:00Z",
+            }
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "system", "repair-source", "rss-main"])
+
+    main()
+
+    assert '"task_id": "task-1"' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("detail", ["FAILED_PRECONDITION: source is not escalated", "NOT_FOUND: source not found"])
+def test_cli_system_repair_source_reports_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    detail: str,
+) -> None:
+    class FakeRpcError(grpc.RpcError):
+        def details(self) -> str:
+            return detail
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            pass
+
+        async def system_create_repair_task(self, source_name: str) -> dict[str, object]:
+            raise FakeRpcError()
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "system", "repair-source", "rss-main"])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1
+    assert detail in capsys.readouterr().err
 
 
 def test_event_emit(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
