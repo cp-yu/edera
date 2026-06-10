@@ -1,0 +1,138 @@
+{
+  "timestamp": "2026-06-10T07:22:55.279Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "de82bb4e85e3c242c8c35f9cefe8e9aa88ef4be15802e7f54088c00ad4b1f260",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent-openspec-reviewer",
+    "evidenceFiles": [
+      "openspec/changes/expand-edera-cli-control-plane/design.md",
+      "openspec/changes/expand-edera-cli-control-plane/opsx-delta.yaml",
+      "openspec/changes/expand-edera-cli-control-plane/proposal.md",
+      "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli-control-plane/spec.md",
+      "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli/spec.md",
+      "openspec/changes/expand-edera-cli-control-plane/tasks.md",
+      "packages/core/pyproject.toml",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "tests/core/unit/test_cli.py"
+    ],
+    "evidenceFingerprint": "2e099bdc1a4a2c04dd49e9e53dec2946f9f0329643273405624150557a9fbaa4",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/expand-edera-cli-control-plane/design.md",
+        "hash": "03a740841a51ced6643880428a0b725e94063a75f9ca7acae6922b72c2cf13e4"
+      },
+      {
+        "path": "openspec/changes/expand-edera-cli-control-plane/opsx-delta.yaml",
+        "hash": "a11aebdf75e9cd668b2be1896d2616f00f7dd065c851b1ed5897978b31cadd7a"
+      },
+      {
+        "path": "openspec/changes/expand-edera-cli-control-plane/proposal.md",
+        "hash": "2d58cab7042d272f404459b977aaad770e81ca9e0ec5f58aa9d4bcb61d0e30b9"
+      },
+      {
+        "path": "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli-control-plane/spec.md",
+        "hash": "d90a2818ea2dd082f179af1f57e68897a1de4809a2d442e49a2efe263dc3e6f8"
+      },
+      {
+        "path": "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli/spec.md",
+        "hash": "36e9542c284a8bfd30695cb44253f529f5c64dee23f459695fa2ca635ea1944c"
+      },
+      {
+        "path": "openspec/changes/expand-edera-cli-control-plane/tasks.md",
+        "hash": "de82bb4e85e3c242c8c35f9cefe8e9aa88ef4be15802e7f54088c00ad4b1f260"
+      },
+      {
+        "path": "packages/core/pyproject.toml",
+        "hash": "44d54f117fa06a6b1cee2c1b68069dada029595fcdbf4e5ff1386541db612695"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "44fca47527eff8f1378be5ec6074331f83c34aff264467fbfc017fe9d186a8cc"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "c65e044c30c30666fea25532f1eb0db87f072f3a3d9c51ddc0507315e2ccff72"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "653408c232265bbfbd87cb390efb5592b00c9259"
+  },
+  "optimization": {
+    "status": "PENDING_VERIFICATION",
+    "attempts": [],
+    "baseline": {
+      "timestamp": "2026-06-10T07:22:55.279Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "de82bb4e85e3c242c8c35f9cefe8e9aa88ef4be15802e7f54088c00ad4b1f260",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent-openspec-reviewer",
+        "evidenceFiles": [
+          "openspec/changes/expand-edera-cli-control-plane/design.md",
+          "openspec/changes/expand-edera-cli-control-plane/opsx-delta.yaml",
+          "openspec/changes/expand-edera-cli-control-plane/proposal.md",
+          "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli-control-plane/spec.md",
+          "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli/spec.md",
+          "openspec/changes/expand-edera-cli-control-plane/tasks.md",
+          "packages/core/pyproject.toml",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "tests/core/unit/test_cli.py"
+        ],
+        "evidenceFingerprint": "2e099bdc1a4a2c04dd49e9e53dec2946f9f0329643273405624150557a9fbaa4",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/expand-edera-cli-control-plane/design.md",
+            "hash": "03a740841a51ced6643880428a0b725e94063a75f9ca7acae6922b72c2cf13e4"
+          },
+          {
+            "path": "openspec/changes/expand-edera-cli-control-plane/opsx-delta.yaml",
+            "hash": "a11aebdf75e9cd668b2be1896d2616f00f7dd065c851b1ed5897978b31cadd7a"
+          },
+          {
+            "path": "openspec/changes/expand-edera-cli-control-plane/proposal.md",
+            "hash": "2d58cab7042d272f404459b977aaad770e81ca9e0ec5f58aa9d4bcb61d0e30b9"
+          },
+          {
+            "path": "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli-control-plane/spec.md",
+            "hash": "d90a2818ea2dd082f179af1f57e68897a1de4809a2d442e49a2efe263dc3e6f8"
+          },
+          {
+            "path": "openspec/changes/expand-edera-cli-control-plane/specs/edera-cli/spec.md",
+            "hash": "36e9542c284a8bfd30695cb44253f529f5c64dee23f459695fa2ca635ea1944c"
+          },
+          {
+            "path": "openspec/changes/expand-edera-cli-control-plane/tasks.md",
+            "hash": "de82bb4e85e3c242c8c35f9cefe8e9aa88ef4be15802e7f54088c00ad4b1f260"
+          },
+          {
+            "path": "packages/core/pyproject.toml",
+            "hash": "44d54f117fa06a6b1cee2c1b68069dada029595fcdbf4e5ff1386541db612695"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "44fca47527eff8f1378be5ec6074331f83c34aff264467fbfc017fe9d186a8cc"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "c6a10b6df5e8c8205641870f9433c5e11001f2d3d4509c814a3fbe7a673ed75a"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "c65e044c30c30666fea25532f1eb0db87f072f3a3d9c51ddc0507315e2ccff72"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "653408c232265bbfbd87cb390efb5592b00c9259"
+      }
+    }
+  }
+}

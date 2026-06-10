@@ -1,0 +1,36 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.edera-cli-control-plane
+      type: capability
+      intent: edera CLI 暴露 GraphService、ConfigService、QueryService 和 source 运维读写入口，覆盖 DAG 定义、node type、handler、config、query 和 source 命令组。
+  relations:
+    - from: cap.core.edera-cli-control-plane
+      type: contains
+      to: dom.core
+    - from: cap.core.edera-cli-control-plane
+      type: depends_on
+      to: cap.core.edera-cli
+    - from: cap.core.edera-cli-control-plane
+      type: depends_on
+      to: cap.core.grpc-graph-service
+    - from: cap.core.edera-cli-control-plane
+      type: depends_on
+      to: cap.core.grpc-config-service
+    - from: cap.core.edera-cli-control-plane
+      type: depends_on
+      to: cap.core.grpc-query-service
+    - from: cap.core.edera-cli-control-plane
+      type: depends_on
+      to: cap.core.grpc-control-services
+    - from: cap.core.edera-cli-control-plane
+      type: depends_on
+      to: cap.web.source-health-monitoring
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.edera-cli
+      intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力，并通过控制面命令组暴露 DAG 定义、node type、handler、config、query 和 source 运维能力。
+
+REMOVED:
+  capabilities: []
