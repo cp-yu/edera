@@ -22,7 +22,7 @@
       "tests/core/unit/test_cli.py",
       "tests/core/unit/test_cli_extension.py"
     ],
-    "evidenceFingerprint": "2148aca0ebd29ab15eef87b74537ea6a65bd4269588a76eb657fa2bd4a58fafa",
+    "evidenceFingerprint": "03ac9e7fe7d8089ed9432aff002b911e27c29051fceb30c83496d71228a8ee1b",
     "evidenceFingerprintEntries": [
       {
         "path": "CLAUDE.md",
@@ -66,7 +66,7 @@
       },
       {
         "path": "packages/core/src/edera_core/cli.py",
-        "hash": "facc6893a89bccb46c3ded6072a7415a1be815dea8eee90bd7f022b6ac5f00d3"
+        "hash": "ab7facdb3a92dc6a8d42264e20c3dfbb0a123c97496af0367cf305cb60649a6b"
       },
       {
         "path": "packages/core/src/edera_core/grpc_client.py",
@@ -85,8 +85,27 @@
     "gitHeadCommit": "cd192c8b2d8a453376aa560ed1eea56858f2ab2e"
   },
   "optimization": {
-    "status": "PENDING_VERIFICATION",
-    "attempts": [],
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-10T05:28:44.843Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Consolidate duplicated DAG temporary-input argument assembly used by both dag retry and dag run without changing parsing, validation, or gRPC call behavior.",
+        "files": [
+          "packages/core/src/edera_core/cli.py"
+        ]
+      },
+      {
+        "timestamp": "2026-06-10T05:36:04.867Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/cli.py": "facc6893a89bccb46c3ded6072a7415a1be815dea8eee90bd7f022b6ac5f00d3"
+    },
     "baseline": {
       "timestamp": "2026-06-10T05:20:08.207Z",
       "result": "PASS",
@@ -173,6 +192,10 @@
         "skippedEvidenceFiles": [],
         "gitHeadCommit": "cd192c8b2d8a453376aa560ed1eea56858f2ab2e"
       }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
     }
   }
 }

@@ -527,18 +527,14 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
                 _node_ids(args.nodes),
                 args.mode,
                 _optional_json(args.payload),
-                source_shared_inputs=_optional_json(args.source_shared_inputs),
-                node_inputs=_optional_json(args.node_inputs),
-                append_nodes=_node_ids(args.append_nodes) if args.append_nodes else None,
+                **_dag_temporary_inputs(args),
             )
         if args.dag_command == "edit":
             return await client.dag_edit(args.dag_name, args.edit_command, _dag_edit_payload(args))
         return await client.dag_run(
             args.dag_name,
             _dag_run_payload(args),
-            source_shared_inputs=_optional_json(args.source_shared_inputs),
-            node_inputs=_optional_json(args.node_inputs),
-            append_nodes=_node_ids(args.append_nodes) if args.append_nodes else None,
+            **_dag_temporary_inputs(args),
         )
     finally:
         await client.close()
@@ -645,6 +641,14 @@ def _node_ids(value: str) -> list[str]:
 
 def _optional_json(value: str) -> object | None:
     return json.loads(value) if value else None
+
+
+def _dag_temporary_inputs(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "source_shared_inputs": _optional_json(args.source_shared_inputs),
+        "node_inputs": _optional_json(args.node_inputs),
+        "append_nodes": _node_ids(args.append_nodes) if args.append_nodes else None,
+    }
 
 
 def _node_output_payloads(outputs: object) -> list[object]:
