@@ -1,12 +1,5 @@
----
-capabilities:
-  - cap.single-node-loop
----
-# single-node-loop Specification
+## MODIFIED Requirements
 
-## Purpose
-定义 并行循环模式、串行循环模式、循环不破坏 DAG 无环性。
-## Requirements
 ### Requirement: 并行循环模式
 
 系统 SHALL 支持单节点并行循环：同一节点最多同时运行 N 个实例（N 受 `count` 与 resource permits 约束），每个实例接收相同的原始输入。`until` 配置时 SHALL 启用封顶短路：`count` 为迭代总数硬上限（`until` 存在且 `count` 缺省时取系统默认上限），任一实例输出满足 `until` 条件即取消其余未完成实例。
@@ -36,38 +29,7 @@ capabilities:
 - **WHEN** 并行循环以任意路径收尾（短路命中、跑满、部分失败）
 - **THEN** `NodeOutput.payload` MUST 为列表
 
-### Requirement: 串行循环模式
-
-系统 SHALL 支持单节点串行循环：节点反复执行，每次用上一次的输出作为输入，逐步迭代精炼。
-
-#### Scenario: 固定次数串行循环
-
-- **WHEN** 节点配置 `loop: {mode: serial, count: 3}`
-- **THEN** 系统执行该节点 3 次，第 1 次用原始输入，第 2 次用第 1 次输出，第 3 次用第 2 次输出
-
-#### Scenario: 条件停止串行循环
-
-- **WHEN** 节点配置 `loop: {mode: serial, until: "output.confidence > 0.8"}`，第 1 次输出 `{confidence: 0.6}`，第 2 次输出 `{confidence: 0.85}`
-- **THEN** 系统在第 2 次迭代后停止，返回 `{confidence: 0.85}` 作为最终输出
-
-#### Scenario: 串行循环达到最大次数
-
-- **WHEN** 节点配置 `loop: {mode: serial, until: "output.done == true", count: 10}`，且条件始终不满足
-- **THEN** 系统在第 10 次迭代后强制停止，返回最后一次输出
-
-### Requirement: 循环不破坏 DAG 无环性
-
-单节点循环 MUST 是节点级行为，MUST NOT 在 DAG 拓扑中引入环。
-
-#### Scenario: DAG 校验不受循环影响
-
-- **WHEN** DAG 中一个节点配置了 `loop`，DAG Runner 执行拓扑排序
-- **THEN** 拓扑排序正常完成，循环节点被视为单个节点处理
-
-#### Scenario: 循环节点的下游等待循环完成
-
-- **WHEN** 一个配置了 `loop` 的节点有下游节点
-- **THEN** 下游节点等待循环全部完成后才开始执行
+## ADDED Requirements
 
 ### Requirement: 循环并发控制
 
@@ -116,4 +78,3 @@ capabilities:
 
 - **WHEN** PUT 的节点 `loop.mode` 不在 `parallel|serial`，或 `count < 1`
 - **THEN** 系统 MUST 返回 400 错误，不持久化
-

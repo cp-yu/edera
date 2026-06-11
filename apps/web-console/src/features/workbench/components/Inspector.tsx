@@ -42,12 +42,20 @@ export function Inspector({
   const stdout = useNodeStdout(runtimeNodeId)
   const [alias, setAlias] = useState('')
   const [instanceOptional, setInstanceOptional] = useState(false)
+  const [loopMode, setLoopMode] = useState<'' | 'parallel' | 'serial'>('')
+  const [loopCount, setLoopCount] = useState<number | undefined>(undefined)
+  const [loopUntil, setLoopUntil] = useState('')
+  const [loopResource, setLoopResource] = useState<string | null>(null)
   const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     if (!node) return
     setAlias(node.alias ?? '')
     setInstanceOptional(Boolean(node.optional))
+    setLoopMode(node.loop?.mode ?? '')
+    setLoopCount(node.loop?.count)
+    setLoopUntil(node.loop?.until ?? '')
+    setLoopResource(node.resource ?? null)
     setFormValues(flattenConfig(node.config))
   }, [node])
 
@@ -154,10 +162,11 @@ export function Inspector({
   const save = () => {
     const nodes: DagNodeRecord[] = dag.nodes.map((item) => {
       if (item.id !== node.id) {
-        return { id: item.id, type: item.type_name, dag_ref: item.dag_ref, input_mapping: item.input_mapping, alias: item.alias, config: item.config ?? {}, optional: Boolean(item.optional) }
+        return { id: item.id, type: item.type_name, dag_ref: item.dag_ref, input_mapping: item.input_mapping, alias: item.alias, config: item.config ?? {}, optional: Boolean(item.optional), loop: item.loop, resource: item.resource }
       }
       const config = buildConfig(item, formValues, typeDefaults)
-      return { id: item.id, type: item.type_name, dag_ref: item.dag_ref, input_mapping: item.input_mapping, alias: alias || item.type_name, config, optional: instanceOptional }
+      const loop = loopMode ? { mode: loopMode, count: loopCount, until: loopUntil || undefined } : undefined
+      return { id: item.id, type: item.type_name, dag_ref: item.dag_ref, input_mapping: item.input_mapping, alias: alias || item.type_name, config, optional: instanceOptional, loop, resource: loopResource }
     })
     saveDag.mutate({ nodes, edges: dag.edges, ui: dag.ui })
   }
@@ -200,6 +209,17 @@ export function Inspector({
                   <span className="block text-xs text-muted-foreground">仅影响此节点实例的出边</span>
                 </span>
               </label>
+              <LoopConfigurator
+                mode={loopMode}
+                count={loopCount}
+                until={loopUntil}
+                resource={loopResource}
+                resources={dag.entities?.filter((e) => e.type === 'resource') ?? []}
+                onModeChange={setLoopMode}
+                onCountChange={setLoopCount}
+                onUntilChange={setLoopUntil}
+                onResourceChange={setLoopResource}
+              />
               <SchemaForm
                 key={node.id}
                 schema={formSchema}
@@ -1002,6 +1022,85 @@ function Readonly({ label, value }: { label: string; value: string }) {
       <label className="text-xs text-muted-foreground">{label}</label>
       <p className="text-sm">{value}</p>
     </div>
+  )
+}
+
+function LoopConfigurator({
+  mode,
+  count,
+  until,
+  resource,
+  resources,
+  onModeChange,
+  onCountChange,
+  onUntilChange,
+  onResourceChange,
+}: {
+  mode: '' | 'parallel' | 'serial'
+  count: number | undefined
+  until: string
+  resource: string | null
+  resources: EntityItem[]
+  onModeChange: (mode: '' | 'parallel' | 'serial') => void
+  onCountChange: (count: number | undefined) => void
+  onUntilChange: (until: string) => void
+  onResourceChange: (resource: string | null) => void
+}) {
+  const [expanded, setExpanded] = useState(Boolean(mode))
+
+  return (
+    <details open={expanded} onToggle={(e) => setExpanded((e.target as HTMLDetailsElement).open)} className="space-y-2">
+      <summary className="cursor-pointer text-sm font-medium">循环</summary>
+      <div className="space-y-2 pl-4">
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">Mode</label>
+          <select
+            value={mode}
+            onChange={(e) => onModeChange(e.target.value as '' | 'parallel' | 'serial')}
+            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+          >
+            <option value="">无</option>
+            <option value="parallel">parallel</option>
+            <option value="serial">serial</option>
+          </select>
+        </div>
+        {mode && (
+          <>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Count</label>
+              <input
+                type="number"
+                value={count ?? ''}
+                onChange={(e) => onCountChange(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Until</label>
+              <input
+                value={until}
+                onChange={(e) => onUntilChange(e.target.value)}
+                placeholder="optional condition"
+                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Resource</label>
+              <select
+                value={resource ?? ''}
+                onChange={(e) => onResourceChange(e.target.value || null)}
+                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
+              >
+                <option value="">无</option>
+                {resources.map((res) => (
+                  <option key={res.ref} value={res.ref}>{res.display}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+      </div>
+    </details>
   )
 }
 

@@ -1,0 +1,20 @@
+name: loop-example
+nodes:
+  - id: parallel-search
+    type: rss-fetcher
+    loop:
+      mode: parallel
+      count: 3
+      until: output.confidence > 0.8
+    resource: api_limiter
+    config: {}
+  - id: refine-result
+    type: advisor
+    loop:
+      mode: serial
+      count: 2
+    config: {}
+edges:
+  - from: parallel-search
+    to: refine-result
+ui: {}

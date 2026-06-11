@@ -41,7 +41,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.web.dag-workbench-ui
-    intent: DAG 工作台 UI 支持将 DAG 作为可拖入节点候选，并支持保留父节点实例上下文的 sub-DAG 导航。
+    intent: DAG 工作台 UI 支持将 DAG 作为可拖入节点候选、保留父节点实例上下文的 sub-DAG 导航，以及节点实例循环配置区块与画布循环徽标。
     type: capability
     domain: dom.web
   - id: cap.web.canvas-interaction-enhancement
@@ -113,7 +113,7 @@ capabilities:
     intent: DAG edge 条件分支，可替换 condition evaluator handler，支持 output.* + entity ref + 常量
     type: capability
   - id: cap.single-node-loop
-    intent: 单节点并行循环（同输入多实例）和串行循环（迭代精炼），停止条件为固定次数或条件满足
+    intent: 单节点并行循环（同输入多实例，until 封顶短路取消）和串行循环（迭代精炼），并发由 resource permits 以迭代为持有单元控制，loop/resource 作为实例顶层字段经 graph API 往返保真
     type: capability
   - id: cap.sub-dag-execution
     intent: 子 DAG 作为 Node 嵌套执行，对外黑盒，递归上限可配置
@@ -171,7 +171,7 @@ capabilities:
     intent: 多节点重试 API 和 CLI 均支持临时输入参数，包括 sourceSharedInputs、nodeInputs 和 appendNodes。
     type: capability
   - id: cap.core.dag-resource-semaphore
-    intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度逻辑和跨 DAG 共享语义
+    intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度（循环节点外壳不持锁）、阻塞式 acquire 与精确唤醒、跨 DAG 共享语义
     type: capability
   - id: cap.core.uzi-skill-dag-instance
     intent: uzi-skill manifest 使用 glob patterns 替代 59 行手动列举

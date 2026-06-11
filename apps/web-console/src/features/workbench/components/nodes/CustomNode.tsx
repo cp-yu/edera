@@ -79,6 +79,18 @@ function SelectionBadge({ active }: { active?: boolean }) {
   )
 }
 
+function LoopBadge({ loop }: { loop?: { mode: 'parallel' | 'serial'; count?: number; until?: string } }) {
+  if (!loop) return null
+  const symbol = loop.mode === 'parallel' ? '∥' : '⟳'
+  const count = loop.count ?? 1
+  return (
+    <span className="absolute -left-3 -top-3 z-10 flex items-center gap-1 rounded-full border-2 border-slate-950 bg-indigo-400 px-2 py-1 text-[11px] font-semibold text-slate-950 shadow-[0_0_0_4px_rgba(129,140,248,0.25)]">
+      {symbol} ×{count}
+      {loop.until ? <span className="ml-0.5 text-[9px]">⚡</span> : null}
+    </span>
+  )
+}
+
 function HandleRail({
   handles,
   position,
@@ -157,6 +169,7 @@ export function CustomNode({ id, data, selected }: NodeProps) {
     >
       <RetryBadge active={node.retrying} />
       <SelectionBadge active={selected} />
+      <LoopBadge loop={node.loop} />
       <HandleRail
         handles={node.inputHandles}
         position={Position.Left}

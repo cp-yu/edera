@@ -1,0 +1,17 @@
+schema_version: 1
+MODIFIED:
+  capabilities:
+    - id: cap.single-node-loop
+      intent: 单节点并行循环（同输入多实例，until 封顶短路取消）和串行循环（迭代精炼），并发由 resource permits 以迭代为持有单元控制，loop/resource 作为实例顶层字段经 graph API 往返保真
+    - id: cap.core.dag-resource-semaphore
+      intent: DAG 节点资源信号量约束，覆盖 Resource Entity 定义、节点 resource 声明、DagRunner acquire/release 调度（循环节点外壳不持锁）、阻塞式 acquire 与精确唤醒、跨 DAG 共享语义
+    - id: cap.web.dag-workbench-ui
+      intent: DAG 工作台 UI 支持将 DAG 作为可拖入节点候选、保留父节点实例上下文的 sub-DAG 导航，以及节点实例循环配置区块与画布循环徽标。
+ADDED:
+  relations:
+    - from: cap.web.dag-workbench-ui
+      type: depends_on
+      to: cap.single-node-loop
+    - from: cap.single-node-loop
+      type: depends_on
+      to: cap.core.dag-resource-semaphore
