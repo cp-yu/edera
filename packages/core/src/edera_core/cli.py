@@ -118,11 +118,18 @@ def _table_rows(result: object) -> list[dict[str, object]]:
     if isinstance(result, list):
         return [item if isinstance(item, dict) else {"value": item} for item in result]
     if isinstance(result, dict):
-        list_values = [(key, value) for key, value in result.items() if isinstance(value, list)]
-        if len(list_values) == 1:
-            return _table_rows(list_values[0][1])
+        single_list = _extract_single_list_value(result)
+        if single_list is not None:
+            return _table_rows(single_list)
         return [result]
     return [{"value": result}]
+
+
+def _extract_single_list_value(result: dict[str, object]) -> list[object] | None:
+    list_values = [(key, value) for key, value in result.items() if isinstance(value, list)]
+    if len(list_values) == 1:
+        return list_values[0][1]
+    return None
 
 
 def _table_cell(value: object) -> str:
@@ -559,10 +566,10 @@ def _dedupe_tail_result(result: object, seen: set[str]) -> tuple[object, bool]:
         if isinstance(logs, list):
             new_logs = _new_tail_items(logs, seen)
             return {**result, "logs": new_logs}, bool(new_logs)
-        list_values = [(key, value) for key, value in result.items() if isinstance(value, list)]
-        if len(list_values) == 1:
-            key, value = list_values[0]
-            new_items = _new_tail_items(value, seen)
+        single_list = _extract_single_list_value(result)
+        if single_list is not None:
+            key = next(k for k, v in result.items() if v is single_list)
+            new_items = _new_tail_items(single_list, seen)
             return {**result, key: new_items}, bool(new_items)
     if isinstance(result, list):
         new_items = _new_tail_items(result, seen)
@@ -611,10 +618,10 @@ def _page_result(result: object, offset: int, limit: int | None) -> object:
     if isinstance(result, list):
         return _page_list(result, offset, limit)
     if isinstance(result, dict):
-        list_values = [(key, value) for key, value in result.items() if isinstance(value, list)]
-        if len(list_values) == 1:
-            key, value = list_values[0]
-            return {**result, key: _page_list(value, offset, limit)}
+        single_list = _extract_single_list_value(result)
+        if single_list is not None:
+            key = next(k for k, v in result.items() if v is single_list)
+            return {**result, key: _page_list(single_list, offset, limit)}
     return result
 
 
@@ -1076,9 +1083,9 @@ async def _grpc_extension(args: argparse.Namespace) -> object:
             entities = [await client.entity_get(ref) for ref in refs]
             _extension_export_entities(args.file, args.name, args.version, entities)
             return {"exported": args.name, "file": str(args.file), "entities": refs}
+        raise ValueError(f"unknown extension command: {args.extension_command}")
     finally:
         await client.close()
-    raise ValueError(f"unknown extension command: {args.extension_command}")
 
 
 def _dag_run_payload(args: argparse.Namespace) -> object:
