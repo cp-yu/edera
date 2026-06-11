@@ -121,7 +121,8 @@ class DagRunner:
                 if node in outputs:
                     continue
                 if node in allowed and not graph.reverse_edges[node]:
-                    if not self._acquire_resource(graph.instances[node], acquired):
+                    instance = graph.instances[node]
+                    if instance.loop is None and not self._acquire_resource(instance, acquired):
                         continue
                     self._start_node(
                         running,
@@ -391,7 +392,8 @@ class DagRunner:
             if self._node_fan_in_mode(graph, node) == "accumulate":
                 continue
             if self._ready(graph, node, outputs, routed_edges):
-                if not self._acquire_resource(graph.instances[node], acquired):
+                instance = graph.instances[node]
+                if instance.loop is None and not self._acquire_resource(instance, acquired):
                     continue
                 await self._record_edge_inputs(run_id, graph, node, outputs, routed_edges)
                 self._start_node(
@@ -626,22 +628,54 @@ class DagRunner:
         context: NodeContext,
     ) -> NodeOutput:
         count = instance.loop.count if instance.loop and instance.loop.count is not None else 1
-        results = await asyncio.gather(
-            *[
-                self.executor.execute(
+        semaphore = get_semaphore(instance.resource, self.executor.entity_store) if instance.resource else None
+
+        async def run_iteration(index: int) -> NodeOutput:
+            if semaphore:
+                await semaphore.acquire()
+            try:
+                return await self.executor.execute(
                     node,
                     node_input,
                     NodeContext(context.run_id, f"{node}:{index}", context.node_type, context.dag_name),
                 )
-                for index in range(count)
-            ]
-        )
-        payload = [result.payload for result in results if result.ok]
-        failures = {f"{node}:{index}": result.error or "node failed" for index, result in enumerate(results) if not result.ok}
-        matched = instance.loop.until is not None and any(
-            result.ok and evaluate_condition(instance.loop.until or "", result.payload, self.executor.entity_store)
-            for result in results
-        )
+            finally:
+                if semaphore:
+                    semaphore.release()
+
+        tasks = [asyncio.create_task(run_iteration(i)) for i in range(count)]
+        completed_results: list[NodeOutput] = []
+        matched = False
+        cancelled_tasks: set[asyncio.Task] = set()
+
+        try:
+            for coro in asyncio.as_completed(tasks):
+                try:
+                    result = await coro
+                    if result.ok and instance.loop and instance.loop.until:
+                        if evaluate_condition(instance.loop.until, result.payload, self.executor.entity_store):
+                            matched = True
+                            for t in tasks:
+                                if not t.done():
+                                    t.cancel()
+                                    cancelled_tasks.add(t)
+                            completed_results = [result]
+                            break
+                    completed_results.append(result)
+                except asyncio.CancelledError:
+                    pass
+
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+
+        payload = [r.payload for r in completed_results if r.ok]
+        failures = {f"{node}:{idx}": r.error or "iteration failed" for idx, r in enumerate(completed_results) if not r.ok}
+
         return NodeOutput(
             node_name=node,
             ok=bool(payload),
@@ -689,14 +723,21 @@ class DagRunner:
         context: NodeContext,
     ) -> NodeOutput:
         count = instance.loop.count if instance.loop and instance.loop.count is not None else 1
+        semaphore = get_semaphore(instance.resource, self.executor.entity_store) if instance.resource else None
         current_input = node_input
         last: NodeOutput | None = None
         for index in range(count):
-            last = await self.executor.execute(
-                node,
-                current_input,
-                NodeContext(context.run_id, f"{node}:{index}", context.node_type, context.dag_name),
-            )
+            if semaphore:
+                await semaphore.acquire()
+            try:
+                last = await self.executor.execute(
+                    node,
+                    current_input,
+                    NodeContext(context.run_id, f"{node}:{index}", context.node_type, context.dag_name),
+                )
+            finally:
+                if semaphore:
+                    semaphore.release()
             if not last.ok:
                 return last
             if instance.loop.until and evaluate_condition(instance.loop.until, last.payload, self.executor.entity_store):

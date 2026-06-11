@@ -364,12 +364,16 @@ def _graph_dag_state(
                 "config": instance.config,
                 "optional": instance.optional,
             })
+            if instance.loop:
+                item["loop"] = instance.loop.model_dump(mode="json", exclude_none=True)
+            if instance.resource:
+                item["resource"] = instance.resource
             for key, value in instance.config.items():
                 if key in INSTANCE_CONFIG_FIELDS | {"parameters"}:
                     item[key] = value
             node_instances.append(item)
         else:
-            node_instances.append({
+            item = {
                 "id": instance.id,
                 "name": instance.type,
                 "type": "function",
@@ -381,7 +385,12 @@ def _graph_dag_state(
                 "input_type": "Any",
                 "output_type": "Any",
                 "optional": instance.optional,
-            })
+            }
+            if instance.loop:
+                item["loop"] = instance.loop.model_dump(mode="json", exclude_none=True)
+            if instance.resource:
+                item["resource"] = instance.resource
+            node_instances.append(item)
     return {
         "name": dag.name,
         "nodes": node_instances,
@@ -499,6 +508,12 @@ def dag_node_payload(node: object) -> dict[str, object]:
     input_mapping = node.get("input_mapping")
     if isinstance(input_mapping, dict):
         payload["input_mapping"] = {str(key): str(value) for key, value in input_mapping.items()}
+    loop = node.get("loop")
+    if isinstance(loop, dict):
+        payload["loop"] = loop
+    resource = node.get("resource")
+    if isinstance(resource, str):
+        payload["resource"] = resource
     return payload
 
 

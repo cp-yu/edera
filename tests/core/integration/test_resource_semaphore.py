@@ -97,7 +97,6 @@ def _default_workflow_handler_name(name: str) -> str | None:
     provider = {
         "fetch-rss": "rss-fetcher",
         "fetch-api": "api-fetcher",
-        "fetch-web": "web-scraper",
         "summarize": "reader",
         "classify-sentiment": "reader",
         "generate-advice": "advisor",
@@ -159,7 +158,7 @@ async def test_release_on_failure() -> None:
                 "name": "resource-failure",
                 "nodes": [
                     {"id": "first", "type": "rss-fetcher", "resource": "v8_isolate"},
-                    {"id": "second", "type": "web-scraper", "resource": "v8_isolate"},
+                    {"id": "second", "type": "api-fetcher", "resource": "v8_isolate"},
                 ],
                 "edges": [],
             }
@@ -175,7 +174,7 @@ async def test_release_on_failure() -> None:
         nodes,
         config.system,
         config.runtime,
-        _test_snapshot({"fetch-rss": fail, "fetch-web": _delayed_handler("second", [], 0)}),
+        _test_snapshot({"fetch-rss": fail, "fetch-api": _delayed_handler("second", [], 0)}),
         graph.instances,
         store,
     )
@@ -207,9 +206,9 @@ async def test_cross_dag_sharing() -> None:
         return "b"
 
     graph_a = _single_resource_graph(config, "dag-a", "rss-fetcher")
-    graph_b = _single_resource_graph(config, "dag-b", "web-scraper")
+    graph_b = _single_resource_graph(config, "dag-b", "api-fetcher")
     runner_a = DagRunner(NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": first}), graph_a.instances, store))
-    runner_b = DagRunner(NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-web": second}), graph_b.instances, store))
+    runner_b = DagRunner(NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-api": second}), graph_b.instances, store))
 
     task_a = asyncio.create_task(runner_a.run(graph_a, "run-a", {}))
     await started.wait()
@@ -278,7 +277,7 @@ async def test_accumulate_resource_nodes_are_limited() -> None:
                 "name": "accumulate-resource",
                 "nodes": [
                     {"id": "fast", "type": "rss-fetcher"},
-                    {"id": "slow", "type": "web-scraper"},
+                    {"id": "slow", "type": "api-fetcher"},
                     {"id": "sink", "type": "advisor", "fan_in_mode": "accumulate", "resource": "v8_isolate"},
                 ],
                 "edges": [
@@ -307,7 +306,7 @@ async def test_accumulate_resource_nodes_are_limited() -> None:
         nodes,
         config.system,
         config.runtime,
-        _test_snapshot({"fetch-rss": source, "fetch-web": source, "generate-advice": sink}),
+        _test_snapshot({"fetch-rss": source, "fetch-api": source, "generate-advice": sink}),
         graph.instances,
         _resource_store(1),
     )
@@ -328,7 +327,7 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
                 "name": "accumulate-resource-contention",
                 "nodes": [
                     {"id": "holder", "type": "rss-fetcher", "resource": "v8_isolate"},
-                    {"id": "source", "type": "web-scraper"},
+                    {"id": "source", "type": "api-fetcher"},
                     {"id": "sink", "type": "advisor", "fan_in_mode": "accumulate", "resource": "v8_isolate"},
                 ],
                 "edges": [{"from": "source", "to": "sink", "fan_in_mode": "stream"}],
@@ -363,7 +362,7 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
         nodes,
         config.system,
         config.runtime,
-        _test_snapshot({"fetch-rss": holder, "fetch-web": source, "generate-advice": sink}),
+        _test_snapshot({"fetch-rss": holder, "fetch-api": source, "generate-advice": sink}),
         graph.instances,
         _resource_store(1),
     )
@@ -394,7 +393,7 @@ def _resource_store(permits: int, resource_ids: list[str] | None = None) -> Enti
 def _nodes(config):
     return {
         "rss-fetcher": config.nodes["rss-fetcher"].model_copy(update={"role": "processor"}),
-        "web-scraper": config.nodes["web-scraper"].model_copy(update={"role": "processor"}),
+        "api-fetcher": config.nodes["api-fetcher"].model_copy(update={"role": "processor"}),
     }
 
 
@@ -462,3 +461,102 @@ def _delayed_handler(value: str, events: list[str], delay: float):
         return value
 
     return handler
+
+
+@pytest.mark.asyncio
+async def test_blocking_acquire_waits_for_release() -> None:
+    store = _resource_store(1)
+    sem = get_semaphore("v8_isolate", store)
+
+    assert sem.acquire_nowait()
+    assert not sem.available()
+
+    acquired = False
+
+    async def waiter():
+        nonlocal acquired
+        await sem.acquire()
+        acquired = True
+
+    task = asyncio.create_task(waiter())
+    await asyncio.sleep(0.01)
+    assert not acquired
+
+    sem.release()
+    await task
+    assert acquired
+
+
+@pytest.mark.asyncio
+async def test_blocking_acquire_precise_wakeup() -> None:
+    store = _resource_store(1)
+    sem = get_semaphore("v8_isolate", store)
+
+    assert sem.acquire_nowait()
+
+    wakeup_order: list[int] = []
+
+    async def waiter(idx: int):
+        await sem.acquire()
+        wakeup_order.append(idx)
+        await asyncio.sleep(0.01)
+        sem.release()
+
+    tasks = [asyncio.create_task(waiter(i)) for i in range(3)]
+    await asyncio.sleep(0.01)
+
+    sem.release()
+    await asyncio.gather(*tasks)
+
+    assert wakeup_order == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_blocking_acquire_cancel_no_leak() -> None:
+    store = _resource_store(1)
+    sem = get_semaphore("v8_isolate", store)
+
+    assert sem.acquire_nowait()
+
+    async def waiter():
+        await sem.acquire()
+
+    task = asyncio.create_task(waiter())
+    await asyncio.sleep(0.01)
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    sem.release()
+    assert sem.acquire_nowait()
+
+
+@pytest.mark.asyncio
+async def test_nowait_and_blocking_mixed() -> None:
+    store = _resource_store(2)
+    sem = get_semaphore("v8_isolate", store)
+
+    assert sem.acquire_nowait()
+    assert sem.acquire_nowait()
+    assert not sem.available()
+
+    acquired_blocking = False
+
+    async def blocking_waiter():
+        nonlocal acquired_blocking
+        await sem.acquire()
+        acquired_blocking = True
+
+    task = asyncio.create_task(blocking_waiter())
+    await asyncio.sleep(0.01)
+    assert not acquired_blocking
+
+    sem.release()
+    await task
+    assert acquired_blocking
+    assert not sem.available()
+
+    assert not sem.acquire_nowait()
+    sem.release()
+    assert sem.acquire_nowait()
