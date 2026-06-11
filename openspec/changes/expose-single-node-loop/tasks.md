@@ -17,17 +17,17 @@
 
 #### Checks
 
-- [ ] C1 阻塞 acquire 与精确唤醒
+- [x] C1 阻塞 acquire 与精确唤醒
   - Verifies: `specs/dag-resource-semaphore/spec.md` / Requirement "阻塞式 acquire" / Scenario "阻塞等待后获得 permit"、"精确唤醒"
   - Command: `uv run pytest tests/core/integration/test_resource_semaphore.py -x -q`
   - Expect: 新增用例通过；多个等待者排队时一次 release 仅唤醒一个
 
-- [ ] C2 混用与取消安全
+- [x] C2 混用与取消安全
   - Verifies: `specs/dag-resource-semaphore/spec.md` / Requirement "阻塞式 acquire" / Scenario "nowait 与阻塞混用"、"等待中被取消不泄漏"
   - Command: `uv run pytest tests/core/integration/test_resource_semaphore.py -x -q`
   - Expect: 交错 acquire/release 下已发放 permit 不超过 permits；取消等待者后续唤醒正常
 
-- [ ] C3 存量回归
+- [x] C3 存量回归
   - Verifies: `specs/dag-resource-semaphore/spec.md` / Requirement "Semaphore acquire/release 调度" / Scenario "acquire 成功立即启动"、"acquire 失败暂缓启动"
   - Command: `uv run pytest tests/core/integration/test_resource_semaphore.py -q`
   - Expect: 现有全部用例通过，调度器侧行为不变
@@ -49,17 +49,17 @@
 
 #### Checks
 
-- [ ] C4 until 封顶短路
+- [x] C4 until 封顶短路
   - Verifies: `specs/single-node-loop/spec.md` / Requirement "并行循环模式" / Scenario "条件停止并行循环（封顶短路）"、"until 跑满未命中"、"输出形状恒为列表"
   - Command: `uv run pytest tests/core/integration/test_dag_runner.py -x -q -k loop`
   - Expect: 命中时未完成迭代被取消、payload 为单元素列表；跑满返回全量列表
 
-- [ ] C5 迭代级并发控制
+- [x] C5 迭代级并发控制
   - Verifies: `specs/single-node-loop/spec.md` / Requirement "循环并发控制" / Scenario "permits 限制并发迭代数"、"permits 为 1 不死锁"、"与非循环节点共享 resource"、"串行循环迭代持锁"
   - Command: `uv run pytest tests/core/integration/test_dag_runner.py tests/core/integration/test_resource_semaphore.py -x -q`
   - Expect: permits=2/count=5 时 max_active==2；permits=1 串行跑完不死锁；共享 resource 互斥生效
 
-- [ ] C6 循环节点外壳不抢锁
+- [x] C6 循环节点外壳不抢锁
   - Verifies: `specs/dag-resource-semaphore/spec.md` / Requirement "Semaphore acquire/release 调度" / Scenario "循环节点外壳不抢锁"
   - Evidence: `packages/core/src/edera_core/dag/runner.py`
   - Expect: loop 节点启动路径不调用节点级 `_acquire_resource`，permit 仅由迭代持有
@@ -79,7 +79,7 @@
 
 #### Checks
 
-- [ ] C7 序列化往返
+- [x] C7 序列化往返
   - Verifies: `specs/single-node-loop/spec.md` / Requirement "循环配置序列化往返保真" / Scenario "GET 返回 loop 与 resource"、"PUT 往返保真"、"非法 loop 配置被拒"
   - Command: `uv run pytest tests/core -x -q -k "graph or dag"`
   - Expect: round-trip 后 loop/resource 与保存前一致；mode 非法或 count<1 返回 INVALID_ARGUMENT/400
@@ -104,13 +104,13 @@
 
 #### Checks
 
-- [ ] C8 区块渲染与保存
+- [x] C8 区块渲染与保存
   - Verifies: `specs/dag-workbench-ui/spec.md` / Requirement "Node instance loop configuration in Inspector" / Scenario "循环区块渲染"、"保存写入顶层字段"、"清除循环配置"
   - Command: `cd apps/web-console && npm run build`
   - Evidence: `apps/web-console/src/features/workbench/components/Inspector.tsx`
   - Expect: 构建通过；save 产出的 record 顶层含 loop/resource，config 中无 loop
 
-- [ ] C9 resource 下拉选项
+- [x] C9 resource 下拉选项
   - Verifies: `specs/dag-workbench-ui/spec.md` / Requirement "Node instance loop configuration in Inspector" / Scenario "resource 下拉选项来源"
   - Evidence: `apps/web-console/src/features/workbench/components/Inspector.tsx`
   - Expect: 选项过滤自 entities 中 type=resource 者并含「无」
@@ -129,7 +129,7 @@
 
 #### Checks
 
-- [ ] C10 徽标展示
+- [x] C10 徽标展示
   - Verifies: `specs/dag-workbench-ui/spec.md` / Requirement "Canvas loop badge" / Scenario "并行徽标"、"串行带条件徽标"、"无循环无徽标"
   - Command: `cd apps/web-console && npm run build`
   - Evidence: `apps/web-console/src/features/workbench/components/nodes/CustomNode.tsx`
@@ -152,7 +152,7 @@
 
 #### Checks
 
-- [ ] C11 示例加载
+- [x] C11 示例加载
   - Verifies: `specs/single-node-loop/spec.md` / Requirement "循环配置序列化往返保真" / Scenario "GET 返回 loop 与 resource"
   - Command: `uv run pytest tests/core -q`
   - Expect: 含 loop 示例的配置正常加载，全量测试通过
