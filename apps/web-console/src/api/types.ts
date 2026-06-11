@@ -53,6 +53,12 @@ export interface NodeInstance extends NodeType {
   alias?: string | null
   config?: Record<string, unknown>
   optional?: boolean
+  loop?: {
+    mode: 'parallel' | 'serial'
+    count?: number
+    until?: string
+  }
+  resource?: string | null
 }
 
 export interface EntityTypeDefinition {
@@ -99,6 +105,12 @@ export interface DagNodeRecord {
   alias?: string | null
   config?: Record<string, unknown>
   optional?: boolean
+  loop?: {
+    mode: 'parallel' | 'serial'
+    count?: number
+    until?: string
+  }
+  resource?: string | null
 }
 
 export interface DagUi {

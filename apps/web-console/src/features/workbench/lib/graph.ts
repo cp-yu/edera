@@ -301,6 +301,8 @@ export function toDagDraft(nodes: WorkbenchNode[], edges: WorkbenchEdge[]): DagD
       alias: rest.alias,
       config: rest.config ?? {},
       optional: Boolean(rest.optional),
+      loop: rest.loop,
+      resource: rest.resource,
     }
   })
 
