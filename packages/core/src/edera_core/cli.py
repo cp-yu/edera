@@ -5,8 +5,10 @@ import asyncio
 import json
 import os
 import shutil
+import sys
 import tarfile
 import tempfile
+import time
 from pathlib import Path
 
 import grpc
@@ -19,9 +21,11 @@ from edera_core.handler_validator import validate_handler
 
 
 def main() -> None:
+    argv = _normalize_global_output_arg(sys.argv[1:])
     parser = argparse.ArgumentParser(prog="edera")
     parser.add_argument("--identity", default=os.environ.get("EDERA_IDENTITY", "human"))
     parser.add_argument("--server", default=os.environ.get("EDERA_SERVER_ADDR"))
+    parser.add_argument("--output", choices=["json", "yaml", "table"], default="json")
     parser.add_argument("--version", action="version", version="edera 0.1.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
     _entity_parser(subparsers.add_parser("entity"))
@@ -41,20 +45,120 @@ def main() -> None:
     _extension_parser(subparsers.add_parser("extension"))
     handler_validate = subparsers.add_parser("handler-validate")
     handler_validate.add_argument("path", type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         if _should_inject_human_cert_env(args):
             _inject_human_cert_env()
-        result = _dispatch(args)
+        if _is_repeating(args):
+            _dispatch_repeating(args)
+            result = None
+        else:
+            result = _dispatch(args)
     except PermissionError as exc:
-        parser.exit(1, f"Permission denied: {exc}\n")
+        _exit_error(parser, "Permission denied", "PermissionError", str(exc))
     except grpc.RpcError as exc:
         detail = exc.details() if hasattr(exc, "details") else str(exc)
-        parser.exit(1, f"{detail}\n")
+        _exit_error(parser, "gRPC error", type(exc).__name__, str(detail))
     except (ConfigError, ValueError, FileNotFoundError, yaml.YAMLError) as exc:
-        parser.exit(1, f"{exc}\n")
+        _exit_error(parser, str(exc), type(exc).__name__, str(exc))
     if result is not None:
-        print(json.dumps(result, ensure_ascii=False, default=str))
+        result = _apply_output_page(result, args)
+        print(_format_output(result, args.output))
+
+
+def _normalize_global_output_arg(argv: list[str]) -> list[str]:
+    output = "json"
+    cleaned: list[str] = []
+    index = 0
+    while index < len(argv):
+        item = argv[index]
+        if item == "--output":
+            if index + 1 >= len(argv):
+                return argv
+            output = argv[index + 1]
+            index += 2
+            continue
+        if item.startswith("--output="):
+            output = item.partition("=")[2]
+            index += 1
+            continue
+        cleaned.append(item)
+        index += 1
+    return ["--output", output, *cleaned]
+
+
+def _exit_error(parser: argparse.ArgumentParser, error: str, type_name: str, detail: str) -> None:
+    parser.exit(1, json.dumps({"error": error, "type": type_name, "detail": detail}, ensure_ascii=False) + "\n")
+
+
+def _format_output(result: object, output: str) -> str:
+    if output == "json":
+        return json.dumps(result, ensure_ascii=False, default=str)
+    if output == "yaml":
+        return yaml.safe_dump(result, allow_unicode=True, sort_keys=False).rstrip()
+    if output == "table":
+        return _format_table(result)
+    raise ValueError(f"invalid output mode: {output}")
+
+
+def _format_table(result: object) -> str:
+    rows = _table_rows(result)
+    if not rows:
+        return ""
+    keys = sorted({key for row in rows for key in row})
+    rendered = [{key: _table_cell(row.get(key, "")) for key in keys} for row in rows]
+    widths = {key: max(len(key), *(len(row[key]) for row in rendered)) for key in keys}
+    header = "  ".join(key.ljust(widths[key]) for key in keys)
+    separator = "  ".join("-" * widths[key] for key in keys)
+    body = ["  ".join(row[key].ljust(widths[key]) for key in keys) for row in rendered]
+    return "\n".join([header, separator, *body])
+
+
+def _table_rows(result: object) -> list[dict[str, object]]:
+    if isinstance(result, list):
+        return [item if isinstance(item, dict) else {"value": item} for item in result]
+    if isinstance(result, dict):
+        single_list = _extract_single_list_value(result)
+        if single_list is not None:
+            return _table_rows(single_list)
+        return [result]
+    return [{"value": result}]
+
+
+def _extract_single_list_value(result: dict[str, object]) -> list[object] | None:
+    list_values = [(key, value) for key, value in result.items() if isinstance(value, list)]
+    if len(list_values) == 1:
+        return list_values[0][1]
+    return None
+
+
+def _table_cell(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, default=str)
+    return str(value)
+
+
+def _watch_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--watch", action="store_true")
+    parser.add_argument("--interval", type=float, default=1.0)
+    parser.add_argument("--watch-count", type=int)
+
+
+def _tail_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--tail", action="store_true")
+    parser.add_argument("--interval", type=float, default=1.0)
+    parser.add_argument("--watch-count", type=int)
+
+
+def _offset_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--offset", type=int, default=0)
+
+
+def _local_page_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--limit", type=int)
+    _offset_argument(parser)
 
 
 def _entity_parser(parser: argparse.ArgumentParser) -> None:
@@ -145,6 +249,7 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
     logs = subparsers.add_parser("logs")
     logs.add_argument("node_id")
     logs.add_argument("--run-id", required=True)
+    _tail_arguments(logs)
 
 
 def _node_type_parser(parser: argparse.ArgumentParser) -> None:
@@ -183,7 +288,8 @@ def _skill_parser(parser: argparse.ArgumentParser) -> None:
 
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="dag_command", required=True)
-    subparsers.add_parser("list")
+    list_ = subparsers.add_parser("list")
+    _local_page_arguments(list_)
     show = subparsers.add_parser("show")
     show.add_argument("dag_name")
     create = subparsers.add_parser("create")
@@ -197,6 +303,7 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     export.add_argument("--file", required=True, type=Path)
     runtime_status = subparsers.add_parser("runtime-status")
     runtime_status.add_argument("--run-id", default="")
+    _watch_arguments(runtime_status)
     run = subparsers.add_parser("run")
     run.add_argument("dag_name")
     run.add_argument("--payload", default="{}")
@@ -207,6 +314,7 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     run.add_argument("--append-nodes", default="")
     status = subparsers.add_parser("status")
     status.add_argument("dag_name")
+    _watch_arguments(status)
     stop = subparsers.add_parser("stop")
     stop.add_argument("dag_name")
     stop.add_argument("--force", action="store_true")
@@ -249,7 +357,8 @@ def _system_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="system_command", required=True)
     subparsers.add_parser("pause-scheduler")
     subparsers.add_parser("resume-scheduler")
-    subparsers.add_parser("scheduler-status")
+    scheduler_status = subparsers.add_parser("scheduler-status")
+    _watch_arguments(scheduler_status)
     repair_source = subparsers.add_parser("repair-source")
     repair_source.add_argument("source_name")
 
@@ -292,7 +401,8 @@ def _config_parser(parser: argparse.ArgumentParser) -> None:
 
 def _handler_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="handler_command", required=True)
-    subparsers.add_parser("list")
+    list_ = subparsers.add_parser("list")
+    _local_page_arguments(list_)
     show = subparsers.add_parser("show")
     show.add_argument("name")
     save = subparsers.add_parser("save")
@@ -328,6 +438,7 @@ def _query_parser(parser: argparse.ArgumentParser) -> None:
     node_outputs.add_argument("--node-id", default="")
     node_outputs.add_argument("--run-id", default="")
     node_outputs.add_argument("--limit", type=int, default=100)
+    _offset_argument(node_outputs)
     node_history = subparsers.add_parser("node-history")
     node_history.add_argument("dag_name")
     node_history.add_argument("node_id")
@@ -341,14 +452,18 @@ def _time_range_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--created-from", default="")
     parser.add_argument("--created-to", default="")
     parser.add_argument("--limit", type=int, default=50)
+    _offset_argument(parser)
 
 
 def _source_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="source_command", required=True)
-    subparsers.add_parser("health")
+    health = subparsers.add_parser("health")
+    _watch_arguments(health)
     logs = subparsers.add_parser("logs")
     logs.add_argument("--source-name", default="")
     logs.add_argument("--limit", type=int, default=50)
+    _offset_argument(logs)
+    _tail_arguments(logs)
     repair_task = subparsers.add_parser("repair-task")
     repair_task.add_argument("source_name")
 
@@ -417,6 +532,103 @@ def _dispatch(args: argparse.Namespace) -> object:
     if args.command == "handler-validate":
         return _handler_validate(args.path)
     raise ValueError(f"unknown command: {args.command}")
+
+
+def _is_repeating(args: argparse.Namespace) -> bool:
+    return bool(getattr(args, "watch", False) or getattr(args, "tail", False))
+
+
+def _dispatch_repeating(args: argparse.Namespace) -> None:
+    seen: set[str] = set()
+    watch_count = getattr(args, "watch_count", None)
+    iteration = 0
+    while watch_count is None or iteration < watch_count:
+        result = _dispatch(args)
+        if getattr(args, "tail", False):
+            result, has_items = _dedupe_tail_result(result, seen)
+            if has_items:
+                result = _apply_output_page(result, args)
+                print(_format_output(result, args.output), flush=True)
+        else:
+            result = _apply_output_page(result, args)
+            print(_format_output(result, args.output), flush=True)
+        iteration += 1
+        if watch_count is not None and iteration >= watch_count:
+            break
+        interval = getattr(args, "interval", 1.0)
+        if interval > 0:
+            time.sleep(interval)
+
+
+def _dedupe_tail_result(result: object, seen: set[str]) -> tuple[object, bool]:
+    if isinstance(result, dict):
+        logs = result.get("logs")
+        if isinstance(logs, list):
+            new_logs = _new_tail_items(logs, seen)
+            return {**result, "logs": new_logs}, bool(new_logs)
+        single_list = _extract_single_list_value(result)
+        if single_list is not None:
+            key = next(k for k, v in result.items() if v is single_list)
+            new_items = _new_tail_items(single_list, seen)
+            return {**result, key: new_items}, bool(new_items)
+    if isinstance(result, list):
+        new_items = _new_tail_items(result, seen)
+        return new_items, bool(new_items)
+    key = _stable_tail_key(result)
+    if key in seen:
+        return result, False
+    seen.add(key)
+    return result, True
+
+
+def _new_tail_items(items: list[object], seen: set[str]) -> list[object]:
+    result = []
+    for item in items:
+        key = _stable_tail_key(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result
+
+
+def _stable_tail_key(item: object) -> str:
+    return json.dumps(item, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _apply_output_page(result: object, args: argparse.Namespace) -> object:
+    if not hasattr(args, "offset"):
+        return result
+    offset = max(0, int(getattr(args, "offset", 0) or 0))
+    limit = _local_output_limit(args)
+    if offset == 0 and limit is None:
+        return result
+    return _page_result(result, offset, limit)
+
+
+def _local_output_limit(args: argparse.Namespace) -> int | None:
+    if args.command == "dag" and getattr(args, "dag_command", None) == "list":
+        return max(0, int(args.limit)) if args.limit is not None else None
+    if args.command == "handler" and getattr(args, "handler_command", None) == "list":
+        return max(0, int(args.limit)) if args.limit is not None else None
+    return None
+
+
+def _page_result(result: object, offset: int, limit: int | None) -> object:
+    if isinstance(result, list):
+        return _page_list(result, offset, limit)
+    if isinstance(result, dict):
+        single_list = _extract_single_list_value(result)
+        if single_list is not None:
+            key = next(k for k, v in result.items() if v is single_list)
+            return {**result, key: _page_list(single_list, offset, limit)}
+    return result
+
+
+def _page_list(items: list[object], offset: int, limit: int | None) -> list[object]:
+    if limit is None:
+        return items[offset:]
+    return items[offset : offset + limit]
 
 
 def _should_inject_human_cert_env(args: argparse.Namespace) -> bool:
@@ -871,9 +1083,9 @@ async def _grpc_extension(args: argparse.Namespace) -> object:
             entities = [await client.entity_get(ref) for ref in refs]
             _extension_export_entities(args.file, args.name, args.version, entities)
             return {"exported": args.name, "file": str(args.file), "entities": refs}
+        raise ValueError(f"unknown extension command: {args.extension_command}")
     finally:
         await client.close()
-    raise ValueError(f"unknown extension command: {args.extension_command}")
 
 
 def _dag_run_payload(args: argparse.Namespace) -> object:

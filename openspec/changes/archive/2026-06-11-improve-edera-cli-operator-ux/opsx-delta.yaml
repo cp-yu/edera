@@ -1,0 +1,14 @@
+schema_version: 1
+ADDED:
+  capabilities: []
+  relations: []
+
+MODIFIED:
+  capabilities:
+    - id: cap.core.edera-cli
+      intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力，通过控制面命令组暴露 DAG 定义、node type、handler、config、query 和 source 运维能力，并提供统一输出、watch/tail 与结构化错误输出。
+    - id: cap.core.edera-cli-control-plane
+      intent: edera CLI 控制面命令暴露 GraphService、ConfigService、QueryService 和 source 运维读写入口，并支持列表分页展示与 operator-friendly 输出模式。
+
+REMOVED:
+  capabilities: []
