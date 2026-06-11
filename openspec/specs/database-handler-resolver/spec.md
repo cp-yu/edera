@@ -95,12 +95,6 @@ System SHALL freeze extension storage table mappings in the same `DagExecutionSn
 
 DatabaseHandlerResolver MUST 支持通过 `{package}.{handler}` 格式查找 handler entry point。查找路径 SHALL 为 `SystemConfig.handlers_dir/{package}.{handler}/`。对于 workflow extension 内部的 providers，package 为顶层 workflow extension 名称。
 
-#### Scenario: 解析独立扩展的 handler
-
-- **WHEN** node 声明 `handler: "uzi-skill.legacy-script-adapter"`
-- **THEN** resolver MUST 在 `handlers_dir/uzi-skill.legacy-script-adapter/` 查找 entry point
-- **AND** 根据 manifest `entry` 字段加载 handler 模块
-
 #### Scenario: 解析 workflow provider 的 handler
 
 - **WHEN** node 声明 `handler: "default-news-workflow.rss-fetcher"`

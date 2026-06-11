@@ -9,9 +9,9 @@
 
 #### Scenario: 独立扩展的 handler 命名空间
 
-- **WHEN** 安装独立扩展 `uzi-skill`，其 manifest 声明 handler `legacy-script-adapter`
-- **THEN** handler 代码 MUST 安装到 `data/handlers/uzi-skill.legacy-script-adapter/`
-- **AND** handler 全名为 `uzi-skill.legacy-script-adapter`
+- **WHEN** 安装独立扩展 `uzi-skill`，其 manifest 声明 handler `data-collector`
+- **THEN** handler 代码 MUST 安装到 `data/handlers/uzi-skill.data-collector/`
+- **AND** handler 全名为 `uzi-skill.data-collector`
 
 #### Scenario: Workflow extension 内部 provider 的 handler 命名空间
 
@@ -31,8 +31,8 @@ DatabaseHandlerResolver MUST 支持通过 `{package}.{handler}` 格式查找 han
 
 #### Scenario: 查找独立扩展的 handler
 
-- **WHEN** node 声明 `handler: "uzi-skill.legacy-script-adapter"`
-- **THEN** DatabaseHandlerResolver MUST 在 `data/handlers/uzi-skill.legacy-script-adapter/` 查找 entry point
+- **WHEN** node 声明 `handler: "uzi-skill.data-collector"`
+- **THEN** DatabaseHandlerResolver MUST 在 `data/handlers/uzi-skill.data-collector/` 查找 entry point
 - **AND** 根据 manifest `entry` 字段加载 handler 模块
 
 #### Scenario: 查找 workflow provider 的 handler
