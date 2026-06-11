@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-06-11T11:39:25.146Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "81a5f75116004f82559109b98d0059cfab0283308e2724cf9d894190cdb73818",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "manual-review-with-cli-tests",
+    "evidenceFiles": [
+      "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli-control-plane/spec.md",
+      "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli/spec.md",
+      "packages/core/src/edera_core/cli.py",
+      "tests/core/unit/test_cli.py"
+    ],
+    "evidenceFingerprint": "066ace693adff6fea38a54707703341ee47e9e58483b2b4d3bf76069440b42c3",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli-control-plane/spec.md",
+        "hash": "b0b10182aca6aff9fb70feb05913ac192e0eb91e531b2daf893396888c64cb88"
+      },
+      {
+        "path": "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli/spec.md",
+        "hash": "ecc541fe7475931da4a02efd9fb11d7939cf06f1b5548f2ea097af89c17e0768"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "3fcf322e5601332bc0e6dff6c7085c0991e0597a9e331986639a3bbdc6a12ad3"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "5e910c3445e19af85205355f6885ba746f909f0bcd010bc73b27e7230aacb3a8"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "42d6d14a21e49e99be84a283b11bd34fe84b673d"
+  },
+  "optimization": {
+    "status": "PENDING_VERIFICATION",
+    "attempts": [],
+    "baseline": {
+      "timestamp": "2026-06-11T11:39:25.146Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "81a5f75116004f82559109b98d0059cfab0283308e2724cf9d894190cdb73818",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "manual-review-with-cli-tests",
+        "evidenceFiles": [
+          "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli-control-plane/spec.md",
+          "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli/spec.md",
+          "packages/core/src/edera_core/cli.py",
+          "tests/core/unit/test_cli.py"
+        ],
+        "evidenceFingerprint": "066ace693adff6fea38a54707703341ee47e9e58483b2b4d3bf76069440b42c3",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli-control-plane/spec.md",
+            "hash": "b0b10182aca6aff9fb70feb05913ac192e0eb91e531b2daf893396888c64cb88"
+          },
+          {
+            "path": "openspec/changes/improve-edera-cli-operator-ux/specs/edera-cli/spec.md",
+            "hash": "ecc541fe7475931da4a02efd9fb11d7939cf06f1b5548f2ea097af89c17e0768"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "3fcf322e5601332bc0e6dff6c7085c0991e0597a9e331986639a3bbdc6a12ad3"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "5e910c3445e19af85205355f6885ba746f909f0bcd010bc73b27e7230aacb3a8"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "42d6d14a21e49e99be84a283b11bd34fe84b673d"
+      }
+    }
+  }
+}

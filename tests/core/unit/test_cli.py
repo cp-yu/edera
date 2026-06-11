@@ -33,7 +33,52 @@ def test_cli_requires_server_addr(monkeypatch: pytest.MonkeyPatch, capsys: pytes
         main()
 
     assert exc.value.code == 1
-    assert "EDERA_SERVER_ADDR not set" in capsys.readouterr().err
+    error = json.loads(capsys.readouterr().err)
+    assert error["type"] == "ValueError"
+    assert error["detail"] == "EDERA_SERVER_ADDR not set"
+
+
+def test_cli_output_modes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def query_latest_briefing(self) -> dict[str, object]:
+            return {"briefing": {"id": "briefing-1", "items": [1, 2]}}
+
+        async def query_source_logs(self, source_name: str = "", limit: int = 50) -> dict[str, object]:
+            assert source_name == ""
+            assert limit == 2
+            return {"logs": [{"source_name": "rss-main", "metadata": {"attempt": 1}}]}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    monkeypatch.setattr("sys.argv", ["edera", "--server", "127.0.0.1:0", "query", "briefing", "latest"])
+    main()
+    assert json.loads(capsys.readouterr().out) == {"briefing": {"id": "briefing-1", "items": [1, 2]}}
+
+    monkeypatch.setattr("sys.argv", ["edera", "--server", "127.0.0.1:0", "query", "briefing", "latest", "--output", "yaml"])
+    main()
+    assert "briefing:" in capsys.readouterr().out
+
+    monkeypatch.setattr("sys.argv", ["edera", "--server", "127.0.0.1:0", "source", "logs", "--limit", "2", "--output", "table"])
+    main()
+    table = capsys.readouterr().out
+    assert "source_name" in table
+    assert '{"attempt": 1}' in table
+
+
+def test_cli_invalid_output_mode(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr("sys.argv", ["edera", "entity", "list", "--output", "xml"])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code != 0
+    assert "--output" in capsys.readouterr().err
 
 
 def test_inject_human_cert_env_reads_edera_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -926,6 +971,183 @@ def test_cli_node_logs_uses_grpc_query(monkeypatch: pytest.MonkeyPatch, capsys: 
 
     assert calls == ["logs"]
     assert "/tmp/summary.json" in capsys.readouterr().out
+
+
+def test_cli_watch_modes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls: list[tuple[str, str]] = []
+
+    class FakeClient:
+        def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
+            assert address == "127.0.0.1:9090"
+            assert identity == "human"
+
+        async def dag_status(self, dag_name: str) -> dict[str, object]:
+            calls.append(("dag-status", dag_name))
+            return {"dag": dag_name, "count": len(calls)}
+
+        async def graph_runtime_status(self, run_id: str = "") -> dict[str, object]:
+            calls.append(("runtime-status", run_id))
+            return {"run_id": run_id, "count": len(calls)}
+
+        async def system_scheduler_status(self) -> dict[str, object]:
+            calls.append(("scheduler-status", ""))
+            return {"scheduler": "running", "count": len(calls)}
+
+        async def query_source_health(self) -> dict[str, object]:
+            calls.append(("source-health", ""))
+            return {"sources": [{"name": "rss-main"}], "count": len(calls)}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "status", "default", "--watch", "--interval", "0", "--watch-count", "2"])
+    main()
+    assert calls == [("dag-status", "default"), ("dag-status", "default")]
+    assert len(capsys.readouterr().out.strip().splitlines()) == 2
+    calls.clear()
+
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "runtime-status", "--run-id", "run-1", "--watch", "--interval", "0", "--watch-count", "2"])
+    main()
+    assert calls == [("runtime-status", "run-1"), ("runtime-status", "run-1")]
+    assert len(capsys.readouterr().out.strip().splitlines()) == 2
+    calls.clear()
+
+    monkeypatch.setattr("sys.argv", ["edera", "system", "scheduler-status", "--watch", "--interval", "0", "--watch-count", "2"])
+    main()
+    assert calls == [("scheduler-status", ""), ("scheduler-status", "")]
+    assert len(capsys.readouterr().out.strip().splitlines()) == 2
+    calls.clear()
+
+    monkeypatch.setattr("sys.argv", ["edera", "source", "health", "--watch", "--interval", "0", "--watch-count", "2"])
+    main()
+    assert calls == [("source-health", ""), ("source-health", "")]
+    assert len(capsys.readouterr().out.strip().splitlines()) == 2
+
+
+def test_cli_tail_modes_deduplicate_logs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    node_calls = 0
+    source_calls = 0
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def query_node_logs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+            nonlocal node_calls
+            node_calls += 1
+            assert node_id == "reader"
+            assert run_id == "run-1"
+            return {"logs": [{"id": "n1"}]} if node_calls == 1 else {"logs": [{"id": "n1"}, {"id": "n2"}]}
+
+        async def query_source_logs(self, source_name: str = "", limit: int = 50) -> dict[str, object]:
+            nonlocal source_calls
+            source_calls += 1
+            assert source_name == "rss-main"
+            assert limit == 10
+            return {"logs": [{"id": "s1"}]} if source_calls == 1 else {"logs": [{"id": "s1"}, {"id": "s2"}]}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    monkeypatch.setattr("sys.argv", ["edera", "node", "logs", "reader", "--run-id", "run-1", "--tail", "--interval", "0", "--watch-count", "2"])
+    main()
+    node_lines = capsys.readouterr().out.strip().splitlines()
+    assert len(node_lines) == 2
+    assert '"n1"' in node_lines[0]
+    assert '"n2"' in node_lines[1]
+    assert '"n1"' not in node_lines[1]
+
+    monkeypatch.setattr("sys.argv", ["edera", "source", "logs", "--source-name", "rss-main", "--limit", "10", "--tail", "--interval", "0", "--watch-count", "2"])
+    main()
+    source_lines = capsys.readouterr().out.strip().splitlines()
+    assert len(source_lines) == 2
+    assert '"s1"' in source_lines[0]
+    assert '"s2"' in source_lines[1]
+    assert '"s1"' not in source_lines[1]
+
+
+def test_cli_control_plane_pagination_display(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calls: list[object] = []
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def query_list_briefings(self, created_from: str = "", created_to: str = "", limit: int = 50) -> dict[str, object]:
+            calls.append(("briefings", created_from, created_to, limit))
+            return {"briefings": [{"id": "b1"}, {"id": "b2"}, {"id": "b3"}]}
+
+        async def query_list_advices(
+            self,
+            stock_code: str = "",
+            direction: str = "",
+            created_from: str = "",
+            created_to: str = "",
+            limit: int = 50,
+        ) -> dict[str, object]:
+            calls.append(("advices", stock_code, direction, created_from, created_to, limit))
+            return {"advices": [{"id": "a1"}, {"id": "a2"}, {"id": "a3"}]}
+
+        async def query_node_outputs(self, node_id: str = "", run_id: str = "", limit: int = 100) -> dict[str, object]:
+            calls.append(("node-outputs", node_id, run_id, limit))
+            return {"outputs": [{"id": "o1"}, {"id": "o2"}, {"id": "o3"}]}
+
+        async def query_source_logs(self, source_name: str = "", limit: int = 50) -> dict[str, object]:
+            calls.append(("source-logs", source_name, limit))
+            return {"logs": [{"id": "l1"}, {"id": "l2"}, {"id": "l3"}]}
+
+        async def graph_list_dags(self) -> dict[str, object]:
+            calls.append("dags")
+            return {"dags": [{"name": "d1"}, {"name": "d2"}, {"name": "d3"}]}
+
+        async def graph_list_handlers(self) -> dict[str, object]:
+            calls.append("handlers")
+            return {"handlers": [{"name": "h1"}, {"name": "h2"}, {"name": "h3"}]}
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+
+    monkeypatch.setattr("sys.argv", ["edera", "query", "briefing", "list", "--limit", "2", "--offset", "1"])
+    main()
+    assert [item["id"] for item in json.loads(capsys.readouterr().out)["briefings"]] == ["b2", "b3"]
+
+    monkeypatch.setattr("sys.argv", ["edera", "query", "advice", "list", "--limit", "2", "--offset", "1"])
+    main()
+    assert [item["id"] for item in json.loads(capsys.readouterr().out)["advices"]] == ["a2", "a3"]
+
+    monkeypatch.setattr("sys.argv", ["edera", "query", "node-outputs", "--limit", "2", "--offset", "1"])
+    main()
+    assert [item["id"] for item in json.loads(capsys.readouterr().out)["outputs"]] == ["o2", "o3"]
+
+    monkeypatch.setattr("sys.argv", ["edera", "source", "logs", "--source-name", "rss-main", "--limit", "2", "--offset", "1"])
+    main()
+    assert [item["id"] for item in json.loads(capsys.readouterr().out)["logs"]] == ["l2", "l3"]
+
+    monkeypatch.setattr("sys.argv", ["edera", "dag", "list", "--limit", "1", "--offset", "1"])
+    main()
+    assert [item["name"] for item in json.loads(capsys.readouterr().out)["dags"]] == ["d2"]
+
+    monkeypatch.setattr("sys.argv", ["edera", "handler", "list", "--limit", "1", "--offset", "1"])
+    main()
+    assert [item["name"] for item in json.loads(capsys.readouterr().out)["handlers"]] == ["h2"]
+
+    assert calls == [
+        ("briefings", "", "", 2),
+        ("advices", "", "", "", "", 2),
+        ("node-outputs", "", "", 2),
+        ("source-logs", "rss-main", 2),
+        "dags",
+        "handlers",
+    ]
 
 
 def test_cli_node_output_remains_business_only(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
