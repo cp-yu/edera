@@ -646,7 +646,6 @@ class DagRunner:
         tasks = [asyncio.create_task(run_iteration(i)) for i in range(count)]
         completed_results: list[NodeOutput] = []
         matched = False
-        cancelled_tasks: set[asyncio.Task] = set()
 
         try:
             for coro in asyncio.as_completed(tasks):
@@ -658,7 +657,6 @@ class DagRunner:
                             for t in tasks:
                                 if not t.done():
                                     t.cancel()
-                                    cancelled_tasks.add(t)
                             completed_results = [result]
                             break
                     completed_results.append(result)

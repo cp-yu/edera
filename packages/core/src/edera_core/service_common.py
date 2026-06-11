@@ -364,14 +364,9 @@ def _graph_dag_state(
                 "config": instance.config,
                 "optional": instance.optional,
             })
-            if instance.loop:
-                item["loop"] = instance.loop.model_dump(mode="json", exclude_none=True)
-            if instance.resource:
-                item["resource"] = instance.resource
             for key, value in instance.config.items():
                 if key in INSTANCE_CONFIG_FIELDS | {"parameters"}:
                     item[key] = value
-            node_instances.append(item)
         else:
             item = {
                 "id": instance.id,
@@ -386,11 +381,11 @@ def _graph_dag_state(
                 "output_type": "Any",
                 "optional": instance.optional,
             }
-            if instance.loop:
-                item["loop"] = instance.loop.model_dump(mode="json", exclude_none=True)
-            if instance.resource:
-                item["resource"] = instance.resource
-            node_instances.append(item)
+        if instance.loop:
+            item["loop"] = instance.loop.model_dump(mode="json", exclude_none=True)
+        if instance.resource:
+            item["resource"] = instance.resource
+        node_instances.append(item)
     return {
         "name": dag.name,
         "nodes": node_instances,
