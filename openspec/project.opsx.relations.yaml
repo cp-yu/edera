@@ -309,3 +309,9 @@ relations:
   - from: cap.core.edera-cli-control-plane
     type: depends_on
     to: cap.web.source-health-monitoring
+  - from: cap.web.dag-workbench-ui
+    type: depends_on
+    to: cap.single-node-loop
+  - from: cap.single-node-loop
+    type: depends_on
+    to: cap.core.dag-resource-semaphore
