@@ -9,7 +9,7 @@ Archive a completed change in the experimental workflow.
 
 **Input**: Optionally specify a change name after `/opsx:archive` (e.g., `/opsx:archive add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-Before archiving, run `openspec config project --json` and consume git policy from its normalized project config: `git.autoCommit`, `git.archive.commitMessage.convention`, `git.merge.strategy`, `git.merge.commitMessage.convention`, and `git.branch.deleteAfterArchive`; do not parse raw YAML inside the skill.
+Before archiving, run `openspec config project --json` and consume git policy from its normalized project config: `git.commitMessage.archive`, `git.commitMessage.merge`, `git.merge.strategy`, and `git.branch.deleteAfterArchive`; do not parse raw YAML inside the skill.
 
 **Steps**
 
@@ -43,16 +43,13 @@ Before archiving, run `openspec config project --json` and consume git policy fr
    Run `openspec archive "<change-name>"` after the verify gate is fresh. CLI only verifies, syncs, moves the change to archive, and prints the git handoff reminder. CLI MUST NOT create commits, merge branches, switch branches, delete branches, remove worktrees, or generate commit messages.
 
 7. **Git handoff**
-   Read the archive CLI output and the projected git policy from `openspec config project --json`. Summary fields include change name, schema, archive location, verify gate result, specs / OPSX sync result, git handoff mode, and next git responsibility.
+   Read the archive CLI output and the projected git policy from `openspec config project --json`. Summary fields include change name, schema, archive location, verify gate result, specs / OPSX sync result, agent-owned git follow-up status, and merge strategy.
 
-8. **Agent auto git flow**
-   If `git.autoCommit: auto`, agent continues the post-archive git flow. First handle the implementation boundary before OpenSpec/docs archive artifacts. If uncommitted real project implementation changes remain, create a normal implementation commit that contains only those changes. If the effective implementation diff is already carried by retained `wip: opt-*` checkpoint commits and no uncommitted implementation changes remain, create an intentionally empty semantic boundary commit with `git commit --allow-empty`; use a real semantic subject type such as `feat`, `fix`, or `refactor`, not `meta`, and record the effective implementation diff range, the checkpoint commits carrying that diff, and why the commit is intentionally empty in the body. Then read `references/archive-commit-message.md` before creating the OpenSpec/docs archive commit, add only archive/synced paths, and run `git commit -F -` using `git.archive.commitMessage.convention`. If a merge or squash commit message is needed, read `references/merge-summary-message.md` before creating a merge or squash commit message. Apply `git.merge.strategy` with `git merge --no-ff`, `git merge --ff-only`, or `git merge --squash` as appropriate. Use `git.branch.deleteAfterArchive` only after confirming the branch is merged with `git branch --merged`. Build paths with `path.join()`, `path.resolve()`, and `path.normalize()`.
+8. **Agent git flow**
+   The agent continues the post-archive git flow. First handle the implementation boundary before OpenSpec/docs archive artifacts. If uncommitted real project implementation changes remain, create a normal implementation commit that contains only those changes. Then always create a semantic boundary commit with `git commit --allow-empty`; this boundary commit may be intentionally empty when the effective implementation diff is already carried by retained `wip: opt-*` checkpoint commits. If `git.commitMessage.boundary` is set, read that project-relative path; otherwise read `openspec/references/openspec-boundary-commit-message.md`. Use that template to build the boundary commit message and run `git commit -F -` for the boundary commit. If `git.commitMessage.archive` is set, read that project-relative path; otherwise read `openspec/references/openspec-archive-commit-message.md`. Use that template before creating the OpenSpec/docs archive commit, add only archive/synced paths, and run `git commit -F -`. If a merge or squash commit message is needed, prepare it from the configured or built-in merge template. If `git.commitMessage.merge` is set, read that project-relative path; otherwise read `openspec/references/openspec-merge-summary-message.md`. Apply `git.merge.strategy` with `git merge --no-ff`, `git merge --ff-only`, or `git merge --squash` as appropriate. Use `git.branch.deleteAfterArchive` only after confirming the branch is merged with `git branch --merged`. Build paths with `path.join()`, `path.resolve()`, and `path.normalize()`.
 
-9. **User manual git flow**
-   If `git.autoCommit: manual`, stop after reporting that archive CLI completed and user handles all post-archive git work manually. Do not generate commit messages, run `git commit`, run `git merge`, delete branches, remove worktrees, or switch branches.
-
-10. **Display summary**
-   Include change, schema, archive location, verify gate result, specs / OPSX sync result, Git Handoff Mode, Next Git Responsibility, Merge Strategy, cleanup responsibility, verify reuse/reexecution, and warnings. Do not report that CLI created an archive commit, performed a merge, or deleted a feature branch.
+9. **Display summary**
+   Include change, schema, archive location, verify gate result, specs / OPSX sync result, agent-owned git follow-up status, Merge Strategy, cleanup responsibility, verify reuse/reexecution, and warnings. Do not report that CLI created an archive commit, performed a merge, or deleted a feature branch.
 
 **Output On Success**
 
@@ -64,10 +61,9 @@ Before archiving, run `openspec config project --json` and consume git policy fr
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
 **Verify Gate:** Fresh PASS or PASS_WITH_WARNINGS result confirmed
 **Specs / OPSX:** ✓ Synced to main specs and project OPSX (or "No deltas" or "Skipped all archive-time sync writes")
-**Git Handoff Mode:** <agent auto or user manual>
-**Next Git Responsibility:** <agent continues or user handles manually>
+**Agent Git Follow-up:** <completed / pending with reason>
 **Merge Strategy:** <git.merge.strategy>
-**Cleanup Responsibility:** <agent or user>
+**Cleanup Responsibility:** <agent>
 
 Archive completed after satisfying the unified full verify gate.
 ```

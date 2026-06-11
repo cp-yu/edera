@@ -1,10 +1,6 @@
-# Merge Summary Message Convention
+# Merge Summary Message Template
 
-Use this format when `git.merge.commitMessage.convention` is `openspec-merge-summary`.
-
-```yaml
-convention: openspec-merge-summary
-```
+Use this built-in format when `git.commitMessage.merge` is not configured.
 
 Subject:
 

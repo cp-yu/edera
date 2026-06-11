@@ -31,9 +31,9 @@ If projectRoot or concept is missing, stop and report the missing field instead 
 
 Read these before collecting evidence or writing the report:
 
-- references/evidence-protocol.md
-- references/terminology-awareness.md
-- references/report-schema.md
+- openspec/references/openspec-evidence-protocol.md
+- openspec/references/openspec-terminology-awareness.md
+- openspec/references/openspec-report-schema.md
 
 ## Write Boundary
 

@@ -170,7 +170,11 @@ After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surface
   - Programmatically verify either legacy `Actions`/`Checks` sections or coarse `### Task N:` sections with `Goal`, `Files`, `Requirements`, and nested `Checks`
   - For legacy tasks, verify `A`-prefixed action checkboxes, `C`-prefixed check checkboxes, required `Covers:` fields, valid `Covers:` references, and every action covered by at least one check
   - For coarse tasks, verify each task has no more than 5 requirements and at least one nested `C`-prefixed check
-  - For every check, verify required non-empty `Verifies:` fields, change-local `Verifies:` spec paths plus Requirement/Scenario references when local change specs exist, and at least one `Command:`, `Evidence:`, or `Expect:` field
+  - For every check, verify required non-empty `Verifies:` or `Preserves:` field
+  - When `Verifies:` anchors an ordinary requirement, verify change-local `Verifies:` spec paths plus Requirement/Scenario references when local change specs exist
+  - When `Verifies:` anchors a REMOVED requirement, verify it uses `REMOVED Requirement "<name>"` syntax (no Scenario required) and the REMOVED requirement exists in the delta spec
+  - When `Preserves:` is present, verify it uses main spec path (`openspec/specs/<cap>/spec.md`) with Requirement and ≥1 Scenario names, and the path whitelist does not relax `Verifies:` constraints
+  - Verify at least one `Command:`, `Evidence:`, or `Expect:` field per check
   - Do NOT invent semantic lint rules beyond the current templates
   - Do NOT judge whether a check is semantically sufficient; defer semantic suitability to verify/reviewer
 - If warnings are found, do exactly one repair pass on the generated artifacts, then re-check once

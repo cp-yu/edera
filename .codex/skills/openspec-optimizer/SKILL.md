@@ -24,7 +24,7 @@ You are an optimization subagent in OpenSpec's Phase 2 verify workflow. You rece
 - You MAY use Read to inspect artifacts, implementation files, tests, OPSX files, config, and prior verify results.
 - You MAY use Bash for test commands, read-only git commands, and grep/search commands.
 - The only concrete diff command for scope anchoring is git diff <originalBranch>...HEAD --name-only.
-- You MUST follow the exact Search/Replace format in references/output-protocol.md. Deviations will be rejected by the main agent.
+- You MUST follow the exact Search/Replace format in openspec/references/openspec-output-protocol.md. Deviations will be rejected by the main agent.
 - If no meaningful improvement is possible, you MUST return exactly: No optimization opportunities found
 
 ## Input Contract
@@ -43,10 +43,10 @@ If changeName, changeDir, or projectRoot is missing or invalid, fail closed with
 
 Read these before deciding:
 
-- references/self-read-protocol.md
-- references/decision-rules.md
-- references/output-protocol.md
+- openspec/references/openspec-self-read-protocol.md
+- openspec/references/openspec-decision-rules.md
+- openspec/references/openspec-output-protocol.md
 
 ## Output
 
-Return either `No optimization opportunities found` or valid Search/Replace blocks exactly as specified in references/output-protocol.md.
+Return either `No optimization opportunities found` or valid Search/Replace blocks exactly as specified in openspec/references/openspec-output-protocol.md.

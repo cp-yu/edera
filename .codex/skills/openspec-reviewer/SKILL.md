@@ -39,13 +39,26 @@ Default stance: Strict. When uncertain: Escalate to CRITICAL when claimed work h
 ### Completeness
 - Parse tasks.md checkboxes.
 - Incomplete tasks or unimplemented requirements produce CRITICAL issues with concrete next actions.
+- For each task whose `Files` section contains a `Delete:` entry: run `git diff <originalBranch>...HEAD --name-only` and confirm that declared file was deleted. If the file still exists, issue CRITICAL "Declared deletion not completed" and add to writeBackPlan.
 
 ### Correctness
+判定模式按 Check 锚点类型分派：
+
+**存在性判定** (`Verifies` 锚点):
 - Compare each requirement and Scenario against final code and tests.
-- If divergence detected: issue CRITICAL "Implementation contradicts spec" with recommendation to align implementation or update the spec.
+- If divergence detected: issue CRITICAL "Implementation contradicts spec".
 - Downgrade to WARNING only when drift is cosmetic and does not affect observable behavior.
-- If scenario coverage incomplete: issue CRITICAL "Scenario not covered" with recommendation to add test or implementation.
-- Scenario coverage gaps are not downgrade candidates.
+- If scenario coverage incomplete: issue CRITICAL "Scenario not covered". Scenario coverage gaps are not downgrade candidates.
+
+**缺失性判定** (`Verifies ... REMOVED Requirement` 锚点):
+- Use multi-angle search: search by symbol name, file path, and import reference.
+- Confirm absence: cite search commands and empty results as evidence for PASS.
+- 发现任何残留引用时，issue CRITICAL "REMOVED requirement residue found" 并引用 residue 位置。
+
+**等价性判定** (`Preserves` 锚点):
+- 双支验证：① 关联测试通过（行为不变）；② Check `Expect:` 点名的旧形态（old form）在最终代码中已消失。
+- 旧实现与新实现并存（coexist）时，issue CRITICAL "Half migration: old and new form coexist"。
+- 不得仅凭测试通过判定等价性。
 
 ### Coherence
 - If design.md exists, verify decisions such as Decision/Approach/Architecture.
@@ -60,6 +73,20 @@ Default stance: Strict. When uncertain: Escalate to CRITICAL when claimed work h
 - Prioritize speed and reliability.
 - Orphaned code, dead imports, stale TODOs, and half migrations: CRITICAL.
 - Unreachable code: WARNING.
+
+**规格外改动检测（Unaccounted Changes）**：
+
+归因宇宙（attribution universe）= 以下集合的并集（显式列表查找，不使用模式匹配推断）：
+1. 各 task `Files` 声明的条目（含 directory 条目——directory entry covers all files under it）
+2. 各 Check `Command:` 涉及的测试与证据文件
+3. change 工件自身（`openspec/changes/<name>/` 目录下所有文件）
+
+对 `git diff <originalBranch>...HEAD --name-only` 范围内、归因宇宙之外的每个文件：
+- 读取该文件后判定其内容性质。
+- 行为代码（behavior code）改动 → issue CRITICAL "Unaccounted change: <path>"，提供两种出口：补充 task/spec 呈现（artifact_fix）或移除该改动（code_fix）。
+- 机械性良性改动（lockfile、纯生成物、纯格式化）→ WARNING 或 SUGGESTION，注明归类理由。
+- 无法确定时 → CRITICAL（维持 strict 姿态）。
+- 归因匹配：将两侧路径 normalize 为 POSIX 相对路径后比较。
 
 ### OPSX Alignment
 - If opsx-delta.yaml exists, check relation referential integrity and code-map node references; misalignment is WARNING.
@@ -81,7 +108,8 @@ Return one structured object only:
       "orphanedCodeFound": 0,
       "deadImportsFound": 0,
       "staleTodosFound": 0,
-      "halfMigrationsFound": 0
+      "halfMigrationsFound": 0,
+      "unaccountedChangesFound": 0
     },
     "opsxAlignment": {"checked": true, "issues": 0}
   },

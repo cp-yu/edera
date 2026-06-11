@@ -1,10 +1,6 @@
-# Archive Commit Message Convention
+# Archive Commit Message Template
 
-Use this format when `git.archive.commitMessage.convention` is `openspec-archive`.
-
-```yaml
-convention: openspec-archive
-```
+Use this built-in format when `git.commitMessage.archive` is not configured.
 
 Subject:
 
