@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Handle, Position, type NodeProps, useUpdateNodeInternals } from '@xyflow/react'
 import { Bot, CheckCircle2, Clock, Cpu, GitMerge, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -135,8 +135,15 @@ export function CustomNode({ id, data, selected }: NodeProps) {
   const title = node.alias || node.type_name
   const canIntervene = node.type === 'agent'
 
+  const prevHandleCountRef = useRef<{ input: number; output: number } | null>(null)
   useEffect(() => {
-    updateNodeInternals(id)
+    const prev = prevHandleCountRef.current
+    const input = node.inputHandles.length
+    const output = node.outputHandles.length
+    if (prev && (prev.input !== input || prev.output !== output)) {
+      updateNodeInternals(id)
+    }
+    prevHandleCountRef.current = { input, output }
   }, [id, node.inputHandles.length, node.outputHandles.length, updateNodeInternals])
 
   return (

@@ -7,6 +7,7 @@ import {
   Panel,
   MarkerType,
   useReactFlow,
+  useNodesInitialized,
   useViewport,
   addEdge,
   applyNodeChanges,
@@ -138,6 +139,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const saveDag = useSaveDag(dagName)
   const retryNode = useRetryDagNode()
   const { screenToFlowPosition, fitView } = useReactFlow<WorkbenchNode, WorkbenchEdge>()
+  const nodesInitialized = useNodesInitialized()
   const viewport = useViewport()
   const canvasRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<number | null>(null)
@@ -159,6 +161,7 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
   const [retryDialog, setRetryDialog] = useState<{ nodeIds: string[]; mode: 'single' | 'cascade' } | null>(null)
   const [contextNodeIds, setContextNodeIds] = useState<string[]>([])
   const pendingDraftRef = useRef<string | null>(null)
+  const pendingEdgesRef = useRef<WorkbenchEdge[] | null>(null)
 
   const prototypes = prototypesData?.prototypes ?? EMPTY_PROTOTYPES
   const dagCandidates = (dagListData?.dags ?? []).filter((name) => name !== dagName && name !== selectedDagName)
@@ -281,11 +284,27 @@ export function Canvas({ dagName, dag, dagStatus, runtimeStatus, isRunning: _isR
     const edgeData = sourceEdges.map((edge, index) => createWorkbenchEdge(edge, index, nodeMap, runtimeStatus))
 
     setNodes(nodeData)
-    setEdges(edgeData)
+    setEdges([])
+    pendingEdgesRef.current = edgeData
     historyRef.current = [{ nodes: nodeData, edges: edgeData }]
     historyIndexRef.current = 0
     fitCanvasToGraph()
   }, [dag, dagName, fitCanvasToGraph, prototypeMap, runtimeStatus])
+
+  useEffect(() => {
+    if (nodesInitialized && pendingEdgesRef.current) {
+      const edges = pendingEdgesRef.current
+      setEdges(edges)
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => ({
+          ...node,
+          data: enrichNodeData(node.data, edges, runtimeStatus),
+        })),
+      )
+      pendingEdgesRef.current = null
+    }
+  }, [nodesInitialized, runtimeStatus])
+
 
   useEffect(() => {
     if (!runtimeStatus) return
