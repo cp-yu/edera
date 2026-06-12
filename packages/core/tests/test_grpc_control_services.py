@@ -272,7 +272,7 @@ async def test_node_resume_resolves_dag_from_run_record(tmp_path, monkeypatch):
         "dag_name": "demo",
         "run_id": "run-1",
         "node_id": "n1",
-        "payload": {"resume_session": "sandbox:n1:run-1", "prompt": "continue"},
+        "payload": {"prompt": "continue"},
     }
 
 

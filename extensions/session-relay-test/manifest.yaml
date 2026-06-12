@@ -1,0 +1,17 @@
+name: session-relay-test
+version: 0.1.0
+type: workflow_extension
+handlers:
+- name: seed-handler
+  entry: handlers/seed.py
+  role: processor
+  input_type: Any
+  output_type: Any
+- name: condition-handler
+  entry: handlers/condition.py
+  role: processor
+  input_type: Any
+  output_type: Any
+imports:
+  entities:
+  - entities/**/*.yaml

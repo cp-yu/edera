@@ -29,9 +29,11 @@ from edera_core.config.schema import (
 from edera_core.events import event_bus
 from edera_core.errors import ConfigError, NodeExecutionError
 from edera_core.node.models import NodeContext
+from edera_core.node.sessions import parse_session_reference, resolve_session_path, invocation_dir
 from edera_core.resolver import HandlerMeta, HandlerNotFoundError
 from edera_core.skills.generator import generate_skill_files
 from edera_core.snapshot import DagExecutionSnapshot
+from edera_core.storage.session_registry import SessionRegistry
 
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
 StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
@@ -74,6 +76,7 @@ class NodeExecutor:
         wait_consumer: WaitConsumer | None = None,
         wait_recorder: WaitRecorder | None = None,
         wait_stop_event: asyncio.Event | None = None,
+        session_registry: SessionRegistry | None = None,
         **legacy_kwargs: object,
     ) -> None:
         legacy_instances = legacy_kwargs.get("instances")
@@ -105,6 +108,8 @@ class NodeExecutor:
         self.wait_consumer = wait_consumer
         self.wait_recorder = wait_recorder
         self.wait_stop_event = wait_stop_event
+        self.session_registry = session_registry
+        self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
         self._modules: dict[str, ModuleType] = {}
         self._handler_meta: dict[str, HandlerMeta] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
@@ -126,7 +131,12 @@ class NodeExecutor:
         context: NodeContext | None = None,
     ) -> NodeOutput:
         instance = self.instances.get(node_name)
-        context = context or NodeContext(node_input.run_id, node_name or uuid4().hex)
+        if context is None:
+            context = NodeContext(
+                node_input.run_id,
+                node_name or uuid4().hex,
+                dag_name=self.snapshot.dag_closure.root_dag_name
+            )
         type_name = instance.type if instance else context.node_type or node_name
         try:
             config = self._node(type_name)
@@ -288,23 +298,20 @@ class NodeExecutor:
         instance: DagNodeInstance | None,
     ) -> NodeOutput:
         effective = _apply_agent_instance_config(config, instance)
-        session_dir = _agent_session_dir(self._agent_data_dir().resolve(), context.dag_name, context.instance_id, node_input.run_id)
-        session_dir.mkdir(parents=True, exist_ok=True)
-        has_session = any(session_dir.glob("*.jsonl"))
+        session_dir, session_id, is_first_execution = await self._resolve_agent_session(
+            node_name, node_input, context, instance
+        )
+        inv_dir = invocation_dir(session_dir, context.instance_id)
+        inv_dir.mkdir(parents=True, exist_ok=True)
         generate_skill_files(session_dir, list(self.snapshot.skills.values()))
-        runtime_context = _agent_runtime_context(node_input, context)
-        (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
-        cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
-        if has_session:
-            cmd.append("--continue")
-        prompt = _agent_prompt(node_input.payload, runtime_context)
-        if prompt:
-            prompt_path = session_dir / "prompt.md"
-            prompt_path.write_text(prompt, encoding="utf-8")
-            cmd.extend(["-p", f"@{prompt_path}"])
+        output_schema = self._get_output_schema(effective)
+        result_path = inv_dir / "result.json"
+        runtime_context = _agent_runtime_context(node_input, context, str(result_path), output_schema)
+        (inv_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
+        cmd = self._build_agent_command(effective, session_dir, session_id, is_first_execution, inv_dir, node_input, runtime_context)
         env = os.environ.copy()
         env.update(_agent_env(context.instance_id))
-        workdir = effective.workdir or session_dir.parent
+        workdir = effective.workdir or inv_dir
         timeout = effective.timeout_seconds if effective.timeout_seconds is not None else self.system.llm_timeout_seconds
         cert = self.agent_certificate_issuer(context.instance_id, int(timeout or 3600)) if self.agent_certificate_issuer else None
         try:
@@ -317,7 +324,7 @@ class NodeExecutor:
             )
             self._agent_processes[(node_input.run_id, node_name)] = process
             lines = await asyncio.wait_for(
-                self._stream_stdout(process, node_input.run_id, node_name, session_dir / "stdout.log"),
+                self._stream_stdout(process, node_input.run_id, node_name, inv_dir / "stdout.log"),
                 timeout=timeout or None,
             )
             code = await process.wait()
@@ -326,13 +333,104 @@ class NodeExecutor:
         finally:
             self._agent_processes.pop((node_input.run_id, node_name), None)
         metadata = _output_metadata(node_input)
-        metadata["session_id"] = str(session_dir)
-        metadata["raw_log_path"] = str(session_dir / "stdout.log")
+        metadata["session_id"] = session_id or str(session_dir)
+        metadata["raw_log_path"] = str(inv_dir / "stdout.log")
         if code != 0:
             return NodeOutput(node_name=node_name, ok=False, metadata=metadata, error=f"pi exited with code {code}")
-        payload = {"stdout": "\n".join(lines), "session_id": str(session_dir)}
+        payload, degraded = _read_agent_result(result_path, output_schema, "\n".join(lines))
+        if degraded:
+            metadata["result_degraded"] = True
         await self._record_output(node_input, node_name, config, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+
+    async def _resolve_agent_session(
+        self,
+        node_name: str,
+        node_input: NodeInput,
+        context: NodeContext,
+        instance: DagNodeInstance | None,
+    ) -> tuple[Path, str | None, bool]:
+        session_value = instance.config.get("session") if instance else None
+        session_id = None
+        is_first_execution = False
+        if session_value:
+            dag_name, group, mode = parse_session_reference(session_value)
+            if dag_name and self.session_registry:
+                if mode == "latest":
+                    result = await self.session_registry.get_latest(dag_name, group)
+                    if not result:
+                        raise NodeExecutionError(f"No completed session found for {dag_name}/{group}")
+                    session_dir = Path(result["path"])
+                    session_id = result["session_id"]
+                elif mode == "list":
+                    result = await self.session_registry.get_oldest_unconsumed(dag_name, group, context.instance_id)
+                    if not result:
+                        raise NodeExecutionError(f"No unconsumed session found for {dag_name}/{group}")
+                    session_dir = Path(result["path"])
+                    session_id = result["session_id"]
+            else:
+                session_dir = resolve_session_path(
+                    self._agent_data_dir().resolve(),
+                    context.dag_name,
+                    context.instance_id,
+                    node_input.run_id,
+                    session_value
+                )
+                if self.session_registry and group:
+                    sessions = await self.session_registry.list_sessions(context.dag_name, group)
+                    active = [s for s in sessions if s["run_id"] == node_input.run_id and s["status"] == "active"]
+                    if active:
+                        session_id = active[0]["session_id"]
+                    else:
+                        is_first_execution = True
+                        session_id = uuid4().hex
+                        await self.session_registry.register(
+                            context.dag_name,
+                            group,
+                            node_input.run_id,
+                            session_id,
+                            str(session_dir)
+                        )
+        else:
+            session_dir = resolve_session_path(
+                self._agent_data_dir().resolve(),
+                context.dag_name,
+                context.instance_id,
+                node_input.run_id,
+                None
+            )
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir, session_id, is_first_execution
+
+    def _get_output_schema(self, effective: AgentNodeConfig) -> dict[str, object] | None:
+        if effective.output_type and self.entity_store:
+            entity_type = self.entity_store.entity_types.get(effective.output_type)
+            if entity_type and hasattr(entity_type, "schema_"):
+                return entity_type.schema_
+        return None
+
+    def _build_agent_command(
+        self,
+        effective: AgentNodeConfig,
+        session_dir: Path,
+        session_id: str | None,
+        is_first_execution: bool,
+        inv_dir: Path,
+        node_input: NodeInput,
+        runtime_context: dict[str, object],
+    ) -> list[str]:
+        cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
+        if session_id:
+            if is_first_execution:
+                cmd.extend(["--session-id", session_id])
+            else:
+                cmd.extend(["--session", session_id])
+        prompt = _agent_prompt(node_input.payload, runtime_context)
+        if prompt:
+            prompt_path = inv_dir / "prompt.md"
+            prompt_path.write_text(prompt, encoding="utf-8")
+            cmd.extend(["-p", f"@{prompt_path}"])
+        return cmd
 
     def stop_agent(self, run_id: str, node_name: str) -> bool:
         process = self._agent_processes.get((run_id, node_name))
@@ -524,9 +622,6 @@ def _apply_instance_config(config: NodeConfigBase, instance: DagNodeInstance | N
     raw_parameters = instance.config.get("parameters")
     if hasattr(config, "parameters") and isinstance(raw_parameters, dict):
         _update_parameters(updates, config.parameters, raw_parameters)
-    session_dir = instance.config.get("session_dir")
-    if hasattr(config, "parameters") and isinstance(session_dir, str):
-        _update_parameters(updates, config.parameters, {"session_dir": session_dir})
     return config.model_copy(update=updates)
 
 
@@ -564,8 +659,6 @@ def _apply_instance_input(
     if not source_names and not entities:
         return node_input
     payload = dict(node_input.payload) if isinstance(node_input.payload, dict) else {}
-    if isinstance(node_input.payload, dict) and "resume_session" in node_input.payload:
-        payload["resume_session"] = node_input.payload["resume_session"]
     if entities:
         payload["entities"] = entities
         payload["source_names"] = _source_names(entities)
@@ -641,34 +734,50 @@ def _uses_pi(config: NodeConfig) -> bool:
     return config.handler in {"run-pi", "pi", "llm"}
 
 
-def _agent_session_dir(root: Path, dag_name: str, instance_id: str, run_id: str) -> Path:
-    return root / "sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(run_id)
-
-
-def _safe_path_token(value: str) -> str:
-    cleaned = "".join(item if item.isalnum() or item in {"-", "_", "."} else "_" for item in value)
-    return cleaned or "default"
-
-
 def _agent_prompt(payload: object, runtime_context: dict[str, object] | None = None) -> str:
     context = runtime_context or {}
     prefix = f"Runtime context: {json.dumps(context, ensure_ascii=False)}"
+
+    # 构造主 prompt
+    main_prompt = ""
     if isinstance(payload, dict):
         prompt = payload.get("prompt")
         if isinstance(prompt, str):
-            return f"{prefix}\n\n{prompt}"
-    if isinstance(payload, str):
-        return f"{prefix}\n\n{payload}"
-    return prefix
+            main_prompt = prompt
+    elif isinstance(payload, str):
+        main_prompt = payload
+
+    # 如果有 result_path，拼接结果写入指令
+    result_path = context.get("result_path")
+    if result_path:
+        result_instruction = (
+            f"\n\nIMPORTANT: Write your final result as JSON to the file: {result_path}\n"
+            f"The result must be valid JSON."
+        )
+        if context.get("output_schema"):
+            result_instruction += f" It should conform to the provided output_schema in the runtime context."
+        return f"{prefix}\n\n{main_prompt}{result_instruction}"
+
+    return f"{prefix}\n\n{main_prompt}" if main_prompt else prefix
 
 
-def _agent_runtime_context(node_input: NodeInput, context: NodeContext) -> dict[str, object]:
-    return {
+def _agent_runtime_context(
+    node_input: NodeInput,
+    context: NodeContext,
+    result_path: str | None = None,
+    output_schema: dict[str, object] | None = None,
+) -> dict[str, object]:
+    ctx: dict[str, object] = {
         "run_id": node_input.run_id,
         "dag_name": context.dag_name,
         "node_id": context.instance_id,
         "edge_inputs": node_input.metadata.get("edge_inputs", []),
     }
+    if result_path:
+        ctx["result_path"] = result_path
+    if output_schema:
+        ctx["output_schema"] = output_schema
+    return ctx
 
 
 def _agent_env(instance_id: str) -> dict[str, str]:
@@ -676,6 +785,50 @@ def _agent_env(instance_id: str) -> dict[str, str]:
         "EDERA_SERVER_ADDR": os.environ.get("EDERA_SERVER_ADDR", "127.0.0.1:9090"),
         "EDERA_IDENTITY": f"node:{instance_id}",
     }
+
+
+def _read_agent_result(
+    result_path: Path,
+    output_schema: dict[str, object] | None,
+    stdout: str,
+) -> tuple[dict[str, object], bool]:
+    """
+    读取并校验 agent 结果文件。
+    返回 (payload, degraded)。
+    degraded=True 表示降级到 stdout。
+    """
+    # 尝试读取结果文件
+    if not result_path.exists():
+        return {"stdout": stdout}, True
+
+    try:
+        content = result_path.read_text(encoding="utf-8")
+        result = json.loads(content)
+    except (OSError, json.JSONDecodeError):
+        return {"stdout": stdout}, True
+
+    # 如果有 schema，进行简单校验
+    if output_schema:
+        if not _validate_simple_schema(result, output_schema):
+            return {"stdout": stdout}, True
+
+    # 校验通过或无需校验
+    return result, False
+
+
+def _validate_simple_schema(data: object, schema: dict[str, object]) -> bool:
+    """简单的 JSON Schema 校验，仅支持 required 字段检查"""
+    if not isinstance(data, dict):
+        return False
+
+    # 检查 required 字段
+    required = schema.get("required")
+    if isinstance(required, list):
+        for field in required:
+            if field not in data:
+                return False
+
+    return True
 
 
 def _agent_cert_env(cert: object) -> dict[str, str]:

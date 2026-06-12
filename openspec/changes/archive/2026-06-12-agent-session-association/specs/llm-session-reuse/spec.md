@@ -1,12 +1,5 @@
----
-capabilities:
-  - cap.operations.llm-session-reuse
----
-# llm-session-reuse Specification
+## MODIFIED Requirements
 
-## Purpose
-定义 server 管理的 Session 路径结构、Session 目录独立管理、session_dir 配置、自动 resume 判定等能力。
-## Requirements
 ### Requirement: Session 路径结构
 Agent 节点执行时 SHALL 使用 server 管理的 `${EDERA_DATA_DIR}/sessions/{dag_name}/{group}/{run_id}/` 作为 session 目录，其中 `group` 为实例声明的 session 组名；未声明 `session` 的实例 `group` 取 `instance_id`，路径与既有行为一致。
 
@@ -21,6 +14,8 @@ Agent 节点执行时 SHALL 使用 server 管理的 `${EDERA_DATA_DIR}/sessions/
 #### Scenario: 未声明 session 的节点路径不变
 - **WHEN** agent 节点实例未声明 `session` 字段
 - **THEN** 系统 SHALL 使用 `${EDERA_DATA_DIR}/sessions/{dag_name}/{instance_id}/{run_id}/`，行为与历史一致
+
+## ADDED Requirements
 
 ### Requirement: Session 组关联声明
 `DagNodeInstance.config` SHALL 支持 `session` 字段（可选字符串）声明会话关联：同 DAG 组名 `<group>`，或跨 DAG 有向引用 `<dag_name>/<group>@latest` / `<dag_name>/<group>@list`。
@@ -108,3 +103,20 @@ Agent 节点执行时 SHALL 使用 server 管理的 `${EDERA_DATA_DIR}/sessions/
 - **WHEN** 引用方节点输入指定 `run_id`
 - **THEN** 系统 SHALL 选取该 run 的会话，忽略 consumed 标记
 
+## REMOVED Requirements
+
+### Requirement: Session 目录独立管理
+**Reason**: TTL/size 清理与被引用延迟清理从未实现，本变更不承诺该能力，移除以保持规格与系统一致。
+**Migration**: 清理能力留待后续独立变更；当前 session 目录长期保留。
+
+### Requirement: session_dir 配置
+**Reason**: `session_dir` 字段废弃，会话关联由 `session` 字段（组名 + 有向引用）承载，术语统一为 session。
+**Migration**: 使用 `DagNodeInstance.config.session` 字段；绝对路径定制存储位置的能力不再提供。
+
+### Requirement: 自动 resume 判定
+**Reason**: 共享会话目录下按 `.jsonl` 存在性判定续接有歧义，可能续接到错误会话。
+**Migration**: 续接改为以注册表登记的 session id 显式定位（见 agent-executor 的 Pi CLI subprocess 配置）。
+
+### Requirement: Payload 动态覆盖
+**Reason**: `resume_session` payload 在系统中无消费者，属死路径；resume 通过复用原 run_id 与确定性路径实现。
+**Migration**: 无需迁移；resume API 行为不变。

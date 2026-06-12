@@ -1,8 +1,5 @@
-# skill-dynamic-generation Specification
+## MODIFIED Requirements
 
-## Purpose
-此规约记录变更 skills-to-database 引入的行为，请在后续同步或归档前补全正式 Purpose。
-## Requirements
 ### Requirement: Agent 执行时生成 skill 文件
 系统 SHALL 在 Agent 启动前，从数据库查询 skills 并生成完整的 skill 文件夹到 session 目录，生成过程 MUST 幂等（重复生成产出一致内容，不报错）。
 
@@ -31,12 +28,3 @@
 - **WHEN** Skill 包含多个文件（如 SKILL.md, prompts/main.txt, scripts/helper.py）
 - **THEN** 系统 SHALL 创建完整的文件夹结构
 - **THEN** 所有文件 SHALL 按原始路径生成
-
-### Requirement: Session 结束后保留临时文件
-系统 SHALL 在 Agent session 结束后保留 skill 临时文件，用于调试。
-
-#### Scenario: Session 结束后文件仍存在
-- **WHEN** Agent session 执行完成
-- **THEN** `{session_dir}/skills/` 目录和所有文件 SHALL 保留
-- **THEN** 用户可查看这些文件用于调试
-

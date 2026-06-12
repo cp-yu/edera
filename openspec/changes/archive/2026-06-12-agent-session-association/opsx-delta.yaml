@@ -1,0 +1,33 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.session-relay-test-extension
+      type: capability
+      intent: 测试扩展 session-relay-test，提供 relay-main（同 DAG session 组接力 + 条件边）与 relay-skill（跨 DAG @latest/@list 引用消费）两个 DAG 及配套 function handler
+  relations:
+    - from: cap.core.session-relay-test-extension
+      type: contains
+      to: dom.core
+    - from: cap.core.session-relay-test-extension
+      type: depends_on
+      to: cap.operations.llm-session-reuse
+    - from: cap.core.session-relay-test-extension
+      type: depends_on
+      to: cap.core.extension-manifest-system
+    - from: cap.core.session-relay-test-extension
+      type: depends_on
+      to: cap.dag-condition-branch
+    - from: cap.operations.llm-session-reuse
+      type: depends_on
+      to: cap.core.dag-resource-semaphore
+
+MODIFIED:
+  capabilities:
+    - id: cap.operations.llm-session-reuse
+      intent: Agent 节点 session 关联模型，覆盖 session 字段（组名 + 跨 DAG 有向引用）、组共享路径与精确续接、隐式 resource 组串行、session run 注册表、@latest/@list 解析与消费账本
+    - id: cap.core.agent-executor
+      intent: Agent 节点 pi CLI subprocess 契约，覆盖 --session 精确续接、invocations/{node_id} 逐次产物命名空间、结构化输出契约（result_path + output_schema 校验与降级）、runtime context 注入与实时 stdout streaming
+    - id: cap.operations.node-executor
+      intent: NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver 解析 `handlers_dir` 下的已安装执行入口；agent 节点执行前解析 session 字段（组名/跨 DAG 引用经注册表），未声明时按 instance_id 推导路径，默认 workdir 为 invocation 目录
+    - id: cap.web.node-instance-model
+      intent: 节点实例化模型覆盖 sub-DAG 实例的 dag_ref/input_mapping 持久化、多实例引用同一 DAG，以及 DagNodeInstance.config.session 字段（替代已废弃 session_dir）的语法校验

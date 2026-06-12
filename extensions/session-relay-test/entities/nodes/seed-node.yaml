@@ -1,0 +1,9 @@
+id: seed-node
+type: node
+attributes:
+  name: seed-node
+  type: function
+  role: processor
+  handler: session-relay-test.seed-handler
+  input_type: Any
+  output_type: Any

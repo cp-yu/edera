@@ -19,7 +19,7 @@ from edera_core.server import Server, _DagService, _NodeService, _SystemService,
 from edera_core.events import event_bus
 from edera_core.grpc_client import GrpcClient, _channel_credentials
 from edera_core.hot_reload import clear_handler_cache
-from edera_core.node.executor import NodeExecutor, _agent_cert_env, _agent_session_dir
+from edera_core.node.executor import NodeExecutor, _agent_cert_env
 from edera_core.node.models import NodeInput
 from edera_core.resolver import HandlerMeta, StaticHandlerResolver
 from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
@@ -162,10 +162,11 @@ async def test_agent_subprocess_launches_with_env_and_streaming(tmp_path: Path) 
     assert captured[1] == "node:agent"
     args = json.loads(captured[2])
     session_dir = Path(args[args.index("--session-dir") + 1])
-    assert (session_dir / "runtime-context.json").exists()
+    inv_dir = session_dir / "invocations" / "agent"
+    assert (inv_dir / "runtime-context.json").exists()
     prompt_arg = args[args.index("-p") + 1]
-    assert prompt_arg == f"@{session_dir / 'prompt.md'}"
-    assert "do it" in (session_dir / "prompt.md").read_text(encoding="utf-8")
+    assert prompt_arg == f"@{inv_dir / 'prompt.md'}"
+    assert "do it" in (inv_dir / "prompt.md").read_text(encoding="utf-8")
 
 
 def test_clear_handler_cache() -> None:
@@ -269,10 +270,6 @@ def test_agent_cert_env_injects_pem_content() -> None:
         "EDERA_CLIENT_KEY": "KEY_PEM",
         "EDERA_CA_CERT": "CA_PEM",
     }
-
-
-def test_agent_session_dir_uses_daemon_data_dir(tmp_path: Path) -> None:
-    assert _agent_session_dir(tmp_path, "dag", "agent", "run") == tmp_path / "sessions" / "dag" / "agent" / "run"
 
 
 @pytest.mark.asyncio
@@ -563,7 +560,7 @@ async def test_daemon_node_stop_and_resume_use_controller(tmp_path: Path) -> Non
             assert dag_name == "default"
             assert run_id == "run-1"
             assert node_id == "reader-1"
-            assert payload == {"resume_session": "sandbox:reader-1:run-1", "prompt": "adjust"}
+            assert payload == {"prompt": "adjust"}
             return run_id
 
         def runtime_snapshot(self):

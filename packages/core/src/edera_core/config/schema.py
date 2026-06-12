@@ -378,8 +378,8 @@ class DagNodeInstance(BaseModel):
     def _json_like_config(cls, value: dict[str, Any]) -> dict[str, Any]:
         checked = {key: item for key, item in value.items() if key != "entity_permissions"}
         _validate_parameter_mapping(checked)
-        if "session_dir" in value and not _valid_session_dir(value["session_dir"]):
-            raise ValueError("config.session_dir must be an absolute path or sandbox:<node_id>:<run|latest>")
+        if "session" in value and not _valid_session(value["session"]):
+            raise ValueError("config.session must be <group>, <dag>/<group>@latest, or <dag>/<group>@list")
         if "tools" in value:
             tools = value["tools"]
             if not isinstance(tools, list):
@@ -457,18 +457,26 @@ def _validate_tools(value: list[str]) -> list[str]:
     return value
 
 
-def _valid_session_dir(value: object) -> bool:
+def _valid_session(value: object) -> bool:
     if not isinstance(value, str) or not value:
         return False
-    if value.startswith("/"):
-        return "\x00" not in value
-    if not value.startswith("sandbox:"):
+    # 组名: <group>
+    if "/" not in value and "@" not in value:
+        return _safe_token(value)
+    # 跨 DAG 引用: <dag>/<group>@latest 或 <dag>/<group>@list
+    if "@" not in value:
         return False
-    parts = value.split(":")
-    if len(parts) != 3:
+    parts = value.split("@")
+    if len(parts) != 2:
         return False
-    node_id, run_ref = parts[1], parts[2]
-    return _safe_token(node_id) and (run_ref == "latest" or _safe_token(run_ref))
+    ref, mode = parts[0], parts[1]
+    if mode not in ("latest", "list"):
+        return False
+    ref_parts = ref.split("/")
+    if len(ref_parts) != 2:
+        return False
+    dag_name, group = ref_parts
+    return _safe_token(dag_name) and _safe_token(group)
 
 
 def _safe_token(value: str) -> bool:

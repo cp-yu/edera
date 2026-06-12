@@ -38,7 +38,7 @@ INSTANCE_CONFIG_FIELDS = {
     "entities",
     "entity_permissions",
     "timeout_seconds",
-    "session_dir",
+    "session",
     "workdir",
     "tools",
 }
@@ -566,7 +566,7 @@ def build_inspector_schema(
     }
     properties["timeout_seconds"] = {"type": "number", "default": node.timeout_seconds}
     properties["model"] = {"type": "string", "default": None, "enum": model_names}
-    properties["session_dir"] = {"type": "string", "default": None}
+    properties["session"] = {"type": "string", "default": None}
     properties["tools"] = {"type": "array", "items": {"type": "string", "enum": ["bash", "read", "edit", "write", "grep", "find"]}, "default": node.tools}
     for key, value in node.parameters_schema.get("properties", {}).items():
         if isinstance(value, dict):

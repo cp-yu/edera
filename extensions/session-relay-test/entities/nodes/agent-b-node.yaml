@@ -1,0 +1,8 @@
+id: agent-b-node
+type: node
+attributes:
+  name: agent-b-node
+  type: agent
+  model: test-model
+  input_type: Any
+  output_type: Any

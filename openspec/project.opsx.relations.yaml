@@ -294,3 +294,18 @@ relations:
   - from: cap.single-node-loop
     type: depends_on
     to: cap.core.dag-resource-semaphore
+  - from: cap.core.session-relay-test-extension
+    type: contains
+    to: dom.core
+  - from: cap.core.session-relay-test-extension
+    type: depends_on
+    to: cap.operations.llm-session-reuse
+  - from: cap.core.session-relay-test-extension
+    type: depends_on
+    to: cap.core.extension-manifest-system
+  - from: cap.core.session-relay-test-extension
+    type: depends_on
+    to: cap.dag-condition-branch
+  - from: cap.operations.llm-session-reuse
+    type: depends_on
+    to: cap.core.dag-resource-semaphore

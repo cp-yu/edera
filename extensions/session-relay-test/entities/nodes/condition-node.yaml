@@ -1,0 +1,9 @@
+id: condition-node
+type: node
+attributes:
+  name: condition-node
+  type: function
+  role: processor
+  handler: session-relay-test.condition-handler
+  input_type: Any
+  output_type: Any

@@ -1,0 +1,51 @@
+id: relay-main
+type: dag
+attributes:
+  name: relay-main
+  nodes:
+  - id: a
+    type: seed-node
+    alias: Seed
+    input_mapping: {}
+    config: {}
+    optional: false
+    resource: null
+  - id: B
+    type: agent-b-node
+    alias: Agent B
+    input_mapping: {}
+    config:
+      session: task-1
+    optional: false
+    resource: session:relay-main/task-1
+  - id: c
+    type: condition-node
+    alias: Condition
+    input_mapping: {}
+    config: {}
+    optional: false
+    resource: null
+  - id: D
+    type: agent-d-node
+    alias: Agent D
+    input_mapping: {}
+    config:
+      session: task-1
+    optional: false
+    resource: session:relay-main/task-1
+  edges:
+  - from: a
+    to: B
+    fan_out: false
+    fan_in: false
+    condition: null
+  - from: B
+    to: c
+    fan_out: false
+    fan_in: false
+    condition: null
+  - from: c
+    to: D
+    fan_out: false
+    fan_in: false
+    condition: input.condition_met
