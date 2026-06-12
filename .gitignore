@@ -22,3 +22,4 @@ extensions/uzi-skill/.cache/_global/api_cache
 /ca.crt
 /ca.key
 /diff-specs
+.roadmap/
