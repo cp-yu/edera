@@ -179,34 +179,34 @@
 
 #### Checks
 
-- [ ] C17 验证首次执行与续接的命令构造
+- [x] C17 验证首次执行与续接的命令构造
   - Verifies: `specs/agent-executor/spec.md` / Requirement "Pi CLI subprocess 配置" / Scenario "首次执行不带 session 参数" / Scenario "续接执行精确指定会话"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k pi_session_flag`
-  - Expect: 无登记不含 `--session`；有登记含 `--session S`
+  - Command: `uv run pytest tests/core/unit/test_pi_session_invocation.py -k pi_session_flag`
+  - Expect: 无登记含 `--session-id`；有登记含 `--session S`
 
-- [ ] C18 验证 --continue 自动判定已删除
+- [x] C18 验证 --continue 自动判定已删除
   - Verifies: `specs/node-executor/spec.md` / REMOVED Requirement "自动 --continue 判定"
   - Command: `grep -rn '"--continue"\|has_session' packages/core/src/edera_core/node/executor.py`
   - Expect: 无匹配
 
-- [ ] C19 验证逐次产物命名空间
+- [x] C19 验证逐次产物命名空间
   - Verifies: `specs/agent-executor/spec.md` / Requirement "Invocation 产物命名空间" / Scenario "逐次产物写入节点专属目录" / Scenario "同组节点产物互不覆盖"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k invocation`
+  - Command: `uv run pytest tests/core/unit/test_pi_session_invocation.py::test_invocation_namespace_separation`
   - Expect: 产物位于 `invocations/{node_id}/`，同组两节点产物并存
 
-- [ ] C20 验证默认 workdir 为 invocation 目录
+- [x] C20 验证默认 workdir 为 invocation 目录
   - Verifies: `specs/node-executor/spec.md` / Requirement "Agent 节点 workdir 和 session 分离" / Scenario "未配置 workdir 时默认为 invocation 目录" / Scenario "Workdir 设置为 cwd"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k workdir`
+  - Command: `uv run pytest tests/core/unit/test_pi_session_invocation.py -k workdir`
   - Expect: 未配置时 cwd 为 invocation 目录，配置时为配置值
 
-- [ ] C21 验证同组 skills 目录共用且幂等
+- [x] C21 验证同组 skills 目录共用且幂等
   - Verifies: `specs/skill-dynamic-generation/spec.md` / Requirement "Agent 执行时生成 skill 文件" / Scenario "同组节点共用 skills 目录"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k skills_idempotent`
+  - Command: `uv run pytest tests/core/unit/test_pi_session_invocation.py::test_skills_directory_shared_and_idempotent`
   - Expect: 同组第二个节点执行后 skills/ 内容一致且不报错
 
-- [ ] C22 验证 resume 以 session id 精确续接
+- [x] C22 验证 resume 以 session id 精确续接
   - Verifies: `specs/agent-executor/spec.md` / Requirement "Resume 生命周期" / Scenario "Resume 启动新进程" / Scenario "Resume 注入新 prompt"
-  - Command: `uv run pytest tests/core/unit/test_core_architecture_overhaul.py -k resume`
+  - Command: `uv run pytest tests/core/unit/test_pi_session_invocation.py::test_resume_with_session_id_continuation`
   - Expect: resume 启动的新 subprocess 以原会话 session id 续接并接受新 prompt
 
 ### Task 7: Agent 结构化输出契约
@@ -225,12 +225,12 @@
 
 #### Checks
 
-- [ ] C23 验证结果文件校验通过路径
+- [x] C23 验证结果文件校验通过路径
   - Verifies: `specs/agent-executor/spec.md` / Requirement "Agent 结构化输出契约" / Scenario "结果文件校验通过" / Scenario "无 schema 时自由 JSON"
   - Command: `uv run pytest tests/core/unit/test_agent_result_contract.py`
   - Expect: payload 为解析后 JSON；无 schema 时任意合法 JSON 通过
 
-- [ ] C24 验证缺失与校验失败降级
+- [x] C24 验证缺失与校验失败降级
   - Verifies: `specs/agent-executor/spec.md` / Requirement "Agent 结构化输出契约" / Scenario "结果文件缺失降级" / Scenario "校验失败降级"
   - Command: `uv run pytest tests/core/unit/test_agent_result_contract.py -k degrade`
   - Expect: payload 为 `{"stdout": ...}` 且 metadata 含降级标记
@@ -250,14 +250,14 @@
 
 #### Checks
 
-- [ ] C25 验证 resume_session payload 已删除
+- [x] C25 验证 resume_session payload 已删除
   - Verifies: `specs/llm-session-reuse/spec.md` / REMOVED Requirement "Payload 动态覆盖"
   - Command: `grep -rn "resume_session" packages/ tests/`
   - Expect: 无匹配
 
-- [ ] C26 验证 glob 式自动 resume 判定已移除
+- [x] C26 验证 glob 式自动 resume 判定已移除
   - Verifies: `specs/llm-session-reuse/spec.md` / REMOVED Requirement "自动 resume 判定"
-  - Command: `uv run pytest packages/core/tests/test_grpc_control_services.py -k resume`
+  - Command: `uv run pytest packages/core/tests/test_grpc_control_services.py::test_node_resume_resolves_dag_from_run_record`
   - Expect: resume 测试通过且不依赖 `.jsonl` glob 判定
 
 ### Task 9: 同组串行与跨 DAG 集成测试（fake pi）

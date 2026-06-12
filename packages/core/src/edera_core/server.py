@@ -592,7 +592,7 @@ class _NodeService:
             await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
         if dag_name is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"node '{request.id}' not found")
-        payload: dict[str, object] = {"resume_session": f"sandbox:{request.id}:{request.run_id}"}
+        payload: dict[str, object] = {}
         if request.prompt:
             payload["prompt"] = request.prompt
         run_id = await self.daemon.controller.resume_node(dag_name, request.run_id, request.id, payload)

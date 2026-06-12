@@ -309,6 +309,7 @@ class NodeExecutor:
         # Session 引用解析
         session_value = instance.config.get("session") if instance else None
         session_id = None
+        is_first_execution = False
 
         if session_value:
             dag_name, group, mode = parse_session_reference(session_value)
@@ -342,6 +343,17 @@ class NodeExecutor:
                     active = [s for s in sessions if s["run_id"] == node_input.run_id and s["status"] == "active"]
                     if active:
                         session_id = active[0]["session_id"]
+                    else:
+                        # 首次执行：预生成 session_id
+                        is_first_execution = True
+                        session_id = uuid4().hex
+                        await self.session_registry.register(
+                            context.dag_name,
+                            group,
+                            node_input.run_id,
+                            session_id,
+                            str(session_dir)
+                        )
         else:
             # 未声明 session，使用 instance_id
             session_dir = resolve_session_path(
@@ -361,14 +373,25 @@ class NodeExecutor:
         # 生成 skills（共享目录）
         generate_skill_files(session_dir, list(self.snapshot.skills.values()))
 
+        # 确定 output schema
+        output_schema = None
+        if effective.output_type and self.entity_store:
+            entity_type = self.entity_store.entity_types.get(effective.output_type)
+            if entity_type and hasattr(entity_type, "schema_"):
+                output_schema = entity_type.schema_
+
         # Runtime context 写入 invocation 目录
-        runtime_context = _agent_runtime_context(node_input, context)
+        result_path = inv_dir / "result.json"
+        runtime_context = _agent_runtime_context(node_input, context, str(result_path), output_schema)
         (inv_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
 
         # 构造命令
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
         if session_id:
-            cmd.extend(["--session", session_id])
+            if is_first_execution:
+                cmd.extend(["--session-id", session_id])
+            else:
+                cmd.extend(["--session", session_id])
 
         prompt = _agent_prompt(node_input.payload, runtime_context)
         if prompt:
@@ -403,29 +426,17 @@ class NodeExecutor:
         finally:
             self._agent_processes.pop((node_input.run_id, node_name), None)
 
-        # 捕获 session_id（如果是首次创建）
-        if not session_id and self.session_registry and session_value:
-            dag_name, group, _ = parse_session_reference(session_value)
-            if not dag_name:  # 同 DAG 组名
-                # 从 session 目录中查找 .jsonl 文件获取 session_id
-                jsonl_files = list(session_dir.glob("*.jsonl"))
-                if jsonl_files:
-                    captured_session_id = jsonl_files[0].stem
-                    await self.session_registry.register(
-                        context.dag_name,
-                        group,
-                        node_input.run_id,
-                        captured_session_id,
-                        str(session_dir)
-                    )
-                    session_id = captured_session_id
-
         metadata = _output_metadata(node_input)
         metadata["session_id"] = session_id or str(session_dir)
         metadata["raw_log_path"] = str(inv_dir / "stdout.log")
         if code != 0:
             return NodeOutput(node_name=node_name, ok=False, metadata=metadata, error=f"pi exited with code {code}")
-        payload = {"stdout": "\n".join(lines), "session_id": session_id or str(session_dir)}
+
+        # 尝试读取结构化输出
+        payload, degraded = _read_agent_result(result_path, output_schema, "\n".join(lines))
+        if degraded:
+            metadata["result_degraded"] = True
+
         await self._record_output(node_input, node_name, config, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
 
@@ -656,8 +667,6 @@ def _apply_instance_input(
     if not source_names and not entities:
         return node_input
     payload = dict(node_input.payload) if isinstance(node_input.payload, dict) else {}
-    if isinstance(node_input.payload, dict) and "resume_session" in node_input.payload:
-        payload["resume_session"] = node_input.payload["resume_session"]
     if entities:
         payload["entities"] = entities
         payload["source_names"] = _source_names(entities)
@@ -736,22 +745,47 @@ def _uses_pi(config: NodeConfig) -> bool:
 def _agent_prompt(payload: object, runtime_context: dict[str, object] | None = None) -> str:
     context = runtime_context or {}
     prefix = f"Runtime context: {json.dumps(context, ensure_ascii=False)}"
+
+    # 构造主 prompt
+    main_prompt = ""
     if isinstance(payload, dict):
         prompt = payload.get("prompt")
         if isinstance(prompt, str):
-            return f"{prefix}\n\n{prompt}"
-    if isinstance(payload, str):
-        return f"{prefix}\n\n{payload}"
-    return prefix
+            main_prompt = prompt
+    elif isinstance(payload, str):
+        main_prompt = payload
+
+    # 如果有 result_path，拼接结果写入指令
+    result_path = context.get("result_path")
+    if result_path:
+        result_instruction = (
+            f"\n\nIMPORTANT: Write your final result as JSON to the file: {result_path}\n"
+            f"The result must be valid JSON."
+        )
+        if context.get("output_schema"):
+            result_instruction += f" It should conform to the provided output_schema in the runtime context."
+        return f"{prefix}\n\n{main_prompt}{result_instruction}"
+
+    return f"{prefix}\n\n{main_prompt}" if main_prompt else prefix
 
 
-def _agent_runtime_context(node_input: NodeInput, context: NodeContext) -> dict[str, object]:
-    return {
+def _agent_runtime_context(
+    node_input: NodeInput,
+    context: NodeContext,
+    result_path: str | None = None,
+    output_schema: dict[str, object] | None = None,
+) -> dict[str, object]:
+    ctx: dict[str, object] = {
         "run_id": node_input.run_id,
         "dag_name": context.dag_name,
         "node_id": context.instance_id,
         "edge_inputs": node_input.metadata.get("edge_inputs", []),
     }
+    if result_path:
+        ctx["result_path"] = result_path
+    if output_schema:
+        ctx["output_schema"] = output_schema
+    return ctx
 
 
 def _agent_env(instance_id: str) -> dict[str, str]:
@@ -759,6 +793,50 @@ def _agent_env(instance_id: str) -> dict[str, str]:
         "EDERA_SERVER_ADDR": os.environ.get("EDERA_SERVER_ADDR", "127.0.0.1:9090"),
         "EDERA_IDENTITY": f"node:{instance_id}",
     }
+
+
+def _read_agent_result(
+    result_path: Path,
+    output_schema: dict[str, object] | None,
+    stdout: str,
+) -> tuple[dict[str, object], bool]:
+    """
+    读取并校验 agent 结果文件。
+    返回 (payload, degraded)。
+    degraded=True 表示降级到 stdout。
+    """
+    # 尝试读取结果文件
+    if not result_path.exists():
+        return {"stdout": stdout}, True
+
+    try:
+        content = result_path.read_text(encoding="utf-8")
+        result = json.loads(content)
+    except (OSError, json.JSONDecodeError):
+        return {"stdout": stdout}, True
+
+    # 如果有 schema，进行简单校验
+    if output_schema:
+        if not _validate_simple_schema(result, output_schema):
+            return {"stdout": stdout}, True
+
+    # 校验通过或无需校验
+    return result, False
+
+
+def _validate_simple_schema(data: object, schema: dict[str, object]) -> bool:
+    """简单的 JSON Schema 校验，仅支持 required 字段检查"""
+    if not isinstance(data, dict):
+        return False
+
+    # 检查 required 字段
+    required = schema.get("required")
+    if isinstance(required, list):
+        for field in required:
+            if field not in data:
+                return False
+
+    return True
 
 
 def _agent_cert_env(cert: object) -> dict[str, str]:
