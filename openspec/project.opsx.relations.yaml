@@ -207,12 +207,6 @@ relations:
   - from: cap.core.extension-installation-lifecycle
     type: depends_on
     to: cap.core.extension-declarative-storage
-  - from: cap.core.extension-cli-commands
-    type: contains
-    to: dom.core
-  - from: cap.core.extension-cli-commands
-    type: depends_on
-    to: cap.core.extension-grpc-service
   - from: cap.core.extension-grpc-service
     type: contains
     to: dom.core
@@ -240,16 +234,7 @@ relations:
   - from: cap.core.entity-relations-database-storage
     type: depends_on
     to: cap.core.ordinary-entity-database-storage
-  - from: cap.cli.entity-cli-commands
-    type: depends_on
-    to: cap.core.ordinary-entity-database-storage
-  - from: cap.cli.relation-cli-commands
-    type: depends_on
-    to: cap.core.entity-relations-database-storage
   - from: cap.core.skill-dynamic-generation
-    type: depends_on
-    to: cap.core.skill-database-storage
-  - from: cap.cli.skill-cli-commands
     type: depends_on
     to: cap.core.skill-database-storage
   - from: cap.core.runtime-skill-reload
@@ -288,25 +273,19 @@ relations:
   - from: cap.core.extension-test-template
     type: contains
     to: dom.core
-  - from: cap.core.edera-cli-control-plane
-    type: contains
-    to: dom.core
-  - from: cap.core.edera-cli-control-plane
-    type: depends_on
-    to: cap.core.edera-cli
-  - from: cap.core.edera-cli-control-plane
+  - from: cap.core.edera-cli
     type: depends_on
     to: cap.core.grpc-graph-service
-  - from: cap.core.edera-cli-control-plane
+  - from: cap.core.edera-cli
     type: depends_on
     to: cap.core.grpc-config-service
-  - from: cap.core.edera-cli-control-plane
+  - from: cap.core.edera-cli
     type: depends_on
     to: cap.core.grpc-query-service
-  - from: cap.core.edera-cli-control-plane
+  - from: cap.core.edera-cli
     type: depends_on
     to: cap.core.grpc-control-services
-  - from: cap.core.edera-cli-control-plane
+  - from: cap.core.edera-cli
     type: depends_on
     to: cap.web.source-health-monitoring
   - from: cap.web.dag-workbench-ui

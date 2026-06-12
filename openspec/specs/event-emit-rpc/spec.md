@@ -5,7 +5,7 @@ capabilities:
 # event-emit-rpc Specification
 
 ## Purpose
-定义 EventService.Emit RPC、emit 记录持久化、edera event emit CLI 命令、emit 路径统一等能力。
+定义 EventService.Emit RPC、emit 记录持久化、emit 路径统一等能力。
 ## Requirements
 ### Requirement: EventService.Emit RPC
 
@@ -39,20 +39,6 @@ capabilities:
 
 - **WHEN** trigger fire 后 DAG run 启动，DAG 内 source node 需要读取最近的 emit payload
 - **THEN** node 通过 runtime context 查询 `emit_records` 中该事件的最近一条记录
-
-### Requirement: edera event emit CLI 命令
-
-`edera` CLI SHALL 提供 `event emit <event> [--payload-json <json>]` 子命令，作为外部事件注入入口。该命令 MUST 通过 mTLS 连接 edera-server 并调用 `EventService.Emit`。
-
-#### Scenario: CLI 注入事件
-
-- **WHEN** 用户在 shell 中执行 `edera event emit "event:website-updated" --payload-json '{"url":"https://..."}'`
-- **THEN** CLI 通过 mTLS 调用 `EventService.Emit` 注入事件
-
-#### Scenario: CLI 缺少证书拒绝
-
-- **WHEN** 用户在未初始化客户端证书时执行 `edera event emit`
-- **THEN** CLI 报错并提示先运行客户端初始化
 
 ### Requirement: emit 路径统一
 

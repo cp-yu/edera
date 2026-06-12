@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 提供 Entity、DAG、Event、System、Node、Extension 控制能力，通过控制面命令组暴露 DAG 定义、node type、handler、config、query 和 source 运维能力，并提供统一输出、watch/tail 与结构化错误输出。
+    intent: edera CLI 提供完整控制面子命令集（Entity/Relation/Entity-type/DAG/Node/Node-type/Skill/Event/System/Client/Config/Handler/Query/Source/Extension），覆盖 CRUD、文件操作、DAG 定义管理与运行时编辑、物化维护、扩展生命周期、查询与监控，通过 gRPC 客户端连接 server，支持 mTLS 身份认证、分页展示、watch/tail 模式和结构化错误输出。
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
@@ -289,9 +289,6 @@ capabilities:
   - id: cap.core.extension-installation-lifecycle
     intent: 安装逻辑识别 workflow_extension 类型，递归处理 imports.providers，复制 imports.libraries，展开所有 glob patterns
     type: capability
-  - id: cap.core.extension-cli-commands
-    intent: CLI export 命令打包 workflow extension 的 _providers/ provider manifests、provider handler 代码和 _lib/ libraries，install 命令递归安装 providers，输出包含 provider 安装进度。
-    type: capability
   - id: cap.core.extension-grpc-service
     intent: InstallExtension RPC 支持 workflow_extension 类型，递归处理 providers，展开 glob patterns
     type: capability
@@ -310,20 +307,11 @@ capabilities:
   - id: cap.core.entity-relations-database-storage
     intent: Entity relations 存储到 entity_relations 表
     type: capability
-  - id: cap.cli.entity-cli-commands
-    intent: CLI edera entity 子命令集，支持 CRUD 和 import/export
-    type: capability
-  - id: cap.cli.relation-cli-commands
-    intent: CLI edera relation 子命令集，支持关系管理
-    type: capability
   - id: cap.core.skill-database-storage
     intent: Skills 存储到 skills 数据库表
     type: capability
   - id: cap.core.skill-dynamic-generation
     intent: Agent 执行时从数据库动态生成 skill 文件
-    type: capability
-  - id: cap.cli.skill-cli-commands
-    intent: CLI edera skill 子命令集，支持 CRUD 和 import/export
     type: capability
   - id: cap.core.runtime-skill-reload
     intent: 运行时刷新 skill 配置的 API
@@ -348,7 +336,4 @@ capabilities:
     type: capability
   - id: cap.core.extension-test-template
     intent: 提供扩展测试模板，包含 conftest.py.template、pytest.ini.template、test_handler_unit.py.template、test_dag_e2e.py.template 和详细的 README.md，规范扩展测试结构和最佳实践
-    type: capability
-  - id: cap.core.edera-cli-control-plane
-    intent: edera CLI 控制面命令暴露 GraphService、ConfigService、QueryService 和 source 运维读写入口，并支持列表分页展示与 operator-friendly 输出模式。
     type: capability
