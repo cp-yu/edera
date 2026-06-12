@@ -21,3 +21,4 @@ extensions/uzi-skill/.cache/_global/api_cache
 /sessions
 /ca.crt
 /ca.key
+/diff-specs
