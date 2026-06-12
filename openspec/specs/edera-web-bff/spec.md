@@ -248,3 +248,97 @@ edera-web BFF SHALL 在 `POST /api/dags/{name}/retry` 接口中接受 `sourceSha
 - **WHEN** 客户端 POST `/api/dags/test/retry` 并携带 `{node_ids: [...], sourceSharedInputs: {...}}`
 - **THEN** BFF SHALL 将这些参数通过 gRPC 传递给 edera-server
 
+### Requirement: 纯透传 HTTP API 路由表
+以下路由均为纯 gRPC 透传模式：BFF 接收 HTTP 请求，调用 `GrpcClient` 对应方法，将结果直接透传给浏览器。路由参数作为同名参数传递给 gRPC 方法。
+
+| HTTP 路由 | GrpcClient 方法 |
+|-----------|----------------|
+| `GET /api/briefings/latest` | `query_latest_briefing()` |
+| `GET /api/briefings` (created_from, created_to, limit) | `query_list_briefings(from, to, limit)` |
+| `GET /api/briefings/{briefing_id}` | `query_get_briefing(briefing_id)` |
+| `GET /api/advices` (stock_code, direction, created_from, created_to, limit) | `query_list_advices(...)` |
+| `GET /api/advices/{advice_id}` | `query_get_advice(advice_id)` |
+| `GET /api/extensions/available` | `extension_list_available()` |
+| `GET /api/extensions/installed` | `extension_list_installed()` |
+| `GET /api/extensions/{name}` | `extension_show(name)` |
+| `POST /api/extensions/{name}/install` | `extension_install(name)` |
+| `POST /api/extensions/{name}/uninstall` (body: strategy) | `extension_uninstall(name, strategy)` |
+| `GET /api/sources/health` | `query_source_health()` |
+| `GET /api/sources/logs` (source_name, limit) | `query_source_logs(source_name, limit)` |
+| `POST /api/sources/{source_name}/repair-task` | `system_create_repair_task(source_name)` |
+| `GET /api/system/scheduler-status` | `system_scheduler_status()` |
+| `POST /api/system/pause-scheduler` | `system_pause_scheduler()` |
+| `POST /api/system/resume-scheduler` | `system_resume_scheduler()` |
+| `GET /api/config/entities` | `config_read_entities()` |
+| `POST /api/config/entities` | `config_save_entities(body)` |
+| `GET /api/config/entity-types` | `config_list_entity_types()` |
+| `POST /api/config/entity-types` (name, content) | `config_create_entity_type(name, content)` |
+| `GET /api/config/entity-types/{name}` | `config_get_entity_type(name)` |
+| `PUT /api/config/entity-types/{name}` (content) | `config_save_entity_type(name, content)` |
+| `DELETE /api/config/entity-types/{name}` (cascade) | `config_delete_entity_type(name, cascade)` |
+| `GET /api/config/entity-relations` | `config_read_entity_relations()` |
+| `POST /api/config/entity-relations` | `config_save_entity_relations(body)` |
+| `GET /api/config/system` | `config_read_system()` |
+| `PUT /api/config/system` (content) | `config_save_system(content)` |
+| `GET /api/config/{kind}/{name:path}` | `config_read(kind, name)` |
+| `PUT /api/config/{kind}/{name:path}` (content) | `config_save(kind, name, content)` |
+| `POST /api/entities` (type, attributes) | `entity_create(type, attributes)` |
+| `DELETE /api/entities/{entity_id}` | `entity_delete(entity_id)` |
+| `POST /api/entity-relations` | `config_create_entity_relation(body)` |
+| `DELETE /api/entity-relations/{relation_id}` | `config_delete_entity_relation(relation_id)` |
+| `GET /api/graph/nodes` | `graph_list_node_types()` |
+| `GET /api/graph/node-types` | `graph_list_node_types()` |
+| `GET /api/graph/node/{name}` | `graph_get_node_type(name)` |
+| `PUT /api/graph/node/{name}` | `graph_save_node_type(name, body)` |
+| `POST /api/graph/node-types` (name, ...) | `graph_create_node_type(name, body)` |
+| `PUT /api/graph/node-types/{name}` | `graph_save_node_type(name, body)` |
+| `DELETE /api/graph/node-types/{name}` | `graph_delete_node_type(name)` |
+| `GET /api/graph/dags` | `graph_list_dags()` |
+| `GET /api/graph/dag/{name}` | `graph_get_dag(name)` |
+| `POST /api/graph/dag` (name) | `graph_create_dag(name)` |
+| `PUT /api/graph/dag/{name}` | `graph_save_dag(name, body)` |
+| `POST /api/graph/dag/{name}/nodes` | `graph_create_dag_node(name, body)` |
+| `GET /api/graph/skills` | `graph_list_skills()` |
+| `POST /api/graph/skills` | `graph_create_skill(body)` |
+| `PUT /api/graph/skills/{name}` | `graph_save_skill(name, body)` |
+| `DELETE /api/graph/skills/{name}` | `graph_delete_skill(name)` |
+| `GET /api/graph/handlers` | `graph_list_handlers()` |
+| `GET /api/graph/handlers/{name}` | `graph_get_handler(name)` |
+| `PUT /api/graph/handlers/{name}` (code) | `graph_save_handler(name, code)` |
+| `GET /api/graph/runtime-status` (run_id) | `graph_runtime_status(run_id)` |
+| `GET /api/node-outputs` (node_id, run_id, limit) | `query_node_outputs(node_id, run_id, limit)` |
+| `GET /api/node-logs` (node_id, run_id, limit) | `query_node_logs(node_id, run_id, limit)` |
+| `GET /api/history/dag/{dag_name}/nodes/{node_id}` (limit) | `query_node_history(dag_name, node_id, limit)` |
+| `GET /api/child-run` (parent_run_id, parent_node_id) | `query_child_run_for_parent(parent_run_id, parent_node_id)` |
+
+#### Scenario: extension uninstall 需要 strategy
+- **WHEN** 浏览器 POST `/api/extensions/{name}/uninstall`
+- **THEN** BFF SHALL 校验 body 中 `strategy` 字段存在，缺失时返回 400
+
+### Requirement: Runtime Entity 列表与更新（非透传）
+部分运行时实体路由需要在 BFF 层做数据组装，不能直接透传。
+
+#### Scenario: 列出实体
+- **WHEN** 浏览器 GET `/api/entities` 携带 `type` 过滤参数
+- **THEN** BFF SHALL 调用 `GrpcClient.entity_list(type)` 并返回 `{entities: [...]}`
+
+#### Scenario: 更新实体
+- **WHEN** 浏览器 PUT `/api/entities/{entity_id}` 携带 `{attributes}`
+- **THEN** BFF SHALL 先调用 `GrpcClient.entity_get(entity_id)` 获取当前属性
+- **AND** SHALL 合并新属性后逐字段调用 `GrpcClient.entity_update()` 返回最终结果
+
+#### Scenario: 查询关系
+- **WHEN** 浏览器 GET `/api/entity-relations` 携带 `entity`、`type` 过滤参数
+- **THEN** BFF SHALL 通过 `GrpcClient.entity_search("type=relation AND relation_type=... AND from=...")` 构造查询表达式，从返回实体中提取 `{id, entities, type, metadata}` 透传
+
+#### Scenario: 查询关系类型
+- **WHEN** 浏览器 GET `/api/entity-relations/types`
+- **THEN** BFF SHALL 通过 `GrpcClient.entity_search("type=relation")` 聚合去重后返回 `{types: [...]}`
+
+### Requirement: Portfolio 配置废弃路由
+BFF SHALL 对 `/api/config/portfolio` GET/PUT 请求返回 404 并提示已废弃。
+
+#### Scenario: 访问废弃路由
+- **WHEN** 浏览器 GET 或 PUT `/api/config/portfolio`
+- **THEN** BFF SHALL 返回 404 `{error: "not_found", message: "portfolio config is deprecated; use entities"}`
+
