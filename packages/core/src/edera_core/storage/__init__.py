@@ -17,6 +17,7 @@ from edera_core.storage.entities import (
     Skill,
     SourceRecovery,
 )
+from edera_core.storage.session_registry import SessionRegistry
 
 __all__ = [
     "CoreEntityDag",
@@ -35,6 +36,7 @@ __all__ = [
     "DagRun",
     "Skill",
     "SourceRecovery",
+    "SessionRegistry",
     "create_engine",
     "init_db",
     "session_factory",
