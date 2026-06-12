@@ -488,7 +488,7 @@ async def test_pi_node_requires_instance_model(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_instance_config_sets_model_tools_and_session_dir() -> None:
+async def test_instance_config_sets_model_and_tools() -> None:
     config = _load_config()
     node = NodeConfig(
         name="llm-node",
@@ -504,13 +504,11 @@ async def test_instance_config_sets_model_tools_and_session_dir() -> None:
         config={
             "model": "hf-share/deepseek-v4-flash",
             "tools": ["bash", "read"],
-            "session_dir": "sandbox:llm-0:latest",
         },
     )
     effective = _apply_instance_config(node, instance)
 
     assert effective.parameters["model"] == "hf-share/deepseek-v4-flash"
-    assert effective.parameters["session_dir"] == "sandbox:llm-0:latest"
     assert effective.tools == ["bash", "read"]
 
 

@@ -29,9 +29,11 @@ from edera_core.config.schema import (
 from edera_core.events import event_bus
 from edera_core.errors import ConfigError, NodeExecutionError
 from edera_core.node.models import NodeContext
+from edera_core.node.sessions import parse_session_reference, resolve_session_path, invocation_dir
 from edera_core.resolver import HandlerMeta, HandlerNotFoundError
 from edera_core.skills.generator import generate_skill_files
 from edera_core.snapshot import DagExecutionSnapshot
+from edera_core.storage.session_registry import SessionRegistry
 
 OutputRecorder = Callable[[str, str, str, object, str | None], Awaitable[None]]
 StdoutRecorder = Callable[[str, str, str], Awaitable[None]]
@@ -74,6 +76,7 @@ class NodeExecutor:
         wait_consumer: WaitConsumer | None = None,
         wait_recorder: WaitRecorder | None = None,
         wait_stop_event: asyncio.Event | None = None,
+        session_registry: SessionRegistry | None = None,
         **legacy_kwargs: object,
     ) -> None:
         legacy_instances = legacy_kwargs.get("instances")
@@ -105,6 +108,15 @@ class NodeExecutor:
         self.wait_consumer = wait_consumer
         self.wait_recorder = wait_recorder
         self.wait_stop_event = wait_stop_event
+        self.session_registry = session_registry
+        self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
+        self.wait_payload_reader = wait_payload_reader
+        self.wait_register = wait_register
+        self.wait_unregister = wait_unregister
+        self.wait_matched_tokens = wait_matched_tokens
+        self.wait_consumer = wait_consumer
+        self.wait_recorder = wait_recorder
+        self.wait_stop_event = wait_stop_event
         self._modules: dict[str, ModuleType] = {}
         self._handler_meta: dict[str, HandlerMeta] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
@@ -126,7 +138,12 @@ class NodeExecutor:
         context: NodeContext | None = None,
     ) -> NodeOutput:
         instance = self.instances.get(node_name)
-        context = context or NodeContext(node_input.run_id, node_name or uuid4().hex)
+        if context is None:
+            context = NodeContext(
+                node_input.run_id,
+                node_name or uuid4().hex,
+                dag_name=self.snapshot.dag_closure.root_dag_name
+            )
         type_name = instance.type if instance else context.node_type or node_name
         try:
             config = self._node(type_name)
@@ -288,23 +305,83 @@ class NodeExecutor:
         instance: DagNodeInstance | None,
     ) -> NodeOutput:
         effective = _apply_agent_instance_config(config, instance)
-        session_dir = _agent_session_dir(self._agent_data_dir().resolve(), context.dag_name, context.instance_id, node_input.run_id)
+
+        # Session 引用解析
+        session_value = instance.config.get("session") if instance else None
+        session_id = None
+
+        if session_value:
+            dag_name, group, mode = parse_session_reference(session_value)
+            # 跨 DAG 引用通过注册表解析
+            if dag_name and self.session_registry:
+                if mode == "latest":
+                    result = await self.session_registry.get_latest(dag_name, group)
+                    if not result:
+                        return _failed(node_name, node_input, f"No completed session found for {dag_name}/{group}")
+                    session_dir = Path(result["path"])
+                    session_id = result["session_id"]
+                elif mode == "list":
+                    # list 模式需要输入指定，这里先简化为 latest
+                    result = await self.session_registry.get_oldest_unconsumed(dag_name, group, context.instance_id)
+                    if not result:
+                        return _failed(node_name, node_input, f"No unconsumed session found for {dag_name}/{group}")
+                    session_dir = Path(result["path"])
+                    session_id = result["session_id"]
+            else:
+                # 同 DAG 组名：使用当前 run_id
+                session_dir = resolve_session_path(
+                    self._agent_data_dir().resolve(),
+                    context.dag_name,
+                    context.instance_id,
+                    node_input.run_id,
+                    session_value
+                )
+                # 查询是否已有登记的 session_id
+                if self.session_registry and group:
+                    sessions = await self.session_registry.list_sessions(context.dag_name, group)
+                    active = [s for s in sessions if s["run_id"] == node_input.run_id and s["status"] == "active"]
+                    if active:
+                        session_id = active[0]["session_id"]
+        else:
+            # 未声明 session，使用 instance_id
+            session_dir = resolve_session_path(
+                self._agent_data_dir().resolve(),
+                context.dag_name,
+                context.instance_id,
+                node_input.run_id,
+                None
+            )
+
         session_dir.mkdir(parents=True, exist_ok=True)
-        has_session = any(session_dir.glob("*.jsonl"))
+
+        # Invocation 产物目录
+        inv_dir = invocation_dir(session_dir, context.instance_id)
+        inv_dir.mkdir(parents=True, exist_ok=True)
+
+        # 生成 skills（共享目录）
         generate_skill_files(session_dir, list(self.snapshot.skills.values()))
+
+        # Runtime context 写入 invocation 目录
         runtime_context = _agent_runtime_context(node_input, context)
-        (session_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
+        (inv_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
+
+        # 构造命令
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
-        if has_session:
-            cmd.append("--continue")
+        if session_id:
+            cmd.extend(["--session", session_id])
+
         prompt = _agent_prompt(node_input.payload, runtime_context)
         if prompt:
-            prompt_path = session_dir / "prompt.md"
+            prompt_path = inv_dir / "prompt.md"
             prompt_path.write_text(prompt, encoding="utf-8")
             cmd.extend(["-p", f"@{prompt_path}"])
+
         env = os.environ.copy()
         env.update(_agent_env(context.instance_id))
-        workdir = effective.workdir or session_dir.parent
+
+        # Workdir 默认为 invocation 目录
+        workdir = effective.workdir or inv_dir
+
         timeout = effective.timeout_seconds if effective.timeout_seconds is not None else self.system.llm_timeout_seconds
         cert = self.agent_certificate_issuer(context.instance_id, int(timeout or 3600)) if self.agent_certificate_issuer else None
         try:
@@ -317,7 +394,7 @@ class NodeExecutor:
             )
             self._agent_processes[(node_input.run_id, node_name)] = process
             lines = await asyncio.wait_for(
-                self._stream_stdout(process, node_input.run_id, node_name, session_dir / "stdout.log"),
+                self._stream_stdout(process, node_input.run_id, node_name, inv_dir / "stdout.log"),
                 timeout=timeout or None,
             )
             code = await process.wait()
@@ -325,12 +402,30 @@ class NodeExecutor:
             return _failed(node_name, node_input, str(exc))
         finally:
             self._agent_processes.pop((node_input.run_id, node_name), None)
+
+        # 捕获 session_id（如果是首次创建）
+        if not session_id and self.session_registry and session_value:
+            dag_name, group, _ = parse_session_reference(session_value)
+            if not dag_name:  # 同 DAG 组名
+                # 从 session 目录中查找 .jsonl 文件获取 session_id
+                jsonl_files = list(session_dir.glob("*.jsonl"))
+                if jsonl_files:
+                    captured_session_id = jsonl_files[0].stem
+                    await self.session_registry.register(
+                        context.dag_name,
+                        group,
+                        node_input.run_id,
+                        captured_session_id,
+                        str(session_dir)
+                    )
+                    session_id = captured_session_id
+
         metadata = _output_metadata(node_input)
-        metadata["session_id"] = str(session_dir)
-        metadata["raw_log_path"] = str(session_dir / "stdout.log")
+        metadata["session_id"] = session_id or str(session_dir)
+        metadata["raw_log_path"] = str(inv_dir / "stdout.log")
         if code != 0:
             return NodeOutput(node_name=node_name, ok=False, metadata=metadata, error=f"pi exited with code {code}")
-        payload = {"stdout": "\n".join(lines), "session_id": str(session_dir)}
+        payload = {"stdout": "\n".join(lines), "session_id": session_id or str(session_dir)}
         await self._record_output(node_input, node_name, config, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
 
@@ -524,9 +619,6 @@ def _apply_instance_config(config: NodeConfigBase, instance: DagNodeInstance | N
     raw_parameters = instance.config.get("parameters")
     if hasattr(config, "parameters") and isinstance(raw_parameters, dict):
         _update_parameters(updates, config.parameters, raw_parameters)
-    session_dir = instance.config.get("session_dir")
-    if hasattr(config, "parameters") and isinstance(session_dir, str):
-        _update_parameters(updates, config.parameters, {"session_dir": session_dir})
     return config.model_copy(update=updates)
 
 
@@ -639,15 +731,6 @@ def _node_from_entity(entity: EntityConfig) -> NodeConfig:
 
 def _uses_pi(config: NodeConfig) -> bool:
     return config.handler in {"run-pi", "pi", "llm"}
-
-
-def _agent_session_dir(root: Path, dag_name: str, instance_id: str, run_id: str) -> Path:
-    return root / "sessions" / _safe_path_token(dag_name) / _safe_path_token(instance_id) / _safe_path_token(run_id)
-
-
-def _safe_path_token(value: str) -> str:
-    cleaned = "".join(item if item.isalnum() or item in {"-", "_", "."} else "_" for item in value)
-    return cleaned or "default"
 
 
 def _agent_prompt(payload: object, runtime_context: dict[str, object] | None = None) -> str:

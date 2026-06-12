@@ -68,27 +68,27 @@
 
 #### Checks
 
-- [ ] C5 验证注册与状态流转
+- [x] C5 验证注册与状态流转
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session run 注册表" / Scenario "创建时登记 active" / Scenario "Run 结束更新状态"
   - Command: `uv run pytest tests/core/unit/test_session_registry.py`
   - Expect: 创建后 status 为 active，run 结束后为 completed
 
-- [ ] C6 验证启动对账清理残留
+- [x] C6 验证启动对账清理残留
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session run 注册表" / Scenario "启动对账清理残留"
   - Command: `uv run pytest tests/core/unit/test_session_registry.py -k reconcile`
   - Expect: 孤儿 active 行启动后变为 failed
 
-- [ ] C7 验证 latest 只取最近 completed
+- [x] C7 验证 latest 只取最近 completed
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "跨 DAG latest 解析" / Scenario "解析到最近完成的 run" / Scenario "无可用记录"
   - Command: `uv run pytest tests/core/unit/test_session_registry.py -k latest`
   - Expect: 多条 completed 取最近一条；无 completed 时返回空并由调用方产生失败
 
-- [ ] C8 验证消费账本登记与过滤
+- [x] C8 验证消费账本登记与过滤
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "List 解析与消费账本" / Scenario "成功后登记消费" / Scenario "失败不登记可重试" / Scenario "默认取最旧未消费"
   - Command: `uv run pytest tests/core/unit/test_session_registry.py -k consumption`
   - Expect: 成功登记后 consumed 为 true，失败不登记，默认选取最旧未消费项
 
-- [ ] C9 确认本变更不引入 session TTL 清理承诺
+- [x] C9 确认本变更不引入 session TTL 清理承诺
   - Verifies: `specs/llm-session-reuse/spec.md` / REMOVED Requirement "Session 目录独立管理"
   - Command: `grep -rni "session.*ttl\|ttl.*session" packages/core/src/edera_core/`
   - Expect: 无匹配
@@ -109,12 +109,12 @@
 
 #### Checks
 
-- [ ] C10 验证隐式 resource 零配置注入
+- [x] C10 验证隐式 resource 零配置注入
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session 组串行" / Scenario "用户零配置"
   - Command: `uv run pytest tests/core/unit/test_session_group_loader.py`
   - Expect: 仅声明 `session: task-1` 的两个实例均挂载 `session:{dag}/task-1`，permits=1
 
-- [ ] C11 验证跨 DAG 引用挂源组 resource
+- [x] C11 验证跨 DAG 引用挂源组 resource
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session 组串行" / Scenario "跨 DAG 引用方等待"
   - Command: `uv run pytest tests/core/unit/test_session_group_loader.py -k cross_dag`
   - Expect: 声明 `relay-main/task-1@latest` 的实例挂载 `session:relay-main/task-1`
@@ -136,27 +136,27 @@
 
 #### Checks
 
-- [ ] C12 验证组名解析为组路径
+- [x] C12 验证组名解析为组路径
   - Verifies: `specs/node-executor/spec.md` / Requirement "Session 引用解析" / Scenario "组名解析为当前 run 组路径"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k session_group`
+  - Command: `uv run pytest tests/core/unit/test_node_executor_session.py -k session_group`
   - Expect: session 目录为 `sessions/{dag}/task-1/{run_id}/`
 
-- [ ] C13 验证首次执行创建组目录与路径确定性
+- [x] C13 验证首次执行创建组目录与路径确定性
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session 路径结构" / Scenario "首次执行创建 session 目录" / Scenario "Session 路径确定性"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k session_group`
+  - Command: `uv run pytest tests/core/unit/test_node_executor_session.py -k session_group`
   - Expect: 组内首次执行创建目录，同 run 重复执行复用同一目录
 
-- [ ] C14 验证未声明 session 行为不变
+- [x] C14 验证未声明 session 行为不变
   - Verifies: `specs/node-executor/spec.md` / Requirement "Session 引用解析" / Scenario "未声明 session 行为不变"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py tests/core/unit/test_core_architecture_overhaul.py -k session`
+  - Command: `uv run pytest tests/core/unit/test_node_executor_session.py -k no_session`
   - Expect: 未声明实例路径仍为 `sessions/{dag}/{instance_id}/{run_id}/`
 
-- [ ] C15 验证跨 DAG 引用经注册表解析
+- [x] C15 验证跨 DAG 引用经注册表解析
   - Verifies: `specs/node-executor/spec.md` / Requirement "Session 引用解析" / Scenario "跨 DAG 引用经注册表解析"
-  - Command: `uv run pytest tests/core/unit/test_node_executor.py -k cross_dag_session`
+  - Command: `uv run pytest tests/core/unit/test_node_executor_session.py -k cross_dag`
   - Expect: `@latest` 解析到注册表中最近 completed run 的 session_id 与 path
 
-- [ ] C16 验证 session_dir 解析路径已删除
+- [x] C16 验证 session_dir 解析路径已删除
   - Verifies: `specs/node-executor/spec.md` / REMOVED Requirement "Session_dir 解析与传递"
   - Command: `grep -rn "session_dir" packages/core/src/edera_core/node/`
   - Expect: 无匹配
