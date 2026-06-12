@@ -110,13 +110,6 @@ class NodeExecutor:
         self.wait_stop_event = wait_stop_event
         self.session_registry = session_registry
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
-        self.wait_payload_reader = wait_payload_reader
-        self.wait_register = wait_register
-        self.wait_unregister = wait_unregister
-        self.wait_matched_tokens = wait_matched_tokens
-        self.wait_consumer = wait_consumer
-        self.wait_recorder = wait_recorder
-        self.wait_stop_event = wait_stop_event
         self._modules: dict[str, ModuleType] = {}
         self._handler_meta: dict[str, HandlerMeta] = {}
         self._agent_processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
@@ -305,106 +298,20 @@ class NodeExecutor:
         instance: DagNodeInstance | None,
     ) -> NodeOutput:
         effective = _apply_agent_instance_config(config, instance)
-
-        # Session 引用解析
-        session_value = instance.config.get("session") if instance else None
-        session_id = None
-        is_first_execution = False
-
-        if session_value:
-            dag_name, group, mode = parse_session_reference(session_value)
-            # 跨 DAG 引用通过注册表解析
-            if dag_name and self.session_registry:
-                if mode == "latest":
-                    result = await self.session_registry.get_latest(dag_name, group)
-                    if not result:
-                        return _failed(node_name, node_input, f"No completed session found for {dag_name}/{group}")
-                    session_dir = Path(result["path"])
-                    session_id = result["session_id"]
-                elif mode == "list":
-                    # list 模式需要输入指定，这里先简化为 latest
-                    result = await self.session_registry.get_oldest_unconsumed(dag_name, group, context.instance_id)
-                    if not result:
-                        return _failed(node_name, node_input, f"No unconsumed session found for {dag_name}/{group}")
-                    session_dir = Path(result["path"])
-                    session_id = result["session_id"]
-            else:
-                # 同 DAG 组名：使用当前 run_id
-                session_dir = resolve_session_path(
-                    self._agent_data_dir().resolve(),
-                    context.dag_name,
-                    context.instance_id,
-                    node_input.run_id,
-                    session_value
-                )
-                # 查询是否已有登记的 session_id
-                if self.session_registry and group:
-                    sessions = await self.session_registry.list_sessions(context.dag_name, group)
-                    active = [s for s in sessions if s["run_id"] == node_input.run_id and s["status"] == "active"]
-                    if active:
-                        session_id = active[0]["session_id"]
-                    else:
-                        # 首次执行：预生成 session_id
-                        is_first_execution = True
-                        session_id = uuid4().hex
-                        await self.session_registry.register(
-                            context.dag_name,
-                            group,
-                            node_input.run_id,
-                            session_id,
-                            str(session_dir)
-                        )
-        else:
-            # 未声明 session，使用 instance_id
-            session_dir = resolve_session_path(
-                self._agent_data_dir().resolve(),
-                context.dag_name,
-                context.instance_id,
-                node_input.run_id,
-                None
-            )
-
-        session_dir.mkdir(parents=True, exist_ok=True)
-
-        # Invocation 产物目录
+        session_dir, session_id, is_first_execution = await self._resolve_agent_session(
+            node_name, node_input, context, instance
+        )
         inv_dir = invocation_dir(session_dir, context.instance_id)
         inv_dir.mkdir(parents=True, exist_ok=True)
-
-        # 生成 skills（共享目录）
         generate_skill_files(session_dir, list(self.snapshot.skills.values()))
-
-        # 确定 output schema
-        output_schema = None
-        if effective.output_type and self.entity_store:
-            entity_type = self.entity_store.entity_types.get(effective.output_type)
-            if entity_type and hasattr(entity_type, "schema_"):
-                output_schema = entity_type.schema_
-
-        # Runtime context 写入 invocation 目录
+        output_schema = self._get_output_schema(effective)
         result_path = inv_dir / "result.json"
         runtime_context = _agent_runtime_context(node_input, context, str(result_path), output_schema)
         (inv_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
-
-        # 构造命令
-        cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
-        if session_id:
-            if is_first_execution:
-                cmd.extend(["--session-id", session_id])
-            else:
-                cmd.extend(["--session", session_id])
-
-        prompt = _agent_prompt(node_input.payload, runtime_context)
-        if prompt:
-            prompt_path = inv_dir / "prompt.md"
-            prompt_path.write_text(prompt, encoding="utf-8")
-            cmd.extend(["-p", f"@{prompt_path}"])
-
+        cmd = self._build_agent_command(effective, session_dir, session_id, is_first_execution, inv_dir, node_input, runtime_context)
         env = os.environ.copy()
         env.update(_agent_env(context.instance_id))
-
-        # Workdir 默认为 invocation 目录
         workdir = effective.workdir or inv_dir
-
         timeout = effective.timeout_seconds if effective.timeout_seconds is not None else self.system.llm_timeout_seconds
         cert = self.agent_certificate_issuer(context.instance_id, int(timeout or 3600)) if self.agent_certificate_issuer else None
         try:
@@ -425,20 +332,105 @@ class NodeExecutor:
             return _failed(node_name, node_input, str(exc))
         finally:
             self._agent_processes.pop((node_input.run_id, node_name), None)
-
         metadata = _output_metadata(node_input)
         metadata["session_id"] = session_id or str(session_dir)
         metadata["raw_log_path"] = str(inv_dir / "stdout.log")
         if code != 0:
             return NodeOutput(node_name=node_name, ok=False, metadata=metadata, error=f"pi exited with code {code}")
-
-        # 尝试读取结构化输出
         payload, degraded = _read_agent_result(result_path, output_schema, "\n".join(lines))
         if degraded:
             metadata["result_degraded"] = True
-
         await self._record_output(node_input, node_name, config, payload, metadata)
         return NodeOutput(node_name=node_name, ok=True, payload=payload, metadata=metadata)
+
+    async def _resolve_agent_session(
+        self,
+        node_name: str,
+        node_input: NodeInput,
+        context: NodeContext,
+        instance: DagNodeInstance | None,
+    ) -> tuple[Path, str | None, bool]:
+        session_value = instance.config.get("session") if instance else None
+        session_id = None
+        is_first_execution = False
+        if session_value:
+            dag_name, group, mode = parse_session_reference(session_value)
+            if dag_name and self.session_registry:
+                if mode == "latest":
+                    result = await self.session_registry.get_latest(dag_name, group)
+                    if not result:
+                        raise NodeExecutionError(f"No completed session found for {dag_name}/{group}")
+                    session_dir = Path(result["path"])
+                    session_id = result["session_id"]
+                elif mode == "list":
+                    result = await self.session_registry.get_oldest_unconsumed(dag_name, group, context.instance_id)
+                    if not result:
+                        raise NodeExecutionError(f"No unconsumed session found for {dag_name}/{group}")
+                    session_dir = Path(result["path"])
+                    session_id = result["session_id"]
+            else:
+                session_dir = resolve_session_path(
+                    self._agent_data_dir().resolve(),
+                    context.dag_name,
+                    context.instance_id,
+                    node_input.run_id,
+                    session_value
+                )
+                if self.session_registry and group:
+                    sessions = await self.session_registry.list_sessions(context.dag_name, group)
+                    active = [s for s in sessions if s["run_id"] == node_input.run_id and s["status"] == "active"]
+                    if active:
+                        session_id = active[0]["session_id"]
+                    else:
+                        is_first_execution = True
+                        session_id = uuid4().hex
+                        await self.session_registry.register(
+                            context.dag_name,
+                            group,
+                            node_input.run_id,
+                            session_id,
+                            str(session_dir)
+                        )
+        else:
+            session_dir = resolve_session_path(
+                self._agent_data_dir().resolve(),
+                context.dag_name,
+                context.instance_id,
+                node_input.run_id,
+                None
+            )
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir, session_id, is_first_execution
+
+    def _get_output_schema(self, effective: AgentNodeConfig) -> dict[str, object] | None:
+        if effective.output_type and self.entity_store:
+            entity_type = self.entity_store.entity_types.get(effective.output_type)
+            if entity_type and hasattr(entity_type, "schema_"):
+                return entity_type.schema_
+        return None
+
+    def _build_agent_command(
+        self,
+        effective: AgentNodeConfig,
+        session_dir: Path,
+        session_id: str | None,
+        is_first_execution: bool,
+        inv_dir: Path,
+        node_input: NodeInput,
+        runtime_context: dict[str, object],
+    ) -> list[str]:
+        cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
+        if session_id:
+            if is_first_execution:
+                cmd.extend(["--session-id", session_id])
+            else:
+                cmd.extend(["--session", session_id])
+        prompt = _agent_prompt(node_input.payload, runtime_context)
+        if prompt:
+            prompt_path = inv_dir / "prompt.md"
+            prompt_path.write_text(prompt, encoding="utf-8")
+            cmd.extend(["-p", f"@{prompt_path}"])
+        return cmd
 
     def stop_agent(self, run_id: str, node_name: str) -> bool:
         process = self._agent_processes.get((run_id, node_name))
