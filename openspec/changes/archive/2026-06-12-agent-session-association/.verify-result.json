@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-12T09:55:12.427Z",
+  "timestamp": "2026-06-12T10:08:07.341Z",
   "result": "PASS_WITH_WARNINGS",
   "issues": [
     {
@@ -132,13 +132,26 @@
       }
     ],
     "skippedEvidenceFiles": [],
-    "gitHeadCommit": "69ea7675ef59649af38b74ea37311bc6b468fbe8"
+    "gitHeadCommit": "0ecb6e601dc4b3659d430a7850ada83423ca47bc"
   },
   "optimization": {
-    "status": "PENDING_VERIFICATION",
-    "attempts": [],
+    "status": "DEGRADED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-12T10:08:17.809Z",
+        "type": "verification",
+        "result": "FAIL_NEEDS_REMEDIATION",
+        "behaviorRetryCounter": 1
+      },
+      {
+        "timestamp": "2026-06-12T10:08:18.908Z",
+        "type": "verification",
+        "result": "FAIL_NEEDS_REMEDIATION",
+        "behaviorRetryCounter": 2
+      }
+    ],
     "baseline": {
-      "timestamp": "2026-06-12T09:55:12.427Z",
+      "timestamp": "2026-06-12T10:08:07.341Z",
       "result": "PASS_WITH_WARNINGS",
       "issues": [
         {
@@ -271,8 +284,23 @@
           }
         ],
         "skippedEvidenceFiles": [],
-        "gitHeadCommit": "69ea7675ef59649af38b74ea37311bc6b468fbe8"
+        "gitHeadCommit": "0ecb6e601dc4b3659d430a7850ada83423ca47bc"
       }
+    },
+    "failedDirections": [
+      "未记录优化方向",
+      "未记录优化方向"
+    ],
+    "final": {
+      "result": "FAIL_NEEDS_REMEDIATION",
+      "issues": [
+        {
+          "severity": "CRITICAL",
+          "requirement": "Optimization broke tests",
+          "message": "Method decomposition introduced bugs"
+        }
+      ],
+      "behaviorRetryCounter": 2
     }
   }
 }

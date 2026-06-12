@@ -4,7 +4,7 @@
 此规约记录变更 skills-to-database 引入的行为，请在后续同步或归档前补全正式 Purpose。
 ## Requirements
 ### Requirement: Agent 执行时生成 skill 文件
-系统 SHALL 在 Agent 启动前，从数据库查询 skills 并生成完整的 skill 文件夹到临时目录。
+系统 SHALL 在 Agent 启动前，从数据库查询 skills 并生成完整的 skill 文件夹到 session 目录，生成过程 MUST 幂等（重复生成产出一致内容，不报错）。
 
 #### Scenario: 生成 skill 文件夹到 session 目录
 - **WHEN** Agent session 启动
@@ -18,10 +18,14 @@
 - **THEN** 每个文件的内容 SHALL 与数据库中 config_body.files[i].content 完全一致
 - **THEN** 文件路径 SHALL 与 config_body.files[i].path 一致
 
-#### Scenario: 多个 Agent 并发执行不冲突
-- **WHEN** 两个 Agent session 同时启动
+#### Scenario: 独立 session 的 Agent 并发执行不冲突
+- **WHEN** 两个无会话关联的 Agent session 同时启动
 - **THEN** 每个 session SHALL 使用独立的 skills 目录（`{session_dir}/skills/`）
 - **THEN** 文件生成不冲突
+
+#### Scenario: 同组节点共用 skills 目录
+- **WHEN** 同一 session 组的多个 agent 节点先后在同一 session 目录中执行
+- **THEN** 它们 SHALL 共用 `{session_dir}/skills/`，后续节点的重复生成 SHALL 产出一致内容且不报错
 
 #### Scenario: 多文件 skill 结构完整还原
 - **WHEN** Skill 包含多个文件（如 SKILL.md, prompts/main.txt, scripts/helper.py）

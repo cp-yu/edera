@@ -79,17 +79,6 @@ DAG YAML SHALL 使用实例对象列表格式存储节点，`config` 字段包�
 - **WHEN** 系统保存 DAG 边配置
 - **THEN** 系统 SHALL 使用实例 UUID 作为 `from` 和 `to` 的值
 
-### Requirement: Session_dir 字段
-`DagNodeInstance.config` SHALL 支持 `session_dir` 字段（可选字符串），控制 LLM 节点的 session 存储位置。
-
-#### Scenario: 添加 session_dir 配置
-- **WHEN** 用户在 Inspector 中为 LLM 节点实例设置 `session_dir: "session:llm-analyze:latest"`
-- **THEN** 系统 SHALL 保存到 DAG YAML 的实例 `config` 中
-
-#### Scenario: Session_dir 校验
-- **WHEN** 用户设置 `session_dir` 为非法格式（如包含非法字符）
-- **THEN** 系统 SHALL 拒绝保存并提示格式错误
-
 ### Requirement: Tools 字段
 `DagNodeInstance.config` SHALL 支持 `tools` 字段（可选字符串数组），覆盖类型层的默认 tools 配置。
 
@@ -142,4 +131,19 @@ DAG YAML 实例对象 SHALL 支持 sub-DAG 节点所需的 `dag_ref` 和 `input_
 #### Scenario: Preserve sub-DAG instance fields in draft save
 - **WHEN** Workbench 自动保存包含 sub-DAG 节点实例的 DAG 草稿
 - **THEN** 保存 payload SHALL 保留该实例的 `dag_ref` 与 `input_mapping`
+
+### Requirement: Session 字段
+`DagNodeInstance.config` SHALL 支持 `session` 字段（可选字符串），声明 agent 节点的会话关联。合法格式为组名 `<group>`、跨 DAG 引用 `<dag_name>/<group>@latest` 或 `<dag_name>/<group>@list`；其他格式 MUST 拒绝保存并提示格式错误。
+
+#### Scenario: 组名配置
+- **WHEN** 用户为 agent 节点实例设置 `session: task-1`
+- **THEN** 系统 SHALL 保存到 DAG YAML 的实例 `config` 中
+
+#### Scenario: 跨 DAG 引用配置
+- **WHEN** 用户为 agent 节点实例设置 `session: relay-main/task-1@latest`
+- **THEN** 系统 SHALL 保存到 DAG YAML 的实例 `config` 中
+
+#### Scenario: 非法格式拒绝
+- **WHEN** 用户设置 `session` 为非法格式（如 `a/b/c@latest`、`task-1@unknown`）
+- **THEN** 系统 SHALL 拒绝保存并提示格式错误
 
