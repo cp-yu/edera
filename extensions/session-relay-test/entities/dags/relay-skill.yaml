@@ -1,0 +1,14 @@
+id: relay-skill
+type: dag
+attributes:
+  name: relay-skill
+  nodes:
+  - id: X
+    type: agent-x-node
+    alias: Agent X
+    input_mapping: {}
+    config:
+      session: relay-main/task-1@latest
+    optional: false
+    resource: session:relay-main/task-1
+  edges: []

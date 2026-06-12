@@ -273,22 +273,22 @@
 
 #### Checks
 
-- [ ] C27 验证同 DAG 并行分支串行化
+- [x] C27 验证同 DAG 并行分支串行化
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session 组串行" / Scenario "同 DAG 并行分支串行化"
   - Command: `uv run pytest tests/core/integration/test_session_relay.py -k parallel_serialized`
   - Expect: 同组两个 agent 进程运行时间不重叠
 
-- [ ] C28 验证组共享与精确续接
+- [x] C28 验证组共享与精确续接
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session 组共享与续接" / Scenario "首个节点创建会话" / Scenario "后续节点精确续接"
   - Command: `uv run pytest tests/core/integration/test_session_relay.py -k relay`
   - Expect: 首节点创建并登记 session id，后续节点收到 `--session <同一 id>`
 
-- [ ] C29 验证跨 DAG 等待与超时
+- [x] C29 验证跨 DAG 等待与超时
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "Session 组串行" / Scenario "跨 DAG 引用方等待" / Scenario "等待超时"
   - Command: `uv run pytest tests/core/integration/test_session_relay.py -k wait`
   - Expect: 源组持锁时引用方阻塞；超过 timeout_seconds 后节点失败
 
-- [ ] C30 验证 list 消费不重复且可重试
+- [x] C30 验证 list 消费不重复且可重试
   - Verifies: `specs/llm-session-reuse/spec.md` / Requirement "List 解析与消费账本" / Scenario "默认取最旧未消费" / Scenario "失败不登记可重试" / Scenario "输入显式指定 run"
   - Command: `uv run pytest tests/core/integration/test_session_relay.py -k consumption`
   - Expect: 连续两次成功消费选取不同 session；失败 run 再次触发被重新选取；显式 run_id 忽略 consumed
@@ -309,17 +309,17 @@
 
 #### Checks
 
-- [ ] C31 验证扩展安装后 DAG 可用
+- [x] C31 验证扩展安装后 DAG 可用
   - Verifies: `specs/session-relay-test-extension/spec.md` / Requirement "测试扩展安装" / Scenario "扩展安装后 DAG 可用"
   - Command: `uv run pytest tests/core/integration/test_session_relay_extension.py -k install`
   - Expect: 安装后 relay-main 与 relay-skill 可被列出并运行
 
-- [ ] C32 验证 relay-main 接力与条件边
+- [x] C32 验证 relay-main 接力与条件边
   - Verifies: `specs/session-relay-test-extension/spec.md` / Requirement "relay-main 同 DAG 接力" / Scenario "接力共享会话" / Scenario "条件不满足跳过 D" / Scenario "B 产出结构化输出"
   - Command: `uv run pytest tests/core/integration/test_session_relay_extension.py -k relay_main`
   - Expect: 条件满足时 D 续接 B 的会话；不满足时 D 跳过；c 可读取 B 的结构化字段
 
-- [ ] C33 验证 relay-skill 跨 DAG 消费
+- [x] C33 验证 relay-skill 跨 DAG 消费
   - Verifies: `specs/session-relay-test-extension/spec.md` / Requirement "relay-skill 跨 DAG 消费" / Scenario "latest 引用续接源会话" / Scenario "list 模式不重复消费"
   - Command: `uv run pytest tests/core/integration/test_session_relay_extension.py -k relay_skill`
   - Expect: X 续接源组最近完成会话；list 模式两次运行不重复消费

@@ -1,0 +1,8 @@
+id: agent-d-node
+type: node
+attributes:
+  name: agent-d-node
+  type: agent
+  model: test-model
+  input_type: Any
+  output_type: Any

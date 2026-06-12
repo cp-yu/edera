@@ -1,0 +1,4 @@
+id: relay-session-resource
+type: resource
+attributes:
+  permits: 1
