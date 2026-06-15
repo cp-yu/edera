@@ -1,0 +1,104 @@
+' Edera — 以 Entity 为统一原语、DAG 为执行模型的编排内核
+' 渲染: plantuml docs/architecture.puml (生成 PNG/SVG)
+' 每个箭头均对应代码事实, 见 server.py / dag_controller.py / node/executor.py
+
+@startuml Edera-Architecture
+skinparam backgroundColor #FEFEFE
+skinparam roundCorner 6
+skinparam ArrowColor #444444
+skinparam packageStyle rectangle
+
+title Edera - 以 Entity 为统一原语、DAG 为执行模型的编排内核
+
+package "Clients" as Clients #E8F0FE {
+  component "edera CLI\n(cli.py)" as CLI
+  component "edera-web (FastAPI BFF)\nweb/{app,routes,deps}\n:8000" as Web
+  component "apps/web-console\n(Node 前端)" as FE
+  component "GrpcClient" as GrpcClient
+}
+CLI --> GrpcClient
+Web --> GrpcClient
+FE --> Web : HTTP
+
+cloud "gRPC / mTLS\n(proto/edera.proto)" as GRPC #FFF3E0
+note right of GRPC
+  bootstrap: 127.0.0.1:9091+
+  SystemService.InitClient 签发客户端证书
+end note
+
+package "edera-server (server.py + 9 servicer)" as Server #FCE4EC {
+
+  package "gRPC 服务边界" as Services #F8BBD0 {
+    component "EntityService" as S_Ent
+    component "DagService" as S_Dag
+    component "NodeService" as S_Node
+    component "SystemService" as S_Sys
+    component "GraphService" as S_Graph
+    component "ConfigService" as S_Cfg
+    component "QueryService" as S_Qry
+    component "EventService" as S_Evt
+    component "ExtensionService" as S_Ext
+  }
+
+  component "DagController\n调度中枢\nactive_runs / locks" as Controller
+  component "HotReloader\n配置热重载" as HotReload
+
+  package "编排层" as Orchestration #E1F5FE {
+    component "DagRunner\n(dag/runner.py)\n拓扑执行" as Runner
+    component "TriggerExecutor +\nCronEmitter\n(trigger.py)" as Trigger
+  }
+
+  package "执行层" as Execution #F1F8E9 {
+    component "NodeExecutor\n1) handler 函数\n2) agent 子进程 (CA)\n3) wait 节点 (事件)" as Executor
+    component "resolver.py\nhandler 注册表" as Resolver
+    component "skills / sessions" as Skills
+  }
+
+  package "配置与扩展" as ConfExt #FFF9C4 {
+    component "config/\nloader, schema, entities, git" as Config
+    component "ExtensionManager\nmanifest.py" as ExtMgr
+    component "Bootstrap / CA\ncert.py (mTLS 签发)" as Cert
+  }
+
+  package "Storage 层 (SQLModel async)" as Storage #ECEFF1 {
+    component "repository.py +\nEntityStore +\nmaterialization.py" as Repo
+    database "data/edera.db\nSQLite" as DB
+  }
+}
+
+GrpcClient --> GRPC
+GRPC --> Services
+
+S_Dag --> Controller
+S_Node --> Controller
+S_Sys --> Controller
+Services ..> HotReload : reload 透传
+
+Controller --> Runner
+Controller --> Trigger
+Controller --> Config : materialize_runtime
+Controller --> Executor
+Controller --> ExtMgr
+Cert --> Controller : agent_certificate_issuer
+Cert --> ExtMgr : 签发扩展证书
+
+Runner --> Executor
+Executor --> Resolver
+Executor --> Skills
+Executor --> Repo : node_outputs
+Runner --> Repo : dag_runs/node_runs/edge_inputs
+
+HotReload --> Config
+
+ExtMgr --> Resolver : register
+ExtMgr --> Repo : installed_extensions / 扩展表
+
+component "event_bus\n(横向隐式通道)" as Bus #FFE0B2
+Trigger ..> Bus : 求值触发
+Executor ..> Bus : wait 节点
+S_Evt ..> Bus : Emit
+Bus ..> Trigger : 唤醒
+
+Repo --> DB : _db_write_lock 串行写
+
+@enduml
