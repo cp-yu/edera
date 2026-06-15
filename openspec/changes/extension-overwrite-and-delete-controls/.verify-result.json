@@ -70,8 +70,15 @@
     "gitHeadCommit": "e987a44357a9e3b254ef7b1c669a1be70811e888"
   },
   "optimization": {
-    "status": "PENDING_VERIFICATION",
-    "attempts": [],
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-15T07:39:41.586Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "无优化机会：改动均为精准手术式。_extract_tar_content(daemon,bytes输入) 与 _extract_tar(client,Path输入) 虽逻辑相似但分属不同层且输入契约不同，仅2处使用，共享会引入跨层耦合违反YAGNI；_snapshot_tables单一职责，overwrite分支最小化，proto专用message符合design D4。无冗余或可削复杂度。"
+      }
+    ],
     "baseline": {
       "timestamp": "2026-06-15T07:09:38.973Z",
       "result": "PASS_WITH_WARNINGS",
