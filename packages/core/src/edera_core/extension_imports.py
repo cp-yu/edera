@@ -24,6 +24,8 @@ async def import_manifest_entities(
     manifest: ExtensionManifest,
     entity_types: dict[str, EntityTypeConfig],
     existing_records: list[dict[str, object]] | None = None,
+    *,
+    overwrite: bool = False,
 ) -> list[dict[str, str]]:
     records: list[dict[str, str]] = []
     imported_paths = {
@@ -40,7 +42,7 @@ async def import_manifest_entities(
         if entity_type is None:
             raise ValueError(f"unknown entity type in extension import: {entity.type}")
         existing = await _get_entity(session, entity, entity_types)
-        if existing is None:
+        if existing is None or overwrite:
             saved = await _save_entity(session, entity, entity_type)
             status = "imported"
         else:

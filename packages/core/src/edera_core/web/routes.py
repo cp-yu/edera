@@ -113,8 +113,9 @@ async def api_extension_show(request: Request, name: str) -> Any:
 
 
 @router.post("/api/extensions/{name}/install", response_model=None)
-async def api_extension_install(request: Request, name: str) -> Any:
-    return await _call(request, lambda client: client.extension_install(name))
+async def api_extension_install(request: Request, name: str, body: dict[str, object] | None = None) -> Any:
+    overwrite = bool((body or {}).get("overwrite"))
+    return await _call(request, lambda client: client.extension_install(name, overwrite=overwrite))
 
 
 @router.post("/api/extensions/{name}/uninstall", response_model=None)

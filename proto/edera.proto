@@ -105,15 +105,26 @@ service ExtensionService {
   rpc ListAvailable(EmptyRequest) returns (JsonResponse);
   rpc ListInstalled(EmptyRequest) returns (JsonResponse);
   rpc Show(NameRequest) returns (JsonResponse);
-  rpc Install(NameRequest) returns (JsonResponse);
+  rpc Install(ExtensionInstallRequest) returns (JsonResponse);
   rpc Uninstall(NamedJsonRequest) returns (JsonResponse);
   rpc Reactivate(NameRequest) returns (JsonResponse);
+  rpc Delete(NameRequest) returns (JsonResponse);
+  rpc ImportEntities(ImportEntitiesRequest) returns (JsonResponse);
 }
 
 message EmptyRequest {}
 
 message NameRequest {
   string name = 1;
+}
+
+message ExtensionInstallRequest {
+  string name = 1;
+  bool overwrite = 2;
+}
+
+message ImportEntitiesRequest {
+  bytes content = 1;
 }
 
 message TextRequest {

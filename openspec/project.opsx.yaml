@@ -275,7 +275,7 @@ capabilities:
     status: draft
     type: capability
   - id: cap.core.extension-entity-imports
-    intent: 扩展安装时导入 Entity 实例，导入记录合并到 installed_extensions.import_records JSON 字段
+    intent: 扩展安装时导入 Entity 实例并记录到 installed_extensions.import_records；默认路径幂等跳过已存在 Entity，覆盖安装路径清空旧记录全量重导并覆盖已存在 Entity
     type: capability
   - id: cap.core.default-news-workflow
     intent: default-news-workflow 重组为 workflow extension 包结构，manifest 使用 glob patterns，包含 7 个内部 providers 和 _lib
@@ -287,13 +287,13 @@ capabilities:
     intent: 增强 Sub DAG 循环检测错误消息，提供节点级路径追踪和具体修复建议
     type: capability
   - id: cap.core.extension-installation-lifecycle
-    intent: 安装逻辑识别 workflow_extension 类型，递归处理 imports.providers，复制 imports.libraries，展开所有 glob patterns
+    intent: 扩展安装/覆盖安装/卸载/删除源目录的生命周期；覆盖安装 drop 扩展表并全量重导 import_records，删除入口仅允许未安装扩展
     type: capability
   - id: cap.core.extension-grpc-service
-    intent: InstallExtension RPC 支持 workflow_extension 类型，递归处理 providers，展开 glob patterns
+    intent: ExtensionService 提供 List/Show/Install(overwrite)/Uninstall/Reactivate/Delete/ImportEntities RPC，覆盖安装与删除源目录经 gRPC 暴露
     type: capability
   - id: cap.web.extension-management-web
-    intent: WebConsole 扩展管理页面，展示可用/已安装扩展，支持安装、卸载、导入、导出操作
+    intent: 扩展管理页面展示已安装/可用扩展并支持安装与覆盖安装；删除源目录与批量导入实体数据不暴露 Web 入口
     type: capability
   - id: cap.core.database-handler-resolver
     intent: Handler resolver 支持 {package}.{handler} 命名空间路径查找

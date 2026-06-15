@@ -3424,7 +3424,7 @@ class ExtensionServiceStub(object):
                 _registered_method=True)
         self.Install = channel.unary_unary(
                 '/edera.v1.ExtensionService/Install',
-                request_serializer=edera__pb2.NameRequest.SerializeToString,
+                request_serializer=edera__pb2.ExtensionInstallRequest.SerializeToString,
                 response_deserializer=edera__pb2.JsonResponse.FromString,
                 _registered_method=True)
         self.Uninstall = channel.unary_unary(
@@ -3435,6 +3435,16 @@ class ExtensionServiceStub(object):
         self.Reactivate = channel.unary_unary(
                 '/edera.v1.ExtensionService/Reactivate',
                 request_serializer=edera__pb2.NameRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.Delete = channel.unary_unary(
+                '/edera.v1.ExtensionService/Delete',
+                request_serializer=edera__pb2.NameRequest.SerializeToString,
+                response_deserializer=edera__pb2.JsonResponse.FromString,
+                _registered_method=True)
+        self.ImportEntities = channel.unary_unary(
+                '/edera.v1.ExtensionService/ImportEntities',
+                request_serializer=edera__pb2.ImportEntitiesRequest.SerializeToString,
                 response_deserializer=edera__pb2.JsonResponse.FromString,
                 _registered_method=True)
 
@@ -3478,6 +3488,18 @@ class ExtensionServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Delete(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ImportEntities(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ExtensionServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -3498,7 +3520,7 @@ def add_ExtensionServiceServicer_to_server(servicer, server):
             ),
             'Install': grpc.unary_unary_rpc_method_handler(
                     servicer.Install,
-                    request_deserializer=edera__pb2.NameRequest.FromString,
+                    request_deserializer=edera__pb2.ExtensionInstallRequest.FromString,
                     response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
             'Uninstall': grpc.unary_unary_rpc_method_handler(
@@ -3509,6 +3531,16 @@ def add_ExtensionServiceServicer_to_server(servicer, server):
             'Reactivate': grpc.unary_unary_rpc_method_handler(
                     servicer.Reactivate,
                     request_deserializer=edera__pb2.NameRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'Delete': grpc.unary_unary_rpc_method_handler(
+                    servicer.Delete,
+                    request_deserializer=edera__pb2.NameRequest.FromString,
+                    response_serializer=edera__pb2.JsonResponse.SerializeToString,
+            ),
+            'ImportEntities': grpc.unary_unary_rpc_method_handler(
+                    servicer.ImportEntities,
+                    request_deserializer=edera__pb2.ImportEntitiesRequest.FromString,
                     response_serializer=edera__pb2.JsonResponse.SerializeToString,
             ),
     }
@@ -3618,7 +3650,7 @@ class ExtensionService(object):
             request,
             target,
             '/edera.v1.ExtensionService/Install',
-            edera__pb2.NameRequest.SerializeToString,
+            edera__pb2.ExtensionInstallRequest.SerializeToString,
             edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,
@@ -3673,6 +3705,60 @@ class ExtensionService(object):
             target,
             '/edera.v1.ExtensionService/Reactivate',
             edera__pb2.NameRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Delete(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.ExtensionService/Delete',
+            edera__pb2.NameRequest.SerializeToString,
+            edera__pb2.JsonResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ImportEntities(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/edera.v1.ExtensionService/ImportEntities',
+            edera__pb2.ImportEntitiesRequest.SerializeToString,
             edera__pb2.JsonResponse.FromString,
             options,
             channel_credentials,

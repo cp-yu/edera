@@ -478,6 +478,9 @@ def _extension_parser(parser: argparse.ArgumentParser) -> None:
     show.add_argument("--extensions-dir", type=Path, default=Path("extensions"))
     install = subparsers.add_parser("install")
     install.add_argument("name")
+    install.add_argument("--overwrite", action="store_true")
+    delete = subparsers.add_parser("delete")
+    delete.add_argument("name")
     uninstall = subparsers.add_parser("uninstall")
     uninstall.add_argument("name")
     uninstall.add_argument("--strategy", required=True, choices=["purge", "keep-modified", "deactivate"])
@@ -487,10 +490,13 @@ def _extension_parser(parser: argparse.ArgumentParser) -> None:
     import_.add_argument("path", type=Path)
     import_.add_argument("--extensions-dir", type=Path, default=Path("extensions"))
     import_.add_argument("--install", action="store_true")
+    import_.add_argument("--overwrite", action="store_true")
     export = subparsers.add_parser("export")
     export.add_argument("name")
     export.add_argument("-o", "--file", required=True, type=Path)
     export.add_argument("--handlers-dir", type=Path)
+    import_entities = subparsers.add_parser("import-entities")
+    import_entities.add_argument("-f", "--file", required=True, type=Path)
     export_entities = subparsers.add_parser("export-entities")
     export_entities.add_argument("-o", "--file", required=True, type=Path)
     export_entities.add_argument("--entities", required=True)
@@ -1036,7 +1042,7 @@ async def _grpc_source(args: argparse.Namespace) -> object:
 
 async def _grpc_extension(args: argparse.Namespace) -> object:
     if args.extension_command == "import":
-        imported = _extension_import(args.path, args.extensions_dir)
+        imported = _extension_import(args.path, args.extensions_dir, overwrite=args.overwrite)
         if not args.install:
             return imported
     client = GrpcClient(args.server, identity=args.identity)
@@ -1058,7 +1064,9 @@ async def _grpc_extension(args: argparse.Namespace) -> object:
             except grpc.RpcError:
                 return _extension_show_available(args.extensions_dir, args.name)
         if args.extension_command == "install":
-            return await client.extension_install(args.name)
+            return await client.extension_install(args.name, overwrite=args.overwrite)
+        if args.extension_command == "delete":
+            return await client.extension_delete(args.name)
         if args.extension_command == "uninstall":
             return await client.extension_uninstall(args.name, args.strategy)
         if args.extension_command == "reactivate":
@@ -1083,6 +1091,8 @@ async def _grpc_extension(args: argparse.Namespace) -> object:
             entities = [await client.entity_get(ref) for ref in refs]
             _extension_export_entities(args.file, args.name, args.version, entities)
             return {"exported": args.name, "file": str(args.file), "entities": refs}
+        if args.extension_command == "import-entities":
+            return await client.extension_import_entities(str(args.file))
         raise ValueError(f"unknown extension command: {args.extension_command}")
     finally:
         await client.close()
@@ -1180,7 +1190,7 @@ def _handler_validate(path: Path) -> object:
     return {"ok": True}
 
 
-def _extension_import(path: Path, extensions_dir: Path) -> dict[str, object]:
+def _extension_import(path: Path, extensions_dir: Path, *, overwrite: bool = False) -> dict[str, object]:
     from edera_core.manifest import parse_manifest
 
     if path.is_dir():
@@ -1191,7 +1201,9 @@ def _extension_import(path: Path, extensions_dir: Path) -> dict[str, object]:
         manifest = parse_manifest(manifest_path)
         target = extensions_dir / manifest.name
         if target.exists():
-            raise ValueError(f"extension already exists: {manifest.name}")
+            if not overwrite:
+                raise ValueError(f"extension already exists: {manifest.name}")
+            shutil.rmtree(target)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(source, target)
         return {"imported": True, "name": manifest.name, "path": str(target), "message": f"扩展已导入，使用 'edera extension install {manifest.name}' 安装"}
@@ -1201,7 +1213,7 @@ def _extension_import(path: Path, extensions_dir: Path) -> dict[str, object]:
         candidates = [item.parent for item in extract_dir.rglob("manifest.yaml")]
         if len(candidates) != 1:
             raise ValueError("extension package must contain exactly one manifest.yaml")
-        return _extension_import(candidates[0], extensions_dir)
+        return _extension_import(candidates[0], extensions_dir, overwrite=overwrite)
 
 
 def _extension_show_available(extensions_dir: Path, name: str) -> dict[str, object]:

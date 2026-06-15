@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 import grpc
@@ -374,8 +375,8 @@ class GrpcClient:
     async def extension_show(self, name: str) -> dict[str, object]:
         return _json_response(await self.extension.Show(pb2.NameRequest(name=name)))
 
-    async def extension_install(self, name: str) -> dict[str, object]:
-        return _json_response(await self.extension.Install(pb2.NameRequest(name=name)))
+    async def extension_install(self, name: str, overwrite: bool = False) -> dict[str, object]:
+        return _json_response(await self.extension.Install(pb2.ExtensionInstallRequest(name=name, overwrite=overwrite)))
 
     async def extension_uninstall(self, name: str, strategy: str) -> dict[str, object]:
         return _json_response(
@@ -384,6 +385,13 @@ class GrpcClient:
 
     async def extension_reactivate(self, name: str) -> dict[str, object]:
         return _json_response(await self.extension.Reactivate(pb2.NameRequest(name=name)))
+
+    async def extension_delete(self, name: str) -> dict[str, object]:
+        return _json_response(await self.extension.Delete(pb2.NameRequest(name=name)))
+
+    async def extension_import_entities(self, path: str) -> dict[str, object]:
+        content = Path(path).read_bytes()
+        return _json_response(await self.extension.ImportEntities(pb2.ImportEntitiesRequest(content=content)))
 
 
 def _server_addr() -> str:

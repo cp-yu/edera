@@ -11,6 +11,7 @@ from edera_core.node.executor import NodeExecutor
 from edera_core.resolver import HandlerMeta, StaticHandlerResolver
 from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
 from edera_core.storage import create_engine, init_db, session_factory, sqlite_url
+from edera_core.storage.import_export import export_entities_to_yaml
 from edera_core.storage.repository import get_installed_extension, get_ordinary_entity, save_ordinary_entity
 from edera_core.storage.repository import save_installed_extension
 
@@ -378,6 +379,184 @@ async def test_install_rejects_duplicate_handler_namespace(tmp_path: Path) -> No
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_overwrite_rejected_by_default(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+        await manager.install("demo", installed_by="cli")
+
+        with pytest.raises(ValueError, match="already installed"):
+            await manager.install("demo")
+
+        factory = session_factory(engine)
+        async with factory() as session:
+            installed = await get_installed_extension(session, "demo")
+
+        assert installed is not None
+        assert installed.installed_by == "cli"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_overwrite_rebuilds_tables_and_records(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo", entity_name="Original")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+        await manager.install("demo")
+
+        async with engine.begin() as conn:
+            await conn.execute(text("INSERT INTO ext_demo_raw_items (id) VALUES (1)"))
+
+        _write_extension(tmp_path, "demo", entity_name="Updated")
+
+        await manager.install("demo", overwrite=True)
+
+        factory = session_factory(engine)
+        async with factory() as session:
+            installed = await get_installed_extension(session, "demo")
+            entity = await get_ordinary_entity(session, "stock", "stock-1", {"stock": _stock_type()})
+        async with engine.begin() as conn:
+            rows = (await conn.execute(text("SELECT COUNT(*) FROM ext_demo_raw_items"))).scalar()
+
+        assert installed is not None
+        assert installed.import_record_data[0]["status"] == "imported"
+        assert entity is not None
+        assert entity.attributes["name"] == "Updated"
+        assert rows == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_overwrite_data_warning(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+        await manager.install("demo")
+
+        result = await manager.install("demo", overwrite=True)
+
+        assert result["overwrite"] is True
+        assert isinstance(result["data_warning"], str) and result["data_warning"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_overwrite_uninstalled_extension_is_plain_install(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        result = await manager.install("demo", overwrite=True)
+
+        assert "overwrite" not in result
+        assert "data_warning" not in result
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_overwrite_missing_dependency(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo", depends=["missing"])
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        factory = session_factory(engine)
+        async with factory() as session:
+            await save_installed_extension(
+                session,
+                name="demo",
+                version="0.1.0",
+                manifest_snapshot={"name": "demo", "version": "0.1.0"},
+                import_records=[],
+            )
+            await session.commit()
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        with pytest.raises(ValueError, match="missing extension dependencies: missing"):
+            await manager.install("demo", overwrite=True)
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_overwrite_restore_roundtrip(tmp_path: Path) -> None:
+    from edera_core.storage.import_export import import_entities_from_yaml
+
+    _write_extension(tmp_path, "demo", entity_name="Original")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    backup = tmp_path / "backup.yaml"
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+        await manager.install("demo")
+        factory = session_factory(engine)
+
+        async with factory() as session:
+            await export_entities_to_yaml(session, backup, {"stock": _stock_type()}, "stock")
+            await session.commit()
+
+        _write_extension(tmp_path, "demo", entity_name="ManifestReset")
+        await manager.install("demo", overwrite=True)
+        async with factory() as session:
+            entity = await get_ordinary_entity(session, "stock", "stock-1", {"stock": _stock_type()})
+        assert entity is not None
+        assert entity.attributes["name"] == "ManifestReset"
+
+        async with factory() as session:
+            result = await import_entities_from_yaml(session, backup, {"stock": _stock_type()})
+            await session.commit()
+        async with factory() as session:
+            restored = await get_ordinary_entity(session, "stock", "stock-1", {"stock": _stock_type()})
+
+        assert result.updated == 1
+        assert restored is not None
+        assert restored.attributes["name"] == "Original"
+    finally:
+        await engine.dispose()
+
+
 def _write_extension(
     tmp_path: Path,
     name: str,
@@ -387,8 +566,9 @@ def _write_extension(
     import_type: str = "stock",
 ) -> Path:
     root = tmp_path / "extensions" / name
-    (root / "entities").mkdir(parents=True)
-    (root / "_lib").mkdir()
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "entities").mkdir(parents=True, exist_ok=True)
+    (root / "_lib").mkdir(exist_ok=True)
     (root / "handler.py").write_text("def run(payload):\n    return payload\n", encoding="utf-8")
     (root / "_lib" / "shared.py").write_text("VALUE = 1\n", encoding="utf-8")
     (root / "entities" / "stock.yaml").write_text(
