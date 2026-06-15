@@ -369,3 +369,148 @@ def test_export_workflow_extension_warns_for_missing_provider_or_library(
     with tarfile.open(package, "r:gz") as archive:
         names = set(archive.getnames())
         assert "workflow/_providers/reader/handler.py" in names
+
+
+def test_install_overwrite_passes_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def extension_install(self, name: str, overwrite: bool = False) -> dict[str, object]:
+            calls.append({"name": name, "overwrite": overwrite})
+            return {"overwrite": overwrite, "data_warning": "warn"}
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "--server", "127.0.0.1:0", "extension", "install", "demo", "--overwrite"],
+    )
+
+    main()
+
+    assert calls == [{"name": "demo", "overwrite": True}]
+    assert '"overwrite": true' in capsys.readouterr().out
+
+
+def test_import_overwrite_replaces_directory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "package"
+    source.mkdir()
+    (source / "manifest.yaml").write_text("name: demo\nversion: 0.1.0\n", encoding="utf-8")
+    (source / "old.txt").write_text("from-source", encoding="utf-8")
+    extensions_dir = tmp_path / "extensions"
+    target = extensions_dir / "demo"
+    target.mkdir(parents=True)
+    (target / "stale.txt").write_text("stale", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "edera",
+            "extension",
+            "import",
+            str(source),
+            "--extensions-dir",
+            str(extensions_dir),
+            "--overwrite",
+        ],
+    )
+
+    main()
+
+    assert (target / "old.txt").read_text(encoding="utf-8") == "from-source"
+    assert not (target / "stale.txt").exists()
+
+
+def test_import_without_overwrite_rejects_existing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "package"
+    source.mkdir()
+    (source / "manifest.yaml").write_text("name: demo\nversion: 0.1.0\n", encoding="utf-8")
+    extensions_dir = tmp_path / "extensions"
+    (extensions_dir / "demo").mkdir(parents=True)
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "edera",
+            "extension",
+            "import",
+            str(source),
+            "--extensions-dir",
+            str(extensions_dir),
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        main()
+
+
+def test_delete_command_invokes_client(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    deleted: list[str] = []
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def extension_delete(self, name: str) -> dict[str, object]:
+            deleted.append(name)
+            return {"deleted": True, "name": name}
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr("sys.argv", ["edera", "--server", "127.0.0.1:0", "extension", "delete", "demo"])
+
+    main()
+
+    assert deleted == ["demo"]
+    assert '"deleted": true' in capsys.readouterr().out
+
+
+def test_import_entities_command_roundtrip(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    package = tmp_path / "backup.tar.gz"
+    package.write_bytes(b"tar")
+    uploaded: list[str] = []
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def extension_import_entities(self, path: str) -> dict[str, object]:
+            uploaded.append(path)
+            return {"imported": 0, "updated": 2}
+
+        async def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["edera", "--server", "127.0.0.1:0", "extension", "import-entities", "-f", str(package)],
+    )
+
+    main()
+
+    assert uploaded == [str(package)]
+    assert '"updated": 2' in capsys.readouterr().out

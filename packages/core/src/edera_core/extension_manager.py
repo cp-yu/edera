@@ -45,7 +45,7 @@ class ExtensionManager:
         self.engine = engine
         self.config_entity_types = dict(config_entity_types or {})
 
-    async def install(self, name: str, *, installed_by: str | None = None) -> dict[str, int]:
+    async def install(self, name: str, *, overwrite: bool = False, installed_by: str | None = None) -> dict[str, Any]:
         root = self.extensions_dir / name
         manifest_path = root / "manifest.yaml"
         if not manifest_path.exists():
@@ -56,7 +56,8 @@ class ExtensionManager:
         plan = _install_plan(root, manifest)
         factory = session_factory(self.engine)
         async with factory() as session:
-            if await get_installed_extension(session, manifest.name) is not None:
+            existing = await get_installed_extension(session, manifest.name)
+            if existing is not None and not overwrite:
                 raise ValueError(f"extension already installed: {manifest.name}")
             installed = {record.name for record in await list_enabled_extensions(session)}
             missing = [
@@ -66,13 +67,15 @@ class ExtensionManager:
             ]
             if missing:
                 raise ValueError(f"missing extension dependencies: {', '.join(missing)}")
+            if existing is not None:
+                await self._drop_extension_tables(manifest.name, _snapshot_tables(existing.manifest_data))
             try:
                 self._copy_handlers(root, manifest)
                 self._copy_provider_handlers(plan)
                 self._copy_libraries(root, manifest.name, plan.libraries)
                 await create_extension_tables(self.engine, {manifest.name: manifest.storage_tables})
                 entity_types = await seed_entity_type_records(session, self._install_entity_types(manifest.entity_types))
-                import_records = await import_manifest_entities(session, root, manifest, entity_types)
+                import_records = await import_manifest_entities(session, root, manifest, entity_types, overwrite=overwrite)
                 await save_installed_extension(
                     session,
                     name=manifest.name,
@@ -88,12 +91,19 @@ class ExtensionManager:
                 self._remove_namespaced_libraries(manifest.name)
                 await self._drop_extension_tables(manifest.name, manifest.storage_tables)
                 raise
-        return {
+        result: dict[str, Any] = {
             "handlers": len(manifest.handlers) + sum(len(provider.manifest.handlers) for provider in plan.providers),
             "entities": sum(1 for record in import_records if record["status"] == "imported"),
             "providers": len(plan.providers),
             "libraries": len(plan.libraries),
         }
+        if overwrite:
+            result["overwrite"] = True
+            result["data_warning"] = (
+                "覆盖安装已重建扩展表与导入记录，扩展表运行时数据已恢复为 manifest 初始状态；"
+                "如需保留此前运行时数据，请使用 export-entities 导出、import-entities 导回。"
+            )
+        return result
 
     async def uninstall(self, name: str, strategy: str) -> dict[str, int]:
         if strategy not in {"purge", "keep-modified", "deactivate"}:
@@ -223,7 +233,7 @@ class ExtensionManager:
     async def _drop_extension_tables(self, extension_name: str, tables: list[Any]) -> None:
         async with self.engine.begin() as conn:
             for table in tables:
-                table_name = getattr(table, "name", None)
+                table_name = table.get("name") if isinstance(table, dict) else getattr(table, "name", None)
                 if isinstance(table_name, str):
                     await conn.execute(text(f"DROP TABLE IF EXISTS {extension_table_name(extension_name, table_name)}"))
 
@@ -262,6 +272,12 @@ def _manifest_snapshot(path: Path, plan: "_InstallPlan") -> dict[str, Any]:
         imports["libraries"] = [path.relative_to(plan.root).as_posix() for path in plan.libraries]
     data["imports"] = imports
     return data
+
+
+def _snapshot_tables(snapshot: dict[str, Any]) -> list[Any]:
+    storage = snapshot.get("storage")
+    tables = storage.get("tables") if isinstance(storage, dict) else None
+    return tables if isinstance(tables, list) else []
 
 
 async def _get_entity(session, entity_type: str, entity_id: str, entity_types: dict[str, EntityTypeConfig]) -> EntityConfig | None:

@@ -1,0 +1,11 @@
+schema_version: 1
+MODIFIED:
+  capabilities:
+    - id: cap.core.extension-installation-lifecycle
+      intent: 扩展安装/覆盖安装/卸载/删除源目录的生命周期；覆盖安装 drop 扩展表并全量重导 import_records，删除入口仅允许未安装扩展
+    - id: cap.core.extension-entity-imports
+      intent: 扩展安装时导入 Entity 实例并记录到 installed_extensions.import_records；默认路径幂等跳过已存在 Entity，覆盖安装路径清空旧记录全量重导并覆盖已存在 Entity
+    - id: cap.core.extension-grpc-service
+      intent: ExtensionService 提供 List/Show/Install(overwrite)/Uninstall/Reactivate/Delete/ImportEntities RPC，覆盖安装与删除源目录经 gRPC 暴露
+    - id: cap.web.extension-management-web
+      intent: 扩展管理页面展示已安装/可用扩展并支持安装与覆盖安装；删除源目录与批量导入实体数据不暴露 Web 入口
