@@ -466,6 +466,27 @@ async def test_overwrite_data_warning(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_overwrite_uninstalled_extension_is_plain_install(tmp_path: Path) -> None:
+    _write_extension(tmp_path, "demo")
+    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
+    try:
+        await init_db(engine)
+        manager = ExtensionManager(
+            extensions_dir=tmp_path / "extensions",
+            handlers_dir=tmp_path / "handlers",
+            engine=engine,
+            config_entity_types={"stock": _stock_type()},
+        )
+
+        result = await manager.install("demo", overwrite=True)
+
+        assert "overwrite" not in result
+        assert "data_warning" not in result
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_overwrite_missing_dependency(tmp_path: Path) -> None:
     _write_extension(tmp_path, "demo", depends=["missing"])
     engine = create_engine(sqlite_url(tmp_path / "edera.db"))

@@ -192,6 +192,13 @@ async def test_import_entities_rpc(tmp_path: Path) -> None:
         with pytest.raises(_AbortError):
             await service.ImportEntities(pb2.ImportEntitiesRequest(content=b"not a tar"), invalid_context)
         assert invalid_context.aborted[-1][0] == grpc.StatusCode.INVALID_ARGUMENT
+
+        multi_context = _Context()
+        with pytest.raises(_AbortError):
+            await service.ImportEntities(
+                pb2.ImportEntitiesRequest(content=_two_manifest_tar()), multi_context
+            )
+        assert multi_context.aborted[-1][0] == grpc.StatusCode.INVALID_ARGUMENT
     finally:
         await controller.shutdown()
 
@@ -209,6 +216,20 @@ def _entities_tar(name: str, entity_type: str, entity_id: str, value: str) -> by
             (f"{name}/entities/{entity_type}-{entity_id}.yaml", entity),
         ):
             data = _yaml.safe_dump(payload, allow_unicode=True, sort_keys=False).encode("utf-8")
+            info = tarfile.TarInfo(arcname)
+            info.size = len(data)
+            archive.addfile(info, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def _two_manifest_tar() -> bytes:
+    import io
+    import yaml as _yaml
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for arcname in ("a/manifest.yaml", "b/manifest.yaml"):
+            data = _yaml.safe_dump({"name": arcname[0], "version": "0.1.0"}, allow_unicode=False).encode("utf-8")
             info = tarfile.TarInfo(arcname)
             info.size = len(data)
             archive.addfile(info, io.BytesIO(data))

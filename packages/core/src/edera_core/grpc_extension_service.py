@@ -171,12 +171,10 @@ def _extract_entities_payload(content: bytes) -> Path:
     with tempfile.TemporaryDirectory() as tmp:
         extract_dir = Path(tmp)
         _extract_tar_content(content, extract_dir)
-        manifest_path = extract_dir / "manifest.yaml"
-        if not manifest_path.exists():
-            manifests = list(extract_dir.rglob("manifest.yaml"))
-            if len(manifests) != 1:
-                raise ValueError("import package must contain exactly one manifest.yaml")
-            manifest_path = manifests[0]
+        manifests = list(extract_dir.rglob("manifest.yaml"))
+        if len(manifests) != 1:
+            raise ValueError("import package must contain exactly one manifest.yaml")
+        manifest_path = manifests[0]
         manifest_root = manifest_path.parent
         manifest_data = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
         imports = manifest_data.get("imports") if isinstance(manifest_data, dict) else None

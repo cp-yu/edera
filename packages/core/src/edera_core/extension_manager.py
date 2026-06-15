@@ -97,7 +97,7 @@ class ExtensionManager:
             "providers": len(plan.providers),
             "libraries": len(plan.libraries),
         }
-        if overwrite:
+        if overwrite and existing is not None:
             result["overwrite"] = True
             result["data_warning"] = (
                 "覆盖安装已重建扩展表与导入记录，扩展表运行时数据已恢复为 manifest 初始状态；"

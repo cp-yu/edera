@@ -1,0 +1,148 @@
+{
+  "timestamp": "2026-06-15T07:09:38.973Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [],
+  "tasksFileHash": "9f4a5ff09e7f2f27e8b888b43d9ff28af75ba091880d265477f2b2d3b1cce9fb",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "strict-tdd",
+    "evidenceFiles": [
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/extension_imports.py",
+      "packages/core/src/edera_core/extension_manager.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/grpc_extension_service.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "proto/edera.proto",
+      "tests/core/unit/test_cli_extension.py",
+      "tests/core/unit/test_extension_install.py",
+      "tests/core/unit/test_grpc_extension_service.py",
+      "tests/core/unit/test_web_extensions.py"
+    ],
+    "evidenceFingerprint": "296ae21abef57a84fd45f08fd01c186387003ef84b3f3195023aca35e5a2a374",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "ef1df1aed7cb5c8d28081d8d3bb3554dead42a125465cd409038b52cf124953f"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_imports.py",
+        "hash": "91d1d5e6d6f5b7b40b68440bfc3e5291302cb4b38c97668d864a68b0b86838b2"
+      },
+      {
+        "path": "packages/core/src/edera_core/extension_manager.py",
+        "hash": "9c46fa043304f4df0a506d7d052e933a35fab2106cc5411b0f2123bc5a0cb51f"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "278ba0b7579325a52e7fe9f90d3d780b6aeafbf6eb9a2fec1a59800a8e38cf4e"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_extension_service.py",
+        "hash": "7a73a8bfee03a01f941e6474c98e05089bd41a30bc3cf766aa5cc93965a76fa5"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "845bcb77251d33ec7ede618c9e7dfb9e4006267c9db41665e08776ff92dd2a33"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "fc58d171d802ae678783e944a98e95f610565df5049f1acdaaefae59effafec3"
+      },
+      {
+        "path": "tests/core/unit/test_cli_extension.py",
+        "hash": "cd165f1eed7127d26d72aedafe6729bc371b75cd5d8d10bba6f435ea0492d8a6"
+      },
+      {
+        "path": "tests/core/unit/test_extension_install.py",
+        "hash": "362162c040b4c1b79b776d876ac55a3af82bf82e2c57106dff8a2f61ecc4c6a0"
+      },
+      {
+        "path": "tests/core/unit/test_grpc_extension_service.py",
+        "hash": "8c97ef79b9a16417252f57ed6609c5f13bda7a1149f3077e49953e1763c4440e"
+      },
+      {
+        "path": "tests/core/unit/test_web_extensions.py",
+        "hash": "716bdd80aefdd448ca7009c65e1020f80068d0bcb44b12ea80fa779df9fa2a3a"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "e987a44357a9e3b254ef7b1c669a1be70811e888"
+  },
+  "optimization": {
+    "status": "PENDING_VERIFICATION",
+    "attempts": [],
+    "baseline": {
+      "timestamp": "2026-06-15T07:09:38.973Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [],
+      "tasksFileHash": "9f4a5ff09e7f2f27e8b888b43d9ff28af75ba091880d265477f2b2d3b1cce9fb",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "strict-tdd",
+        "evidenceFiles": [
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/extension_imports.py",
+          "packages/core/src/edera_core/extension_manager.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/grpc_extension_service.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "proto/edera.proto",
+          "tests/core/unit/test_cli_extension.py",
+          "tests/core/unit/test_extension_install.py",
+          "tests/core/unit/test_grpc_extension_service.py",
+          "tests/core/unit/test_web_extensions.py"
+        ],
+        "evidenceFingerprint": "296ae21abef57a84fd45f08fd01c186387003ef84b3f3195023aca35e5a2a374",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "ef1df1aed7cb5c8d28081d8d3bb3554dead42a125465cd409038b52cf124953f"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_imports.py",
+            "hash": "91d1d5e6d6f5b7b40b68440bfc3e5291302cb4b38c97668d864a68b0b86838b2"
+          },
+          {
+            "path": "packages/core/src/edera_core/extension_manager.py",
+            "hash": "9c46fa043304f4df0a506d7d052e933a35fab2106cc5411b0f2123bc5a0cb51f"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "278ba0b7579325a52e7fe9f90d3d780b6aeafbf6eb9a2fec1a59800a8e38cf4e"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_extension_service.py",
+            "hash": "7a73a8bfee03a01f941e6474c98e05089bd41a30bc3cf766aa5cc93965a76fa5"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "845bcb77251d33ec7ede618c9e7dfb9e4006267c9db41665e08776ff92dd2a33"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "fc58d171d802ae678783e944a98e95f610565df5049f1acdaaefae59effafec3"
+          },
+          {
+            "path": "tests/core/unit/test_cli_extension.py",
+            "hash": "cd165f1eed7127d26d72aedafe6729bc371b75cd5d8d10bba6f435ea0492d8a6"
+          },
+          {
+            "path": "tests/core/unit/test_extension_install.py",
+            "hash": "362162c040b4c1b79b776d876ac55a3af82bf82e2c57106dff8a2f61ecc4c6a0"
+          },
+          {
+            "path": "tests/core/unit/test_grpc_extension_service.py",
+            "hash": "8c97ef79b9a16417252f57ed6609c5f13bda7a1149f3077e49953e1763c4440e"
+          },
+          {
+            "path": "tests/core/unit/test_web_extensions.py",
+            "hash": "716bdd80aefdd448ca7009c65e1020f80068d0bcb44b12ea80fa779df9fa2a3a"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "e987a44357a9e3b254ef7b1c669a1be70811e888"
+      }
+    }
+  }
+}
