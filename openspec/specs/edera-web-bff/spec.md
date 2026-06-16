@@ -249,7 +249,7 @@ edera-web BFF SHALL 在 `POST /api/dags/{name}/retry` 接口中接受 `sourceSha
 - **THEN** BFF SHALL 将这些参数通过 gRPC 传递给 edera-server
 
 ### Requirement: 纯透传 HTTP API 路由表
-以下路由均为纯 gRPC 透传模式：BFF 接收 HTTP 请求，调用 `GrpcClient` 对应方法，将结果直接透传给浏览器。路由参数作为同名参数传递给 gRPC 方法。
+下列路由 SHALL 以纯 gRPC 透传模式实现：BFF 接收 HTTP 请求，调用 `GrpcClient` 对应方法，将结果直接透传给浏览器；路由参数 MUST 作为同名参数传递给 gRPC 方法。
 
 | HTTP 路由 | GrpcClient 方法 |
 |-----------|----------------|
@@ -316,7 +316,7 @@ edera-web BFF SHALL 在 `POST /api/dags/{name}/retry` 接口中接受 `sourceSha
 - **THEN** BFF SHALL 校验 body 中 `strategy` 字段存在，缺失时返回 400
 
 ### Requirement: Runtime Entity 列表与更新（非透传）
-部分运行时实体路由需要在 BFF 层做数据组装，不能直接透传。
+下列运行时实体路由 SHALL 在 BFF 层完成数据组装，MUST NOT 直接透传单一 gRPC 响应。
 
 #### Scenario: 列出实体
 - **WHEN** 浏览器 GET `/api/entities` 携带 `type` 过滤参数
@@ -341,4 +341,16 @@ BFF SHALL 对 `/api/config/portfolio` GET/PUT 请求返回 404 并提示已废�
 #### Scenario: 访问废弃路由
 - **WHEN** 浏览器 GET 或 PUT `/api/config/portfolio`
 - **THEN** BFF SHALL 返回 404 `{error: "not_found", message: "portfolio config is deprecated; use entities"}`
+
+### Requirement: 运维操作不暴露 Web
+Web 控制台（`edera-web`）面向运行态管理（如安装、卸载、查看列表、编辑配置）。凡属于一次性运维操作（非日常运行态管理）、会扩大攻击面（删除源目录、批量写入）或与控制台运行态管理定位不符的操作，SHALL 视为运维操作。运维操作 SHALL 仅经 CLI + gRPC 暴露，MUST NOT 在 `edera-web` 注册 HTTP route。
+
+#### Scenario: 运维操作仅在 CLI+gRPC
+- **WHEN** 新增一个删除源目录或批量导入数据的操作
+- **THEN** 系统 SHALL 在 gRPC service 实现该操作，并在 `edera` CLI 提供子命令
+- **AND** MUST NOT 在 `edera-web` 注册对应 HTTP route
+
+#### Scenario: 运行态管理操作仍暴露 Web
+- **WHEN** 操作属于安装、卸载、查看列表、编辑配置等运行态管理
+- **THEN** 系统 SHALL 在 `edera-web` 暴露对应 HTTP route（经 `GrpcClient` 透传至 `edera-server`）
 
