@@ -28,10 +28,6 @@ Implement tasks from an OpenSpec change.
    - `schemaName`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
-   **Reject tweak schema:**
-   - If `schemaName === "tweak"`, stop and report: "tweak change 不支持 apply 阶段，代码应已手动实现或待手动实现。使用 `/opsx:archive` 归档此 change。"
-   - tweak changes are lightweight (proposal + specs only) and do not go through apply.
-
 3. **Get apply instructions**
 
    ```bash
