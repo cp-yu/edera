@@ -179,25 +179,32 @@ class _GraphService:
         name = str(body.get("name", ""))
         if not name:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "skill name is required")
+        skills_dir = self.daemon.controller.runtime_config().system.skills_dir
         async with self.daemon.controller._factory()() as session:
             if any(skill.name == name for skill in await list_skills(session)):
                 await context.abort(grpc.StatusCode.ALREADY_EXISTS, f"skill '{name}' already exists")
-            skill = await upsert_skill(session, name, _skill_files(body), _display_name(body), _description(body))
+            skill = await upsert_skill(
+                session, name, _skill_files(body), _display_name(body), _description(body), skills_dir
+            )
             await session.commit()
         await _emit_config_changed(self.daemon)
         return json_response(self.pb2, {"skill": skill_to_config(skill).model_dump(mode="json")})
 
     async def SaveSkill(self, request, context):
         body = {**parse_json(request.json), "name": request.name}
+        skills_dir = self.daemon.controller.runtime_config().system.skills_dir
         async with self.daemon.controller._factory()() as session:
-            skill = await upsert_skill(session, request.name, _skill_files(body), _display_name(body), _description(body))
+            skill = await upsert_skill(
+                session, request.name, _skill_files(body), _display_name(body), _description(body), skills_dir
+            )
             await session.commit()
         await _emit_config_changed(self.daemon)
         return json_response(self.pb2, {"skill": skill_to_config(skill).model_dump(mode="json")})
 
     async def DeleteSkill(self, request, context):
+        skills_dir = self.daemon.controller.runtime_config().system.skills_dir
         async with self.daemon.controller._factory()() as session:
-            deleted = await delete_skill(session, request.name)
+            deleted = await delete_skill(session, request.name, skills_dir)
             await session.commit()
         if not deleted:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"skill {request.name} not found")

@@ -68,16 +68,10 @@ def load_entity_types(config_dir: Path) -> dict[str, EntityTypeConfig]:
 
 def load_node_configs(path: Path) -> dict[str, NodeConfig]:
     configs: dict[str, NodeConfig] = {}
-    root = path.parent.parent
     store = _entity_store_or_none(path.parent)
     entities = store.query("node") if store is not None else [_entity_from_file(file, "node") for file in sorted(path.glob("*.yaml"))]
     for entity in entities:
         node = NodeConfig.model_validate(entity.attributes)
-        system_prompt_file = getattr(node, "system_prompt_file", None)
-        if system_prompt_file:
-            prompt_path = root / system_prompt_file
-            if prompt_path.exists():
-                node.system_prompt = prompt_path.read_text(encoding="utf-8")
         configs[node.name] = node
     return configs
 
@@ -485,17 +479,11 @@ def _default_core_entity_types() -> dict[str, EntityTypeConfig]:
 
 
 def _nodes_from_core_entities(config_dir: Path, entities: list[EntityConfig]) -> dict[str, NodeConfig]:
-    root = config_dir.parent
     nodes: dict[str, NodeConfig] = {}
     for entity in entities:
         if entity.type != "node":
             continue
         node = NodeConfig.model_validate(entity.attributes)
-        system_prompt_file = getattr(node, "system_prompt_file", None)
-        if system_prompt_file:
-            prompt_path = root / system_prompt_file
-            if prompt_path.exists():
-                node.system_prompt = prompt_path.read_text(encoding="utf-8")
         nodes[node.name] = node
     return nodes
 

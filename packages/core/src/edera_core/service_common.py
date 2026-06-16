@@ -468,7 +468,6 @@ def graph_node_payload(name: str, body: dict[str, object]) -> dict[str, object]:
         "skills": [str(s) for s in skills],
         "handler": body.get("handler", name if inferred_type == "function" else None),
         "system_prompt_file": body.get("system_prompt_file", None),
-        "tools": body.get("tools", []),
         "input_type": body.get("input_type", "Any"),
         "output_type": body.get("output_type", "Any"),
         "timeout_seconds": body.get("timeout_seconds"),
@@ -567,7 +566,8 @@ def build_inspector_schema(
     properties["timeout_seconds"] = {"type": "number", "default": node.timeout_seconds}
     properties["model"] = {"type": "string", "default": None, "enum": model_names}
     properties["session"] = {"type": "string", "default": None}
-    properties["tools"] = {"type": "array", "items": {"type": "string", "enum": ["bash", "read", "edit", "write", "grep", "find"]}, "default": node.tools}
+    if node.type == "agent":
+        properties["tools"] = {"type": "array", "items": {"type": "string", "enum": ["bash", "read", "edit", "write", "grep", "find"]}, "default": node.tools}
     for key, value in node.parameters_schema.get("properties", {}).items():
         if isinstance(value, dict):
             properties[f"param.{key}"] = value
