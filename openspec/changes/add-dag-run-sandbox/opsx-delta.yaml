@@ -1,0 +1,16 @@
+schema_version: 1
+ADDED:
+  capabilities:
+    - id: cap.core.dag-run-os-sandbox
+      type: capability
+      intent: 可选的 per-DAG OS 级进程隔离；启用时整个 DAG run（含 sub-DAG）由 srt 拉起的沙箱子进程执行，强制文件系统读写与网络域名白名单约束；主进程独占 DB 写与证书签发，子进程经 stdout NDJSON 事件流回传 node-run 结果
+  relations:
+    - from: cap.core.dag-run-os-sandbox
+      type: contains
+      to: dom.core
+MODIFIED:
+  capabilities:
+    - id: cap.operations.dag-run-control
+      intent: Soft/Hard stop 与节点重试等运行控制；os-sandbox 启用时 run 以子进程执行，stop 经子进程信号通道实现，主进程经事件流代写 DB
+    - id: cap.operations.node-executor
+      intent: NodeExecutor 解析执行入口并调度 agent/handler 节点；os-sandbox 启用时 agent 与 handler 均在沙箱子进程边界内执行，agent 不二次包裹 srt，证书由主进程预签注入
