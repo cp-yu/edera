@@ -79,7 +79,6 @@ class DagRunner:
         self,
         graph: DagGraph,
         run_id: str,
-        initial_payload: object,
         stop_event: asyncio.Event | None = None,
         retry_nodes: set[str] | None = None,
         prefilled_outputs: dict[str, NodeOutput] | None = None,
@@ -129,7 +128,6 @@ class DagRunner:
                         graph,
                         node,
                         run_id,
-                        initial_payload,
                         outputs,
                         payloads,
                         routed_edges,
@@ -155,7 +153,6 @@ class DagRunner:
                             running,
                             graph,
                             run_id,
-                            initial_payload,
                             outputs,
                             payloads,
                             failures,
@@ -263,7 +260,6 @@ class DagRunner:
                             running,
                             graph,
                             run_id,
-                            initial_payload,
                             outputs,
                             payloads,
                             failures,
@@ -280,7 +276,6 @@ class DagRunner:
                             running,
                             graph,
                             run_id,
-                            initial_payload,
                             outputs,
                             payloads,
                             failures,
@@ -350,7 +345,6 @@ class DagRunner:
         graph: DagGraph,
         node: str,
         run_id: str,
-        initial_payload: object,
         outputs: dict[str, NodeOutput],
         payloads: dict[str, object],
         routed_edges: set[tuple[str, str]],
@@ -364,7 +358,7 @@ class DagRunner:
             )
             return
         running[node] = asyncio.create_task(
-            self._run_node(graph, node, run_id, initial_payload, outputs, payloads, routed_edges, warnings, run_inputs)
+            self._run_node(graph, node, run_id, outputs, payloads, routed_edges, warnings, run_inputs)
         )
 
     async def _start_ready_nodes(
@@ -372,7 +366,6 @@ class DagRunner:
         running: dict[str, asyncio.Task[tuple[str, NodeOutput]]],
         graph: DagGraph,
         run_id: str,
-        initial_payload: object,
         outputs: dict[str, NodeOutput],
         payloads: dict[str, object],
         failures: dict[str, str],
@@ -401,7 +394,6 @@ class DagRunner:
                     graph,
                     node,
                     run_id,
-                    initial_payload,
                     outputs,
                     payloads,
                     routed_edges,
@@ -554,14 +546,13 @@ class DagRunner:
         graph: DagGraph,
         node: str,
         run_id: str,
-        initial_payload: object,
         outputs: dict[str, NodeOutput],
         payloads: dict[str, object],
         routed_edges: set[tuple[str, str]],
         warnings: list[str],
         run_inputs: _RunInputs,
     ) -> tuple[str, NodeOutput]:
-        input_payload = self._get_node_input(graph, node, initial_payload, outputs, payloads, routed_edges, run_inputs)
+        input_payload = self._get_node_input(graph, node, outputs, payloads, routed_edges, run_inputs)
         node_input = NodeInput(
             run_id=run_id,
             payload=input_payload,
@@ -782,7 +773,6 @@ class DagRunner:
             result = await runner.run(
                 graph,
                 child_run_id,
-                node_input.payload,
                 source_shared_inputs=mapped.source_shared_inputs,
                 node_inputs=mapped.node_inputs,
                 append_nodes=mapped.append_nodes,
@@ -833,6 +823,8 @@ class DagRunner:
     def _resolve_input_mapping(self, payload: object, input_mapping: dict[str, str] | str) -> _RunInputs:
         if isinstance(input_mapping, str):
             return self._resolve_input_mapping_entity(payload, input_mapping)
+        if not input_mapping:
+            return _RunInputs(None, {}, set())
         return _RunInputs(_mapped_input(payload, input_mapping), {}, set())
 
     def _resolve_input_mapping_entity(self, payload: object, ref: str) -> _RunInputs:
@@ -844,7 +836,8 @@ class DagRunner:
         except Exception as exc:
             raise DagError(f"InputMapping entity not found: {ref}") from exc
         attrs = entity.attributes
-        shared = _mapped_input(payload, _str_mapping(attrs.get("shared")))
+        shared_mapping = _str_mapping(attrs.get("shared"))
+        shared = _mapped_input(payload, shared_mapping) if shared_mapping else None
         nodes = {}
         for node, mapping in _node_input_mappings(attrs.get("nodes")).items():
             mapped = _mapped_input(payload, mapping)
@@ -881,18 +874,17 @@ class DagRunner:
         for upstream in graph.reverse_edges[node]:
             await self.edge_recorder(self._edge_input_fact(run_id, graph, upstream, node, outputs, routed_edges))
 
-    def _input_payload(
+    def _collect_upstream_payloads(
         self,
         graph: DagGraph,
         node: str,
-        initial_payload: object,
         outputs: dict[str, NodeOutput],
         payloads: dict[str, object],
         routed_edges: set[tuple[str, str]],
     ) -> object:
         upstreams = graph.reverse_edges[node]
         if not upstreams:
-            return initial_payload
+            return None
         values: list[object] = []
         for name in upstreams:
             output = outputs.get(name)
@@ -911,17 +903,16 @@ class DagRunner:
         self,
         graph: DagGraph,
         node: str,
-        initial_payload: object,
         outputs: dict[str, NodeOutput],
         payloads: dict[str, object],
         routed_edges: set[tuple[str, str]],
         run_inputs: _RunInputs,
     ) -> object:
         if self._is_source_node(graph, node):
-            base = graph.instances[node].config.get("default_entity", initial_payload)
+            base = graph.instances[node].config.get("default_entity")
             current = run_inputs.source_shared_inputs if run_inputs.source_shared_inputs is not None else base
         else:
-            current = self._input_payload(graph, node, initial_payload, outputs, payloads, routed_edges)
+            current = self._collect_upstream_payloads(graph, node, outputs, payloads, routed_edges)
         if node not in run_inputs.node_inputs:
             return current
         override = run_inputs.node_inputs[node]

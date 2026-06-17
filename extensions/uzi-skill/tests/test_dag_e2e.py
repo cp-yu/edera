@@ -203,7 +203,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
     data_executor.execute = execute_with_failure
 
     data_result = await DagRunner(data_executor, dags=config.dags, nodes=config.nodes).run(
-        data_graph, "run", {"ticker": "00100.HK"}
+        data_graph, "run", source_shared_inputs={"ticker": "00100.HK"}
     )
     scoring_executor = NodeExecutor(
         config.nodes,
@@ -214,7 +214,7 @@ async def test_optional_fetcher_failure_reaches_score_as_none(tmp_path: Path) ->
         store,
     )
     scoring_result = await DagRunner(scoring_executor, dags=config.dags, nodes=config.nodes).run(
-        scoring_graph, "run", data_result.payload, retry_nodes={"score_dimensions"}
+        scoring_graph, "run", source_shared_inputs=data_result.payload, retry_nodes={"score_dimensions"}
     )
 
     assert data_result.failures["1_financials"] == "fetch failed"
@@ -241,7 +241,7 @@ async def test_function_stage_dags_mock(tmp_path: Path) -> None:
         )
         retry_nodes = {"score_dimensions"} if dag_name == "uzi-scoring-synthesis" else None
         result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(
-            graph, "run", payload, retry_nodes=retry_nodes
+            graph, "run", source_shared_inputs=payload, retry_nodes=retry_nodes
         )
         assert result.failures == {}
         payload = result.node_outputs["score_dimensions"].payload if dag_name == "uzi-scoring-synthesis" else result.payload
@@ -286,7 +286,6 @@ async def test_scoring_dag_runs_three_analyst_agents(tmp_path: Path) -> None:
     result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(
         graph,
         "run",
-        {},
         retry_nodes=set(analyst_nodes),
         prefilled_outputs=prefilled,
     )
@@ -312,7 +311,7 @@ async def test_rendering_assembles_report(tmp_path: Path) -> None:
         graph.instances,
         store,
     )
-    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"score": 1})
+    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", source_shared_inputs={"score": 1})
 
     assert result.failures == {}
     assert result.payload["report_path"] == "/tmp/uzi-skill-report.html"
@@ -343,7 +342,7 @@ async def test_rendering_omits_failed_optional_section(tmp_path: Path) -> None:
 
     executor.execute = execute_with_failure
 
-    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", {"score": 1})
+    result = await DagRunner(executor, dags=config.dags, nodes=config.nodes).run(graph, "run", source_shared_inputs={"score": 1})
 
     assert result.failures["render_01_summary"] == "render failed"
     assert result.payload["report_path"] == "/tmp/uzi-skill-report.html"

@@ -115,7 +115,7 @@ async def test_default_dag_runs_with_fake_handlers() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, _test_snapshot(handlers))
     graph = load_graph(config.dags["default"], config.nodes)
-    result = await DagRunner(executor).run(graph, "run", {"source_names": ["hn-rss"]})
+    result = await DagRunner(executor).run(graph, "run", source_shared_inputs={"source_names": ["hn-rss"]})
     assert result.payload == [{"skipped": True}]
     assert result.failures == {}
 
@@ -135,7 +135,7 @@ async def test_single_source_failure_does_not_block() -> None:
     config.nodes["reader"].type = "function"
     executor = NodeExecutor(config.nodes, config.system, config.runtime, _test_snapshot(handlers))
     graph = load_graph(config.dags["default"], config.nodes)
-    result = await DagRunner(executor).run(graph, "run", {"source_names": ["cls-telegraph"]})
+    result = await DagRunner(executor).run(graph, "run", source_shared_inputs={"source_names": ["cls-telegraph"]})
     assert _instance_id(graph, "rss-fetcher") in result.failures
     assert result.payload == [{"skipped": True}]
 
@@ -201,7 +201,7 @@ async def test_condition_branch() -> None:
         "generate-briefing": _handler({"routed": "positive"}),
     }
     executor = NodeExecutor(_condition_nodes(), config.system, config.runtime, _test_snapshot(handlers), graph.instances)
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert set(result.node_outputs) == {"source", "negative", "positive"}
 
@@ -229,7 +229,7 @@ async def test_dead_path_detection() -> None:
         "generate-advice": _handler({"routed": "negative"}),
     }
     executor = NodeExecutor(_condition_nodes(), config.system, config.runtime, _test_snapshot(handlers), graph.instances)
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert set(result.node_outputs) == {"source"}
     assert result.failures == {}
@@ -268,7 +268,7 @@ async def test_single_node_loop() -> None:
         _test_snapshot({"fetch-rss": parallel_handler, "generate-advice": serial_handler}),
         graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {"seed": True})
+    result = await DagRunner(executor).run(graph, "run", source_shared_inputs={"seed": True})
 
     assert result.node_outputs["parallel"].payload == [
         {"input": {"seed": True}},
@@ -323,7 +323,7 @@ async def test_fan_in_stream() -> None:
         _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert events.index("sink-fast") < events.index("slow-done")
     assert result.node_outputs["sink"].payload == ["fast", "slow"]
@@ -369,7 +369,7 @@ async def test_event_driven_dispatch_does_not_wait_for_layer() -> None:
         _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
-    await DagRunner(executor).run(graph, "run", {})
+    await DagRunner(executor).run(graph, "run")
 
     assert events.index("sink-start") < events.index("slow-done")
 
@@ -414,7 +414,7 @@ async def test_fan_in_barrier_waits_for_all_upstreams() -> None:
         _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert events.index("slow-done") < events.index("sink-start")
     assert result.node_outputs["sink"].payload == ["fast", "slow"]
@@ -460,7 +460,7 @@ async def test_fan_in_accumulate_spawns_per_upstream_task() -> None:
         _test_snapshot({"fetch-rss": fast, "fetch-web": slow, "generate-advice": sink}),
         graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert events.index("sink-fast") < events.index("slow-done")
     assert result.node_outputs["sink"].payload == ["fast", "slow"]
@@ -498,7 +498,7 @@ async def test_fan_out_splits_list_payload_to_concurrent_downstream_runs() -> No
         _test_snapshot({"fetch-rss": source, "generate-advice": sink}),
         graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert sorted(seen) == list(range(10))
     assert sorted(result.node_outputs["sink"].payload) == [value * 2 for value in range(10)]
@@ -536,7 +536,7 @@ async def test_soft_stop_finishes_running_node_without_starting_downstream() -> 
         _test_snapshot({"fetch-rss": source, "generate-advice": sink}),
         graph.instances,
     )
-    task = asyncio.create_task(DagRunner(executor).run(graph, "run", {}, stop_event=stop_event))
+    task = asyncio.create_task(DagRunner(executor).run(graph, "run", stop_event=stop_event))
     await source_started.wait()
     stop_event.set()
     result = await task
@@ -587,7 +587,7 @@ async def test_required_upstream_failure_does_not_record_summary_for_unstarted_n
         graph.instances,
         execution_summary_recorder=summary_recorder,
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.failures["source"] == "source failed"
     assert result.failures["sink"].startswith("required upstream failed")
@@ -628,7 +628,6 @@ async def test_retry_single_uses_prefilled_upstream_outputs() -> None:
     result = await DagRunner(executor).run(
         graph,
         "retry",
-        {},
         retry_nodes={"sink"},
         prefilled_outputs={"source": _node_output("source", "old")},
     )
@@ -679,7 +678,6 @@ async def test_retry_single_multiple_nodes_propagates_new_outputs() -> None:
     result = await DagRunner(executor).run(
         graph,
         "retry",
-        {},
         retry_nodes={"middle", "sink"},
         prefilled_outputs={"source": _node_output("source", "old-source")},
     )
@@ -735,7 +733,6 @@ async def test_retry_single_disconnected_nodes_run_independently() -> None:
     result = await DagRunner(executor).run(
         graph,
         "retry",
-        {},
         retry_nodes={"sink-a", "sink-b"},
         prefilled_outputs={
             "source-a": _node_output("source-a", "old-a"),
@@ -790,7 +787,6 @@ async def test_retry_cascade_reruns_target_and_downstream_only() -> None:
     result = await DagRunner(executor).run(
         graph,
         "retry",
-        {},
         retry_nodes={"middle", "sink"},
         prefilled_outputs={"source": _node_output("source", "old-source")},
     )
@@ -834,7 +830,7 @@ async def test_sub_dag_execution() -> None:
         ),
         dags={"child": child},
         nodes=nodes,
-    ).run(graph, "run", {"seed": True})
+    ).run(graph, "run", source_shared_inputs={"seed": True})
 
     assert result.node_outputs["child-node"].payload == {"from": "child"}
     metadata = next(item[5] for item in node_runs if item[1] == "child-node" and item[2] == "succeeded")
@@ -879,7 +875,7 @@ async def test_explicit_sub_dag_execution_with_emit_callback() -> None:
         emit=lambda event, payload: _append_async(events, (event, payload)),
         dags={"child": child},
         nodes=nodes,
-    ).run(graph, "run", {"seed": True})
+    ).run(graph, "run", source_shared_inputs={"seed": True})
 
     assert result.failures == {}
     assert result.node_outputs["child-node"].payload == {"from": "child"}
@@ -935,7 +931,7 @@ async def test_optional_failure_excluded_from_payload_and_required_failure_recor
             node_runs, (run_id, node, status, error, failure_kind, metadata)
         ),
         edge_recorder=lambda fact: _append_async(edge_facts, fact),
-    ).run(graph, "run", {})
+    ).run(graph, "run")
 
     assert result.node_outputs["optional"].ok is False
     assert result.node_outputs["sink"].ok is False
@@ -977,14 +973,14 @@ async def test_sub_dag_depth_and_cycle_rejected() -> None:
     executor = NodeExecutor({**nodes, "child": nodes["rss-fetcher"]}, config.system, config.runtime, _test_snapshot({}), graph.instances)
 
     run = await DagRunner(executor, dags={"child": child}, nodes={**nodes, "child": nodes["rss-fetcher"]}).run(
-        graph, "run", {}
+        graph, "run"
     )
     assert "Sub DAG cycle detected" in run.node_outputs["child-node"].error
     assert "child-node" in run.node_outputs["child-node"].error
 
     executor.system.max_dag_depth = 1
     depth = await DagRunner(executor, dags={"child": child}, nodes={**nodes, "child": nodes["rss-fetcher"]}).run(
-        graph, "run", {}
+        graph, "run"
     )
     assert depth.node_outputs["child-node"].error == "max DAG depth exceeded: parent -> child"
 
@@ -1015,7 +1011,7 @@ async def test_node_emits() -> None:
         graph.instances,
     )
 
-    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "run", {})
+    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "run")
 
     assert events == [("event:negative-news", {"sentiment": "negative"})]
 
@@ -1049,7 +1045,6 @@ async def test_node_emits_skip_false_conditions() -> None:
     result = await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(
         graph,
         "run",
-        {},
     )
 
     assert result.failures == {}
@@ -1086,7 +1081,7 @@ async def test_node_emits_evaluate_each_declaration() -> None:
         graph.instances,
     )
 
-    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "run", {})
+    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "run")
 
     assert events == [
         ("event:any-news", {"sentiment": "negative"}),
@@ -1126,7 +1121,6 @@ async def test_node_emits_condition_error_does_not_fail_dag() -> None:
     result = await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(
         graph,
         "run",
-        {},
     )
 
     assert result.failures == {}
@@ -1169,7 +1163,7 @@ async def test_instance_emits_override_type_emits() -> None:
         graph.instances,
     )
 
-    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "run", {})
+    await DagRunner(executor, emit=lambda event, payload: _append_async(events, (event, payload))).run(graph, "run")
 
     assert events == [("event:instance-override", {"sentiment": "negative"})]
 

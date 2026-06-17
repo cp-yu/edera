@@ -98,13 +98,12 @@ class FakeGrpcClient:
     async def dag_run(
         self,
         name: str,
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
         append_nodes: list[str] | None = None,
     ) -> dict[str, object]:
-        self.last_payload = payload
+        self.last_payload = source_shared_inputs
         self.last_run_options = {
             "source_shared_inputs": source_shared_inputs,
             "node_inputs": node_inputs,
@@ -118,7 +117,6 @@ class FakeGrpcClient:
         run_id: str = "",
         node_ids: list[str] | None = None,
         mode: str = "single",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -129,7 +127,6 @@ class FakeGrpcClient:
             "run_id": run_id,
             "node_ids": node_ids,
             "mode": mode,
-            "payload": payload,
             "source_shared_inputs": source_shared_inputs,
             "node_inputs": node_inputs,
             "append_nodes": append_nodes,
@@ -466,7 +463,8 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
             super().__init__(config_dir)
             self.calls = []
 
-        async def _run_single_node(self, run_id, source, dag_name, instance, payload, stop_event, snapshot=None, **_kwargs):
+        async def _run_single_node(self, run_id, source, dag_name, instance, stop_event, snapshot=None, node_inputs=None, **_kwargs):
+            payload = node_inputs.get(instance.id) if node_inputs else None
             self.calls.append((run_id, source, dag_name, payload))
             await asyncio.sleep(60)
 
@@ -823,7 +821,7 @@ async def test_sub_dag_records_independent_run_and_parent_metadata(tmp_path: Pat
     await ctrl.start(run_startup=False)
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["leaf"])
-        parent_run_id = await ctrl.run_now("manual", "default", {"seed": True})
+        parent_run_id = await ctrl.run_now("manual", "default", source_shared_inputs={"seed": True})
         async with ctrl._factory()() as session:
             parent_runs = await node_runs_for_run(session, parent_run_id)
             parent_node = next(run for run in parent_runs if run.node_name == "child-node")
@@ -867,25 +865,25 @@ async def test_per_dag_run_api(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_dag_run_api_uses_direct_body_as_initial_payload(tmp_path: Path) -> None:
+async def test_dag_run_api_bare_body_not_mapped_to_source_inputs(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     grpc = FakeGrpcClient()
     app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/api/dags/default/run", json={"ticker": "300470.SZ"})
     assert response.status_code == 200
-    assert grpc.last_payload == {"ticker": "300470.SZ"}
+    assert grpc.last_payload is None
 
 
 @pytest.mark.asyncio
-async def test_dag_run_api_unwraps_inputs_body(tmp_path: Path) -> None:
+async def test_dag_run_api_inputs_field_not_unwrapped(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     grpc = FakeGrpcClient()
     app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/api/dags/default/run", json={"inputs": {"ticker": "300470.SZ"}})
     assert response.status_code == 200
-    assert grpc.last_payload == {"ticker": "300470.SZ"}
+    assert grpc.last_payload is None
 
 
 @pytest.mark.asyncio
@@ -932,7 +930,6 @@ async def test_retry_with_temp_inputs(tmp_path: Path) -> None:
         "run_id": "run-1",
         "node_ids": ["worker"],
         "mode": "single",
-        "payload": None,
         "source_shared_inputs": {"symbol": "AAPL"},
         "node_inputs": {"worker": {"limit": 5}},
         "append_nodes": ["worker"],
@@ -954,29 +951,30 @@ async def test_web_token_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 @pytest.mark.asyncio
 async def test_bff_dag_run_uses_grpc_client(tmp_path: Path) -> None:
     class RecordingGrpcClient(FakeGrpcClient):
-        payload: object | None = None
+        captured: dict[str, object] = {}
 
         async def dag_run(
             self,
             name: str,
-            payload: object | None = None,
             *,
             source_shared_inputs: object | None = None,
             node_inputs: dict[str, object] | None = None,
             append_nodes: list[str] | None = None,
         ) -> dict[str, object]:
             assert name == "default"
-            self.payload = payload
+            self.captured = {"source_shared_inputs": source_shared_inputs}
             return {"run_id": "grpc-run"}
 
     _write_dag_config(tmp_path)
     grpc = RecordingGrpcClient()
     app = create_app(grpc)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/dags/default/run", json={"inputs": {"ticker": "300470.SZ"}})
+        response = await client.post(
+            "/api/dags/default/run", json={"sourceSharedInputs": {"ticker": "300470.SZ"}}
+        )
     assert response.status_code == 200
     assert response.json() == {"run_id": "grpc-run"}
-    assert grpc.payload == {"ticker": "300470.SZ"}
+    assert grpc.captured == {"source_shared_inputs": {"ticker": "300470.SZ"}}
 
 
 @pytest.mark.asyncio
@@ -1228,7 +1226,9 @@ async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
             await session.commit()
         await ctrl.install_snapshot(_load_runtime_base_config(tmp_path), await ctrl.load_bootstrap())
         ctrl.active_runs["default"] = DagRunContext("default", "run-default", blocker)
-        pending = asyncio.create_task(ctrl.start_run("manual", "reflection", {"target": "node-a"}))
+        pending = asyncio.create_task(
+            ctrl.start_run("manual", "reflection", source_shared_inputs={"target": "node-a"})
+        )
         await asyncio.sleep(0.05)
         assert not pending.done()
         await blocker

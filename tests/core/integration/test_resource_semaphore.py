@@ -179,7 +179,7 @@ async def test_release_on_failure() -> None:
         store,
     )
 
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.failures == {"first": "boom"}
     assert result.node_outputs["second"].ok
@@ -253,7 +253,7 @@ async def test_cancel_releases_resource() -> None:
             _resource_store(1),
         )
     )
-    task = asyncio.create_task(runner.run(graph, "cancel", {}))
+    task = asyncio.create_task(runner.run(graph, "cancel"))
     await started.wait()
     task.cancel()
 
@@ -310,7 +310,7 @@ async def test_accumulate_resource_nodes_are_limited() -> None:
         graph.instances,
         _resource_store(1),
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["sink"].ok
     assert max_active == 1
@@ -366,7 +366,7 @@ async def test_accumulate_resource_waits_for_running_holder() -> None:
         graph.instances,
         _resource_store(1),
     )
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["sink"].ok
     assert events == ["holder-start", "source-done", "holder-end", "sink-start"]
@@ -436,7 +436,7 @@ async def _run_resource_dag(resources: list[str | None], permits: int) -> tuple[
         graph.instances,
         _resource_store(permits, resource_ids),
     )
-    await DagRunner(executor).run(graph, "run", {})
+    await DagRunner(executor).run(graph, "run")
     return events, max_active
 
 

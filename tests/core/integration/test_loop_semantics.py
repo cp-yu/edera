@@ -137,7 +137,7 @@ async def test_parallel_until_short_circuit() -> None:
         return {"value": value}
 
     executor = NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": handler}), graph.instances)
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["loop"].ok
     assert result.node_outputs["loop"].metadata["loop_until_matched"] is True
@@ -167,7 +167,7 @@ async def test_parallel_until_not_matched() -> None:
         return {"match": False}
 
     executor = NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": handler}), graph.instances)
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["loop"].ok
     assert result.node_outputs["loop"].metadata["loop_until_matched"] is False
@@ -195,7 +195,7 @@ async def test_parallel_output_is_list() -> None:
         return {"value": 1}
 
     executor = NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": handler}), graph.instances)
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert isinstance(result.node_outputs["loop"].payload, list)
     assert len(result.node_outputs["loop"].payload) == 2
@@ -229,7 +229,7 @@ async def test_loop_iteration_level_resource() -> None:
         return {"value": 1}
 
     executor = NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": handler}), graph.instances, _resource_store(2))
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["loop"].ok
     assert max_active == 2
@@ -258,7 +258,7 @@ async def test_loop_permits_one_no_deadlock() -> None:
         return {"value": 1}
 
     executor = NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": handler}), graph.instances, _resource_store(1))
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["loop"].ok
     assert len(result.node_outputs["loop"].payload) == 3
@@ -288,7 +288,7 @@ async def test_serial_loop_iteration_level_resource() -> None:
         return {"iteration": len(iterations)}
 
     executor = NodeExecutor(nodes, config.system, config.runtime, _test_snapshot({"fetch-rss": handler}), graph.instances, _resource_store(1))
-    result = await DagRunner(executor).run(graph, "run", {})
+    result = await DagRunner(executor).run(graph, "run")
 
     assert result.node_outputs["loop"].ok
     assert iterations == [1, 2, 3]

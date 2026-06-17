@@ -1,0 +1,7 @@
+schema_version: 1
+# 本次变更为 DAG 输入模型的行为契约细化（消除 initial_payload，统一到 source_shared_inputs / node_inputs / append_nodes 三元组）。
+# 涉及的 capability（cap.core.dag-input-parameters、cap.core.sub-dag-execution、cap.core.uzi-skill-dag-instance 等）结构边界不变，
+# 仅 Requirement 行为变更，已由 specs/ 下的 delta 表达。OPSX 架构图无节点增删或边界调整。
+ADDED: {}
+MODIFIED: {}
+REMOVED: {}

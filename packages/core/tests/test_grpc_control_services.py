@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig, EntityTypeConfig, SystemConfig
-from edera_core.dag_controller import DagController, DagRunNotFoundError, RunAlreadyActiveError
+from edera_core.dag_controller import DagController, DagRunNotFoundError, RunAlreadyActiveError, _run_entity_refs
 from edera_core.event_service import _EventService
 from edera_core.proto import edera_pb2 as pb2
 from edera_core.server import _DagService, _NodeService, _SystemService
@@ -24,7 +24,6 @@ class Controller:
         self,
         source: str = "manual",
         dag_name: str = "default",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -38,7 +37,6 @@ class Controller:
         run_id: str | None,
         node_ids: list[str],
         mode: str,
-        payload: object,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -112,7 +110,6 @@ async def test_run_with_temp_inputs(tmp_path):
     assert controller.captured == {
         "source": "dag-service",
         "dag_name": "default",
-        "payload": None,
         "source_shared_inputs": {"symbol": "AAPL"},
         "node_inputs": {"worker": {"limit": 5}},
         "append_nodes": {"worker"},
@@ -155,7 +152,6 @@ async def test_retry_with_temp_inputs(tmp_path):
         "run_id": "run-1",
         "node_ids": ["worker"],
         "mode": "single",
-        "payload": None,
         "source_shared_inputs": {"symbol": "AAPL"},
         "node_inputs": {"worker": {"limit": 5}},
         "append_nodes": {"worker"},
@@ -369,7 +365,6 @@ class RunController:
         self,
         source: str = "manual",
         dag_name: str = "default",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -377,7 +372,6 @@ class RunController:
     ) -> str:
         assert source == "dag-service"
         assert dag_name == "default"
-        assert payload is None
         return "run-1"
 
 
@@ -388,7 +382,6 @@ class CaptureRunController:
         self,
         source: str = "manual",
         dag_name: str = "default",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -397,7 +390,6 @@ class CaptureRunController:
         self.captured = {
             "source": source,
             "dag_name": dag_name,
-            "payload": payload,
             "source_shared_inputs": source_shared_inputs,
             "node_inputs": node_inputs,
             "append_nodes": append_nodes,
@@ -414,7 +406,6 @@ class CaptureRetryController:
         run_id: str | None,
         node_ids: list[str],
         mode: str = "single",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -425,7 +416,6 @@ class CaptureRetryController:
             "run_id": run_id,
             "node_ids": node_ids,
             "mode": mode,
-            "payload": payload,
             "source_shared_inputs": source_shared_inputs,
             "node_inputs": node_inputs,
             "append_nodes": append_nodes,
@@ -506,3 +496,21 @@ def _write_minimal_config(root):
         "display_name: RSS\nbusiness_id_field: name\ndisplay_template: '{name}'\nstorage_tier: database\nschema:\n  properties:\n    name: {}\n",
         encoding="utf-8",
     )
+
+
+def _instance(node_id: str, *, resource: str | None = None, config: dict | None = None) -> SimpleNamespace:
+    return SimpleNamespace(id=node_id, resource=resource, config=config or {})
+
+
+def test_run_entity_refs_derived_from_node_config_only() -> None:
+    graph = SimpleNamespace(
+        instances={
+            "reader": _instance("reader", resource="rss-source:hn"),
+            "worker": _instance("worker", config={"entities": ["entity://score"], "source": "web-source:blog"}),
+            "sink": _instance("sink"),
+        }
+    )
+
+    refs = _run_entity_refs(graph)
+
+    assert refs == ["rss-source:hn", "entity://score", "web-source:blog"]

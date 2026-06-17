@@ -162,18 +162,16 @@ class DagController:
         self,
         source: str = "manual",
         dag_name: str = "default",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
         append_nodes: set[str] | None = None,
     ) -> str:
-        await self._wait_for_idle(dag_name, payload)
+        await self._wait_for_idle(dag_name, source_shared_inputs)
         async with self._locks[dag_name]:
             run_id, task = self._start_run_locked(
                 source,
                 dag_name,
-                payload,
                 source_shared_inputs=source_shared_inputs,
                 node_inputs=node_inputs,
                 append_nodes=append_nodes,
@@ -185,18 +183,16 @@ class DagController:
         self,
         source: str = "manual",
         dag_name: str = "default",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
         append_nodes: set[str] | None = None,
     ) -> str:
-        await self._wait_for_idle(dag_name, payload)
+        await self._wait_for_idle(dag_name, source_shared_inputs)
         async with self._locks[dag_name]:
             run_id, task = self._start_run_locked(
                 source,
                 dag_name,
-                payload,
                 source_shared_inputs=source_shared_inputs,
                 node_inputs=node_inputs,
                 append_nodes=append_nodes,
@@ -296,7 +292,7 @@ class DagController:
     def _new_trigger_executor(self, config: AppConfig, store: EntityStore) -> TriggerExecutor:
         return TriggerExecutor(
             store,
-            run_dag=lambda name, payload, source: self.start_run(source, name, payload),
+            run_dag=lambda name, payload, source: self.start_run(source, name, source_shared_inputs=payload),
             run_node=lambda name, payload, source: self.run_node_trigger(name, payload, source),
             factory=self.factory,
             max_depth=config.system.max_trigger_depth,
@@ -329,7 +325,6 @@ class DagController:
                     source,
                     dag_name,
                     instance,
-                    payload,
                     stop_event,
                     snapshot,
                     execution_snapshot=execution_snapshot,
@@ -395,7 +390,6 @@ class DagController:
         run_id: str | None,
         node_ids: list[str],
         mode: str = "single",
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -435,7 +429,6 @@ class DagController:
                     retry_of=original_run_id,
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled,
-                    payload=payload,
                     source_shared_inputs=source_shared_inputs,
                     node_inputs=node_inputs,
                     append_nodes=append_nodes,
@@ -485,7 +478,7 @@ class DagController:
                     retry_of=original.retry_of,
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled,
-                    payload=payload,
+                    node_inputs={node_id: payload} if payload is not None else None,
                     replace_existing_run=True,
                     snapshot=snapshot,
                     execution_snapshot=execution_snapshot,
@@ -545,11 +538,11 @@ class DagController:
             if self.cron_emitter is not None:
                 await self.cron_emitter.tick()
 
-    async def _wait_for_idle(self, dag_name: str, payload: object | None) -> None:
+    async def _wait_for_idle(self, dag_name: str, inputs: object | None = None) -> None:
         factory = self._factory()
         async with factory() as session:
             dag = await get_dag_config(session, dag_name)
-        target = _wait_for_idle_target(dag, payload)
+        target = _wait_for_idle_target(dag, inputs)
         if target is None:
             return
         while await self._active_dag_has_node(target):
@@ -570,7 +563,6 @@ class DagController:
         self,
         source: str,
         dag_name: str,
-        payload: object | None = None,
         *,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
@@ -587,7 +579,6 @@ class DagController:
                 source,
                 dag_name,
                 stop_event=stop_event,
-                payload=payload,
                 source_shared_inputs=source_shared_inputs,
                 node_inputs=node_inputs,
                 append_nodes=append_nodes,
@@ -616,7 +607,6 @@ class DagController:
         retry_of: str | None = None,
         retry_nodes: set[str] | None = None,
         prefilled_outputs: dict[str, NodeOutput] | None = None,
-        payload: object | None = None,
         source_shared_inputs: object | None = None,
         node_inputs: dict[str, object] | None = None,
         append_nodes: set[str] | None = None,
@@ -647,7 +637,7 @@ class DagController:
             async with factory() as session:
                 await run_store.preload_for_dag(
                     run_id,
-                    _run_entity_refs(config, [*execution_snapshot.dag_closure.dags.values()], payload),
+                    _run_entity_refs([*execution_snapshot.dag_closure.dags.values()]),
                     session,
                 )
                 executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store, execution_snapshot=execution_snapshot)
@@ -670,7 +660,6 @@ class DagController:
                 ).run(
                     graph,
                     run_id,
-                    payload if payload is not None else {"entities": _source_entity_refs(config)},
                     stop_event=stop_event,
                     retry_nodes=retry_nodes,
                     prefilled_outputs=prefilled_outputs,
@@ -718,7 +707,6 @@ class DagController:
         source: str,
         dag_name: str,
         instance: DagNodeInstance,
-        payload: object | None,
         stop_event: asyncio.Event,
         snapshot: RuntimeControlSnapshot | None = None,
         execution_snapshot: DagExecutionSnapshot | None = None,
@@ -747,7 +735,7 @@ class DagController:
         await event_bus.publish("dag.status", run_id=run_id, dag_name=dag_name, status="started")
         try:
             async with factory() as session:
-                await run_store.preload_for_dag(run_id, _run_entity_refs(config, graph, payload), session)
+                await run_store.preload_for_dag(run_id, _run_entity_refs(graph), session)
                 executor = await self._build_run_executor(snapshot, graph, session, entity_store=run_store, execution_snapshot=execution_snapshot)
                 ctx = self.active_runs.get(dag_name)
                 if ctx is not None and ctx.run_id == run_id:
@@ -767,7 +755,6 @@ class DagController:
                 ).run(
                     graph,
                     run_id,
-                    payload if payload is not None else {"entities": _source_entity_refs(config)},
                     stop_event=stop_event,
                     node_inputs=node_inputs,
                     append_nodes=append_nodes,
@@ -1162,25 +1149,8 @@ def _build_executor(
     )
 
 
-def _source_entity_refs(app_config: AppConfig) -> list[str]:
+def _run_entity_refs(dags_or_graph) -> list[str]:
     refs: list[str] = []
-    for entity in app_config.entities.entities:
-        if entity.type not in {"rss-source", "web-source", "api-source"}:
-            continue
-        name = entity.attributes.get("name")
-        if isinstance(name, str):
-            refs.append(f"{entity.type}:{name}")
-    return refs
-
-
-def _run_entity_refs(app_config: AppConfig, dags_or_graph, payload: object | None) -> list[str]:
-    refs: list[str] = []
-    if payload is None:
-        refs.extend(_source_entity_refs(app_config))
-    elif isinstance(payload, dict):
-        raw = payload.get("entities")
-        if isinstance(raw, list):
-            refs.extend(str(item) for item in raw)
     if hasattr(dags_or_graph, "instances"):
         instances = list(dags_or_graph.instances.values())
     else:
@@ -1291,15 +1261,15 @@ def _dag_has_node(dag, node_id: str) -> bool:
     return any(instance.id == node_id or instance.alias == node_id for instance in dag.nodes)
 
 
-def _wait_for_idle_target(dag, payload: object | None) -> str | None:
+def _wait_for_idle_target(dag, inputs: object | None = None) -> str | None:
     if dag is None:
         return None
     wait_for = dag.ui.get("wait_for")
     if not isinstance(wait_for, dict) or wait_for.get("status") != "idle":
         return None
     target = wait_for.get("node")
-    if target == "$payload.target" and isinstance(payload, dict):
-        target = payload.get("target")
+    if target == "$payload.target" and isinstance(inputs, dict):
+        target = inputs.get("target")
     return target if isinstance(target, str) and target else None
 
 

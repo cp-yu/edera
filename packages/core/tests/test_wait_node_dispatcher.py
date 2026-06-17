@@ -21,7 +21,7 @@ async def test_independent_path_runs_while_wait_node_is_waiting() -> None:
     trigger = TriggerExecutor(_store())
     records: list[str] = ["pending"]
 
-    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, records=records), trigger_executor=trigger).run(graph, "run", {}))
+    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, records=records), trigger_executor=trigger).run(graph, "run"))
     await _until(lambda: records == ["worker"])
 
     assert not task.done()
@@ -35,7 +35,7 @@ async def test_resume_starts_downstream_after_wait_node_wakes() -> None:
     trigger = TriggerExecutor(_store())
     records: list[str] = ["pending"]
 
-    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, records=records), trigger_executor=trigger).run(graph, "run", {}))
+    task = asyncio.create_task(DagRunner(_executor(nodes, graph.instances, records=records), trigger_executor=trigger).run(graph, "run"))
     await asyncio.sleep(0.01)
     await trigger.emit("event:approve:run", {"ok": True})
     result = await task
@@ -50,7 +50,7 @@ async def test_stop_releases_waiting_node() -> None:
     trigger = TriggerExecutor(_store())
     stop_event = asyncio.Event()
     task = asyncio.create_task(
-        DagRunner(_executor(nodes, graph.instances), trigger_executor=trigger).run(graph, "run", {}, stop_event=stop_event)
+        DagRunner(_executor(nodes, graph.instances), trigger_executor=trigger).run(graph, "run", stop_event=stop_event)
     )
     await asyncio.sleep(0.01)
 
@@ -66,7 +66,7 @@ async def test_stop_single_source_wait_node_returns_cancelled_result() -> None:
     trigger = TriggerExecutor(_store())
     stop_event = asyncio.Event()
     task = asyncio.create_task(
-        DagRunner(_executor(nodes, graph.instances), trigger_executor=trigger).run(graph, "run", {}, stop_event=stop_event)
+        DagRunner(_executor(nodes, graph.instances), trigger_executor=trigger).run(graph, "run", stop_event=stop_event)
     )
     await asyncio.sleep(0.01)
 
