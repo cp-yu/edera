@@ -172,8 +172,10 @@ def _write_editor_config(config_dir: Path) -> None:
         "reader": "summarize",
         "notifier": "notify-ntfy",
     }
+    nodes_dir = config_dir / "nodes"
+    nodes_dir.mkdir(exist_ok=True)
     for name, handler in nodes.items():
-        (config_dir / "nodes" / f"{name}.yaml").write_text(
+        (nodes_dir / f"{name}.yaml").write_text(
             f"name: {name}\n"
             "type: function\n"
             f"handler: {handler}\n"

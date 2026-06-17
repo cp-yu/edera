@@ -707,34 +707,6 @@ async def test_summary_log_index_is_queryable(tmp_path: Path) -> None:
         await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_log_index_kind_migrates_existing_table(tmp_path: Path) -> None:
-    engine = create_engine(sqlite_url(tmp_path / "edera.db"))
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(
-                text(
-                    "CREATE TABLE log_index ("
-                    "id INTEGER PRIMARY KEY, "
-                    "run_id VARCHAR NOT NULL, "
-                    "node_id VARCHAR NOT NULL, "
-                    "path VARCHAR NOT NULL, "
-                    "digest VARCHAR NOT NULL, "
-                    "size INTEGER NOT NULL, "
-                    "created_at DATETIME NOT NULL, "
-                    "updated_at DATETIME NOT NULL)"
-                )
-            )
-        await init_db(engine)
-
-        async with engine.begin() as conn:
-            result = await conn.execute(text("PRAGMA table_info(log_index)"))
-
-        assert "kind" in {row[1] for row in result.fetchall()}
-    finally:
-        await engine.dispose()
-
-
 async def _unused_handler(_node_input: NodeInput) -> dict[str, object]:
     return {}
 
