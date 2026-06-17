@@ -6,7 +6,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  generatedBy: "1.2.0-cpyu.9"
+  generatedBy: "1.4.1-cpyu.1"
 ---
 
 Archive a completed change in the experimental workflow.

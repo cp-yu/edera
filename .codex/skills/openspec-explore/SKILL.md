@@ -6,10 +6,12 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  generatedBy: "1.2.0-cpyu.9"
+  generatedBy: "1.4.1-cpyu.1"
 ---
 
 Enter explore mode: investigate, clarify, compare, and help the user think before implementation.
+
+For detailed behavioral guidance including stance, action space, entry point handling, and closing templates, refer to the `explore-supperpowers-style` reference.
 
 ## Skill Delegation Protocol
 
