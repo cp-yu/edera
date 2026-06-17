@@ -1265,7 +1265,7 @@ def test_cli_node_output_export_requires_out(
     assert "--out" in capsys.readouterr().err
 
 
-def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_dag_run_source_shared_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     class FakeClient:
         def __init__(self, address: str | None = None, *, identity: str | None = None) -> None:
             assert address == "127.0.0.1:9090"
@@ -1274,15 +1274,13 @@ def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
         async def dag_run(
             self,
             dag_name: str,
-            payload: object | None = None,
             *,
             source_shared_inputs: object | None = None,
             node_inputs: dict[str, object] | None = None,
             append_nodes: list[str] | None = None,
         ) -> dict[str, object]:
             assert dag_name == "default"
-            assert payload == {"symbol": "AAPL"}
-            assert source_shared_inputs is None
+            assert source_shared_inputs == {"symbol": "AAPL"}
             assert node_inputs is None
             assert append_nodes is None
             return {"run_id": "run-1"}
@@ -1292,7 +1290,9 @@ def test_cli_dag_run_inputs(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
 
     monkeypatch.setenv("EDERA_SERVER_ADDR", "127.0.0.1:9090")
     monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
-    monkeypatch.setattr("sys.argv", ["edera", "dag", "run", "default", "--inputs", '{"symbol":"AAPL"}'])
+    monkeypatch.setattr(
+        "sys.argv", ["edera", "dag", "run", "default", "--source-shared-inputs", '{"symbol":"AAPL"}']
+    )
 
     main()
 
@@ -1308,14 +1308,12 @@ def test_cli_dag_run_temporary_inputs(monkeypatch: pytest.MonkeyPatch, capsys: p
         async def dag_run(
             self,
             dag_name: str,
-            payload: object | None = None,
             *,
             source_shared_inputs: object | None = None,
             node_inputs: dict[str, object] | None = None,
             append_nodes: list[str] | None = None,
         ) -> dict[str, object]:
             assert dag_name == "default"
-            assert payload == {"symbol": "AAPL"}
             assert source_shared_inputs == {"shared": True}
             assert node_inputs == {"worker": "entity://custom"}
             assert append_nodes == ["worker"]
@@ -1333,8 +1331,6 @@ def test_cli_dag_run_temporary_inputs(monkeypatch: pytest.MonkeyPatch, capsys: p
             "dag",
             "run",
             "default",
-            "--inputs",
-            '{"symbol":"AAPL"}',
             "--source-shared-inputs",
             '{"shared":true}',
             "--node-inputs",
@@ -1384,7 +1380,6 @@ def test_cli_dag_retry(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFi
             run_id: str = "",
             node_ids: list[str] | None = None,
             mode: str = "single",
-            payload: object | None = None,
             *,
             source_shared_inputs: object | None = None,
             node_inputs: dict[str, object] | None = None,
@@ -1394,7 +1389,6 @@ def test_cli_dag_retry(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFi
             assert run_id == "run-1"
             assert node_ids == ["node-a", "node-b"]
             assert mode == "multi"
-            assert payload == {"reason": "test"}
             assert source_shared_inputs is None
             assert node_inputs is None
             assert append_nodes is None
@@ -1407,7 +1401,7 @@ def test_cli_dag_retry(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFi
     monkeypatch.setattr("edera_core.cli.GrpcClient", FakeClient)
     monkeypatch.setattr(
         "sys.argv",
-        ["edera", "dag", "retry", "default", "--run-id", "run-1", "--nodes", "node-a,node-b", "--mode", "multi", "--payload", '{"reason":"test"}'],
+        ["edera", "dag", "retry", "default", "--run-id", "run-1", "--nodes", "node-a,node-b", "--mode", "multi"],
     )
 
     main()
@@ -1426,7 +1420,6 @@ def test_cli_dag_retry_source_shared_inputs(monkeypatch: pytest.MonkeyPatch, cap
             run_id: str = "",
             node_ids: list[str] | None = None,
             mode: str = "single",
-            payload: object | None = None,
             *,
             source_shared_inputs: object | None = None,
             node_inputs: dict[str, object] | None = None,
@@ -1461,7 +1454,6 @@ def test_cli_dag_retry_node_inputs_and_append_nodes(monkeypatch: pytest.MonkeyPa
             run_id: str = "",
             node_ids: list[str] | None = None,
             mode: str = "single",
-            payload: object | None = None,
             *,
             source_shared_inputs: object | None = None,
             node_inputs: dict[str, object] | None = None,

@@ -306,9 +306,6 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     _watch_arguments(runtime_status)
     run = subparsers.add_parser("run")
     run.add_argument("dag_name")
-    run.add_argument("--payload", default="{}")
-    run.add_argument("--inputs", default="")
-    run.add_argument("--input", action="append", default=[])
     run.add_argument("--source-shared-inputs", default="")
     run.add_argument("--node-inputs", default="")
     run.add_argument("--append-nodes", default="")
@@ -323,7 +320,6 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     retry.add_argument("--run-id", default="")
     retry.add_argument("--nodes", default="")
     retry.add_argument("--mode", default="single")
-    retry.add_argument("--payload", default="")
     retry.add_argument("--source-shared-inputs", default="")
     retry.add_argument("--node-inputs", default="")
     retry.add_argument("--append-nodes", default="")
@@ -910,7 +906,6 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
                 args.run_id,
                 _node_ids(args.nodes),
                 args.mode,
-                _optional_json(args.payload),
                 **_dag_temporary_inputs(args),
             )
         if args.dag_command == "edit":
@@ -918,7 +913,6 @@ async def _grpc_dag(args: argparse.Namespace) -> object:
         if args.dag_command == "run":
             return await client.dag_run(
                 args.dag_name,
-                _dag_run_payload(args),
                 **_dag_temporary_inputs(args),
             )
     finally:
@@ -1096,20 +1090,6 @@ async def _grpc_extension(args: argparse.Namespace) -> object:
         raise ValueError(f"unknown extension command: {args.extension_command}")
     finally:
         await client.close()
-
-
-def _dag_run_payload(args: argparse.Namespace) -> object:
-    if args.input:
-        payload: dict[str, str] = {}
-        for item in args.input:
-            key, sep, value = item.partition("=")
-            if not sep or not key:
-                raise ValueError("--input must be key=value")
-            payload[key] = value
-        return payload
-    if args.inputs:
-        return json.loads(args.inputs)
-    return json.loads(args.payload)
 
 
 def _node_ids(value: str) -> list[str]:

@@ -110,7 +110,7 @@ async def test_runtime_inputs_and_optional_barrier(tmp_path: Path) -> None:
         snapshot=create_test_snapshot(nodes, handlers),
         instances=graph.instances,
     )
-    result = await DagRunner(executor).run(graph, "run", {}, source_shared_inputs={"ticker": "AAPL"})
+    result = await DagRunner(executor).run(graph, "run", source_shared_inputs={"ticker": "AAPL"})
 
     assert result.node_outputs["source"].payload == {"ticker": "AAPL"}
     assert result.node_outputs["sink"].ok
@@ -502,13 +502,12 @@ async def test_daemon_dag_run_starts_controller_run(tmp_path: Path) -> None:
             self,
             source="manual",
             dag_name="default",
-            payload=None,
             *,
             source_shared_inputs=None,
             node_inputs=None,
             append_nodes=None,
         ):
-            self.calls.append((source, dag_name, payload, source_shared_inputs, node_inputs, append_nodes))
+            self.calls.append((source, dag_name, source_shared_inputs, node_inputs, append_nodes))
             return "run-1"
 
     controller = Controller()
@@ -518,7 +517,6 @@ async def test_daemon_dag_run_starts_controller_run(tmp_path: Path) -> None:
     response = await service.Run(
         daemon.pb2.DagRunRequest(
             name="default",
-            inputs_json='{"symbol":"TEST"}',
             source_shared_inputs_json='{"shared":true}',
             node_inputs_json='{"reader":{"limit":5}}',
             append_nodes_json='["reader"]',
@@ -527,7 +525,7 @@ async def test_daemon_dag_run_starts_controller_run(tmp_path: Path) -> None:
     )
 
     assert response.run_id == "run-1"
-    assert controller.calls == [("dag-service", "default", {"symbol": "TEST"}, {"shared": True}, {"reader": {"limit": 5}}, {"reader"})]
+    assert controller.calls == [("dag-service", "default", {"shared": True}, {"reader": {"limit": 5}}, {"reader"})]
 
 
 @pytest.mark.asyncio

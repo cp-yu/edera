@@ -1,12 +1,5 @@
----
-capabilities:
-  - cap.core.dag-input-parameters
----
-# dag-input-parameters Specification
+## MODIFIED Requirements
 
-## Purpose
-定义 DAG 输入参数声明、Source 节点 Input Binding、运行时参数传递、Web Console 输入表单等能力。
-## Requirements
 ### Requirement: 运行时参数传递
 DAG 触发 API SHALL 通过 `sourceSharedInputs`、`nodeInputs`、`appendNodes` 三个参数表达运行时输入，不 SHALL 接受独立的入口 payload 参数。Source 节点的入口数据 SHALL 经 `sourceSharedInputs` 提供。
 
@@ -40,4 +33,3 @@ DAG 触发 API SHALL 通过 `sourceSharedInputs`、`nodeInputs`、`appendNodes` 
 #### Scenario: 无 input_mapping 的子 DAG source 节点
 - **WHEN** dag 节点未声明 `input_mapping`，且子 DAG 的 source 节点未声明 `default_entity`
 - **THEN** 该 source 节点输入 SHALL 为空，不 SHALL 接收父节点的 payload
-

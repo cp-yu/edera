@@ -102,7 +102,7 @@ async def test_run_preloads_and_clears_dag_entity_cache(monkeypatch, tmp_path):
         def __init__(self, executor, **_kwargs):
             captured["store"] = executor.entity_store
 
-        async def run(self, _graph, run_id, _payload, **_kwargs):
+        async def run(self, _graph, run_id, **_kwargs):
             store = captured["store"]
             captured["cached_before_run"] = run_id in store.memory_entities
             captured["entity_id"] = store.resolve("stock:TEST").id
@@ -160,7 +160,7 @@ async def test_run_preloads_resource_refs_from_dag_closure(monkeypatch, tmp_path
         def __init__(self, executor, **_kwargs):
             captured["store"] = executor.entity_store
 
-        async def run(self, _graph, run_id, _payload, **_kwargs):
+        async def run(self, _graph, run_id, **_kwargs):
             store = captured["store"]
             captured["resource_permits"] = store.resolve("v8_isolate").attributes["permits"]
             return SimpleNamespace(
@@ -296,10 +296,10 @@ async def test_run_node_trigger_uses_dag_scope(monkeypatch, tmp_path):
     controller._locks["demo"] = asyncio.Lock()
     captured: dict[str, object] = {}
 
-    async def fake_run_single_node(run_id, source, dag_name, instance, payload, stop_event, snapshot, execution_snapshot=None, **_kwargs):
+    async def fake_run_single_node(run_id, source, dag_name, instance, stop_event, snapshot, execution_snapshot=None, node_inputs=None, **_kwargs):
         captured["dag_name"] = dag_name
         captured["node_id"] = instance.id
-        captured["payload"] = payload
+        captured["payload"] = node_inputs.get(instance.id) if node_inputs else None
         captured["snapshot_dag"] = execution_snapshot.dag_config.name if execution_snapshot else None
         return {"ok": True}
 
@@ -500,3 +500,26 @@ async def _seed_runtime_core(session, config: AppConfig) -> None:
 async def _seed_demo_core(session) -> None:
     await save_core_entity(session, EntityConfig(id="node:reader", type="node", attributes=_reader_node()))
     await save_core_entity(session, EntityConfig(id="dag:demo", type="dag", attributes={"name": "demo", "nodes": [{"id": "n1", "type": "reader"}], "edges": [], "ui": {}}))
+
+
+@pytest.mark.asyncio
+async def test_trigger_run_dag_injects_payload_as_source_shared_inputs(tmp_path):
+    controller = _controller(tmp_path)
+    captured: dict[str, object] = {}
+
+    async def fake_start_run(source="manual", dag_name="default", **kwargs):
+        captured["source"] = source
+        captured["dag_name"] = dag_name
+        captured["source_shared_inputs"] = kwargs.get("source_shared_inputs")
+        return "run-1"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    executor = controller._new_trigger_executor(controller.runtime_config(), None)
+
+    await executor.fire("dag:demo", {"ticker": "300470.SZ"}, source="trigger:cron")
+
+    assert captured == {
+        "source": "trigger:cron",
+        "dag_name": "demo",
+        "source_shared_inputs": {"ticker": "300470.SZ"},
+    }

@@ -103,7 +103,7 @@ async def test_input_mapping_dict() -> None:
     dags = {"parent": _parent({"symbol": "output.symbol"}), "child": _child()}
     graph = load_graph(dags["parent"], _nodes(), dags)
 
-    await DagRunner(_executor(seen), dags=dags).run(graph, "run", {})
+    await DagRunner(_executor(seen), dags=dags).run(graph, "run")
 
     assert seen["child-source"] == {"symbol": "AAPL"}
 
@@ -128,7 +128,7 @@ async def test_input_mapping_entity() -> None:
     dags = {"parent": _parent("entity://scoring-mapping"), "child": _child()}
     graph = load_graph(dags["parent"], _nodes(), dags)
 
-    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run", {})
+    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run")
 
     assert seen["child-source"] == {"symbol": "AAPL"}
 
@@ -158,7 +158,7 @@ async def test_mapping_application() -> None:
     dags = {"parent": _parent("entity://scoring-mapping"), "child": _child()}
     graph = load_graph(dags["parent"], _nodes(), dags)
 
-    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run", {})
+    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run")
 
     assert seen["child-source"] == {"symbol": "AAPL", "limit": 3}
 
@@ -186,7 +186,7 @@ async def test_input_mapping_entity_node_string_mapping() -> None:
     dags = {"parent": _parent("entity://scoring-mapping"), "child": _child()}
     graph = load_graph(dags["parent"], _nodes(), dags)
 
-    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run", {})
+    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run")
 
     assert seen["child-source"] == {"limit": 3}
 
@@ -214,6 +214,27 @@ async def test_input_mapping_entity_node_string_mapping_missing_path_skips_node_
     dags = {"parent": _parent("entity://scoring-mapping"), "child": _child()}
     graph = load_graph(dags["parent"], _nodes(), dags)
 
-    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run", {})
+    await DagRunner(_executor(seen, store), dags=dags).run(graph, "run")
 
-    assert seen["child-source"] == {"output": {"symbol": "AAPL", "config": {"limit": 3}}}
+    assert seen["child-source"] is None
+
+
+@pytest.mark.asyncio
+async def test_sub_dag_without_input_mapping_source_is_empty() -> None:
+    seen: dict[str, object] = {}
+    parent = DagConfig.model_validate(
+        {
+            "name": "parent",
+            "nodes": [
+                {"id": "parent", "type": "parent-node"},
+                {"id": "child", "type": "dag", "dag_ref": "child"},
+            ],
+            "edges": [{"from": "parent", "to": "child"}],
+        }
+    )
+    dags = {"parent": parent, "child": _child()}
+    graph = load_graph(dags["parent"], _nodes(), dags)
+
+    await DagRunner(_executor(seen), dags=dags).run(graph, "run")
+
+    assert seen["child-source"] is None

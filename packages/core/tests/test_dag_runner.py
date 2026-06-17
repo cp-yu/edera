@@ -111,7 +111,6 @@ async def test_runtime_save_error_consistency_multilayer_run():
     result = await DagRunner(executor, dags=dags, nodes=nodes).run(
         load_graph(pipeline_a, nodes, dags),
         "run-1",
-        None,
     )
 
     assert result.failures["step-b"] == str(save_exc.value)
@@ -143,7 +142,6 @@ async def test_runtime_save_error_consistency_nested_non_root_cycle():
     result = await DagRunner(executor, dags=dags, nodes=nodes).run(
         load_graph(pipeline_a, nodes, dags),
         "run-1",
-        None,
     )
 
     assert result.failures["step-b"] == str(save_exc.value)

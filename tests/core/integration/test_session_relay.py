@@ -228,7 +228,7 @@ async def test_parallel_branches_serialized_by_session_group(tmp_path: Path) -> 
         )
 
         runner = DagRunner(executor)
-        result = await runner.run(graph, "run-1", {"initial": "payload"})
+        result = await runner.run(graph, "run-1", source_shared_inputs={"initial": "payload"})
 
         assert result.failures == {}
         assert "B" in result.node_outputs
@@ -379,7 +379,7 @@ async def test_group_sharing_and_precise_continuation(tmp_path: Path) -> None:
         )
 
         runner = DagRunner(executor)
-        result = await runner.run(graph, "run-1", {})
+        result = await runner.run(graph, "run-1")
 
         assert result.failures == {}
 
@@ -455,7 +455,7 @@ async def test_cross_dag_waiting_and_timeout(tmp_path: Path) -> None:
         )
 
         runner_main = DagRunner(executor_main)
-        result_main = await runner_main.run(main_graph, "main-run-1", {})
+        result_main = await runner_main.run(main_graph, "main-run-1")
         assert result_main.failures == {}
 
         # 标记 session 为 completed
@@ -493,7 +493,7 @@ async def test_cross_dag_waiting_and_timeout(tmp_path: Path) -> None:
         )
 
         runner_skill = DagRunner(executor_skill)
-        result_skill = await runner_skill.run(skill_graph, "skill-run-1", {})
+        result_skill = await runner_skill.run(skill_graph, "skill-run-1")
 
         # 验证: X 成功续接源会话
         assert result_skill.failures == {}
@@ -562,11 +562,11 @@ async def test_list_consumption_no_duplicate(tmp_path: Path) -> None:
         runner_main = DagRunner(executor_main)
 
         # 创建两个 completed sessions
-        result1 = await runner_main.run(main_graph, "main-run-1", {})
+        result1 = await runner_main.run(main_graph, "main-run-1")
         assert result1.failures == {}
         await registry.finish("relay-main", "task-1", "main-run-1", "completed")
 
-        result2 = await runner_main.run(main_graph, "main-run-2", {})
+        result2 = await runner_main.run(main_graph, "main-run-2")
         assert result2.failures == {}
         await registry.finish("relay-main", "task-1", "main-run-2", "completed")
 

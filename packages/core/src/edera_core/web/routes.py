@@ -144,17 +144,13 @@ async def api_source_repair_task(request: Request, source_name: str) -> Any:
 @router.post("/api/dags/{dag_name}/run", response_model=None)
 async def api_dag_run(request: Request, dag_name: str) -> Any:
     body = await _body(request)
-    payload = body["inputs"] if "inputs" in body else body.get("payload") if "payload" in body else body
     source_shared_inputs = body.get("sourceSharedInputs")
     node_inputs = body.get("nodeInputs")
     append_nodes = body.get("appendNodes")
-    temp_keys = {"sourceSharedInputs", "nodeInputs", "appendNodes"}
-    payload = {key: value for key, value in payload.items() if key not in temp_keys} if isinstance(payload, dict) else payload
     return await _call(
         request,
         lambda client: client.dag_run(
             dag_name,
-            payload if payload != {} else None,
             source_shared_inputs=source_shared_inputs,
             node_inputs=node_inputs if isinstance(node_inputs, dict) else None,
             append_nodes=append_nodes if isinstance(append_nodes, list) else None,
@@ -191,7 +187,6 @@ async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]
     run_id = body.get("run_id")
     node_ids = body.get("node_ids")
     mode = body.get("mode")
-    payload = body.get("payload")
     source_shared_inputs = body.get("sourceSharedInputs")
     node_inputs = body.get("nodeInputs")
     append_nodes = body.get("appendNodes")
@@ -202,7 +197,6 @@ async def api_dag_retry(request: Request, dag_name: str, body: dict[str, object]
             run_id if isinstance(run_id, str) else "",
             [node_id for node_id in node_ids if isinstance(node_id, str)] if isinstance(node_ids, list) else [],
             mode if isinstance(mode, str) else "single",
-            payload,
             source_shared_inputs=source_shared_inputs,
             node_inputs=node_inputs if isinstance(node_inputs, dict) else None,
             append_nodes=append_nodes if isinstance(append_nodes, list) else None,

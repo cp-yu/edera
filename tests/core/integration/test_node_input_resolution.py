@@ -89,9 +89,19 @@ async def test_source_no_temp_input() -> None:
     graph = load_graph(_dag(), _nodes())
     graph.instances["source"].config["default_entity"] = {"symbol": "AAPL"}
 
-    result = await DagRunner(_executor(seen)).run(graph, "run", {"symbol": "MSFT"})
+    result = await DagRunner(_executor(seen)).run(graph, "run")
 
     assert result.node_outputs["source"].payload == {"symbol": "AAPL"}
+
+
+@pytest.mark.asyncio
+async def test_source_no_temp_input_no_default_is_none() -> None:
+    seen: dict[str, object] = {}
+    graph = load_graph(_dag(), _nodes())
+
+    result = await DagRunner(_executor(seen)).run(graph, "run")
+
+    assert result.node_outputs["source"].payload is None
 
 
 @pytest.mark.asyncio
@@ -103,7 +113,6 @@ async def test_node_inputs_replace() -> None:
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {},
         node_inputs={"source": {"symbol": "MSFT"}},
     )
 
@@ -119,7 +128,6 @@ async def test_node_inputs_append() -> None:
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {},
         node_inputs={"source": {"limit": 5}},
         append_nodes={"source"},
     )
@@ -137,7 +145,6 @@ async def test_source_shared_inputs() -> None:
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {},
         source_shared_inputs={"shared": True},
     )
 
@@ -153,7 +160,6 @@ async def test_non_source_node_inputs_replace() -> None:
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {"base": True},
         node_inputs={"worker": {"override": True}},
     )
 
@@ -168,7 +174,7 @@ async def test_non_source_node_inputs_append() -> None:
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {"limit": 10, "symbol": "AAPL"},
+        source_shared_inputs={"limit": 10, "symbol": "AAPL"},
         node_inputs={"worker": {"limit": 5}},
         append_nodes={"worker"},
     )
@@ -185,7 +191,6 @@ async def test_non_source_ignores_source_shared_inputs_without_node_override() -
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {},
         source_shared_inputs={"shared": True},
     )
 
@@ -201,7 +206,6 @@ async def test_node_inputs_override_source_shared_inputs() -> None:
     await DagRunner(_executor(seen)).run(
         graph,
         "run",
-        {},
         source_shared_inputs={"shared": True},
         node_inputs={"source": {"symbol": "MSFT"}},
     )
