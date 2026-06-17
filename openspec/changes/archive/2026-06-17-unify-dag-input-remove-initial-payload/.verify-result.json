@@ -97,7 +97,7 @@
       }
     ],
     "skippedEvidenceFiles": [],
-    "gitHeadCommit": "e48f3a4adb85aa55ac5d180870bea63c3529c1da",
+    "gitHeadCommit": "fca872a647b8b8a3881571a45908ba02688fc667",
     "timestamp": "2026-06-17T06:55:30.598Z"
   },
   "optimization": {
@@ -223,7 +223,7 @@
           }
         ],
         "skippedEvidenceFiles": [],
-        "gitHeadCommit": "e48f3a4adb85aa55ac5d180870bea63c3529c1da"
+        "gitHeadCommit": "fca872a647b8b8a3881571a45908ba02688fc667"
       }
     },
     "final": {

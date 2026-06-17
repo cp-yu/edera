@@ -112,9 +112,10 @@ capabilities:
 #### Scenario: Sub DAG 节点输入映射
 
 - **WHEN** Sub DAG 引用节点接收上游输出
-- **THEN** 上游输出 SHALL 作为 Sub DAG 的 initial_payload 传递给所有 source 节点
+- **THEN** 上游输出 SHALL 经 `input_mapping` 映射到子 DAG 的 `sourceSharedInputs`，由子 DAG source 节点接收
 
 #### Scenario: Sub DAG 节点输出映射
 
 - **WHEN** Sub DAG 执行完成
 - **THEN** Sub DAG 的 sink 节点输出 SHALL 作为 Sub DAG 引用节点的输出传递给下游节点
+

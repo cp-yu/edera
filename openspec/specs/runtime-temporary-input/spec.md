@@ -5,12 +5,17 @@
 ## Requirements
 ### Requirement: 节点输入三步解析逻辑
 
-系统 SHALL 按照三步顺序解析节点输入：Step 1 计算 base 输入，Step 2 检查临时输入，Step 3 应用输入模式。
+系统 SHALL 按照三步顺序解析节点输入：Step 1 计算 base 输入，Step 2 检查临时输入，Step 3 应用输入模式。对于 source 节点，base 输入为 `node.config.default_entity`；当 source 节点既无 `sourceSharedInputs` 也无 `default_entity` 时，节点输入 SHALL 为空。
 
 #### Scenario: Source 节点无临时输入使用默认配置
 
 - **WHEN** source 节点没有临时输入
 - **THEN** 节点输入为 `node.config.default_entity`
+
+#### Scenario: Source 节点无临时输入且无默认配置
+
+- **WHEN** source 节点既没有临时输入也没有 `default_entity`
+- **THEN** 节点输入 SHALL 为空
 
 #### Scenario: 非 source 节点无临时输入聚合前驱输出
 
