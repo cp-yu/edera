@@ -90,6 +90,8 @@ class EventGroup:
 
     async def consume(self, tokens: Iterable[str]) -> None:
         for token in tokens:
+            if token == "startup":
+                continue
             await self.clear(token)
 
 
@@ -212,6 +214,7 @@ class TriggerExecutor:
         await self.events.set(event)
         await self._wake_waiters(payload)
         fired: list[str] = []
+        startup_active = "startup" in self.events.events
         for trigger in self._affected_triggers(event):
             if trigger.attributes.get("enabled", True) is False:
                 continue
@@ -219,7 +222,8 @@ class TriggerExecutor:
             if expr is None or not expr.evaluate(self.events.events):
                 continue
             target = str(trigger.attributes.get("target", ""))
-            await self.fire(target, payload, depth + 1, f"trigger:{trigger.id}")
+            source = "startup" if startup_active and "startup" in expr.tokens else f"trigger:{trigger.id}"
+            await self.fire(target, payload, depth + 1, source)
             fired.append(target)
             await self.events.consume(expr.matched_tokens(self.events.events) - self.waiters.active_tokens())
             if _is_oneshot(expr.tokens):

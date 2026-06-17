@@ -389,8 +389,8 @@ class DagRun(SQLModel, table=True):
     @field_validator("source")
     @classmethod
     def _valid_source(cls, value: str) -> str:
-        if value not in {"manual", "retry"} and not value.startswith("trigger:"):
-            raise ValueError("source must be manual, retry, or trigger:<name>")
+        if value not in {"manual", "startup", "retry"} and not value.startswith("trigger:"):
+            raise ValueError("source must be manual, startup, retry, or trigger:<name>")
         return value
 
     @field_validator("status")

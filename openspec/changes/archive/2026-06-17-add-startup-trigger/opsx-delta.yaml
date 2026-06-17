@@ -1,0 +1,11 @@
+schema_version: 1
+ADDED: {}
+MODIFIED:
+  capabilities:
+    - id: cap.operations.dag-control
+      intent: "DAG 运行控制能力；DagController.start() 完成初始化后 SHALL 打开可配置的 startup 窗口（默认 10s），在窗口期内对每个声明 wait_for: 'startup' 的 enabled Trigger fire 一次，DagRun.source 标记为 startup；shutdown 取消窗口与运行中 run，不补跑；启动前 SHALL clear 残留 startup bit"
+    - id: cap.trigger-system
+      intent: "Trigger Entity 触发规则；startup 为合法 wait_for token，是广播位（不参与 consume），窗口期内多个 startup trigger 共存触发"
+    - id: cap.data.data-models
+      intent: "共享数据模型覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本；DagRun.source 允许 manual、startup、retry、trigger:<name>"
+REMOVED: {}

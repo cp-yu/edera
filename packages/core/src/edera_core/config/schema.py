@@ -27,6 +27,7 @@ class SystemConfig(BaseModel):
     database_url: str = "sqlite+aiosqlite:///data/edera.db"
     schedule_minutes: int = Field(default=30, ge=1)
     max_trigger_depth: int = Field(default=3, ge=1)
+    startup_window_seconds: int = Field(default=10, ge=1)
     log_level: str = "INFO"
     llm_timeout_seconds: float = Field(default=60.0, ge=0)
     workspace_root: Path = Path("/tmp/edera/runs")

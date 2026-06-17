@@ -1,0 +1,278 @@
+{
+  "timestamp": "2026-06-17T14:47:25.405Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "MINOR",
+      "category": "cleanliness",
+      "task_id": "3",
+      "location": "openspec/changes/add-startup-trigger/tasks.md:86",
+      "message": "Task 3 Files 未声明 test_system_config.py，但其中新增 startup_window_seconds 默认值/自定义值测试；属归因漂移，已与 test_config_loader.py 同源覆盖。"
+    }
+  ],
+  "tasksFileHash": "caae726df3d6a7bb8366ad92bf42825bfb43bd46d5729d32a8a8375c5de74fec",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "clean-context-subagent",
+    "evidenceFiles": [
+      "GLOSSARY.md",
+      "config/system.toml",
+      "openspec/changes/add-startup-trigger/design.md",
+      "openspec/changes/add-startup-trigger/opsx-delta.yaml",
+      "openspec/changes/add-startup-trigger/proposal.md",
+      "openspec/changes/add-startup-trigger/specs/dag-control/spec.md",
+      "openspec/changes/add-startup-trigger/specs/trigger-system/spec.md",
+      "openspec/changes/add-startup-trigger/tasks.md",
+      "openspec/project.opsx.yaml",
+      "packages/core/src/edera_core/config/loader.py",
+      "packages/core/src/edera_core/config/schema.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/engine.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/storage/entities.py",
+      "packages/core/src/edera_core/trigger.py",
+      "packages/core/tests/test_config_loader.py",
+      "packages/core/tests/test_dag_controller.py",
+      "packages/core/tests/test_system_config.py",
+      "packages/core/tests/test_trigger_system.py"
+    ],
+    "evidenceFingerprint": "d6f3f73fdea77c47c89b28b9668921a93c0089938cd1e581c3e80cd7de9bd76f",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "config/system.toml",
+        "hash": "0a4436a9ce89e234d0976c51c615ea488e3cccb9701fd19cc911002c8cd16210"
+      },
+      {
+        "path": "GLOSSARY.md",
+        "hash": "5c8622f1e6a7cad325d2e21fc6028a51268f75687d2fcdef9b9404de26460aa0"
+      },
+      {
+        "path": "openspec/changes/add-startup-trigger/design.md",
+        "hash": "51d50c201b0f9fd65fe8536ae4d9a0aa828a625f301a4a08a7b7d5b35cdb73d3"
+      },
+      {
+        "path": "openspec/changes/add-startup-trigger/opsx-delta.yaml",
+        "hash": "ed7c5f0c028afacb79b505aa31261210a5d544beebd609d7c1581d17f1d88d47"
+      },
+      {
+        "path": "openspec/changes/add-startup-trigger/proposal.md",
+        "hash": "37c8bb54303df3dcfd975e1f47fcdcaaee806e26a82e83c94637737263884d37"
+      },
+      {
+        "path": "openspec/changes/add-startup-trigger/specs/dag-control/spec.md",
+        "hash": "abf4b81bfe21d57e01d303943f3377edad2e861657818fabc56a6ecc98647ad1"
+      },
+      {
+        "path": "openspec/changes/add-startup-trigger/specs/trigger-system/spec.md",
+        "hash": "2de3dfd42b7b358d4d54c7750a5151780711d64443817fa2f9c856065f8c4d2c"
+      },
+      {
+        "path": "openspec/changes/add-startup-trigger/tasks.md",
+        "hash": "caae726df3d6a7bb8366ad92bf42825bfb43bd46d5729d32a8a8375c5de74fec"
+      },
+      {
+        "path": "openspec/project.opsx.yaml",
+        "hash": "4dcce0ca7665435cfcb0698baae730d176752d15ec9b0a0724f936a1f3e01afb"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/loader.py",
+        "hash": "b05c5110a0598464e09f7b8f32c5f02695223286ab28ec97c21ebb2d48a98b8f"
+      },
+      {
+        "path": "packages/core/src/edera_core/config/schema.py",
+        "hash": "8bc2ace5ec0a9e105f8c306cc08eda3935b7f8e65abd481279d991af93de357b"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "0868df881ccd8d7af7527cf52aa8c2ac2d291de2246fceede08bd26c433667c9"
+      },
+      {
+        "path": "packages/core/src/edera_core/engine.py",
+        "hash": "eac1c96ed4e402785e6e26a4c58a05e2c0083233efaa769e5f0feadceabac9e6"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "013d19b98a726288d28cc862d9fc97eabaf7f9b8b9839d8e23df8f10b88aa42f"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/entities.py",
+        "hash": "539101aa1e0517fab21b64114a392a2ad5683e22a767dff7218247c484d599d7"
+      },
+      {
+        "path": "packages/core/src/edera_core/trigger.py",
+        "hash": "5e41206304f63982a318e626a6353097e47f6abf6168b74675a5aa22e6891589"
+      },
+      {
+        "path": "packages/core/tests/test_config_loader.py",
+        "hash": "1ad9dfddc6ffef45aeaeff5a970d45eb15ab849c5d2809454a29e3908c4d07ee"
+      },
+      {
+        "path": "packages/core/tests/test_dag_controller.py",
+        "hash": "248f940b9b58413222f03c772a3f0c26aaf742b13ada9f824d1924cfea3c1b28"
+      },
+      {
+        "path": "packages/core/tests/test_system_config.py",
+        "hash": "4a822be5fe245013573414ede097c36b3787851791720d9d34daac622d48d5e1"
+      },
+      {
+        "path": "packages/core/tests/test_trigger_system.py",
+        "hash": "9ab629c00bc32eb954668db9155b9ac611b212d31dcbb574c84e45c293bdf7ca"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "928756790955f5dcf52c695c844b9a509e2fb57a",
+    "timestamp": "2026-06-17T14:59:56.106Z"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-17T14:57:09.749Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "shutdown() in dag_controller.py contained three near-identical cancel+await+except-CancelledError blocks. Extracting a private _cancel_task helper removes ~12 lines of duplicated boilerplate while preserving identical semantics.",
+        "files": [
+          "packages/core/src/edera_core/dag_controller.py"
+        ]
+      },
+      {
+        "timestamp": "2026-06-17T14:59:56.094Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/dag_controller.py": "6f585c8fad7ad872f8fd8780dcb8d93819bb500648bd55f64c9eed320f2063ff"
+    },
+    "baseline": {
+      "timestamp": "2026-06-17T14:47:25.405Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "MINOR",
+          "category": "cleanliness",
+          "task_id": "3",
+          "location": "openspec/changes/add-startup-trigger/tasks.md:86",
+          "message": "Task 3 Files 未声明 test_system_config.py，但其中新增 startup_window_seconds 默认值/自定义值测试；属归因漂移，已与 test_config_loader.py 同源覆盖。"
+        }
+      ],
+      "tasksFileHash": "caae726df3d6a7bb8366ad92bf42825bfb43bd46d5729d32a8a8375c5de74fec",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "clean-context-subagent",
+        "evidenceFiles": [
+          "GLOSSARY.md",
+          "config/system.toml",
+          "openspec/changes/add-startup-trigger/design.md",
+          "openspec/changes/add-startup-trigger/opsx-delta.yaml",
+          "openspec/changes/add-startup-trigger/proposal.md",
+          "openspec/changes/add-startup-trigger/specs/dag-control/spec.md",
+          "openspec/changes/add-startup-trigger/specs/trigger-system/spec.md",
+          "openspec/changes/add-startup-trigger/tasks.md",
+          "openspec/project.opsx.yaml",
+          "packages/core/src/edera_core/config/loader.py",
+          "packages/core/src/edera_core/config/schema.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/engine.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/storage/entities.py",
+          "packages/core/src/edera_core/trigger.py",
+          "packages/core/tests/test_config_loader.py",
+          "packages/core/tests/test_dag_controller.py",
+          "packages/core/tests/test_system_config.py",
+          "packages/core/tests/test_trigger_system.py"
+        ],
+        "evidenceFingerprint": "f05a2dd3dc371aad39f01edce847880a75633c21c3677f1e549461689d3977ad",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "config/system.toml",
+            "hash": "0a4436a9ce89e234d0976c51c615ea488e3cccb9701fd19cc911002c8cd16210"
+          },
+          {
+            "path": "GLOSSARY.md",
+            "hash": "5c8622f1e6a7cad325d2e21fc6028a51268f75687d2fcdef9b9404de26460aa0"
+          },
+          {
+            "path": "openspec/changes/add-startup-trigger/design.md",
+            "hash": "51d50c201b0f9fd65fe8536ae4d9a0aa828a625f301a4a08a7b7d5b35cdb73d3"
+          },
+          {
+            "path": "openspec/changes/add-startup-trigger/opsx-delta.yaml",
+            "hash": "ed7c5f0c028afacb79b505aa31261210a5d544beebd609d7c1581d17f1d88d47"
+          },
+          {
+            "path": "openspec/changes/add-startup-trigger/proposal.md",
+            "hash": "37c8bb54303df3dcfd975e1f47fcdcaaee806e26a82e83c94637737263884d37"
+          },
+          {
+            "path": "openspec/changes/add-startup-trigger/specs/dag-control/spec.md",
+            "hash": "abf4b81bfe21d57e01d303943f3377edad2e861657818fabc56a6ecc98647ad1"
+          },
+          {
+            "path": "openspec/changes/add-startup-trigger/specs/trigger-system/spec.md",
+            "hash": "2de3dfd42b7b358d4d54c7750a5151780711d64443817fa2f9c856065f8c4d2c"
+          },
+          {
+            "path": "openspec/changes/add-startup-trigger/tasks.md",
+            "hash": "caae726df3d6a7bb8366ad92bf42825bfb43bd46d5729d32a8a8375c5de74fec"
+          },
+          {
+            "path": "openspec/project.opsx.yaml",
+            "hash": "400ac3ba16b6c5ea358f3826b493468a5c578d441477788e5cada3c8eeb4d9da"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/loader.py",
+            "hash": "b05c5110a0598464e09f7b8f32c5f02695223286ab28ec97c21ebb2d48a98b8f"
+          },
+          {
+            "path": "packages/core/src/edera_core/config/schema.py",
+            "hash": "8bc2ace5ec0a9e105f8c306cc08eda3935b7f8e65abd481279d991af93de357b"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "6f585c8fad7ad872f8fd8780dcb8d93819bb500648bd55f64c9eed320f2063ff"
+          },
+          {
+            "path": "packages/core/src/edera_core/engine.py",
+            "hash": "eac1c96ed4e402785e6e26a4c58a05e2c0083233efaa769e5f0feadceabac9e6"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "013d19b98a726288d28cc862d9fc97eabaf7f9b8b9839d8e23df8f10b88aa42f"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/entities.py",
+            "hash": "539101aa1e0517fab21b64114a392a2ad5683e22a767dff7218247c484d599d7"
+          },
+          {
+            "path": "packages/core/src/edera_core/trigger.py",
+            "hash": "5e41206304f63982a318e626a6353097e47f6abf6168b74675a5aa22e6891589"
+          },
+          {
+            "path": "packages/core/tests/test_config_loader.py",
+            "hash": "1ad9dfddc6ffef45aeaeff5a970d45eb15ab849c5d2809454a29e3908c4d07ee"
+          },
+          {
+            "path": "packages/core/tests/test_dag_controller.py",
+            "hash": "248f940b9b58413222f03c772a3f0c26aaf742b13ada9f824d1924cfea3c1b28"
+          },
+          {
+            "path": "packages/core/tests/test_system_config.py",
+            "hash": "4a822be5fe245013573414ede097c36b3787851791720d9d34daac622d48d5e1"
+          },
+          {
+            "path": "packages/core/tests/test_trigger_system.py",
+            "hash": "9ab629c00bc32eb954668db9155b9ac611b212d31dcbb574c84e45c293bdf7ca"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "0494fd5c2b775134b1a66e8e82e502903c8c508f"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

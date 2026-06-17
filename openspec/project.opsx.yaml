@@ -65,7 +65,7 @@ capabilities:
     type: capability
     domain: dom.web
   - id: cap.operations.dag-control
-    intent: DAG 控制器增加临时输入参数支持
+    intent: "DAG 运行控制能力；DagController.start() 完成初始化后 SHALL 打开可配置的 startup 窗口（默认 10s），在窗口期内对每个声明 wait_for: 'startup' 的 enabled Trigger fire 一次，DagRun.source 标记为 startup；shutdown 取消窗口与运行中 run，不补跑；启动前 SHALL clear 残留 startup bit"
     type: capability
     domain: dom.operations
   - id: cap.operations.node-executor
@@ -81,7 +81,7 @@ capabilities:
     type: capability
     domain: dom.config
   - id: cap.data.data-models
-    intent: 共享数据模型覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本；DagRun.source 仅允许 manual、retry、trigger:<name>
+    intent: 共享数据模型覆盖 DagRun、NodeRun、NodeOutput、EdgeInput、RawItem、AnalysisResult、Advice、Briefing 和迁移脚本；DagRun.source 允许 manual、startup、retry、trigger:<name>
     type: capability
     domain: dom.data
   - id: cap.entity-management-page
@@ -107,7 +107,7 @@ capabilities:
     intent: Entity 三层存储中核心配置型 Entity 迁移为 DB-backed per-type tables，YAML 仅作为 import/export/template 格式；输出型 Entity 和瞬态 Entity 边界保持独立
     type: capability
   - id: cap.trigger-system
-    intent: Trigger target 中的 node 目标使用 node:<dag_name>/<node_id>，不再支持全局 node:<id> 反查。
+    intent: Trigger Entity 触发规则；startup 为合法 wait_for token，是广播位（不参与 consume），窗口期内多个 startup trigger 共存触发
     type: capability
   - id: cap.dag-condition-branch
     intent: DAG edge 条件分支，可替换 condition evaluator handler，支持 output.* + entity ref + 常量

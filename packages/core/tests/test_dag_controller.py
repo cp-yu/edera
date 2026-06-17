@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from edera_core.bootstrap import BootstrapResult
+from edera_core.config.entities import EntityStore
 from edera_core.config.schema import AppConfig, DagConfig, DagNodeInstance, EntityConfig, EntityTypeConfig, EntitiesConfig, EntityRelationsConfig, NodeConfig, RuntimeSettings, SystemConfig
 from edera_core.dag.loader import load_graph
 from edera_core.dag_controller import DagController, RuntimeControlSnapshot, _parse_node_trigger_target
@@ -14,6 +15,7 @@ from edera_core.node.models import NodeOutput
 from edera_core.snapshot import DagExecutionSnapshot
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.repository import create_dag_run, create_ordinary_entity, create_relation, finish_dag_run, recent_dag_runs, save_core_entity, save_installed_extension
+from edera_core.trigger import TriggerExpression
 
 
 @pytest.mark.asyncio
@@ -503,6 +505,21 @@ async def _seed_demo_core(session) -> None:
 
 
 @pytest.mark.asyncio
+async def test_controller_start_idle_no_startup_trigger(tmp_path):
+    controller, _factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[])
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        raise AssertionError(f"unexpected start_run: source={source} dag={dag_name}")
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(10)
+        assert controller.active_runs == {}
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
 async def test_trigger_run_dag_injects_payload_as_source_shared_inputs(tmp_path):
     controller = _controller(tmp_path)
     captured: dict[str, object] = {}
@@ -523,3 +540,226 @@ async def test_trigger_run_dag_injects_payload_as_source_shared_inputs(tmp_path)
         "dag_name": "demo",
         "source_shared_inputs": {"ticker": "300470.SZ"},
     }
+
+
+@pytest.mark.asyncio
+async def test_startup_single_trigger_fires_once(tmp_path):
+    controller, factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "boot", "wait_for": "startup", "target": "dag:bootstrap"},
+    ])
+
+    fired: list[tuple[str, str]] = []
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        fired.append((source, dag_name))
+        return "run-startup"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(10)
+        assert fired == [("startup", "bootstrap")]
+        assert "startup" in controller.trigger_executor.events.events
+    finally:
+        await controller.shutdown()
+        await factory().bind.cache_clear() if hasattr(factory().bind, "cache_clear") else None
+
+
+@pytest.mark.asyncio
+async def test_startup_multiple_triggers_concurrent(tmp_path):
+    controller, factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "t1", "wait_for": "startup", "target": "dag:alpha"},
+        {"id": "t2", "wait_for": "startup", "target": "dag:beta"},
+        {"id": "t3", "wait_for": "startup", "target": "dag:gamma"},
+    ])
+
+    fired: list[tuple[str, str]] = []
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        fired.append((source, dag_name))
+        return f"run-{dag_name}"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(10)
+        assert fired == [
+            ("startup", "alpha"),
+            ("startup", "beta"),
+            ("startup", "gamma"),
+        ]
+        assert "startup" in controller.trigger_executor.events.events
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_startup_window_expires_clears_bit(tmp_path):
+    controller, _factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "boot", "wait_for": "startup", "target": "dag:bootstrap"},
+    ])
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        return "run-startup"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(0.1)
+        await asyncio.sleep(0.2)
+        assert "startup" not in controller.trigger_executor.events.events
+        expr = TriggerExpression("startup")
+        assert expr.evaluate(set(controller.trigger_executor.events.events)) is False
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_startup_window_configurable(tmp_path):
+    controller, _factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "boot", "wait_for": "startup", "target": "dag:bootstrap"},
+    ])
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        return "run-startup"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(0.1)
+        await asyncio.sleep(0.2)
+        assert "startup" not in controller.trigger_executor.events.events
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_startup_clears_residue_before_window(tmp_path):
+    controller, factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "boot", "wait_for": "startup", "target": "dag:bootstrap"},
+    ])
+
+    from edera_core.storage.entities import EventGroupBit
+    from sqlmodel import select
+
+    async with factory() as session:
+        session.add(EventGroupBit(event="startup"))
+        await session.commit()
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        return "run-startup"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(10)
+        async with factory() as session:
+            rows = (await session.exec(select(EventGroupBit.event))).all()
+        assert list(rows) == ["startup"]
+    finally:
+        await controller.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_shutdown_cancels_startup_run_no_replay(tmp_path):
+    controller, factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "boot", "wait_for": "startup", "target": "dag:bootstrap"},
+    ])
+
+    started = asyncio.Event()
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        started.set()
+        return "run-startup"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    await controller._open_startup_window(10)
+    assert controller._startup_window_task is not None
+    await controller.shutdown()
+    assert controller._startup_window_task.cancelled() or controller._startup_window_task.done()
+
+
+@pytest.mark.asyncio
+async def test_startup_compound_expression_within_window(tmp_path):
+    controller, factory = await _startup_controller(tmp_path, window_seconds=10, triggers=[
+        {"id": "compound", "wait_for": "startup AND event:market-open", "target": "dag:open"},
+    ])
+
+    fired: list[tuple[str, str]] = []
+
+    async def fake_start_run(source="manual", dag_name="default", **_kwargs):
+        fired.append((source, dag_name))
+        return f"run-{dag_name}"
+
+    controller.start_run = fake_start_run  # type: ignore[assignment]
+    try:
+        await controller._open_startup_window(10)
+        assert fired == []
+        await controller.trigger_executor.emit("event:market-open", source="test")
+        assert fired == [("startup", "open")]
+    finally:
+        await controller.shutdown()
+
+
+async def _startup_controller(tmp_path, *, window_seconds: int, triggers: list[dict[str, str]]):
+    from edera_core.config.schema import EntitiesConfig, EntityConfig, EntityRelationsConfig
+    from edera_core.storage import create_engine, init_db, session_factory
+    from edera_core.storage.repository import save_core_entity
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "system.toml").write_text(
+        f'handlers_dir = "{tmp_path / "handlers"}"\nstartup_window_seconds = {window_seconds}\n',
+        encoding="utf-8",
+    )
+
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path / 'edera.db'}")
+    await init_db(engine)
+    factory = session_factory(engine)
+
+    controller = DagController(config_dir)
+    controller.engine = engine
+    controller.factory = factory
+    _install_runtime_state(
+        controller,
+        _app_config(),
+        RuntimeControlSnapshot(SystemConfig(config_git_commit=False), RuntimeSettings(), None, None),
+    )
+
+    store = EntityStore(
+        EntitiesConfig(),
+        _app_config().entity_types,
+        EntityRelationsConfig(),
+        None,
+    )
+    store.memory_entities[""] = {
+        trigger["id"]: EntityConfig(
+            id=str(trigger["id"]),
+            type="trigger",
+            attributes={
+                "name": trigger["id"],
+                "wait_for": trigger["wait_for"],
+                "target": trigger["target"],
+                "enabled": True,
+            },
+        )
+        for trigger in triggers
+    }
+    executor = controller._new_trigger_executor(controller.runtime_config(), store)
+    await executor.load()
+    controller.trigger_executor = executor
+    controller._entity_store = store
+
+    async with factory() as session:
+        for trigger in triggers:
+            await save_core_entity(
+                session,
+                EntityConfig(
+                    id=str(trigger["id"]),
+                    type="trigger",
+                    attributes={
+                        "name": trigger["id"],
+                        "wait_for": trigger["wait_for"],
+                        "target": trigger["target"],
+                        "enabled": True,
+                    },
+                ),
+            )
+        await session.commit()
+
+    return controller, factory

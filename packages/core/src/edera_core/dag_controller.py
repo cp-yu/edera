@@ -120,6 +120,7 @@ class DagController:
         self.trigger_executor: TriggerExecutor | None = None
         self.cron_emitter: CronEmitter | None = None
         self._cron_task: asyncio.Task[object] | None = None
+        self._startup_window_task: asyncio.Task[object] | None = None
         self._snapshot: RuntimeControlSnapshot | None = None
         self._runtime_config: AppConfig | None = None
         self._bootstrap: BootstrapResult | None = None
@@ -128,7 +129,7 @@ class DagController:
         self._snapshot_lock = asyncio.Lock()
         self._snapshot_generation = 0
 
-    async def start(self, run_startup: bool = True) -> None:
+    async def start(self) -> None:
         system = load_system_config(self.config_dir / "system.toml")
         self.engine = create_engine(_daemon_database_url(system.database_url, self.daemon_data_dir))
         await init_db(self.engine)
@@ -138,25 +139,42 @@ class DagController:
         await self.install_snapshot(config, bootstrap)
         self.scheduler.start()
         self._cron_task = asyncio.create_task(self._cron_loop())
+        await self._open_startup_window(system.startup_window_seconds)
 
     async def shutdown(self) -> None:
-        if self._cron_task is not None:
-            self._cron_task.cancel()
-            try:
-                await self._cron_task
-            except asyncio.CancelledError:
-                pass
+        await self._cancel_task(self._cron_task)
+        await self._cancel_task(self._startup_window_task)
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
         for ctx in list(self.active_runs.values()):
             if not ctx.task.done():
-                ctx.task.cancel()
-                try:
-                    await ctx.task
-                except asyncio.CancelledError:
-                    pass
+                await self._cancel_task(ctx.task)
         if self.engine is not None:
             await self.engine.dispose()
+
+    async def _cancel_task(self, task: asyncio.Task[object] | None) -> None:
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    async def _open_startup_window(self, window_seconds: float) -> None:
+        if self.trigger_executor is None:
+            return
+        await self.trigger_executor.events.clear("startup")
+        await self.trigger_executor.emit("startup", source="startup")
+        self._startup_window_task = asyncio.create_task(self._startup_window_loop(window_seconds))
+
+    async def _startup_window_loop(self, window_seconds: float) -> None:
+        try:
+            await asyncio.sleep(window_seconds)
+        except asyncio.CancelledError:
+            raise
+        if self.trigger_executor is not None:
+            await self.trigger_executor.events.clear("startup")
 
     async def start_run(
         self,
@@ -986,7 +1004,7 @@ class DagController:
 def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str]:
     async def _load() -> tuple[NodeExecutor, str]:
         controller = DagController(config_dir)
-        await controller.start(run_startup=False)
+        await controller.start()
         try:
             config = controller.runtime_config()
             async with controller._factory()() as session:
@@ -1014,7 +1032,7 @@ def build_executor(config_dir: Path = Path("config")) -> tuple[NodeExecutor, str
 
 async def run_default_run(config_dir: Path = Path("config")) -> object:
     controller = DagController(config_dir)
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         run_id = await controller.run_now("manual")
         async with controller._factory()() as session:
