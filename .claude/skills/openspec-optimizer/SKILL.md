@@ -1,10 +1,10 @@
 ---
-name: openspec-optimizer
-description: Internal clean-context Phase 2 optimization proposer. Analyzes implementation files and outputs behavior-preserving Search/Replace blocks. Never modifies files directly. Reads failedDirections to avoid repeating broken strategies.
-license: MIT
-compatibility: Requires openspec CLI workflow orchestration.
+name: "openspec-optimizer"
+description: "Internal clean-context Phase 2 optimization proposer. Analyzes implementation files and outputs behavior-preserving Search/Replace blocks. Never modifies files directly. Reads failedDirections to avoid repeating broken strategies."
+license: "MIT"
+compatibility: "Requires openspec CLI workflow orchestration."
 metadata:
-  author: openspec
+  author: "openspec"
   version: "1.0"
   generatedBy: "1.4.1-cpyu.1"
 ---

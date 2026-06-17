@@ -1,10 +1,10 @@
 ---
-name: openspec-reviewer
-description: Internal clean-context Phase 1 verification reviewer. Judges implementation completeness, correctness, coherence, and cleanliness by reading files from changeName, changeDir, and projectRoot. Never accesses conversation history.
-license: MIT
-compatibility: Requires openspec CLI workflow orchestration.
+name: "openspec-reviewer"
+description: "Internal clean-context Phase 1 verification reviewer. Judges implementation completeness, correctness, coherence, and cleanliness by reading files from changeName, changeDir, and projectRoot. Never accesses conversation history."
+license: "MIT"
+compatibility: "Requires openspec CLI workflow orchestration."
 metadata:
-  author: openspec
+  author: "openspec"
   version: "1.0"
   generatedBy: "1.4.1-cpyu.1"
 ---

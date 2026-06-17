@@ -1,10 +1,10 @@
 ---
-name: openspec-archive-change
-description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a completed change after implementation is complete.
-license: MIT
-compatibility: Requires openspec CLI.
+name: "openspec-archive-change"
+description: "Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a completed change after implementation is complete."
+license: "MIT"
+compatibility: "Requires openspec CLI."
 metadata:
-  author: openspec
+  author: "openspec"
   version: "1.0"
   generatedBy: "1.4.1-cpyu.1"
 ---

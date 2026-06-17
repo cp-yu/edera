@@ -1,10 +1,10 @@
 ---
-name: openspec-impact-sweeper
-description: Generate a lightweight OPSX-grounded JSON impact report for one project concept. Use from explore before scope or proposal readiness claims.
-license: MIT
-compatibility: Requires openspec CLI project files.
+name: "openspec-impact-sweeper"
+description: "Generate a lightweight OPSX-grounded JSON impact report for one project concept. Use from explore before scope or proposal readiness claims."
+license: "MIT"
+compatibility: "Requires openspec CLI project files."
 metadata:
-  author: openspec
+  author: "openspec"
   version: "1.0"
   generatedBy: "1.4.1-cpyu.1"
 ---

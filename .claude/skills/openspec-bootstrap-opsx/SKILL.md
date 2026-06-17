@@ -1,10 +1,10 @@
 ---
-name: openspec-bootstrap-opsx
-description: Bootstrap OPSX architecture map from existing codebase using a structured five-phase workflow (init → scan → map → review → promote).
-license: MIT
-compatibility: Requires openspec CLI.
+name: "openspec-bootstrap-opsx"
+description: "Bootstrap OPSX architecture map from existing codebase using a structured five-phase workflow (init → scan → map → review → promote)."
+license: "MIT"
+compatibility: "Requires openspec CLI."
 metadata:
-  author: openspec
+  author: "openspec"
   version: "2.0"
   generatedBy: "1.4.1-cpyu.1"
 ---
