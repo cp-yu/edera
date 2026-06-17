@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from edera_core.config.loader import _load_runtime_base_config, materialize_runtime_app_config
+from edera_core.config.loader import _load_runtime_base_config, load_system_config, materialize_runtime_app_config
 from edera_core.storage import create_engine, init_db, session_factory
 from edera_core.storage.repository import create_skill
 
@@ -29,6 +29,32 @@ async def test_runtime_config_loads_skills_from_database(tmp_path):
 
     assert sorted(config.skills) == ["db-skill"]
     assert config.skills["db-skill"].files == [{"path": "SKILL.md", "content": "# DB"}]
+
+
+def test_startup_window_default_10(tmp_path):
+    root = tmp_path / "config"
+    root.mkdir()
+    (root / "system.toml").write_text(
+        'database_url = "sqlite+aiosqlite:///tmp/test.db"\n',
+        encoding="utf-8",
+    )
+
+    config = load_system_config(root / "system.toml")
+
+    assert config.startup_window_seconds == 10
+
+
+def test_startup_window_custom_value(tmp_path):
+    root = tmp_path / "config"
+    root.mkdir()
+    (root / "system.toml").write_text(
+        'database_url = "sqlite+aiosqlite:///tmp/test.db"\nstartup_window_seconds = 1\n',
+        encoding="utf-8",
+    )
+
+    config = load_system_config(root / "system.toml")
+
+    assert config.startup_window_seconds == 1
 
 
 def _write_runtime_config(root):

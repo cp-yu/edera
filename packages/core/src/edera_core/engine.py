@@ -15,8 +15,8 @@ class Engine:
         self.config: AppConfig | None = None
         self.controller = DagController(self.config_dir, extensions_dirs=self.extensions_dirs)
 
-    async def start(self, run_startup: bool = False) -> None:
-        await self.controller.start(run_startup=run_startup)
+    async def start(self) -> None:
+        await self.controller.start()
         try:
             self.bootstrap = self.controller.bootstrap_result()
             self.config = self.controller.runtime_config()

@@ -1,5 +1,7 @@
 database_url = "sqlite+aiosqlite:///data/edera.db"
 schedule_minutes = 30
+# 启动后保持 `startup` 广播位的窗口秒数；窗口期内 wait_for: 'startup' 的 Trigger 可被触发一次。
+startup_window_seconds = 10
 log_level = "INFO"
 llm_timeout_seconds = 0
 workspace_root = "/tmp/edera/runs"

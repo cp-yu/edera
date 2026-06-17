@@ -106,7 +106,7 @@ class Server:
         self.ca.ensure()
         (self.data_dir / "sessions").mkdir(parents=True, exist_ok=True)
         if self._owns_controller:
-            await self.controller.start(run_startup=False)
+            await self.controller.start()
         if os.environ.get("EDERA_DEV") == "1":
             self.bound_port = self.server.add_insecure_port(self.address)
         else:
