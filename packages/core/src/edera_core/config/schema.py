@@ -33,6 +33,7 @@ class SystemConfig(BaseModel):
     retention_count: int = Field(default=20, ge=0)
     retention_hours: int = Field(default=720, ge=0)
     handlers_dir: Path = Path("data/handlers")
+    skills_dir: Path = Path("data/skills")
     sandbox_max_bytes: int = Field(default=0, ge=0)
     max_dag_depth: int = Field(default=3, ge=1)
     config_git_commit: bool = True
@@ -149,7 +150,6 @@ class FunctionNodeConfig(NodeConfigBase):
     skills: list[str] = Field(default_factory=list)
     system_prompt_file: str | None = None
     system_prompt: str | None = None
-    tools: list[str] = Field(default_factory=list)
     source_names: list[str] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
     parameters_schema: dict[str, Any] = Field(default_factory=dict)
@@ -167,11 +167,6 @@ class FunctionNodeConfig(NodeConfigBase):
         if isinstance(value, list):
             return [item.get("name") if isinstance(item, dict) else item for item in value]
         return value
-
-    @field_validator("tools")
-    @classmethod
-    def _pi_tools(cls, value: list[str]) -> list[str]:
-        return _validate_tools(value)
 
     @field_validator("parameters")
     @classmethod

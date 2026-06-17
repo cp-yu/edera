@@ -1,4 +1,5 @@
 """Tests for Task 6: --session continuation and invocation namespace."""
+import json
 from pathlib import Path
 
 import pytest
@@ -376,26 +377,19 @@ async def test_configured_workdir_overrides_default(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_skills_directory_shared_and_idempotent(tmp_path: Path) -> None:
-    """C21: 验证同组 skills 目录共用且幂等"""
+    """C21: 验证 skills 物化于 data/skills 且 argv 引用物化目录（不在 session_dir/skills）"""
+    skills_dir = tmp_path / "skills"
+    (skills_dir / "test-skill").mkdir(parents=True)
+    (skills_dir / "test-skill" / "SKILL.md").write_text("# Test Skill", encoding="utf-8")
+
+    capture = tmp_path / "args.json"
     pi = tmp_path / "pi"
-    # Use first arg after script name as a way to pass node ID
     pi.write_text(
-        "#!/bin/bash\n"
-        'SESSION_DIR=""; NODE_ID="unknown"\n'
-        '# Extract node ID from runtime context or default\n'
-        'for i in "$@"; do\n'
-        '  if [ "$prev" = "--session-dir" ]; then SESSION_DIR="$i"; fi\n'
-        '  prev="$i"\n'
-        'done\n'
-        '# Infer node ID from invocation dir if it exists\n'
-        'for d in "$SESSION_DIR"/invocations/*; do\n'
-        '  if [ -d "$d" ]; then NODE_ID=$(basename "$d"); break; fi\n'
-        'done\n'
-        '[ -z "$NODE_ID" ] && NODE_ID="agent-a"\n'
-        'mkdir -p "$SESSION_DIR/invocations/$NODE_ID"\n'
-        'ls -la "$SESSION_DIR/skills/" > "$SESSION_DIR/invocations/$NODE_ID/skills_list.txt" 2>&1 || echo "no skills" > "$SESSION_DIR/invocations/$NODE_ID/skills_list.txt"\n'
-        "exit 0\n",
-        encoding="utf-8"
+        "#!/usr/bin/env python3\n"
+        "import json, sys, pathlib\n"
+        f"pathlib.Path({str(capture)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+        "print('ok')\n",
+        encoding="utf-8",
     )
     pi.chmod(0o755)
 
@@ -405,6 +399,7 @@ async def test_skills_directory_shared_and_idempotent(tmp_path: Path) -> None:
         "model": "test-model",
         "input_type": "Any",
         "output_type": "Any",
+        "skills": ["test-skill"],
     })
     node_b = NodeConfig.model_validate({
         "name": "agent-b",
@@ -412,6 +407,7 @@ async def test_skills_directory_shared_and_idempotent(tmp_path: Path) -> None:
         "model": "test-model",
         "input_type": "Any",
         "output_type": "Any",
+        "skills": ["test-skill"],
     })
 
     registry = SessionRegistry(":memory:")
@@ -420,47 +416,29 @@ async def test_skills_directory_shared_and_idempotent(tmp_path: Path) -> None:
     instance_a = DagNodeInstance(id="agent-a", type="agent-a", config={"session": "task-1"})
     instance_b = DagNodeInstance(id="agent-b", type="agent-b", config={"session": "task-1"})
 
-    # Create snapshot with mock skills
-    from dataclasses import replace
-    base_snapshot = _test_snapshot(tmp_path)
-    mock_skill = type('Skill', (), {
-        'name': 'test-skill',
-        'description': 'Test skill',
-        'instructions': 'Do something',
-        'examples': [],
-        'files': [{'path': 'test-skill.md', 'content': '# Test Skill\n'}]
-    })()
-    snapshot = replace(base_snapshot, skills={"test-skill": mock_skill})
-
     try:
 
         executor = NodeExecutor(
             {"agent-a": node_a, "agent-b": node_b},
-            SystemConfig(),
+            SystemConfig(skills_dir=skills_dir),
             RuntimeSettings(pi_bin=str(pi)),
-            snapshot,
+            _test_snapshot(tmp_path),
             instances={"agent-a": instance_a, "agent-b": instance_b},
             daemon_data_dir=tmp_path / "data",
             session_registry=registry,
         )
 
-        # 第一个节点执行
         output_a = await executor.execute("agent-a", NodeInput(run_id="run-1", payload={}))
         assert output_a.ok
 
         session_dir = tmp_path / "data" / "sessions" / "test-dag" / "task-1" / "run-1"
-        skills_dir = session_dir / "skills"
+        # 物化目录不再写入 session_dir/skills
+        assert not (session_dir / "skills").exists()
 
-        # 记录第一次生成后的状态
-        first_mtime = skills_dir.stat().st_mtime if skills_dir.exists() else None
+        args = json.loads(capture.read_text())
+        assert str(skills_dir / "test-skill") in args
 
-        # 第二个节点执行（应该幂等）
         output_b = await executor.execute("agent-b", NodeInput(run_id="run-1", payload={}))
-        assert output_b.ok
-
-        # 验证 skills 目录存在且被共享
-        assert skills_dir.exists()
-        # 验证生成是幂等的（不报错，内容一致）
         assert output_b.ok
     finally:
         await registry.close()

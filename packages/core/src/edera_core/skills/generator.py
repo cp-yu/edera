@@ -1,20 +1,43 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Any
 
 
-def generate_skill_files(session_dir: Path, skills: list[object]) -> Path:
-    skills_dir = session_dir / "skills"
+def generate_skill_files(skills_dir: Path, skills: list[object]) -> Path:
     for skill in skills:
-        name, files = _skill_parts(skill)
-        target = skills_dir / name
-        for item in files:
-            path = _safe_relative_path(str(item["path"]))
-            output = target / path
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(str(item["content"]), encoding="utf-8")
+        refresh_skill_files(skills_dir, skill)
     return skills_dir
+
+
+def refresh_all_skill_files(skills_dir: Path, skills: dict[str, object] | list[object]) -> Path:
+    iterable = skills.values() if isinstance(skills, dict) else skills
+    for skill in iterable:
+        refresh_skill_files(skills_dir, skill)
+    return skills_dir
+
+
+def refresh_skill_files(skills_dir: Path, skill: object) -> Path:
+    name, files = _skill_parts(skill)
+    target = skills_dir / name
+    if target.exists():
+        shutil.rmtree(target)
+    for item in files:
+        path = _safe_relative_path(str(item["path"]))
+        output = target / path
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(str(item["content"]), encoding="utf-8")
+    return target
+
+
+def remove_skill_files(skills_dir: Path, name: str) -> bool:
+    _safe_skill_name(name)
+    target = skills_dir / name
+    if not target.exists():
+        return False
+    shutil.rmtree(target)
+    return True
 
 
 def _skill_parts(skill: object) -> tuple[str, list[dict[str, Any]]]:

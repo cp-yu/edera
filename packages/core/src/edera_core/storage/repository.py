@@ -522,11 +522,16 @@ async def create_skill(
     files: list[dict[str, str]],
     display_name: str | None = None,
     description: str | None = None,
+    skills_dir: Path | None = None,
 ) -> Skill:
     body = _skill_body(files)
     skill = Skill(name=_skill_name(name), display_name=display_name, description=description, config_body=body)
     session.add(skill)
     await session.flush()
+    if skills_dir is not None:
+        from edera_core.skills.generator import refresh_skill_files
+
+        refresh_skill_files(skills_dir, skill_to_config(skill))
     return skill
 
 
@@ -536,6 +541,7 @@ async def update_skill(
     files: list[dict[str, str]],
     display_name: str | None = None,
     description: str | None = None,
+    skills_dir: Path | None = None,
 ) -> Skill:
     skill = await get_skill(session, name)
     if skill is None:
@@ -546,6 +552,10 @@ async def update_skill(
     skill.updated_at = utc_now()
     session.add(skill)
     await session.flush()
+    if skills_dir is not None:
+        from edera_core.skills.generator import refresh_skill_files
+
+        refresh_skill_files(skills_dir, skill_to_config(skill))
     return skill
 
 
@@ -555,11 +565,12 @@ async def upsert_skill(
     files: list[dict[str, str]],
     display_name: str | None = None,
     description: str | None = None,
+    skills_dir: Path | None = None,
 ) -> Skill:
     current = await get_skill(session, name)
     if current is None:
-        return await create_skill(session, name, files, display_name, description)
-    return await update_skill(session, name, files, display_name, description)
+        return await create_skill(session, name, files, display_name, description, skills_dir)
+    return await update_skill(session, name, files, display_name, description, skills_dir)
 
 
 async def get_skill(session: AsyncSession, name: str) -> Skill | None:
@@ -567,12 +578,16 @@ async def get_skill(session: AsyncSession, name: str) -> Skill | None:
     return result.first()
 
 
-async def delete_skill(session: AsyncSession, name: str) -> bool:
+async def delete_skill(session: AsyncSession, name: str, skills_dir: Path | None = None) -> bool:
     skill = await get_skill(session, name)
     if skill is None:
         return False
     await session.delete(skill)
     await session.flush()
+    if skills_dir is not None:
+        from edera_core.skills.generator import remove_skill_files
+
+        remove_skill_files(skills_dir, name)
     return True
 
 
@@ -870,10 +885,11 @@ def core_node_to_entity(row: CoreEntityNode) -> EntityConfig:
         attrs.update(
             {
                 "skills": row.skills,
-                "tools": row.tools,
                 "parameters_schema": row.parameters_schema,
             }
         )
+    if row.node_type == "agent":
+        attrs["tools"] = row.tools
     if row.node_type == "function":
         attrs.update({"source_names": row.source_names, "parameters": row.parameters})
     _set_if_not_none(attrs, "timeout_seconds", row.timeout_seconds)

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from edera_core.config.schema import DagNodeInstance, NodeConfig
+from edera_core.config.schema import AgentNodeConfig, DagNodeInstance, FunctionNodeConfig, NodeConfig
 
 
 def test_entities_field() -> None:
@@ -13,11 +13,34 @@ def test_entities_field() -> None:
     assert instance.config["entities"] == ["stock:00700.HK"]
 
 
-def test_node_config_has_tools_without_model() -> None:
-    fields = NodeConfig.model_fields
+def test_function_node_config_has_no_tools_field() -> None:
+    """D6: tools 字段收归 AgentNodeConfig，function 节点不携带 tools"""
+    fields = FunctionNodeConfig.model_fields
+
+    assert "tools" not in fields
+    assert "model" not in fields
+
+
+def test_agent_node_config_has_tools_field() -> None:
+    """D6: tools 仅存在于 AgentNodeConfig"""
+    fields = AgentNodeConfig.model_fields
 
     assert "tools" in fields
-    assert "model" not in fields
+
+
+def test_function_node_rejects_tools_on_validate() -> None:
+    """D6: function 节点加载时拒绝 tools 字段"""
+    with pytest.raises(ValidationError):
+        NodeConfig.model_validate(
+            {
+                "name": "reader",
+                "type": "function",
+                "handler": "reader",
+                "input_type": "Any",
+                "output_type": "Any",
+                "tools": ["bash"],
+            }
+        )
 
 
 def test_instance_config_accepts_session_tools_and_model() -> None:

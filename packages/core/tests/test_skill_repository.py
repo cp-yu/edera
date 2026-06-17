@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import pytest
 
 from edera_core.storage import create_engine, init_db, session_factory
-from edera_core.storage.repository import create_skill, list_skills
+from edera_core.storage.repository import create_skill, delete_skill, list_skills, upsert_skill
 
 
 @pytest.mark.asyncio
@@ -48,3 +48,45 @@ async def _session(tmp_path):
             yield session
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_upsert_skill_refreshes_materialized_dir(tmp_path):
+    skills_dir = tmp_path / "skills"
+    async with _session(tmp_path) as session:
+        await upsert_skill(
+            session,
+            "foo",
+            [
+                {"path": "SKILL.md", "content": "# Foo"},
+                {"path": "prompts/main.txt", "content": "run"},
+            ],
+            skills_dir=skills_dir,
+        )
+        await session.commit()
+
+    assert (skills_dir / "foo" / "SKILL.md").read_text(encoding="utf-8") == "# Foo"
+    assert (skills_dir / "foo" / "prompts" / "main.txt").read_text(encoding="utf-8") == "run"
+
+
+@pytest.mark.asyncio
+async def test_delete_skill_removes_materialized_dir(tmp_path):
+    skills_dir = tmp_path / "skills"
+    async with _session(tmp_path) as session:
+        await upsert_skill(
+            session,
+            "foo",
+            [{"path": "SKILL.md", "content": "# Foo"}],
+            skills_dir=skills_dir,
+        )
+        await session.commit()
+
+    assert (skills_dir / "foo").exists()
+
+    async with _session(tmp_path) as session:
+        deleted = await delete_skill(session, "foo", skills_dir)
+        await session.commit()
+
+    assert deleted
+    assert not (skills_dir / "foo").exists()
+

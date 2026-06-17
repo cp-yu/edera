@@ -1,4 +1,5 @@
 """C12-C16: Executor 集成 session 解析测试"""
+import json
 import pytest
 from pathlib import Path
 
@@ -23,6 +24,95 @@ def _test_snapshot(tmp_path: Path) -> DagExecutionSnapshot:
         {},
         {},
     )
+
+
+def _echo_pi(capture: Path) -> Path:
+    pi = capture.parent / "pi"
+    pi.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, sys, pathlib\n"
+        f"pathlib.Path({str(capture)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+        "print('ok')\n",
+        encoding="utf-8",
+    )
+    pi.chmod(0o755)
+    return pi
+
+
+@pytest.mark.asyncio
+async def test_per_node_skill_filter(tmp_path: Path):
+    """C4: 仅装配本节点声明技能，不装配同 session 其他节点声明的技能"""
+    skills_dir = tmp_path / "skills"
+    for name in ("foo", "bar"):
+        target = skills_dir / name
+        target.mkdir(parents=True)
+        (target / "SKILL.md").write_text(f"# {name}", encoding="utf-8")
+
+    node = NodeConfig.model_validate({
+        "name": "agent-node",
+        "type": "agent",
+        "model": "test-model",
+        "input_type": "Any",
+        "output_type": "Any",
+        "skills": ["foo"],
+    })
+
+    instance_a = DagNodeInstance(id="node-A", type="agent-node", config={"session": "task-1", "skills": ["foo"]})
+    instance_b = DagNodeInstance(id="node-B", type="agent-node", config={"session": "task-1", "skills": ["bar"]})
+
+    capture_a = tmp_path / "args_a.json"
+    capture_b = tmp_path / "args_b.json"
+
+    executor = NodeExecutor(
+        {"agent-node": node},
+        SystemConfig(skills_dir=skills_dir),
+        RuntimeSettings(pi_bin=str(_echo_pi(capture_a))),
+        _test_snapshot(tmp_path),
+        instances={instance_a.id: instance_a, instance_b.id: instance_b},
+        daemon_data_dir=tmp_path / "data",
+    )
+
+    output_a = await executor.execute(instance_a.id, NodeInput(run_id="run-1", payload={}))
+    assert output_a.ok
+    args_a = json.loads(capture_a.read_text())
+    skill_targets_a = [args_a[i + 1] for i, token in enumerate(args_a) if token == "--skill"]
+    assert any(t.endswith("/foo") for t in skill_targets_a)
+    assert not any(t.endswith("/bar") for t in skill_targets_a)
+
+    executor.runtime = RuntimeSettings(pi_bin=str(_echo_pi(capture_b)))
+    output_b = await executor.execute(instance_b.id, NodeInput(run_id="run-1", payload={}))
+    assert output_b.ok
+    args_b = json.loads(capture_b.read_text())
+    skill_targets_b = [args_b[i + 1] for i, token in enumerate(args_b) if token == "--skill"]
+    assert any(t.endswith("/bar") for t in skill_targets_b)
+    assert not any(t.endswith("/foo") for t in skill_targets_b)
+
+
+@pytest.mark.asyncio
+async def test_missing_skill_fails(tmp_path: Path):
+    """C4: 声明的技能未物化 → 失败"""
+    capture = tmp_path / "args.json"
+    node = NodeConfig.model_validate({
+        "name": "agent-node",
+        "type": "agent",
+        "model": "test-model",
+        "input_type": "Any",
+        "output_type": "Any",
+        "skills": ["absent"],
+    })
+
+    executor = NodeExecutor(
+        {"agent-node": node},
+        SystemConfig(skills_dir=tmp_path / "skills"),
+        RuntimeSettings(pi_bin=str(_echo_pi(capture))),
+        _test_snapshot(tmp_path),
+        daemon_data_dir=tmp_path / "data",
+    )
+
+    output = await executor.execute("agent-node", NodeInput(run_id="run-1", payload={}))
+
+    assert not output.ok
+    assert "absent" in output.error
 
 
 @pytest.mark.asyncio
@@ -392,12 +482,13 @@ async def test_workdir_configured(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_skills_idempotent(tmp_path: Path):
-    """C21: 验证同组 skills 目录共用且重复生成幂等"""
-    from edera_core.config.schema import DagConfig
+    """C21: 验证 skills 物化于 data/skills 且 argv 引用物化目录"""
+    skills_dir = tmp_path / "skills"
+    (skills_dir / "test-skill").mkdir(parents=True)
+    (skills_dir / "test-skill" / "SKILL.md").write_text("# Test Skill", encoding="utf-8")
 
-    pi = tmp_path / "pi"
-    pi.write_text("#!/bin/sh\necho 'ok'\n", encoding="utf-8")
-    pi.chmod(0o755)
+    capture = tmp_path / "args.json"
+    pi = _echo_pi(capture)
 
     node = NodeConfig.model_validate({
         "name": "agent-node",
@@ -405,57 +496,31 @@ async def test_skills_idempotent(tmp_path: Path):
         "model": "test-model",
         "input_type": "Any",
         "output_type": "Any",
+        "skills": ["test-skill"],
     })
 
     instance_b = DagNodeInstance(id="node-B", type="agent-node", config={"session": "task-1"})
     instance_d = DagNodeInstance(id="node-D", type="agent-node", config={"session": "task-1"})
 
-    # 创建带 skills 的 snapshot
-    from edera_core.snapshot import DagExecutionSnapshot, DagExecutionClosure
-    from edera_core.resolver import StaticHandlerResolver
-    from edera_core.config.schema import SkillConfig
-
-    skill = SkillConfig(
-        name="test-skill",
-        files=[
-            {"path": "SKILL.md", "content": "# Test Skill"},
-            {"path": "prompts/main.txt", "content": "test prompt"},
-        ],
-    )
-
-    snapshot = DagExecutionSnapshot(
-        DagExecutionClosure("test-dag", {}, {}),
-        {},  # entity_types
-        StaticHandlerResolver({}),
-        {},  # extension_table_names
-        {"test-skill": skill},  # skills
-    )
-
     executor = NodeExecutor(
         {"agent-node": node},
-        SystemConfig(),
+        SystemConfig(skills_dir=skills_dir),
         RuntimeSettings(pi_bin=str(pi)),
-        snapshot,
+        _test_snapshot(tmp_path),
         instances={instance_b.id: instance_b, instance_d.id: instance_d},
         daemon_data_dir=tmp_path / "data",
     )
 
-    # 执行第一个节点
     output_b = await executor.execute(instance_b.id, NodeInput(run_id="run-1", payload={}))
     assert output_b.ok
 
     session_dir = tmp_path / "data" / "sessions" / "test-dag" / "task-1" / "run-1"
-    skill_file = session_dir / "skills" / "test-skill" / "SKILL.md"
-    prompt_file = session_dir / "skills" / "test-skill" / "prompts" / "main.txt"
+    # 物化目录不再写入 session_dir/skills
+    assert not (session_dir / "skills").exists()
 
-    assert skill_file.exists()
-    assert prompt_file.exists()
-    first_content = skill_file.read_text()
+    args = json.loads(capture.read_text())
+    assert str(skills_dir / "test-skill") in args
 
-    # 执行第二个节点，验证 skills 重复生成幂等
+    # 第二次执行仍引用同一物化目录
     output_d = await executor.execute(instance_d.id, NodeInput(run_id="run-1", payload={}))
     assert output_d.ok
-
-    # 验证内容一致且不报错
-    assert skill_file.read_text() == first_content
-    assert prompt_file.read_text() == "test prompt"

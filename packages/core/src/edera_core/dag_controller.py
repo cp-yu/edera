@@ -52,6 +52,7 @@ from edera_core.storage.repository import (
 )
 from edera_core.node.executor import NodeExecutor
 from edera_core.node.models import NodeOutput
+from edera_core.skills.generator import refresh_all_skill_files
 from edera_core.snapshot import DagExecutionSnapshot, build_dag_execution_closure
 from edera_core.trigger import CronEmitter, TriggerExecutor
 
@@ -266,6 +267,7 @@ class DagController:
             self._extension_table_names = dict(bootstrap.table_names)
             self.trigger_executor = trigger_executor
             self.cron_emitter = cron_emitter
+            _refresh_skills_dir(config.system.skills_dir, config.skills)
             return snapshot
 
     def runtime_snapshot(self) -> RuntimeControlSnapshot:
@@ -1112,6 +1114,11 @@ async def _load_dag_execution_closure(session, root_dag_name: str):
 
     await visit(root_dag_name)
     return build_dag_execution_closure(root_dag_name, dags, nodes)
+
+
+def _refresh_skills_dir(skills_dir: Path, skills: dict[str, object]) -> None:
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    refresh_all_skill_files(skills_dir, skills)
 
 
 def _build_executor(

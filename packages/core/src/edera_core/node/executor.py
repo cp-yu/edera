@@ -31,7 +31,6 @@ from edera_core.errors import ConfigError, NodeExecutionError
 from edera_core.node.models import NodeContext
 from edera_core.node.sessions import parse_session_reference, resolve_session_path, invocation_dir
 from edera_core.resolver import HandlerMeta, HandlerNotFoundError
-from edera_core.skills.generator import generate_skill_files
 from edera_core.snapshot import DagExecutionSnapshot
 from edera_core.storage.session_registry import SessionRegistry
 
@@ -303,12 +302,16 @@ class NodeExecutor:
         )
         inv_dir = invocation_dir(session_dir, context.instance_id)
         inv_dir.mkdir(parents=True, exist_ok=True)
-        generate_skill_files(session_dir, list(self.snapshot.skills.values()))
+        skill_paths, missing = self._resolve_agent_skills(effective)
+        if missing:
+            return _failed(node_name, node_input, f"missing skill: {', '.join(sorted(missing))}")
         output_schema = self._get_output_schema(effective)
         result_path = inv_dir / "result.json"
         runtime_context = _agent_runtime_context(node_input, context, str(result_path), output_schema)
         (inv_dir / "runtime-context.json").write_text(json.dumps(runtime_context, ensure_ascii=False), encoding="utf-8")
-        cmd = self._build_agent_command(effective, session_dir, session_id, is_first_execution, inv_dir, node_input, runtime_context)
+        cmd = self._build_agent_command(
+            effective, session_dir, session_id, is_first_execution, inv_dir, node_input, runtime_context, skill_paths
+        )
         env = os.environ.copy()
         env.update(_agent_env(context.instance_id))
         workdir = effective.workdir or inv_dir
@@ -409,6 +412,18 @@ class NodeExecutor:
                 return entity_type.schema_
         return None
 
+    def _resolve_agent_skills(self, effective: AgentNodeConfig) -> tuple[list[Path], list[str]]:
+        skills_dir = self.system.skills_dir
+        paths: list[Path] = []
+        missing: list[str] = []
+        for name in effective.skills:
+            target = skills_dir / name
+            if (target / "SKILL.md").exists():
+                paths.append(target)
+            else:
+                missing.append(name)
+        return paths, missing
+
     def _build_agent_command(
         self,
         effective: AgentNodeConfig,
@@ -418,6 +433,7 @@ class NodeExecutor:
         inv_dir: Path,
         node_input: NodeInput,
         runtime_context: dict[str, object],
+        skill_paths: list[Path],
     ) -> list[str]:
         cmd = [self.runtime.pi_bin, "--model", effective.model, "--session-dir", str(session_dir)]
         if session_id:
@@ -425,6 +441,18 @@ class NodeExecutor:
                 cmd.extend(["--session-id", session_id])
             else:
                 cmd.extend(["--session", session_id])
+        cmd.append("--no-skills")
+        cmd.append("--no-context-files")
+        for path in skill_paths:
+            cmd.extend(["--skill", str(path)])
+        if effective.system_prompt:
+            cmd.extend(["--system-prompt", effective.system_prompt])
+        if effective.system_prompt_file:
+            cmd.extend(["--append-system-prompt", effective.system_prompt_file])
+        if effective.tools:
+            cmd.extend(["--tools", ",".join(effective.tools)])
+        else:
+            cmd.append("--no-tools")
         prompt = _agent_prompt(node_input.payload, runtime_context)
         if prompt:
             prompt_path = inv_dir / "prompt.md"
@@ -635,6 +663,9 @@ def _apply_agent_instance_config(config: AgentNodeConfig, instance: DagNodeInsta
     tools = instance.config.get("tools")
     if isinstance(tools, list):
         updates["tools"] = [str(item) for item in tools]
+    skills = instance.config.get("skills")
+    if isinstance(skills, list):
+        updates["skills"] = [str(item) for item in skills]
     workdir = instance.config.get("workdir")
     if isinstance(workdir, str) and workdir:
         updates["workdir"] = Path(workdir)
@@ -718,7 +749,6 @@ def _node_from_entity(entity: EntityConfig) -> NodeConfig:
         handler=None,
         system_prompt_file=None,
         system_prompt=None,
-        tools=[str(item) for item in attrs.get("tools", [])] if isinstance(attrs.get("tools"), list) else [],
         input_type=str(attrs.get("input_type") or ""),
         output_type=str(attrs.get("output_type") or ""),
         timeout_seconds=attrs.get("timeout_seconds") if isinstance(attrs.get("timeout_seconds"), int | float) else None,

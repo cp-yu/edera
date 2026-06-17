@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from pydantic import BaseModel
 from edera_types import NodeInput, NodeOutput
 
 from edera_core.config.entities import EntityStore, can_read, can_write, field_permission
@@ -23,13 +21,6 @@ def _entity_overrides(
         return None
     overrides = entity_permissions.get(entity_type)
     return overrides if isinstance(overrides, dict) else None
-
-
-class SkillDefinition(BaseModel):
-    name: str
-    path: Path
-    skill_md: str
-    workflow_md: str
 
 
 @dataclass

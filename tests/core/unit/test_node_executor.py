@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from edera_core.config.entities import EntityStore
 from edera_core.config.schema import (
+    AgentNodeConfig,
     DagNodeInstance,
     EntitiesConfig,
     EntityRelationsConfig,
@@ -18,7 +19,7 @@ from edera_core.config.schema import (
     SystemConfig,
 )
 from edera_core.dag_controller import _record_raw_log, _record_summary_log
-from edera_core.node.executor import NodeExecutor, _apply_instance_config
+from edera_core.node.executor import NodeExecutor, _apply_agent_instance_config, _apply_instance_config
 from edera_core.node.models import NodeContext, NodeInput
 from edera_core.resolver import HandlerMeta, StaticHandlerResolver
 from edera_core.snapshot import DagExecutionClosure, DagExecutionSnapshot
@@ -488,19 +489,45 @@ async def test_pi_node_requires_instance_model(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_instance_config_sets_model_and_tools() -> None:
+async def test_agent_instance_config_sets_model_and_tools() -> None:
+    """D6/C7: agent 节点实例配置覆盖 model 与 tools 白名单"""
     config = _load_config()
-    node = NodeConfig(
-        name="llm-node",
-        type="function",
-        handler="run-pi",
+    node = AgentNodeConfig(
+        name="agent-node",
+        type="agent",
+        model="base-model",
         tools=["bash"],
         input_type="Any",
         output_type="Any",
     )
     instance = DagNodeInstance(
-        id="llm-1",
-        type="llm-node",
+        id="agent-1",
+        type="agent-node",
+        config={
+            "model": "hf-share/deepseek-v4-flash",
+            "tools": ["bash", "read"],
+        },
+    )
+    effective = _apply_agent_instance_config(node, instance)
+
+    assert effective.model == "hf-share/deepseek-v4-flash"
+    assert effective.tools == ["bash", "read"]
+
+
+@pytest.mark.asyncio
+async def test_function_node_ignores_instance_tools() -> None:
+    """D6: function 节点不携带 tools，实例 tools 不进入 effective 配置"""
+    config = _load_config()
+    node = NodeConfig(
+        name="reader",
+        type="function",
+        handler="reader",
+        input_type="Any",
+        output_type="Any",
+    )
+    instance = DagNodeInstance(
+        id="reader-1",
+        type="reader",
         config={
             "model": "hf-share/deepseek-v4-flash",
             "tools": ["bash", "read"],
@@ -508,8 +535,8 @@ async def test_instance_config_sets_model_and_tools() -> None:
     )
     effective = _apply_instance_config(node, instance)
 
+    assert not hasattr(effective, "tools")
     assert effective.parameters["model"] == "hf-share/deepseek-v4-flash"
-    assert effective.tools == ["bash", "read"]
 
 
 @pytest.mark.asyncio
