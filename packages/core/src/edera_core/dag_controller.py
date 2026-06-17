@@ -142,29 +142,24 @@ class DagController:
         await self._open_startup_window(system.startup_window_seconds)
 
     async def shutdown(self) -> None:
-        if self._cron_task is not None:
-            self._cron_task.cancel()
-            try:
-                await self._cron_task
-            except asyncio.CancelledError:
-                pass
-        if self._startup_window_task is not None:
-            self._startup_window_task.cancel()
-            try:
-                await self._startup_window_task
-            except asyncio.CancelledError:
-                pass
+        await self._cancel_task(self._cron_task)
+        await self._cancel_task(self._startup_window_task)
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
         for ctx in list(self.active_runs.values()):
             if not ctx.task.done():
-                ctx.task.cancel()
-                try:
-                    await ctx.task
-                except asyncio.CancelledError:
-                    pass
+                await self._cancel_task(ctx.task)
         if self.engine is not None:
             await self.engine.dispose()
+
+    async def _cancel_task(self, task: asyncio.Task[object] | None) -> None:
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     async def _open_startup_window(self, window_seconds: float) -> None:
         if self.trigger_executor is None:

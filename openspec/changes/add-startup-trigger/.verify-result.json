@@ -36,7 +36,7 @@
       "packages/core/tests/test_system_config.py",
       "packages/core/tests/test_trigger_system.py"
     ],
-    "evidenceFingerprint": "f05a2dd3dc371aad39f01edce847880a75633c21c3677f1e549461689d3977ad",
+    "evidenceFingerprint": "dba3b959a6808c0eb86ad1dbe2d7f66492be8b4b68742cc854f9ff3d9f854f27",
     "evidenceFingerprintEntries": [
       {
         "path": "config/system.toml",
@@ -84,7 +84,7 @@
       },
       {
         "path": "packages/core/src/edera_core/dag_controller.py",
-        "hash": "6f585c8fad7ad872f8fd8780dcb8d93819bb500648bd55f64c9eed320f2063ff"
+        "hash": "0868df881ccd8d7af7527cf52aa8c2ac2d291de2246fceede08bd26c433667c9"
       },
       {
         "path": "packages/core/src/edera_core/engine.py",
@@ -120,11 +120,31 @@
       }
     ],
     "skippedEvidenceFiles": [],
-    "gitHeadCommit": "0494fd5c2b775134b1a66e8e82e502903c8c508f"
+    "gitHeadCommit": "928756790955f5dcf52c695c844b9a509e2fb57a",
+    "timestamp": "2026-06-17T14:59:56.106Z"
   },
   "optimization": {
-    "status": "PENDING_VERIFICATION",
-    "attempts": [],
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-17T14:57:09.749Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "shutdown() in dag_controller.py contained three near-identical cancel+await+except-CancelledError blocks. Extracting a private _cancel_task helper removes ~12 lines of duplicated boilerplate while preserving identical semantics.",
+        "files": [
+          "packages/core/src/edera_core/dag_controller.py"
+        ]
+      },
+      {
+        "timestamp": "2026-06-17T14:59:56.094Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/dag_controller.py": "6f585c8fad7ad872f8fd8780dcb8d93819bb500648bd55f64c9eed320f2063ff"
+    },
     "baseline": {
       "timestamp": "2026-06-17T14:47:25.405Z",
       "result": "PASS_WITH_WARNINGS",
@@ -249,6 +269,10 @@
         "skippedEvidenceFiles": [],
         "gitHeadCommit": "0494fd5c2b775134b1a66e8e82e502903c8c508f"
       }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
     }
   }
 }
