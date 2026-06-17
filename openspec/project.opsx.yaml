@@ -183,7 +183,7 @@ capabilities:
     intent: NodeConfig discriminated union 在 function/agent/dag 基础上新增 wait variant
     type: capability
   - id: cap.core.agent-executor
-    intent: Agent 节点 pi CLI subprocess 契约，覆盖 --session 精确续接、invocations/{node_id} 逐次产物命名空间、结构化输出契约（result_path + output_schema 校验与降级）、runtime context 注入与实时 stdout streaming
+    intent: Agent 节点 pi CLI subprocess 契约，覆盖 --session 精确续接、invocations/{node_id} 逐次产物命名空间、结构化输出契约（result_path + output_schema 校验与降级）、runtime context 注入与实时 stdout streaming；并覆盖能力装配契约——skills 以 DB 为唯一源物化到 data/skills 供 --skill 引用（--no-skills 关闭自动发现）、per-node 装配本节点声明技能、system_prompt 双入口（内联 --system-prompt / 文件 --append-system-prompt 现读）、tools 白名单（空则 --no-tools）、强制 --no-context-files 隔离 workdir 上下文
     type: capability
   - id: cap.core.sub-dag-execution
     intent: Sub-DAG 执行的 input_mapping 支持 dict 或 entity 引用
