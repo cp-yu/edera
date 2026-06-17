@@ -36,7 +36,7 @@
       "packages/core/tests/test_system_config.py",
       "packages/core/tests/test_trigger_system.py"
     ],
-    "evidenceFingerprint": "dba3b959a6808c0eb86ad1dbe2d7f66492be8b4b68742cc854f9ff3d9f854f27",
+    "evidenceFingerprint": "d6f3f73fdea77c47c89b28b9668921a93c0089938cd1e581c3e80cd7de9bd76f",
     "evidenceFingerprintEntries": [
       {
         "path": "config/system.toml",
@@ -72,7 +72,7 @@
       },
       {
         "path": "openspec/project.opsx.yaml",
-        "hash": "400ac3ba16b6c5ea358f3826b493468a5c578d441477788e5cada3c8eeb4d9da"
+        "hash": "4dcce0ca7665435cfcb0698baae730d176752d15ec9b0a0724f936a1f3e01afb"
       },
       {
         "path": "packages/core/src/edera_core/config/loader.py",
