@@ -1,0 +1,234 @@
+{
+  "timestamp": "2026-06-17T06:39:25.771Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "WARNING",
+      "requirement": "运行时参数传递",
+      "task": "Task 2 / C5",
+      "message": "C5 Check Command 的 -k preload 过滤器已修正为指向新增测试 test_run_entity_refs_derived_from_node_config_only 及 test_dag_controller preload 测试",
+      "summary": "C5 Check Command 已修正"
+    },
+    {
+      "severity": "WARNING",
+      "requirement": "运行时参数传递",
+      "task": "Task 6",
+      "message": "Task 6 Files 已修正：trigger.py 标注无需改动，新增 test_dag_controller.py 测试归位",
+      "summary": "Task 6 Files 已修正"
+    }
+  ],
+  "tasksFileHash": "a8429d7c66756a8c7cb259336f648995426c536d7918ca55cc2efd8333486ca2",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer-subagent",
+    "evidenceFiles": [
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/dag_controller.py",
+      "packages/core/src/edera_core/grpc_client.py",
+      "packages/core/src/edera_core/proto/edera_pb2.py",
+      "packages/core/src/edera_core/server.py",
+      "packages/core/src/edera_core/web/routes.py",
+      "packages/core/tests/test_dag_controller.py",
+      "packages/core/tests/test_grpc_control_services.py",
+      "proto/edera.proto",
+      "tests/core/integration/test_dag_runner.py",
+      "tests/core/integration/test_node_input_resolution.py",
+      "tests/core/integration/test_per_dag.py",
+      "tests/core/integration/test_subdag_input_mapping.py"
+    ],
+    "evidenceFingerprint": "a940e799df4e6a00e376366d6e5b1190cc441e09ab064edaa8c6f594d5f9635d",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "9bbf925bfe480450ba79ee701040f36abf2380c2f015ca7a24fc1e7d548a3dd1"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag_controller.py",
+        "hash": "ea279f957a9165da68d83c7a7e3dc34f3795f4a341219aab0c6d4f15f8b27f5d"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "86f099b6972c83d1a19ad32048fe4f051edd5ce478eef55f7423aa2b3c4089fd"
+      },
+      {
+        "path": "packages/core/src/edera_core/grpc_client.py",
+        "hash": "6944c7773ba13a400a2648e027d0c9a5432c298fe2cf9174ff67298a1a995313"
+      },
+      {
+        "path": "packages/core/src/edera_core/proto/edera_pb2.py",
+        "hash": "24a8ab41940cd856d3f85e9cfaf97204022a89a22d99b203c3f5cc1dd2581db1"
+      },
+      {
+        "path": "packages/core/src/edera_core/server.py",
+        "hash": "cf2205e852bc8e0280055725d4429c482bdb9f346157fbebb5f06872177157b2"
+      },
+      {
+        "path": "packages/core/src/edera_core/web/routes.py",
+        "hash": "8a4f302aede3f6526a63d8ed126b0062b198f34b42574cc22d3b045829d00ddd"
+      },
+      {
+        "path": "packages/core/tests/test_dag_controller.py",
+        "hash": "9a0344869775593ddf10a8538780e20e7e6da50495fb0a2af8a3d4e7f0f243cf"
+      },
+      {
+        "path": "packages/core/tests/test_grpc_control_services.py",
+        "hash": "9ebc4f64dc947a2b13b92b71f0ef6fc2c75afacb39a0b3e5e383d96aa3806847"
+      },
+      {
+        "path": "proto/edera.proto",
+        "hash": "1d238a5b5e282408d582d72d11e7a440c319ea967684afb96b2cfd414153861f"
+      },
+      {
+        "path": "tests/core/integration/test_dag_runner.py",
+        "hash": "356955bcc44cb1a84965d27cc634cb5633d77353920c1620db717f4c56d225a3"
+      },
+      {
+        "path": "tests/core/integration/test_node_input_resolution.py",
+        "hash": "7abcc2e0a323c1ecb768ab51533e8330baa0174e7975eeefa8d9ba3ea8094363"
+      },
+      {
+        "path": "tests/core/integration/test_per_dag.py",
+        "hash": "1555a9b3977c0095a3ea8ebc9ef31ba9c12864530b491dc15622d126c39d709b"
+      },
+      {
+        "path": "tests/core/integration/test_subdag_input_mapping.py",
+        "hash": "fe8e5d3e346ca02512c2d6783e50e4055e2ea09efa2a93cdba6d1bc8d84adaf2"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "e48f3a4adb85aa55ac5d180870bea63c3529c1da",
+    "timestamp": "2026-06-17T06:55:30.598Z"
+  },
+  "optimization": {
+    "status": "IMPROVED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-17T06:45:17.333Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "提取 server._decode_dag_inputs 与 grpc_client._dag_inputs_json 辅助，消除 proto 边界三元组编/解码的逐字节重复（各 2 处）。行为保持。",
+        "files": [
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/server.py"
+        ]
+      },
+      {
+        "timestamp": "2026-06-17T06:55:30.588Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/server.py": "4d21b1d3a631065548aa24930b75d885649fe80ef0bed2c6e12e4f0b3e64808e",
+      "packages/core/src/edera_core/grpc_client.py": "339bc4ef056cdfe8740f07e714a0f19393f018196fd9d8765f76822733130b2e"
+    },
+    "baseline": {
+      "timestamp": "2026-06-17T06:39:25.771Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "WARNING",
+          "requirement": "运行时参数传递",
+          "task": "Task 2 / C5",
+          "message": "C5 Check Command 的 -k preload 过滤器已修正为指向新增测试 test_run_entity_refs_derived_from_node_config_only 及 test_dag_controller preload 测试",
+          "summary": "C5 Check Command 已修正"
+        },
+        {
+          "severity": "WARNING",
+          "requirement": "运行时参数传递",
+          "task": "Task 6",
+          "message": "Task 6 Files 已修正：trigger.py 标注无需改动，新增 test_dag_controller.py 测试归位",
+          "summary": "Task 6 Files 已修正"
+        }
+      ],
+      "tasksFileHash": "a8429d7c66756a8c7cb259336f648995426c536d7918ca55cc2efd8333486ca2",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer-subagent",
+        "evidenceFiles": [
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/dag_controller.py",
+          "packages/core/src/edera_core/grpc_client.py",
+          "packages/core/src/edera_core/proto/edera_pb2.py",
+          "packages/core/src/edera_core/server.py",
+          "packages/core/src/edera_core/web/routes.py",
+          "packages/core/tests/test_dag_controller.py",
+          "packages/core/tests/test_grpc_control_services.py",
+          "proto/edera.proto",
+          "tests/core/integration/test_dag_runner.py",
+          "tests/core/integration/test_node_input_resolution.py",
+          "tests/core/integration/test_per_dag.py",
+          "tests/core/integration/test_subdag_input_mapping.py"
+        ],
+        "evidenceFingerprint": "b7a187d50f08dd1c851a82c3554dc90754c8d83630d5cc97388effe642a2f528",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "9bbf925bfe480450ba79ee701040f36abf2380c2f015ca7a24fc1e7d548a3dd1"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag_controller.py",
+            "hash": "ea279f957a9165da68d83c7a7e3dc34f3795f4a341219aab0c6d4f15f8b27f5d"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "86f099b6972c83d1a19ad32048fe4f051edd5ce478eef55f7423aa2b3c4089fd"
+          },
+          {
+            "path": "packages/core/src/edera_core/grpc_client.py",
+            "hash": "339bc4ef056cdfe8740f07e714a0f19393f018196fd9d8765f76822733130b2e"
+          },
+          {
+            "path": "packages/core/src/edera_core/proto/edera_pb2.py",
+            "hash": "24a8ab41940cd856d3f85e9cfaf97204022a89a22d99b203c3f5cc1dd2581db1"
+          },
+          {
+            "path": "packages/core/src/edera_core/server.py",
+            "hash": "4d21b1d3a631065548aa24930b75d885649fe80ef0bed2c6e12e4f0b3e64808e"
+          },
+          {
+            "path": "packages/core/src/edera_core/web/routes.py",
+            "hash": "8a4f302aede3f6526a63d8ed126b0062b198f34b42574cc22d3b045829d00ddd"
+          },
+          {
+            "path": "packages/core/tests/test_dag_controller.py",
+            "hash": "9a0344869775593ddf10a8538780e20e7e6da50495fb0a2af8a3d4e7f0f243cf"
+          },
+          {
+            "path": "packages/core/tests/test_grpc_control_services.py",
+            "hash": "9ebc4f64dc947a2b13b92b71f0ef6fc2c75afacb39a0b3e5e383d96aa3806847"
+          },
+          {
+            "path": "proto/edera.proto",
+            "hash": "1d238a5b5e282408d582d72d11e7a440c319ea967684afb96b2cfd414153861f"
+          },
+          {
+            "path": "tests/core/integration/test_dag_runner.py",
+            "hash": "356955bcc44cb1a84965d27cc634cb5633d77353920c1620db717f4c56d225a3"
+          },
+          {
+            "path": "tests/core/integration/test_node_input_resolution.py",
+            "hash": "7abcc2e0a323c1ecb768ab51533e8330baa0174e7975eeefa8d9ba3ea8094363"
+          },
+          {
+            "path": "tests/core/integration/test_per_dag.py",
+            "hash": "1555a9b3977c0095a3ea8ebc9ef31ba9c12864530b491dc15622d126c39d709b"
+          },
+          {
+            "path": "tests/core/integration/test_subdag_input_mapping.py",
+            "hash": "fe8e5d3e346ca02512c2d6783e50e4055e2ea09efa2a93cdba6d1bc8d84adaf2"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "e48f3a4adb85aa55ac5d180870bea63c3529c1da"
+      }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
+    }
+  }
+}

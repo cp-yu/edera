@@ -57,7 +57,7 @@
 
 - [x] C5 验证预加载由节点配置推导
   - Preserves: `openspec/specs/runtime-input-context/spec.md` / Requirement "Source recovery runtime facts"
-  - Command: `pytest packages/core/tests/test_grpc_control_services.py -k preload`
+  - Command: `pytest packages/core/tests/test_grpc_control_services.py::test_run_entity_refs_derived_from_node_config_only packages/core/tests/test_dag_controller.py -k preload`
   - Expect: 未被节点引用的 source 实体不再预加载；被节点 resource/config.entities/config.source 引用的实体仍预加载
 
 ### Task 3: proto 删字段并重新生成
@@ -142,10 +142,10 @@
 **Goal**: trigger `run_dag` 回调的 payload 改注入 `source_shared_inputs`；全量回归确认无孤儿引用与行为符合 spec。
 
 **Files**:
-- Modify: `packages/core/src/edera_core/dag_controller.py`
-- Modify: `packages/core/src/edera_core/trigger.py`
+- Modify: `packages/core/src/edera_core/dag_controller.py`（`_new_trigger_executor` 的 `run_dag` 回调；trigger.py 本身无需改，回调签名在 controller 装配）
 - Test: `tests/core/integration/test_per_dag.py`
 - Test: `tests/core/integration/test_node_input_resolution.py`
+- Test: `packages/core/tests/test_dag_controller.py`（trigger fire → source_shared_inputs 注入覆盖）
 
 **Requirements**:
 - `run_dag=lambda name, payload, source` 的 payload 改注入 `source_shared_inputs`（trigger 产出数据 = 源节点输入）。

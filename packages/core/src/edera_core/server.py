@@ -485,11 +485,15 @@ class _DagService:
         self.daemon = daemon
         self.pb2 = daemon.pb2
 
-    async def Run(self, request, context):
-        await _identity(context)
+    def _decode_dag_inputs(self, request) -> tuple[object, dict[str, object] | None, set[str] | None]:
         source_shared_inputs = json.loads(request.source_shared_inputs_json) if request.source_shared_inputs_json else None
         node_inputs = json.loads(request.node_inputs_json) if request.node_inputs_json else None
         append_nodes = set(json.loads(request.append_nodes_json)) if request.append_nodes_json else None
+        return source_shared_inputs, node_inputs, append_nodes
+
+    async def Run(self, request, context):
+        await _identity(context)
+        source_shared_inputs, node_inputs, append_nodes = self._decode_dag_inputs(request)
         try:
             run_id = await self.daemon.controller.start_run(
                 "dag-service",
@@ -530,9 +534,7 @@ class _DagService:
         await _identity(context)
         if not request.node_ids:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "node_ids is required")
-        source_shared_inputs = json.loads(request.source_shared_inputs_json) if request.source_shared_inputs_json else None
-        node_inputs = json.loads(request.node_inputs_json) if request.node_inputs_json else None
-        append_nodes = set(json.loads(request.append_nodes_json)) if request.append_nodes_json else None
+        source_shared_inputs, node_inputs, append_nodes = self._decode_dag_inputs(request)
         try:
             result = await self.daemon.controller.retry_node(
                 request.dag_name,

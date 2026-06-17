@@ -134,9 +134,7 @@ class GrpcClient:
         response = await self.dags.Run(
             pb2.DagRunRequest(
                 name=name,
-                source_shared_inputs_json=json.dumps(source_shared_inputs) if source_shared_inputs is not None else "",
-                node_inputs_json=json.dumps(node_inputs) if node_inputs is not None else "",
-                append_nodes_json=json.dumps(append_nodes) if append_nodes is not None else "",
+                **_dag_inputs_json(source_shared_inputs, node_inputs, append_nodes),
             )
         )
         return {"run_id": response.run_id}
@@ -247,9 +245,7 @@ class GrpcClient:
                     run_id=run_id,
                     node_ids=node_ids or [],
                     mode=mode,
-                    source_shared_inputs_json=json.dumps(source_shared_inputs) if source_shared_inputs is not None else "",
-                    node_inputs_json=json.dumps(node_inputs) if node_inputs is not None else "",
-                    append_nodes_json=json.dumps(append_nodes) if append_nodes is not None else "",
+                    **_dag_inputs_json(source_shared_inputs, node_inputs, append_nodes),
                 )
             )
         )
@@ -388,6 +384,18 @@ class GrpcClient:
     async def extension_import_entities(self, path: str) -> dict[str, object]:
         content = Path(path).read_bytes()
         return _json_response(await self.extension.ImportEntities(pb2.ImportEntitiesRequest(content=content)))
+
+
+def _dag_inputs_json(
+    source_shared_inputs: object | None,
+    node_inputs: dict[str, object] | None,
+    append_nodes: list[str] | None,
+) -> dict[str, str]:
+    return {
+        "source_shared_inputs_json": json.dumps(source_shared_inputs) if source_shared_inputs is not None else "",
+        "node_inputs_json": json.dumps(node_inputs) if node_inputs is not None else "",
+        "append_nodes_json": json.dumps(append_nodes) if append_nodes is not None else "",
+    }
 
 
 def _server_addr() -> str:
