@@ -11,7 +11,10 @@ metadata:
 
 Enter explore mode: investigate, clarify, compare, and help the user think before implementation.
 
-For detailed behavioral guidance including stance, action space, entry point handling, and closing templates, refer to the `explore-supperpowers-style` reference.
+## Required References
+
+- Read `openspec/references/openspec-explore-supperpowers-style.md` before exploring. It is the authoritative Superpowers-style behavior guide for stance, action space, entry point handling, visualization examples, and closing templates.
+- Do not reconstruct or duplicate Superpowers behavior from this prompt. This prompt defines boundaries, context loading, sweeper delegation, and proposal routing only.
 
 ## Skill Delegation Protocol
 
