@@ -152,7 +152,7 @@ capabilities:
     intent: 前端环检测，覆盖 onConnect DFS 校验和 toast 警告
     type: capability
   - id: cap.core.edera-cli
-    intent: edera CLI 提供完整控制面子命令集（Entity/Relation/Entity-type/DAG/Node/Node-type/Skill/Event/System/Client/Config/Handler/Query/Source/Extension），覆盖 CRUD、文件操作、DAG 定义管理与运行时编辑、物化维护、扩展生命周期、查询与监控，通过 gRPC 客户端连接 server，支持 mTLS 身份认证、分页展示、watch/tail 模式和结构化错误输出。
+    intent: edera CLI 提供完整控制面子命令集（Entity/Relation/Entity-type/DAG/Node/Node-type/Skill/Event/System/Client/Config/Handler/Query/Source/Extension/handler-validate），覆盖 CRUD、文件操作、DAG 定义管理与运行时编辑、物化维护、扩展生命周期、查询与监控，通过 gRPC 客户端连接 server，支持 mTLS 身份认证、分页展示、watch/tail 模式和结构化错误输出；同时在顶层、一级子命令、二级子命令三个层级暴露文档化的 help 文本（description、EXAMPLES、二级 subcommand 一行说明）。
     type: capability
     domain: dom.core
   - id: cap.operations.llm-session-reuse
