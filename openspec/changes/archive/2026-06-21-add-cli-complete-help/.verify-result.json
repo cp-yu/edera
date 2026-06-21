@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-06-21T16:31:59.835Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "65a21bb4c7e56b653d0fb86b5ff268973b2e419272f32286ff19c40b626fc7d5",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "branch",
+    "evidenceFiles": [
+      "openspec/changes/add-cli-complete-help/design.md",
+      "openspec/changes/add-cli-complete-help/opsx-delta.yaml",
+      "openspec/changes/add-cli-complete-help/proposal.md",
+      "openspec/changes/add-cli-complete-help/specs/edera-cli/spec.md",
+      "openspec/changes/add-cli-complete-help/tasks.md",
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/cli_help.py",
+      "packages/core/tests/test_cli_help.py"
+    ],
+    "evidenceFingerprint": "d0c5796302907394726ea7c6e27087af63d2a942cf22a677e0d8b2bdb11be732",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/add-cli-complete-help/design.md",
+        "hash": "f19181faecc5d44588561c8c88164c0a70aadf42904edc3bc7d32961a08284c0"
+      },
+      {
+        "path": "openspec/changes/add-cli-complete-help/opsx-delta.yaml",
+        "hash": "7979fbca2db9a05a60dc647bc4e26d8fe7c4d51743c942077006a3bc80d0717d"
+      },
+      {
+        "path": "openspec/changes/add-cli-complete-help/proposal.md",
+        "hash": "9eb34463972cff8a820c84bf56acd1f78feb1c155cc7b3a3dc7c239c9646218c"
+      },
+      {
+        "path": "openspec/changes/add-cli-complete-help/specs/edera-cli/spec.md",
+        "hash": "5c92a6d74a447c8cd812387c98d24db0873857844b29aac8503b59cbd83a2408"
+      },
+      {
+        "path": "openspec/changes/add-cli-complete-help/tasks.md",
+        "hash": "65a21bb4c7e56b653d0fb86b5ff268973b2e419272f32286ff19c40b626fc7d5"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli_help.py",
+        "hash": "52c8730317cb06b398ab35a0ea5ea5ecf691ea4b5ac603be603aaa8a0d2241f0"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "8c76926cba27a828e8331b4990d241e6279f2a18c82538bb9e6daa3e74b7f012"
+      },
+      {
+        "path": "packages/core/tests/test_cli_help.py",
+        "hash": "96c795670218480efdae68b559b46765959ac16dc487d3f544d9d15011855abc"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "5b273d4e75055ef2b8ba503a32c67eb3f0b3fc89"
+  },
+  "optimization": {
+    "status": "NOT_NEEDED",
+    "attempts": [
+      {
+        "timestamp": "2026-06-21T16:35:23.757Z",
+        "type": "optimization",
+        "status": "NO_OPTIMIZATION_NEEDED",
+        "summary": "Optimizer concluded no behavior-preserving simplification exists. The change is text-heavy (help strings, argparse kwargs, examples) and already deduplicated: _command_kwargs(name) consolidates the 4-key dict across 16 call sites; _fmt_epilog(description, examples) is reused for TOP_EPILOG and all 16 command entries; per-builder sub = COMMANDS[name].subcommands localizes repeated attribute access. Remaining surface patterns (COMMANDS = _COMMAND_HELP alias, two Entity reference literals) are cosmetic or speculative abstractions explicitly excluded by surgical-changes/YAGNI. No algorithmic complexity or deep nesting to refactor."
+      }
+    ],
+    "baseline": {
+      "timestamp": "2026-06-21T16:31:59.835Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "65a21bb4c7e56b653d0fb86b5ff268973b2e419272f32286ff19c40b626fc7d5",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "branch",
+        "evidenceFiles": [
+          "openspec/changes/add-cli-complete-help/design.md",
+          "openspec/changes/add-cli-complete-help/opsx-delta.yaml",
+          "openspec/changes/add-cli-complete-help/proposal.md",
+          "openspec/changes/add-cli-complete-help/specs/edera-cli/spec.md",
+          "openspec/changes/add-cli-complete-help/tasks.md",
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/cli_help.py",
+          "packages/core/tests/test_cli_help.py"
+        ],
+        "evidenceFingerprint": "d0c5796302907394726ea7c6e27087af63d2a942cf22a677e0d8b2bdb11be732",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/add-cli-complete-help/design.md",
+            "hash": "f19181faecc5d44588561c8c88164c0a70aadf42904edc3bc7d32961a08284c0"
+          },
+          {
+            "path": "openspec/changes/add-cli-complete-help/opsx-delta.yaml",
+            "hash": "7979fbca2db9a05a60dc647bc4e26d8fe7c4d51743c942077006a3bc80d0717d"
+          },
+          {
+            "path": "openspec/changes/add-cli-complete-help/proposal.md",
+            "hash": "9eb34463972cff8a820c84bf56acd1f78feb1c155cc7b3a3dc7c239c9646218c"
+          },
+          {
+            "path": "openspec/changes/add-cli-complete-help/specs/edera-cli/spec.md",
+            "hash": "5c92a6d74a447c8cd812387c98d24db0873857844b29aac8503b59cbd83a2408"
+          },
+          {
+            "path": "openspec/changes/add-cli-complete-help/tasks.md",
+            "hash": "65a21bb4c7e56b653d0fb86b5ff268973b2e419272f32286ff19c40b626fc7d5"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli_help.py",
+            "hash": "52c8730317cb06b398ab35a0ea5ea5ecf691ea4b5ac603be603aaa8a0d2241f0"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "8c76926cba27a828e8331b4990d241e6279f2a18c82538bb9e6daa3e74b7f012"
+          },
+          {
+            "path": "packages/core/tests/test_cli_help.py",
+            "hash": "96c795670218480efdae68b559b46765959ac16dc487d3f544d9d15011855abc"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "5b273d4e75055ef2b8ba503a32c67eb3f0b3fc89"
+      }
+    }
+  }
+}
