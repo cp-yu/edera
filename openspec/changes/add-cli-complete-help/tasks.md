@@ -110,3 +110,12 @@
   - Preserves: `openspec/specs/edera-cli/spec.md` / Requirement "身份声明" / Scenario "环境变量身份"
   - Command: `.venv/bin/pytest packages/core/tests/test_cli_entity.py packages/core/tests/test_cli_skill.py packages/core/tests/test_cli_relation_aliases.py`
   - Expect: 现有测试全部通过，验证未引入行为回归
+
+## Remediation
+
+- [x] R1 [code_fix] 修复 `--help` 未归入 Common 组
+  - Verifies: `specs/edera-cli/spec.md` / Requirement "CLI Help Surface" / Scenario "顶层 help 全局选项分组"
+  - 问题：spec 要求 `--help` 与 `--version` SHALL 归入 Common 分组；当前实现只把 `--version` 放进 Common，`-h/--help` 仍被 argparse 强制注入默认 `options:` 组。
+  - 修复：顶层 `ArgumentParser(add_help=False)`，在 Common 组显式注册 `common.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS, help="show this help message and exit")`；扩展 `test_top_level_help_groups_global_options` 断言 `-h, --help` 出现在 `Common:` 段下。
+  - Command: `.venv/bin/pytest packages/core/tests/test_cli_help.py -v`
+  - Expect: 全部用例通过，且 `edera --help` 输出中 `-h, --help` 行位于 `Common:` 段标题之后

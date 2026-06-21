@@ -28,6 +28,7 @@ def main() -> None:
         description=TOP_DESCRIPTION,
         epilog=TOP_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
     )
     connection = parser.add_argument_group("Connection")
     connection.add_argument(
@@ -48,6 +49,13 @@ def main() -> None:
         help="Output format for results (default: json).",
     )
     common = parser.add_argument_group("Common")
+    common.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
+    )
     common.add_argument("--version", action="version", version="edera 0.1.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
     _entity_parser(subparsers.add_parser("entity", **_command_kwargs("entity")))

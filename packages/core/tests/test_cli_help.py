@@ -32,6 +32,9 @@ def test_top_level_help_groups_global_options(monkeypatch, capsys):
     assert code == 0
     assert "Connection:" in out
     assert "Output:" in out
+    common_idx = out.index("Common:")
+    assert "-h, --help" in out[common_idx:]
+    assert "--version" in out[common_idx:]
 
 
 def test_first_level_help_contains_description_and_examples(monkeypatch, capsys):
