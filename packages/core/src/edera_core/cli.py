@@ -14,6 +14,7 @@ from pathlib import Path
 import grpc
 import yaml
 
+from edera_core.cli_help import COMMANDS, TOP_DESCRIPTION, TOP_EPILOG
 from edera_core.config.loader import load_system_config
 from edera_core.errors import ConfigError
 from edera_core.grpc_client import GrpcClient
@@ -22,28 +23,49 @@ from edera_core.handler_validator import validate_handler
 
 def main() -> None:
     argv = _normalize_global_output_arg(sys.argv[1:])
-    parser = argparse.ArgumentParser(prog="edera")
-    parser.add_argument("--identity", default=os.environ.get("EDERA_IDENTITY", "human"))
-    parser.add_argument("--server", default=os.environ.get("EDERA_SERVER_ADDR"))
-    parser.add_argument("--output", choices=["json", "yaml", "table"], default="json")
-    parser.add_argument("--version", action="version", version="edera 0.1.0")
+    parser = argparse.ArgumentParser(
+        prog="edera",
+        description=TOP_DESCRIPTION,
+        epilog=TOP_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    connection = parser.add_argument_group("Connection")
+    connection.add_argument(
+        "--identity",
+        default=os.environ.get("EDERA_IDENTITY", "human"),
+        help="Caller identity sent to the server (env: EDERA_IDENTITY, default: human).",
+    )
+    connection.add_argument(
+        "--server",
+        default=os.environ.get("EDERA_SERVER_ADDR"),
+        help="Server gRPC address host:port (env: EDERA_SERVER_ADDR).",
+    )
+    output_group = parser.add_argument_group("Output")
+    output_group.add_argument(
+        "--output",
+        choices=["json", "yaml", "table"],
+        default="json",
+        help="Output format for results (default: json).",
+    )
+    common = parser.add_argument_group("Common")
+    common.add_argument("--version", action="version", version="edera 0.1.0")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    _entity_parser(subparsers.add_parser("entity"))
-    _relation_parser(subparsers.add_parser("relation"))
-    _entity_type_parser(subparsers.add_parser("entity-type"))
-    _node_parser(subparsers.add_parser("node"))
-    _node_type_parser(subparsers.add_parser("node-type"))
-    _skill_parser(subparsers.add_parser("skill"))
-    _dag_parser(subparsers.add_parser("dag"))
-    _event_parser(subparsers.add_parser("event"))
-    _system_parser(subparsers.add_parser("system"))
-    _client_parser(subparsers.add_parser("client"))
-    _config_parser(subparsers.add_parser("config"))
-    _query_parser(subparsers.add_parser("query"))
-    _source_parser(subparsers.add_parser("source"))
-    _handler_parser(subparsers.add_parser("handler"))
-    _extension_parser(subparsers.add_parser("extension"))
-    handler_validate = subparsers.add_parser("handler-validate")
+    _entity_parser(subparsers.add_parser("entity", **_command_kwargs("entity")))
+    _relation_parser(subparsers.add_parser("relation", **_command_kwargs("relation")))
+    _entity_type_parser(subparsers.add_parser("entity-type", **_command_kwargs("entity-type")))
+    _node_parser(subparsers.add_parser("node", **_command_kwargs("node")))
+    _node_type_parser(subparsers.add_parser("node-type", **_command_kwargs("node-type")))
+    _skill_parser(subparsers.add_parser("skill", **_command_kwargs("skill")))
+    _dag_parser(subparsers.add_parser("dag", **_command_kwargs("dag")))
+    _event_parser(subparsers.add_parser("event", **_command_kwargs("event")))
+    _system_parser(subparsers.add_parser("system", **_command_kwargs("system")))
+    _client_parser(subparsers.add_parser("client", **_command_kwargs("client")))
+    _config_parser(subparsers.add_parser("config", **_command_kwargs("config")))
+    _query_parser(subparsers.add_parser("query", **_command_kwargs("query")))
+    _source_parser(subparsers.add_parser("source", **_command_kwargs("source")))
+    _handler_parser(subparsers.add_parser("handler", **_command_kwargs("handler")))
+    _extension_parser(subparsers.add_parser("extension", **_command_kwargs("extension")))
+    handler_validate = subparsers.add_parser("handler-validate", **_command_kwargs("handler-validate"))
     handler_validate.add_argument("path", type=Path)
     args = parser.parse_args(argv)
     try:
@@ -64,6 +86,16 @@ def main() -> None:
     if result is not None:
         result = _apply_output_page(result, args)
         print(_format_output(result, args.output))
+
+
+def _command_kwargs(name: str) -> dict[str, object]:
+    help_meta = COMMANDS[name]
+    return {
+        "help": help_meta.help_line,
+        "description": help_meta.description,
+        "epilog": help_meta.epilog,
+        "formatter_class": argparse.RawDescriptionHelpFormatter,
+    }
 
 
 def _normalize_global_output_arg(argv: list[str]) -> list[str]:
@@ -163,63 +195,65 @@ def _local_page_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _entity_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="entity_command", required=True)
-    get = subparsers.add_parser("get")
-    get.add_argument("ref")
-    show = subparsers.add_parser("show")
-    show.add_argument("ref")
-    create = subparsers.add_parser("create")
+    sub = COMMANDS["entity"].subcommands
+    get = subparsers.add_parser("get", help=sub["get"])
+    get.add_argument("ref", help="Entity reference in <type>:<id> form.")
+    show = subparsers.add_parser("show", help=sub["show"])
+    show.add_argument("ref", help="Entity reference in <type>:<id> form.")
+    create = subparsers.add_parser("create", help=sub["create"])
     create.add_argument("--type", required=True)
     create.add_argument("--id", default="")
     create.add_argument("--attributes")
-    import_ = subparsers.add_parser("import")
+    import_ = subparsers.add_parser("import", help=sub["import"])
     import_.add_argument("path", nargs="?", type=Path)
     import_.add_argument("--file", type=Path)
     import_.add_argument("--type")
-    export = subparsers.add_parser("export")
+    export = subparsers.add_parser("export", help=sub["export"])
     export.add_argument("ref", nargs="?")
     export.add_argument("-o", "--file", required=True, type=Path)
     export.add_argument("--type")
-    template = subparsers.add_parser("template")
+    template = subparsers.add_parser("template", help=sub["template"])
     template.add_argument("--type", required=True)
     template.add_argument("--file", required=True, type=Path)
-    list_ = subparsers.add_parser("list")
+    list_ = subparsers.add_parser("list", help=sub["list"])
     list_.add_argument("--type")
     list_.add_argument("--filter", action="append", default=[])
-    update = subparsers.add_parser("update")
+    update = subparsers.add_parser("update", help=sub["update"])
     update.add_argument("ref")
     update.add_argument("--field")
     update.add_argument("--value")
     update.add_argument("--attributes")
-    query = subparsers.add_parser("query")
+    query = subparsers.add_parser("query", help=sub["query"])
     query.add_argument("expression")
-    delete = subparsers.add_parser("delete")
+    delete = subparsers.add_parser("delete", help=sub["delete"])
     delete.add_argument("ref")
     delete.add_argument("--force", action="store_true")
 
 
 def _relation_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="relation_command", required=True)
-    list_ = subparsers.add_parser("list")
+    sub = COMMANDS["relation"].subcommands
+    list_ = subparsers.add_parser("list", help=sub["list"])
     list_.add_argument("--from", dest="from_")
     list_.add_argument("--to")
     list_.add_argument("--type")
-    create = subparsers.add_parser("create")
+    create = subparsers.add_parser("create", help=sub["create"])
     create.add_argument("--from", dest="from_", required=True)
     create.add_argument("--to", required=True)
     create.add_argument("--type", required=True)
     create.add_argument("--metadata", default="{}")
-    delete = subparsers.add_parser("delete")
+    delete = subparsers.add_parser("delete", help=sub["delete"])
     delete.add_argument("id")
-    import_ = subparsers.add_parser("import")
+    import_ = subparsers.add_parser("import", help=sub["import"])
     import_.add_argument("path", nargs="?", type=Path)
     import_.add_argument("--file", type=Path)
-    export = subparsers.add_parser("export")
+    export = subparsers.add_parser("export", help=sub["export"])
     export.add_argument("-o", "--file", required=True, type=Path)
 
 
 def _entity_type_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="entity_type_command", required=True)
-    materialize = subparsers.add_parser("materialize")
+    materialize = subparsers.add_parser("materialize", help=COMMANDS["entity-type"].subcommands["materialize"])
     materialize_sub = materialize.add_subparsers(dest="materialize_command", required=True)
     for command in ("plan", "apply"):
         item = materialize_sub.add_parser(command)
@@ -233,20 +267,21 @@ def _entity_type_parser(parser: argparse.ArgumentParser) -> None:
 
 def _node_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="node_command", required=True)
-    status = subparsers.add_parser("status")
+    sub = COMMANDS["node"].subcommands
+    status = subparsers.add_parser("status", help=sub["status"])
     status.add_argument("node_id")
-    stop = subparsers.add_parser("stop")
+    stop = subparsers.add_parser("stop", help=sub["stop"])
     stop.add_argument("node_id")
-    resume = subparsers.add_parser("resume")
+    resume = subparsers.add_parser("resume", help=sub["resume"])
     resume.add_argument("node_id")
     resume.add_argument("--prompt", default="")
     resume.add_argument("--run-id")
-    output = subparsers.add_parser("output")
+    output = subparsers.add_parser("output", help=sub["output"])
     output.add_argument("output_args", nargs="*")
     output.add_argument("--run-id")
     output.add_argument("--node")
     output.add_argument("--out", type=Path)
-    logs = subparsers.add_parser("logs")
+    logs = subparsers.add_parser("logs", help=sub["logs"])
     logs.add_argument("node_id")
     logs.add_argument("--run-id", required=True)
     _tail_arguments(logs)
@@ -254,68 +289,71 @@ def _node_parser(parser: argparse.ArgumentParser) -> None:
 
 def _node_type_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="node_type_command", required=True)
-    subparsers.add_parser("list")
-    show = subparsers.add_parser("show")
+    sub = COMMANDS["node-type"].subcommands
+    subparsers.add_parser("list", help=sub["list"])
+    show = subparsers.add_parser("show", help=sub["show"])
     show.add_argument("name")
     for command in ("create", "save"):
-        item = subparsers.add_parser(command)
+        item = subparsers.add_parser(command, help=sub[command])
         item.add_argument("name")
         item.add_argument("--file", required=True, type=Path)
-    delete = subparsers.add_parser("delete")
+    delete = subparsers.add_parser("delete", help=sub["delete"])
     delete.add_argument("name")
 
 
 def _skill_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="skill_command", required=True)
-    subparsers.add_parser("list")
-    show = subparsers.add_parser("show")
+    sub = COMMANDS["skill"].subcommands
+    subparsers.add_parser("list", help=sub["list"])
+    show = subparsers.add_parser("show", help=sub["show"])
     show.add_argument("name")
-    create = subparsers.add_parser("create")
+    create = subparsers.add_parser("create", help=sub["create"])
     create.add_argument("--from-dir", required=True, type=Path)
-    update = subparsers.add_parser("update")
+    update = subparsers.add_parser("update", help=sub["update"])
     update.add_argument("name")
     update.add_argument("--from-dir", required=True, type=Path)
-    import_dir = subparsers.add_parser("import-dir")
+    import_dir = subparsers.add_parser("import-dir", help=sub["import-dir"])
     import_dir.add_argument("path", type=Path)
-    import_batch = subparsers.add_parser("import-batch")
+    import_batch = subparsers.add_parser("import-batch", help=sub["import-batch"])
     import_batch.add_argument("path", type=Path)
-    export = subparsers.add_parser("export")
+    export = subparsers.add_parser("export", help=sub["export"])
     export.add_argument("name")
     export.add_argument("-o", "--output-dir", required=True, type=Path)
-    delete = subparsers.add_parser("delete")
+    delete = subparsers.add_parser("delete", help=sub["delete"])
     delete.add_argument("name")
 
 
 def _dag_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="dag_command", required=True)
-    list_ = subparsers.add_parser("list")
+    sub = COMMANDS["dag"].subcommands
+    list_ = subparsers.add_parser("list", help=sub["list"])
     _local_page_arguments(list_)
-    show = subparsers.add_parser("show")
+    show = subparsers.add_parser("show", help=sub["show"])
     show.add_argument("dag_name")
-    create = subparsers.add_parser("create")
+    create = subparsers.add_parser("create", help=sub["create"])
     create.add_argument("dag_name")
     for command in ("save", "import"):
-        item = subparsers.add_parser(command)
+        item = subparsers.add_parser(command, help=sub[command])
         item.add_argument("dag_name")
         item.add_argument("--file", required=True, type=Path)
-    export = subparsers.add_parser("export")
+    export = subparsers.add_parser("export", help=sub["export"])
     export.add_argument("dag_name")
     export.add_argument("--file", required=True, type=Path)
-    runtime_status = subparsers.add_parser("runtime-status")
+    runtime_status = subparsers.add_parser("runtime-status", help=sub["runtime-status"])
     runtime_status.add_argument("--run-id", default="")
     _watch_arguments(runtime_status)
-    run = subparsers.add_parser("run")
+    run = subparsers.add_parser("run", help=sub["run"])
     run.add_argument("dag_name")
     run.add_argument("--source-shared-inputs", default="")
     run.add_argument("--node-inputs", default="")
     run.add_argument("--append-nodes", default="")
-    status = subparsers.add_parser("status")
+    status = subparsers.add_parser("status", help=sub["status"])
     status.add_argument("dag_name")
     _watch_arguments(status)
-    stop = subparsers.add_parser("stop")
+    stop = subparsers.add_parser("stop", help=sub["stop"])
     stop.add_argument("dag_name")
     stop.add_argument("--force", action="store_true")
-    retry = subparsers.add_parser("retry")
+    retry = subparsers.add_parser("retry", help=sub["retry"])
     retry.add_argument("dag_name")
     retry.add_argument("--run-id", default="")
     retry.add_argument("--nodes", default="")
@@ -323,7 +361,7 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
     retry.add_argument("--source-shared-inputs", default="")
     retry.add_argument("--node-inputs", default="")
     retry.add_argument("--append-nodes", default="")
-    edit = subparsers.add_parser("edit")
+    edit = subparsers.add_parser("edit", help=sub["edit"])
     edit.add_argument("dag_name")
     edit_sub = edit.add_subparsers(dest="edit_command", required=True)
     add_node = edit_sub.add_parser("add-node")
@@ -342,7 +380,8 @@ def _dag_parser(parser: argparse.ArgumentParser) -> None:
 
 def _event_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="event_command", required=True)
-    emit = subparsers.add_parser("emit")
+    sub = COMMANDS["event"].subcommands
+    emit = subparsers.add_parser("emit", help=sub["emit"])
     emit.add_argument("event")
     emit.add_argument("--payload-json", default="")
     emit.add_argument("--source", default="cli")
@@ -351,37 +390,40 @@ def _event_parser(parser: argparse.ArgumentParser) -> None:
 
 def _system_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="system_command", required=True)
-    subparsers.add_parser("pause-scheduler")
-    subparsers.add_parser("resume-scheduler")
-    scheduler_status = subparsers.add_parser("scheduler-status")
+    sub = COMMANDS["system"].subcommands
+    subparsers.add_parser("pause-scheduler", help=sub["pause-scheduler"])
+    subparsers.add_parser("resume-scheduler", help=sub["resume-scheduler"])
+    scheduler_status = subparsers.add_parser("scheduler-status", help=sub["scheduler-status"])
     _watch_arguments(scheduler_status)
-    repair_source = subparsers.add_parser("repair-source")
+    repair_source = subparsers.add_parser("repair-source", help=sub["repair-source"])
     repair_source.add_argument("source_name")
 
 
 def _client_parser(parser: argparse.ArgumentParser) -> None:
     client_sub = parser.add_subparsers(dest="client_command", required=True)
-    init = client_sub.add_parser("init")
+    sub = COMMANDS["client"].subcommands
+    init = client_sub.add_parser("init", help=sub["init"])
     init.add_argument("--server", required=True)
     init.add_argument("--common-name", default=os.environ.get("EDERA_IDENTITY", "human:default"))
 
 
 def _config_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="config_command", required=True)
-    subparsers.add_parser("list")
-    system = subparsers.add_parser("system")
+    sub = COMMANDS["config"].subcommands
+    subparsers.add_parser("list", help=sub["list"])
+    system = subparsers.add_parser("system", help=sub["system"])
     system_sub = system.add_subparsers(dest="system_command", required=True)
     system_sub.add_parser("show")
     system_save = system_sub.add_parser("save")
     system_save.add_argument("--file", required=True, type=Path)
-    read = subparsers.add_parser("read")
+    read = subparsers.add_parser("read", help=sub["read"])
     read.add_argument("kind")
     read.add_argument("name")
-    save = subparsers.add_parser("save")
+    save = subparsers.add_parser("save", help=sub["save"])
     save.add_argument("kind")
     save.add_argument("name")
     save.add_argument("--file", required=True, type=Path)
-    entity_type = subparsers.add_parser("entity-type")
+    entity_type = subparsers.add_parser("entity-type", help=sub["entity-type"])
     entity_type_sub = entity_type.add_subparsers(dest="entity_type_command", required=True)
     entity_type_sub.add_parser("list")
     show = entity_type_sub.add_parser("show")
@@ -397,25 +439,27 @@ def _config_parser(parser: argparse.ArgumentParser) -> None:
 
 def _handler_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="handler_command", required=True)
-    list_ = subparsers.add_parser("list")
+    sub = COMMANDS["handler"].subcommands
+    list_ = subparsers.add_parser("list", help=sub["list"])
     _local_page_arguments(list_)
-    show = subparsers.add_parser("show")
+    show = subparsers.add_parser("show", help=sub["show"])
     show.add_argument("name")
-    save = subparsers.add_parser("save")
+    save = subparsers.add_parser("save", help=sub["save"])
     save.add_argument("name")
     save.add_argument("--file", required=True, type=Path)
 
 
 def _query_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="query_command", required=True)
-    briefing = subparsers.add_parser("briefing")
+    sub = COMMANDS["query"].subcommands
+    briefing = subparsers.add_parser("briefing", help=sub["briefing"])
     briefing_sub = briefing.add_subparsers(dest="briefing_command", required=True)
     briefing_sub.add_parser("latest")
     briefing_list = briefing_sub.add_parser("list")
     _time_range_arguments(briefing_list)
     show_briefing = briefing_sub.add_parser("show")
     show_briefing.add_argument("briefing_id")
-    advice = subparsers.add_parser("advice")
+    advice = subparsers.add_parser("advice", help=sub["advice"])
     advice_sub = advice.add_subparsers(dest="advice_command", required=True)
     advice_list = advice_sub.add_parser("list")
     advice_list.add_argument("--stock-code", default="")
@@ -423,23 +467,23 @@ def _query_parser(parser: argparse.ArgumentParser) -> None:
     _time_range_arguments(advice_list)
     show_advice = advice_sub.add_parser("show")
     show_advice.add_argument("advice_id")
-    results = subparsers.add_parser("results")
+    results = subparsers.add_parser("results", help=sub["results"])
     results_sub = results.add_subparsers(dest="results_command", required=True)
     summary = results_sub.add_parser("summary")
     summary.add_argument("--stock-code", default="")
     summary.add_argument("--direction", default="")
     summary.add_argument("--created-from", default="")
     summary.add_argument("--created-to", default="")
-    node_outputs = subparsers.add_parser("node-outputs")
+    node_outputs = subparsers.add_parser("node-outputs", help=sub["node-outputs"])
     node_outputs.add_argument("--node-id", default="")
     node_outputs.add_argument("--run-id", default="")
     node_outputs.add_argument("--limit", type=int, default=100)
     _offset_argument(node_outputs)
-    node_history = subparsers.add_parser("node-history")
+    node_history = subparsers.add_parser("node-history", help=sub["node-history"])
     node_history.add_argument("dag_name")
     node_history.add_argument("node_id")
     node_history.add_argument("--limit", type=int, default=50)
-    child_run = subparsers.add_parser("child-run")
+    child_run = subparsers.add_parser("child-run", help=sub["child-run"])
     child_run.add_argument("--parent-run-id", required=True)
     child_run.add_argument("--parent-node-id", required=True)
 
@@ -453,47 +497,49 @@ def _time_range_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _source_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="source_command", required=True)
-    health = subparsers.add_parser("health")
+    sub = COMMANDS["source"].subcommands
+    health = subparsers.add_parser("health", help=sub["health"])
     _watch_arguments(health)
-    logs = subparsers.add_parser("logs")
+    logs = subparsers.add_parser("logs", help=sub["logs"])
     logs.add_argument("--source-name", default="")
     logs.add_argument("--limit", type=int, default=50)
     _offset_argument(logs)
     _tail_arguments(logs)
-    repair_task = subparsers.add_parser("repair-task")
+    repair_task = subparsers.add_parser("repair-task", help=sub["repair-task"])
     repair_task.add_argument("source_name")
 
 
 def _extension_parser(parser: argparse.ArgumentParser) -> None:
     subparsers = parser.add_subparsers(dest="extension_command", required=True)
-    list_ = subparsers.add_parser("list")
+    sub = COMMANDS["extension"].subcommands
+    list_ = subparsers.add_parser("list", help=sub["list"])
     list_.add_argument("--available", action="store_true")
     list_.add_argument("--installed", action="store_true")
-    show = subparsers.add_parser("show")
+    show = subparsers.add_parser("show", help=sub["show"])
     show.add_argument("name")
     show.add_argument("--extensions-dir", type=Path, default=Path("extensions"))
-    install = subparsers.add_parser("install")
+    install = subparsers.add_parser("install", help=sub["install"])
     install.add_argument("name")
     install.add_argument("--overwrite", action="store_true")
-    delete = subparsers.add_parser("delete")
+    delete = subparsers.add_parser("delete", help=sub["delete"])
     delete.add_argument("name")
-    uninstall = subparsers.add_parser("uninstall")
+    uninstall = subparsers.add_parser("uninstall", help=sub["uninstall"])
     uninstall.add_argument("name")
     uninstall.add_argument("--strategy", required=True, choices=["purge", "keep-modified", "deactivate"])
-    reactivate = subparsers.add_parser("reactivate")
+    reactivate = subparsers.add_parser("reactivate", help=sub["reactivate"])
     reactivate.add_argument("name")
-    import_ = subparsers.add_parser("import")
+    import_ = subparsers.add_parser("import", help=sub["import"])
     import_.add_argument("path", type=Path)
     import_.add_argument("--extensions-dir", type=Path, default=Path("extensions"))
     import_.add_argument("--install", action="store_true")
     import_.add_argument("--overwrite", action="store_true")
-    export = subparsers.add_parser("export")
+    export = subparsers.add_parser("export", help=sub["export"])
     export.add_argument("name")
     export.add_argument("-o", "--file", required=True, type=Path)
     export.add_argument("--handlers-dir", type=Path)
-    import_entities = subparsers.add_parser("import-entities")
+    import_entities = subparsers.add_parser("import-entities", help=sub["import-entities"])
     import_entities.add_argument("-f", "--file", required=True, type=Path)
-    export_entities = subparsers.add_parser("export-entities")
+    export_entities = subparsers.add_parser("export-entities", help=sub["export-entities"])
     export_entities.add_argument("-o", "--file", required=True, type=Path)
     export_entities.add_argument("--entities", required=True)
     export_entities.add_argument("--name", required=True)
