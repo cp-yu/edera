@@ -9,7 +9,8 @@ import grpc
 import pytest
 import yaml
 
-from edera_core.cli import _grpc_client_init, _inject_human_cert_env, main
+from edera_core.cli.client import _grpc_client_init
+from edera_core.cli import _inject_human_cert_env, main
 from edera_core.grpc_client import GrpcClient
 
 
@@ -115,7 +116,7 @@ def test_client_init_writes_edera_home(monkeypatch: pytest.MonkeyPatch, tmp_path
         return {"client_cert_pem": "cert", "client_key_pem": "key", "ca_cert_pem": "ca"}
 
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("edera_core.cli._grpc_client_init", fake_init)
+    monkeypatch.setattr("edera_core.cli.client._grpc_client_init", fake_init)
     monkeypatch.setattr("sys.argv", ["edera", "client", "init", "--server", "127.0.0.1:9091"])
 
     main()

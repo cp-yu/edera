@@ -5,15 +5,16 @@ import argparse
 import pytest
 
 from edera_core import cli
+from edera_core.cli import skill as cli_skill
 
 
 @pytest.mark.asyncio
 async def test_skill_list(monkeypatch):
     client = _Client()
-    monkeypatch.setattr(cli, "GrpcClient", lambda *args, **kwargs: client)
+    monkeypatch.setattr("edera_core.cli.GrpcClient", lambda *args, **kwargs: client)
     args = argparse.Namespace(server=None, identity="human", skill_command="list")
 
-    result = await cli._grpc_skill(args)
+    result = await cli_skill._grpc_skill(args)
 
     assert result["skills"][0]["name"] == "demo"
     assert result["skills"][0]["display_name"] == "Demo"
@@ -23,13 +24,13 @@ async def test_skill_list(monkeypatch):
 @pytest.mark.asyncio
 async def test_skill_import_dir(monkeypatch, tmp_path):
     client = _Client()
-    monkeypatch.setattr(cli, "GrpcClient", lambda *args, **kwargs: client)
+    monkeypatch.setattr("edera_core.cli.GrpcClient", lambda *args, **kwargs: client)
     source = tmp_path / "demo"
     source.mkdir()
     (source / "SKILL.md").write_text("# Demo", encoding="utf-8")
     args = argparse.Namespace(server=None, identity="human", skill_command="import-dir", path=source)
 
-    result = await cli._grpc_skill(args)
+    result = await cli_skill._grpc_skill(args)
 
     assert result["skill"]["name"] == "demo"
     assert client.saved_name == "demo"
@@ -39,7 +40,7 @@ async def test_skill_import_dir(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_skill_import_batch(monkeypatch, tmp_path):
     client = _Client()
-    monkeypatch.setattr(cli, "GrpcClient", lambda *args, **kwargs: client)
+    monkeypatch.setattr("edera_core.cli.GrpcClient", lambda *args, **kwargs: client)
     source = tmp_path / "skills"
     for name in ("a", "b"):
         root = source / name
@@ -47,7 +48,7 @@ async def test_skill_import_batch(monkeypatch, tmp_path):
         (root / "SKILL.md").write_text(name, encoding="utf-8")
     args = argparse.Namespace(server=None, identity="human", skill_command="import-batch", path=source)
 
-    result = await cli._grpc_skill(args)
+    result = await cli_skill._grpc_skill(args)
 
     assert result["imported"] == ["a", "b"]
     assert client.saved_names == ["a", "b"]
@@ -56,16 +57,16 @@ async def test_skill_import_batch(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_skill_import_dir_updates_existing(monkeypatch, tmp_path):
     client = _Client()
-    monkeypatch.setattr(cli, "GrpcClient", lambda *args, **kwargs: client)
+    monkeypatch.setattr("edera_core.cli.GrpcClient", lambda *args, **kwargs: client)
     source = tmp_path / "demo"
     source.mkdir()
     skill_md = source / "SKILL.md"
     args = argparse.Namespace(server=None, identity="human", skill_command="import-dir", path=source)
 
     skill_md.write_text("old", encoding="utf-8")
-    await cli._grpc_skill(args)
+    await cli_skill._grpc_skill(args)
     skill_md.write_text("new", encoding="utf-8")
-    await cli._grpc_skill(args)
+    await cli_skill._grpc_skill(args)
 
     assert client.saved_names == ["demo", "demo"]
     assert client.saved_payloads[-1]["files"] == [{"path": "SKILL.md", "content": "new"}]
@@ -74,10 +75,10 @@ async def test_skill_import_dir_updates_existing(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_skill_export_preserves_files(monkeypatch, tmp_path):
     client = _Client()
-    monkeypatch.setattr(cli, "GrpcClient", lambda *args, **kwargs: client)
+    monkeypatch.setattr("edera_core.cli.GrpcClient", lambda *args, **kwargs: client)
     args = argparse.Namespace(server=None, identity="human", skill_command="export", name="demo", output_dir=tmp_path / "out")
 
-    result = await cli._grpc_skill(args)
+    result = await cli_skill._grpc_skill(args)
 
     assert result["exported"] == "demo"
     assert (tmp_path / "out" / "demo" / "SKILL.md").read_text(encoding="utf-8") == "# Demo"
