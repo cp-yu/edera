@@ -1,0 +1,162 @@
+{
+  "timestamp": "2026-06-22T17:38:35.626Z",
+  "result": "PASS_WITH_WARNINGS",
+  "issues": [
+    {
+      "severity": "medium",
+      "message": "Task 3 design mandates _subdag.py (~100 lines) and _loop.py (~150 lines) extraction, plus _acquire_resource/_release_resource/_wait_for_resource_release move to resources.py. None of these were done. Only _helpers.py (11 module-level pure functions) was extracted. Runner.py remains 1388 lines (saved only ~76 lines)."
+    },
+    {
+      "severity": "low",
+      "message": "208 lines — design.md specified ≤200 lines hard limit for _helpers.py. Exceeds by 8 lines."
+    },
+    {
+      "severity": "low",
+      "message": "References cli_help.py which was deleted. This doc file should be updated or archived."
+    },
+    {
+      "severity": "low",
+      "message": "References cli_help.py:COMMANDS. Should reference cli module HELP constants instead."
+    }
+  ],
+  "tasksFileHash": "fc7700cd93258261ca1afd03a6396a42029addd1e8eb4c3468631e991f5c4a68",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "subagent",
+    "evidenceFiles": [
+      "openspec/changes/split-oversized-modules/design.md",
+      "openspec/changes/split-oversized-modules/tasks.md",
+      "packages/core/src/edera_core/cli/__init__.py",
+      "packages/core/src/edera_core/dag/_helpers.py",
+      "packages/core/src/edera_core/dag/resources.py",
+      "packages/core/src/edera_core/dag/runner.py",
+      "packages/core/src/edera_core/storage/repository/__init__.py",
+      "packages/core/tests/test_cli_help.py",
+      "tests/core/unit/test_cli.py"
+    ],
+    "evidenceFingerprint": "343b93fb3f099cced509d5a1a6b2ebe335bba6f8330d6d3c75bc51239870c5db",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "openspec/changes/split-oversized-modules/design.md",
+        "hash": "4440899030a50157634ede2387f9a44a4557d3b16f075f621916926c16b84233"
+      },
+      {
+        "path": "openspec/changes/split-oversized-modules/tasks.md",
+        "hash": "fc7700cd93258261ca1afd03a6396a42029addd1e8eb4c3468631e991f5c4a68"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli/__init__.py",
+        "hash": "48ae042816448425f40b9a19fc18c6ee97c02475154c3905e6ec2c03f55537a0"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/_helpers.py",
+        "hash": "b3a29256a77a38dd2b8c96e02b2b336e8e0f5473cc4a8d8b620b7478fdf2f34a"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/resources.py",
+        "hash": "4c663b3ff934a3d9fbc7bc1ec6ff7a2c2a92b69fe282382353c5635f829ad544"
+      },
+      {
+        "path": "packages/core/src/edera_core/dag/runner.py",
+        "hash": "a32dc475799e6a3d8970cbbb3c6de28d5a8a4316c4b162c5ed5f4f7fc313ca8b"
+      },
+      {
+        "path": "packages/core/src/edera_core/storage/repository/__init__.py",
+        "hash": "9fa77f268f668cb53e296f4f8b0d3d22dfc7b17883dfb8f22e070c21abf3d0aa"
+      },
+      {
+        "path": "packages/core/tests/test_cli_help.py",
+        "hash": "511699fe6b176bb70c88074e5fa10be4793f4a57c1db424542e098f83cc934a8"
+      },
+      {
+        "path": "tests/core/unit/test_cli.py",
+        "hash": "42277f8decdf6c550ee761effa008840e923ba9260b6cf1bcac10055db6b7d62"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "532f31ae760008b348fd6e0d2daadab0a19e76e7"
+  },
+  "optimization": {
+    "status": "PENDING_VERIFICATION",
+    "attempts": [],
+    "baseline": {
+      "timestamp": "2026-06-22T17:38:35.626Z",
+      "result": "PASS_WITH_WARNINGS",
+      "issues": [
+        {
+          "severity": "medium",
+          "message": "Task 3 design mandates _subdag.py (~100 lines) and _loop.py (~150 lines) extraction, plus _acquire_resource/_release_resource/_wait_for_resource_release move to resources.py. None of these were done. Only _helpers.py (11 module-level pure functions) was extracted. Runner.py remains 1388 lines (saved only ~76 lines)."
+        },
+        {
+          "severity": "low",
+          "message": "208 lines — design.md specified ≤200 lines hard limit for _helpers.py. Exceeds by 8 lines."
+        },
+        {
+          "severity": "low",
+          "message": "References cli_help.py which was deleted. This doc file should be updated or archived."
+        },
+        {
+          "severity": "low",
+          "message": "References cli_help.py:COMMANDS. Should reference cli module HELP constants instead."
+        }
+      ],
+      "tasksFileHash": "fc7700cd93258261ca1afd03a6396a42029addd1e8eb4c3468631e991f5c4a68",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "subagent",
+        "evidenceFiles": [
+          "openspec/changes/split-oversized-modules/design.md",
+          "openspec/changes/split-oversized-modules/tasks.md",
+          "packages/core/src/edera_core/cli/__init__.py",
+          "packages/core/src/edera_core/dag/_helpers.py",
+          "packages/core/src/edera_core/dag/resources.py",
+          "packages/core/src/edera_core/dag/runner.py",
+          "packages/core/src/edera_core/storage/repository/__init__.py",
+          "packages/core/tests/test_cli_help.py",
+          "tests/core/unit/test_cli.py"
+        ],
+        "evidenceFingerprint": "343b93fb3f099cced509d5a1a6b2ebe335bba6f8330d6d3c75bc51239870c5db",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "openspec/changes/split-oversized-modules/design.md",
+            "hash": "4440899030a50157634ede2387f9a44a4557d3b16f075f621916926c16b84233"
+          },
+          {
+            "path": "openspec/changes/split-oversized-modules/tasks.md",
+            "hash": "fc7700cd93258261ca1afd03a6396a42029addd1e8eb4c3468631e991f5c4a68"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli/__init__.py",
+            "hash": "48ae042816448425f40b9a19fc18c6ee97c02475154c3905e6ec2c03f55537a0"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/_helpers.py",
+            "hash": "b3a29256a77a38dd2b8c96e02b2b336e8e0f5473cc4a8d8b620b7478fdf2f34a"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/resources.py",
+            "hash": "4c663b3ff934a3d9fbc7bc1ec6ff7a2c2a92b69fe282382353c5635f829ad544"
+          },
+          {
+            "path": "packages/core/src/edera_core/dag/runner.py",
+            "hash": "a32dc475799e6a3d8970cbbb3c6de28d5a8a4316c4b162c5ed5f4f7fc313ca8b"
+          },
+          {
+            "path": "packages/core/src/edera_core/storage/repository/__init__.py",
+            "hash": "9fa77f268f668cb53e296f4f8b0d3d22dfc7b17883dfb8f22e070c21abf3d0aa"
+          },
+          {
+            "path": "packages/core/tests/test_cli_help.py",
+            "hash": "511699fe6b176bb70c88074e5fa10be4793f4a57c1db424542e098f83cc934a8"
+          },
+          {
+            "path": "tests/core/unit/test_cli.py",
+            "hash": "42277f8decdf6c550ee761effa008840e923ba9260b6cf1bcac10055db6b7d62"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "532f31ae760008b348fd6e0d2daadab0a19e76e7"
+      }
+    }
+  }
+}
