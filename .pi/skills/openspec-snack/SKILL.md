@@ -36,7 +36,7 @@ After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surface
 - Run `openspec list --specs --json` to get specs and their `capabilities` string arrays; specs without frontmatter return `capabilities: []`.
 - For known or affected OPSX node IDs, run `openspec opsx query <node-id...> --json` to get node details, relations and code-map refs in one batch; add `--depth 2` when broader related context is needed.
 - Treat CLI output as navigation context, not as a replacement for change artifacts.
-6. 先确定 capability 列表，再生成 `proposal.md`。
+6. Determine the capability list first, then generate `proposal.md`.
    - Run `openspec instructions proposal --change "<name>" --json`.
    - Use the returned `template`, `instruction`, `outputPath`, and `configProjection`; do not invent non-template sections.
    - Determine the `## Capabilities` list before specs generation and reuse the same list as specs input.
@@ -55,7 +55,7 @@ After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surface
    - Use the returned `template`, `instruction`, `outputPath`, and `configProjection`; do not invent non-template sections.
    - Preserve the full template skeleton: Context, Goals / Non-Goals, Decisions, and Risks / Trade-offs.
    - Mark inferred content with `[INFERRED FROM CODE]`; mark unresolved risks or trade-offs with `[REVIEW NEEDED]`.
-9. OPSX delta heuristic — generate `opsx-delta.yaml` ONLY when git diff shows new/deleted exports or new files; otherwise skip and log "未检测到架构级变更，跳过 OPSX delta 生成".
+9. OPSX delta heuristic — generate `opsx-delta.yaml` ONLY when git diff shows new/deleted exports or new files; otherwise skip and log "No architecture-level changes detected. Skipping OPSX delta generation".
    **Generate opsx-delta.yaml**:
 - Read `openspec instructions opsx-delta --change "<name>" --json`
 - Use the returned `template`, `instruction`, and `outputPath` to generate `opsx-delta.yaml`
@@ -89,21 +89,21 @@ After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surface
 11. Run `openspec validate "<name>" --type change --json` after all generated artifacts are written.
    - If validation returns ERROR or WARNING, run one repair pass using the relevant artifact `instruction` rules, then run `openspec validate "<name>" --type change --json` once more.
    - Treat the second validation result as final evidence.
-   - 输出 validate result：通过则提示已自检通过；仍有 ERROR/WARNING 则逐条列出并提示用户审查。
+   - Output validate result: if passed, indicate self-check passed; if ERROR/WARNING remain, list each and advise user review.
 12. Finish with the output hints below, including the validate result.
 
 ## Output Hints
 
 After artifacts are generated, output:
 
-**快速路径（跳过 verify）：**
-  • 继续开发: `openspec sync "<change-name>" --no-verify`
-  • 快速归档: `openspec archive "<change-name>" --no-verify`
+**Fast path (skip verify):**
+  • Continue development: `openspec sync "<change-name>" --no-verify`
+  • Fast archive: `openspec archive "<change-name>" --no-verify`
 
-**修正路径：**
-⚠️ 生成的 specs 基于代码推断，建议审查标记 [REVIEW NEEDED] 的内容
-- 修正分支 1：审查 change → 手动编辑 specs → sync → archive
-- 修正分支 2：审查 change → 修改代码 → 再次 `/opsx-snack` → 继续迭代
+**Correction path:**
+⚠️ Generated specs are based on code inference. Review items marked [REVIEW NEEDED]
+- Correction branch 1: review change → manually edit specs → sync → archive
+- Correction branch 2: review change → modify code → run `/opsx-snack` again → continue iterating
 
 ## Artifact Contract
 

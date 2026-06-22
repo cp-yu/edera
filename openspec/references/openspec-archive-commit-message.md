@@ -5,14 +5,14 @@ Use this built-in format when `git.commitMessage.archive` is not configured.
 Subject:
 
 ```text
-docs(<change-name>): 归档变更制品
+docs(<change-name>): Archive change artifacts
 ```
 
 Body:
 
 ```text
 ## Why
-[业务背景] <why this archive commit is needed>
+[Business context] <why this archive commit is needed>
 
 ## Changes
 - `<file-path>`: <why this archived/synced path must be committed>

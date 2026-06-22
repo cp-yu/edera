@@ -1,66 +1,66 @@
-# Superpowers-Style Explore 行为引导
+# Superpowers-Style Explore Behavior Guide
 
-这份 reference 是 Superpowers brainstorming 在 OpenSpec explore 中的适配版。它恢复设计前置纪律，但不恢复原始 Superpowers 的文件写入、提交或实现计划权限。
+This reference is the OpenSpec explore adaptation of Superpowers brainstorming. It restores design-first discipline but does not restore original Superpowers file writing, committing, or implementation planning permissions.
 
 ## Superpowers brainstorming source
 
-Superpowers brainstorming 的核心不是随意讨论，而是在实现前把模糊想法压成经用户确认的设计：
-- 先读项目上下文，再判断问题边界。
-- 一次只问一个澄清问题。
-- 对关键选择给出 2-3 approaches、取舍和推荐。
-- 分段展示设计，每段都等用户确认。
-- 自检设计，交给用户 review。
-- 通过明确交接进入下一工作流。
+The core of Superpowers brainstorming is not free-form discussion, but compressing vague ideas into user-confirmed designs before implementation:
+- Read project context first, then determine problem boundaries.
+- Ask exactly one clarification question at a time.
+- For key choices, present 2-3 approaches with trade-offs and a recommendation.
+- Present design section by section; wait for user confirmation on each.
+- Self-review the design, then hand off for user review.
+- Enter the next workflow through explicit handoff.
 
-OpenSpec 的映射：
-- 原始设计文档步骤映射为 conversation-only `Design Summary`。
-- 原始提交步骤被移除；explore 不写文件。
-- 原始实现计划交接映射为 `openspec-propose` handoff。
+OpenSpec mapping:
+- The original design-document step maps to a conversation-only `Design Summary`.
+- The original commit step is removed; explore does not write files.
+- The original implementation-plan handoff maps to `openspec-propose` handoff.
 
 ## Hard gate before implementation
 
 Do not implement before design confirmation is complete.
 
-Explore 期间不得开始编码、生成 patch、更新 artifacts，或把用户的方向确认解释成写入授权。即使用户说"可以"、"就这样"或选择某个方案，也只表示设计方向被确认。
+Do not start coding, generate patches, update artifacts, or interpret design confirmations as write authorization during Explore. Even if the user says "ok", "that works", or chooses an option, it only confirms the design direction.
 
-Simple changes still require design confirmation. 小变更可以缩短设计，但不能跳过：至少确认问题、影响范围、方案和验证方式。
+Simple changes still require design confirmation. Simple changes can shorten the design process, but cannot skip it: at minimum confirm the problem, impact scope, approach, and verification method.
 
 ## Project context exploration
 
-先用项目事实约束讨论：
-- 读取相关 OpenSpec change、spec、design、tasks。
-- 查看相关实现文件、测试和 git evidence。
-- 识别受影响子系统；若请求横跨多个独立子系统，先拆清楚边界和推荐顺序。
-- 明确未知项，不用一般经验替代项目证据。
+Constrain the discussion with project facts first:
+- Read relevant OpenSpec change, spec, design, and tasks.
+- Inspect relevant implementation files, tests, and git evidence.
+- Identify affected subsystems; if the request spans multiple independent subsystems, first clarify boundaries and recommend an order.
+- Explicitly identify unknowns; do not substitute general experience for project evidence.
 
 ## Just-in-time visual companion
 
-视觉表达只在它能降低复杂度时使用。适合场景：
-- 架构边界、状态机、数据流、依赖关系。
-- 多方案对比。
-- 用户卡在抽象关系上。
+Use visual expression only when it reduces complexity. Suitable scenarios:
+- Architectural boundaries, state machines, data flow, dependency relationships.
+- Multi-option comparison.
+- When the user is stuck on abstract relationships.
 
-普通 CLI 行为、窄范围修复、字段命名、测试选择等问题，用简洁文本或表格即可；不要引入浏览器或 server companion。
+For routine CLI behavior, narrow fixes, field naming, or test selection, use concise text or tables; do not introduce a browser or server companion.
 
 ## One-question discipline
 
-每轮只问一个会改变设计的问题，问完等待用户回答。不要把 scope、API、数据模型、测试策略揉成一串问题。
+Ask only one design-changing question per turn, then wait for the answer. Do not bundle scope, API, data model, and testing strategy into a string of questions.
 
-如果选择集合清楚，优先给 2-3 个选项并说明差异；如果选择集合不清楚，先问能缩小问题空间的一个问题。
+If the choice set is clear, prefer presenting 2-3 options with differences explained; if unclear, first ask one question that narrows the problem space.
 
 ## 2-3 approaches
 
-对关键设计点提供 2-3 approaches。每个方案包含：
-- 方案描述。
-- 优点。
-- 缺点或风险。
-- 最适合的场景。
+Provide 2-3 approaches for key design decisions. Each option includes:
+- Description.
+- Strengths.
+- Weaknesses or risks.
+- Best-fit scenario.
 
-给出推荐时必须说明原因，并把推荐绑定到项目约束，而不是偏好。
+When giving a recommendation, explain why and tie it to project constraints, not personal preference.
 
 ## Section-by-section design approval
 
-按 section 推进设计，不一次性倾倒完整方案。常见 section：
+Advance the design by section; do not dump a complete solution all at once. Common sections:
 - Architecture。
 - Core components。
 - Data flow。
@@ -68,30 +68,30 @@ Simple changes still require design confirmation. 小变更可以缩短设计，
 - Testing strategy。
 - Risks and trade-offs。
 
-每个 section 结束时等待用户确认。用户要求修改时，只修正当前 section 并重新确认，然后再继续下一 section。
+Wait for user confirmation at the end of each section. When the user requests changes, revise only the current section and reconfirm before continuing.
 
 ## Design Summary self-review
 
-生成 `Design Summary` 前先自检：
-- 是否仍有未解决的 scope 问题。
-- 是否有占位符、含糊边界或互相矛盾的决策。
-- 是否说明了测试策略和风险。
-- 是否把文件写入、artifact 更新或后续生成动作留给非 explore workflow。
+Before generating the `Design Summary`, self-review:
+- Are there unresolved scope questions?
+- Are there placeholders, vague boundaries, or contradictory decisions?
+- Are the testing strategy and risks explained?
+- Are file writes, artifact updates, or subsequent generation actions left for non-explore workflows?
 
-`Design Summary` 必须留在对话中，不创建或更新文件。内容聚焦架构、组件、数据流、技术栈、测试策略、风险和取舍。
+The `Design Summary` must stay in the conversation; do not create or update files. Content focuses on architecture, components, data flow, technology stack, testing strategy, risks, and trade-offs.
 
 ## User review gate
 
-向用户展示 `Design Summary` 后停止推进，让用户 review。用户要求改动时，回到对应 section 重新确认。
+After showing the `Design Summary` to the user, stop advancing; let the user review. When the user requests changes, return to the corresponding section and reconfirm.
 
 Only route to openspec-propose after the user reviews and accepts the Design Summary.
 
 ## openspec-propose handoff
 
-用户确认 `Design Summary` 后，使用工具中立 workflow 名称交接：
+After the user confirms the `Design Summary`, hand off using tool-neutral workflow names:
 
 ```
-设计总结已完成。请审查上述设计。如果确认无误，请使用 openspec-propose 生成制品。
+Design Summary complete. Review the above design. If confirmed, use openspec-propose to generate artifacts.
 ```
 
-不要在 reference 中使用工具特定调用语法。不要暗示 explore 可以创建 proposal、更新 design、修改 specs、提交文件或直接进入实现。
+Do not use tool-specific call syntax in references. Do not imply that explore can create proposals, update designs, modify specs, commit files, or directly enter implementation.

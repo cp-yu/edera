@@ -5,15 +5,15 @@ Use this built-in format when `git.commitMessage.boundary` is not configured.
 Subject:
 
 ```text
-<type>(<scope>): <中文标题>
+<type>(<scope>): <English subject>
 ```
 
 Body:
 
 ```text
 ## Why
-[业务背景] <why from proposal.md>
-[技术决策] <decision from design.md when present>
+[Business context] <why from proposal.md>
+[Technical decision] <decision from design.md when present>
 
 ## Changes
 - `<file-path>`: <why this file changed>

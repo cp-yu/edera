@@ -14,7 +14,7 @@ Propose a new change and generate all artifacts needed for implementation.
 ## Flow
 
 1. Input must identify a kebab-case change name or enough description to derive one. If unclear, ask what to build or fix.
-2. Apply smart routing before creating files: inspect the current conversation for an explore-generated `Design Summary`; if no summary exists, respect `propose.smartRouting: false` and `propose.requireExplore: false`, otherwise score the user's input across 5 dimensions. Detect multi-subsystem scope. Outcomes include: "Design Summary found: proceed and show that Design Summary is being used", "输入足够详细，跳过 explore，直接生成制品。", and "这个需求涉及多个独立子系统，建议先运行 `/opsx-explore` 进行拆解。". Show input length, detail score, multi-subsystem result, and final decision.
+2. Apply smart routing before creating files: inspect the current conversation for an explore-generated `Design Summary`; if no summary exists, respect `propose.smartRouting: false` and `propose.requireExplore: false`, otherwise score the user's input across 5 dimensions. Detect multi-subsystem scope. Outcomes include: "Design Summary found: proceed and show that Design Summary is being used", "Input is sufficiently detailed. Skipping explore; generating artifacts directly.", and "This request spans multiple independent subsystems. Consider running `/opsx-explore` to decompose it first.". Show input length, detail score, multi-subsystem result, and final decision.
 3. Run `openspec new change "<name>"`, then `openspec status --change "<name>" --json` to read `applyRequires`, artifact order, dependencies, and schema.
 4. Load shared OPSX context before artifact generation.
 Before reading other context files, check whether `openspec/project.opsx.yaml` exists.

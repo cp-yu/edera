@@ -36,6 +36,14 @@ After reading shared `project.opsx.yaml` context, use OpenSpec CLI query surface
 - For known or affected OPSX node IDs, run `openspec opsx query <node-id...> --json` to get node details, relations and code-map refs in one batch; add `--depth 2` when broader related context is needed.
 - Treat CLI output as navigation context, not as a replacement for change artifacts.
 
+### Pre-flight Scan
+
+Before entering Branch Isolation, scan all tasks in tasks.md for contradictions and dependency-ordering issues across Goals, Files, Requirements, and Checks:
+- Conflicting declarations on the same file or interface across different tasks
+- Task declarations that conflict with change-local specs or design.md
+- Earlier task depending on output of a later task (e.g., Task N's Files declares Modify on a path created by Task M's Files, where M > N)
+- Present all findings at once; proceed silently when scan is clean
+
 ### Branch Isolation Preflight
 
 Run `git branch --show-current`. On main/master ask whether to Create branch `<change-name>`, Create worktree at `.worktrees/<change-name>`, or continue; config branch/worktree/none use that as the default choice without prompting; only `ask` is interactive and means prompt. Persist `path.join(changeDir, '.apply-isolation.json')` with `method`, `branchName`, optional `worktreePath`, and `originalBranch`. Use using-git-worktrees when present.
@@ -48,7 +56,19 @@ TDD Checkpoint 1: Interface Design for Testability — dependencies are injected
 
 ### Continuous Recovery Protocol
 
-Failures are recovery feedback. Normalize as `task + check + command + failure kind`; pause only after two consecutive failures for the same task and same normalized error signature. A changed normalized error signature is progress. If a task Goal or Requirements is ambiguous, enrich context from proposal, design, change-local specs, tasks.md, OPSX code-map, related specs, and project search. If project context is missing, convert the gap into verifiable exploration or check steps in the current task and continue execution. Phase 1 failures enter the same recovery loop. User interrupt remains an immediate stop condition.
+Failures are recovery feedback. Normalize as `task + check + command + failure kind`; pause only after two consecutive failures for the same task and same normalized error signature.
+
+**Diagnosis Before Repair**: When a Check command returns an unexpected failure, the agent SHALL complete diagnosis steps before attempting code fixes:
+1. Read the full error output (including stack trace)
+2. Identify the failure layer (compile / type / runtime / assertion)
+3. Search the codebase for a working example of the same pattern and compare
+4. Form and state a single hypothesis ("Root cause hypothesis: X, because Y")
+
+**Single-Variable Fix Constraint**: Each fix attempt SHALL change only one variable — do not stack multiple independent changes in a single fix. After the fix, SHALL re-run the same Check command to confirm the result.
+
+**Cumulative 3-Strike Escalation**: When the same task accumulates 3 failed fix attempts without resolution, the agent SHALL stop and present evidence: the 3 attempted paths with their results, the current best root-cause judgment, and suspected directions. Two consecutive identical normalized error signatures still trigger a fast pause. Counter resets on user instruction.
+
+If a task Goal or Requirements is ambiguous, enrich context from proposal, design, change-local specs, tasks.md, OPSX code-map, related specs, and project search. If project context is missing, convert the gap into verifiable exploration or check steps in the current task and continue execution. Phase 1 failures enter the same recovery loop. User interrupt remains an immediate stop condition.
 
 ### Phase 1: Run canonical verification
 
@@ -76,7 +96,7 @@ Run `openspec verify seal "<change-name>" --json`. If seal fails, preserve diagn
 - If the CLI says `Invalid JSON input`: re-check that `--input` is a JSON string, not a file path; `issues` must be an array and `evidenceFiles` must be an array of strings
 - If the CLI says `status must be NO_OPTIMIZATION_NEEDED, OPTIMIZATION_PROPOSED, ABORTED_UNSAFE, or SKIPPED`: fix the `--input.status` value and confirm whether `optimization.status` already has `affectedFileHashes`
 - If the CLI says `result must be PASS, PASS_WITH_WARNINGS, or FAIL_NEEDS_REMEDIATION`: fix the `--input.result` value and keep `issues` as an array when provided
-- If the CLI says `尚未提交优化结果，请先调用 phase2 --type=optimization`: call `phase2 --type=optimization` before retrying verification
+- If the CLI says `Optimization not yet submitted, call phase2 --type=optimization first`: call `phase2 --type=optimization` before retrying verification
 - If the CLI says `FILES_REQUIRED`: add `--files "<affected-files>"` with the space-separated list of files the optimizer subagent declared as affected, then retry the same command
 **Verify State Machine**:
 ```

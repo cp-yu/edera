@@ -42,23 +42,23 @@ Default stance: Strict. When uncertain: Escalate to CRITICAL when claimed work h
 - For each task whose `Files` section contains a `Delete:` entry: run `git diff <originalBranch>...HEAD --name-only` and confirm that declared file was deleted. If the file still exists, issue CRITICAL "Declared deletion not completed" and add to writeBackPlan.
 
 ### Correctness
-判定模式按 Check 锚点类型分派：
+Judgment mode is dispatched by Check anchor type:
 
-**存在性判定** (`Verifies` 锚点):
+**Presence judgment** (`Verifies` anchor):
 - Compare each requirement and Scenario against final code and tests.
 - If divergence detected: issue CRITICAL "Implementation contradicts spec".
 - Downgrade to WARNING only when drift is cosmetic and does not affect observable behavior.
 - If scenario coverage incomplete: issue CRITICAL "Scenario not covered". Scenario coverage gaps are not downgrade candidates.
 
-**缺失性判定** (`Verifies ... REMOVED Requirement` 锚点):
+**Absence judgment** (`Verifies ... REMOVED Requirement` anchor):
 - Use multi-angle search: search by symbol name, file path, and import reference.
 - Confirm absence: cite search commands and empty results as evidence for PASS.
-- 发现任何残留引用时，issue CRITICAL "REMOVED requirement residue found" 并引用 residue 位置。
+- When any residual reference is found, issue CRITICAL "REMOVED requirement residue found" and cite the residue location.
 
-**等价性判定** (`Preserves` 锚点):
-- 双支验证：① 关联测试通过（行为不变）；② Check `Expect:` 点名的旧形态（old form）在最终代码中已消失。
-- 旧实现与新实现并存（coexist）时，issue CRITICAL "Half migration: old and new form coexist"。
-- 不得仅凭测试通过判定等价性。
+**Equivalence judgment** (`Preserves` anchor):
+- Dual verification: ① associated tests pass (behavior unchanged); ② the old form named by Check `Expect:` has disappeared from the final code.
+- When old and new implementations coexist, issue CRITICAL "Half migration: old and new form coexist".
+- Do not judge equivalence solely by test passing.
 
 ### Coherence
 - If design.md exists, verify decisions such as Decision/Approach/Architecture.
@@ -74,19 +74,19 @@ Default stance: Strict. When uncertain: Escalate to CRITICAL when claimed work h
 - Orphaned code, dead imports, stale TODOs, and half migrations: CRITICAL.
 - Unreachable code: WARNING.
 
-**规格外改动检测（Unaccounted Changes）**：
+**Unaccounted Changes Detection**:
 
-归因宇宙（attribution universe）= 以下集合的并集（显式列表查找，不使用模式匹配推断）：
-1. 各 task `Files` 声明的条目（含 directory 条目——directory entry covers all files under it）
-2. 各 Check `Command:` 涉及的测试与证据文件
-3. change 工件自身（`openspec/changes/<name>/` 目录下所有文件）
+Attribution universe = union of the following sets (explicit list lookup; do not use pattern-matching inference):
+1. Entries declared in each task `Files` (including directory entries — directory entry covers all files under it)
+2. Test and evidence files referenced by each Check `Command:`
+3. Change artifacts themselves (all files under `openspec/changes/<name>/`)
 
-对 `git diff <originalBranch>...HEAD --name-only` 范围内、归因宇宙之外的每个文件：
-- 读取该文件后判定其内容性质。
-- 行为代码（behavior code）改动 → issue CRITICAL "Unaccounted change: <path>"，提供两种出口：补充 task/spec 呈现（artifact_fix）或移除该改动（code_fix）。
-- 机械性良性改动（lockfile、纯生成物、纯格式化）→ WARNING 或 SUGGESTION，注明归类理由。
-- 无法确定时 → CRITICAL（维持 strict 姿态）。
-- 归因匹配：将两侧路径 normalize 为 POSIX 相对路径后比较。
+For each file in `git diff <originalBranch>...HEAD --name-only` scope and outside the attribution universe:
+- Read the file, then determine its content nature.
+- Behavior code change → issue CRITICAL "Unaccounted change: <path>", offering two exits: supplement task/spec (artifact_fix) or remove the change (code_fix).
+- Mechanical benign changes (lockfile, pure generated artifacts, pure formatting) → WARNING or SUGGESTION, noting the classification reason.
+- When uncertain → CRITICAL (maintain strict posture).
+- Attribution matching: normalize both paths to POSIX relative paths before comparing.
 
 ### OPSX Alignment
 - If opsx-delta.yaml exists, check relation referential integrity and code-map node references; misalignment is WARNING.
