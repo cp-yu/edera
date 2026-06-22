@@ -103,7 +103,7 @@ After artifacts are generated, output:
 **Correction path:**
 ⚠️ Generated specs are based on code inference. Review items marked [REVIEW NEEDED]
 - Correction branch 1: review change → manually edit specs → sync → archive
-- Correction branch 2: review change → modify code → run `/opsx:snack` again → continue iterating
+- Correction branch 2: review change → modify code → run `/openspec-snack` again → continue iterating
 
 ## Artifact Contract
 

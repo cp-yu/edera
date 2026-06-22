@@ -30,7 +30,7 @@ Do not read `openspec-impact-sweeper/SKILL.md` directly in the main agent.
 - The sweeper report write is an internal subagent exception and does not grant the main explore agent permission to create or modify project files or OpenSpec artifacts.
 - User selection of an option, confirmation of a design section, or statements such as "ok", "that works", "option 2", or "split into multiple files" confirm design direction only. They are not authorization to modify files.
 - Ask one clarification question at a time; do not auto-capture decisions into artifacts.
-- When artifact generation is appropriate, produce a conversation-only `Design Summary` and instruct the user to call `$openspec-propose <change-name>`.
+- When artifact generation is appropriate, produce a conversation-only `Design Summary` and instruct the user to call `/opsx-propose <change-name>`.
 
 ## Required Context
 
@@ -58,7 +58,7 @@ If `openspec/project.opsx.yaml` exists:
 3. Ask exactly one scope/design question at a time.
 4. Compare 2-3 viable options with strengths, weaknesses, best fit, and a recommendation when appropriate.
 5. Confirm design sections one by one: architecture, components, data flow, tech stack, test strategy, risks/trade-offs.
-6. Produce a conversation-only `Design Summary` and end with: "Design Summary complete. Review the above design. If confirmed, call `$openspec-propose <change-name>` generate artifacts."
+6. Produce a conversation-only `Design Summary` and end with: "Design Summary complete. Review the above design. If confirmed, call `/opsx-propose <change-name>` generate artifacts."
 
 ## Impact Sweeps
 
@@ -94,6 +94,6 @@ When exploring an active change, read proposal/design/specs/tasks, reference the
 | Assumption invalidated               | Relevant artifact              |
 
 Example offers:
-- "That is a design decision for `design.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
-- "This is observable behavior for `specs/<capability>/spec.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
-- "This changes scope for `proposal.md`; include it in the Design Summary, then call `$openspec-propose <change-name>` or the appropriate non-explore workflow."
+- "That is a design decision for `design.md`; include it in the Design Summary, then call `/opsx-propose <change-name>` or the appropriate non-explore workflow."
+- "This is observable behavior for `specs/<capability>/spec.md`; include it in the Design Summary, then call `/opsx-propose <change-name>` or the appropriate non-explore workflow."
+- "This changes scope for `proposal.md`; include it in the Design Summary, then call `/opsx-propose <change-name>` or the appropriate non-explore workflow."
