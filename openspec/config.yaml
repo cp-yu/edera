@@ -16,6 +16,7 @@ git:
     deleteAfterArchive: true
 apply:
   defaultIsolation: branch
+proseLanguage: 中文
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
