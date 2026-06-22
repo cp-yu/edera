@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-06-22T03:53:03.802Z",
+  "result": "PASS",
+  "issues": [],
+  "tasksFileHash": "8e9a87992f7068a5a14496f7e6fbb747b9359bbb2b94888e7aac3d2f7d51febb",
+  "verificationContext": {
+    "contractVersion": "1.0",
+    "executionMode": "reviewer_subagent",
+    "evidenceFiles": [
+      "packages/core/src/edera_core/cli.py",
+      "packages/core/src/edera_core/cli_help.py"
+    ],
+    "evidenceFingerprint": "8763000cc537e0a7864f4160892de3fdade1dcacb6a95fd1a490a9370b6765b7",
+    "evidenceFingerprintEntries": [
+      {
+        "path": "packages/core/src/edera_core/cli_help.py",
+        "hash": "910db197e8b07b4e50db1e296a4621156003ced85c9cb796d469e692608e7c00"
+      },
+      {
+        "path": "packages/core/src/edera_core/cli.py",
+        "hash": "a615654e2b8879f9a699be968f0524dffbd7b34bfd4d9e111145a10b2feebcb3"
+      }
+    ],
+    "skippedEvidenceFiles": [],
+    "gitHeadCommit": "71e027490ce281a2fb59cdabe000567b94a3bdf3"
+  },
+  "optimization": {
+    "status": "PENDING_VERIFICATION",
+    "attempts": [],
+    "baseline": {
+      "timestamp": "2026-06-22T03:53:03.802Z",
+      "result": "PASS",
+      "issues": [],
+      "tasksFileHash": "8e9a87992f7068a5a14496f7e6fbb747b9359bbb2b94888e7aac3d2f7d51febb",
+      "verificationContext": {
+        "contractVersion": "1.0",
+        "executionMode": "reviewer_subagent",
+        "evidenceFiles": [
+          "packages/core/src/edera_core/cli.py",
+          "packages/core/src/edera_core/cli_help.py"
+        ],
+        "evidenceFingerprint": "8763000cc537e0a7864f4160892de3fdade1dcacb6a95fd1a490a9370b6765b7",
+        "evidenceFingerprintEntries": [
+          {
+            "path": "packages/core/src/edera_core/cli_help.py",
+            "hash": "910db197e8b07b4e50db1e296a4621156003ced85c9cb796d469e692608e7c00"
+          },
+          {
+            "path": "packages/core/src/edera_core/cli.py",
+            "hash": "a615654e2b8879f9a699be968f0524dffbd7b34bfd4d9e111145a10b2feebcb3"
+          }
+        ],
+        "skippedEvidenceFiles": [],
+        "gitHeadCommit": "71e027490ce281a2fb59cdabe000567b94a3bdf3"
+      }
+    }
+  }
+}

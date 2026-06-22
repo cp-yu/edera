@@ -106,6 +106,9 @@ _COMMAND_HELP: dict[str, CommandHelp] = {
         ),
         subcommands={
             "materialize": "Promote a field into a typed, indexed column (subcommands: plan, apply, inspect).",
+            "materialize-plan": "Preview the materialization plan for a field.",
+            "materialize-apply": "Apply a field materialization.",
+            "materialize-inspect": "Inspect current materialization state.",
         },
     ),
     "node": CommandHelp(
@@ -193,6 +196,9 @@ _COMMAND_HELP: dict[str, CommandHelp] = {
             "stop": "Stop a running DAG.",
             "retry": "Retry failed nodes of a DAG run.",
             "edit": "Edit a saved DAG definition (subcommands: add-node, add-edge, remove-edge).",
+            "add-node": "Add a node to the DAG definition.",
+            "add-edge": "Add an edge between two nodes.",
+            "remove-edge": "Remove an edge between two nodes.",
         },
     ),
     "event": CommandHelp(
@@ -254,9 +260,16 @@ _COMMAND_HELP: dict[str, CommandHelp] = {
         subcommands={
             "list": "List available config kinds.",
             "system": "Inspect or save system.toml (subcommands: show, save).",
+            "system-show": "Show system.toml configuration.",
+            "system-save": "Save system.toml from a file.",
             "read": "Read a named config item.",
             "save": "Save a named config from a file.",
             "entity-type": "Manage entity-type schemas via config (subcommands: list, show, create, save, delete).",
+            "config-entity-type-list": "List entity-type schemas managed via config.",
+            "config-entity-type-show": "Show a single entity-type schema by name.",
+            "config-entity-type-create": "Register an entity-type schema from a YAML file.",
+            "config-entity-type-save": "Replace an entity-type schema from a YAML file.",
+            "config-entity-type-delete": "Delete an entity-type schema by name.",
         },
     ),
     "query": CommandHelp(
@@ -273,8 +286,14 @@ _COMMAND_HELP: dict[str, CommandHelp] = {
         ),
         subcommands={
             "briefing": "Briefing projection (subcommands: latest, list, show).",
+            "briefing-latest": "Show the latest briefing.",
+            "briefing-list": "List briefings with optional time range.",
+            "briefing-show": "Show a single briefing by ID.",
             "advice": "Advice projection (subcommands: list, show).",
+            "advice-list": "List advice entries with optional filters.",
+            "advice-show": "Show a single advice entry by ID.",
             "results": "Results projection (subcommands: summary).",
+            "results-summary": "Show aggregated results summary.",
             "node-outputs": "Read node output artifacts with pagination.",
             "node-history": "Read the history of a node within a DAG.",
             "child-run": "List child runs spawned by a parent node.",
