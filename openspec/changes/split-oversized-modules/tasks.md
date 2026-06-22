@@ -31,17 +31,17 @@
 
 #### Checks
 
-- [ ] C1 验证 CLI 启动与子命令发现
+- [x] C1 验证 CLI 启动与子命令发现
   - Preserves: `openspec/specs/edera-cli/spec.md` / Requirement "edera CLI 提供完整控制面子命令集" / Scenario "列出所有子命令"
   - Command: `uv run edera --help`
   - Expect: 输出包含全部 15 个子命令（entity、relation、entity-type、node、node-type、skill、dag、event、system、client、config、query、source、handler、extension、handler-validate）
 
-- [ ] C2 验证 entity 子命令行为不变
+- [x] C2 验证 entity 子命令行为不变
   - Preserves: `openspec/specs/edera-cli/spec.md` / Requirement "edera CLI 提供完整控制面子命令集" / Scenario "entity 子命令 list/get/create"
   - Command: `uv run edera entity list --type node --output json`
   - Expect: 返回合法 JSON，结构不变
 
-- [ ] C3 验证 dag 子命令行为不变
+- [x] C3 验证 dag 子命令行为不变
   - Preserves: `openspec/specs/dag-run-control/spec.md` / Requirement "DAG 运行控制能力" / Scenario "通过 CLI 启动 DAG run"
   - Command: `uv run edera dag list --output json`
   - Expect: 返回合法 JSON，结构不变
@@ -70,17 +70,17 @@
 
 #### Checks
 
-- [ ] C1 验证 repository 公开 API 完整性
+- [x] C1 验证 repository 公开 API 完整性
   - Preserves: `openspec/specs/entity-instance-crud-api/spec.md` / Requirement "Entity Instance CRUD API 适配三层存储路由" / Scenario "写入普通 entity"
   - Command: `uv run pytest tests/ -k "entity_repository or entity_store" -x --no-header -q 2>&1 | tail -3`
   - Expect: 测试全通过
 
-- [ ] C2 验证消费者 import 无断裂
+- [x] C2 验证消费者 import 无断裂
   - Preserves: `openspec/specs/entity-instance-crud-api/spec.md` / Requirement "Entity Instance CRUD API 适配三层存储路由" / Scenario "查询 entity 列表"
   - Command: `rg "from edera_core.storage.repository import" packages/ tests/ --files-with-matches | wc -l`
   - Expect: 所有消费者文件无需修改（import 路径不变）
 
-- [ ] C3 验证核心实体 CRUD 行为不变
+- [x] C3 验证核心实体 CRUD 行为不变
   - Preserves: `openspec/specs/entity-instance-crud-api/spec.md` / Requirement "Entity Instance CRUD API 适配三层存储路由" / Scenario "更新 entity 属性"
   - Command: `uv run pytest tests/ -k "core_entity or entity_crud" -x --no-header -q 2>&1 | tail -3`
   - Expect: 测试全通过
@@ -105,17 +105,17 @@
 
 #### Checks
 
-- [ ] C1 验证 DAG 执行行为不变
+- [x] C1 验证 DAG 执行行为不变
   - Preserves: `openspec/specs/dag-runner/spec.md` / Requirement "NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver" / Scenario "DAG 正常运行"
   - Command: `uv run pytest tests/ -k "dag_runner" -x --no-header -q 2>&1 | tail -3`
   - Expect: 测试全通过
 
-- [ ] C2 验证 sub-dag 执行行为不变
+- [x] C2 验证 sub-dag 执行行为不变
   - Preserves: `openspec/specs/dag-runner/spec.md` / Requirement "NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver" / Scenario "子 DAG 嵌套执行"
   - Command: `uv run pytest tests/ -k "subdag or sub_dag" -x --no-header -q 2>&1 | tail -3`
   - Expect: 测试全通过
 
-- [ ] C3 验证资源信号量行为不变
+- [x] C3 验证资源信号量行为不变
   - Preserves: `openspec/specs/dag-resource-semaphore/spec.md` / Requirement "DAG 节点资源信号量约束" / Scenario "资源限制并发"
   - Command: `uv run pytest tests/core/integration/test_resource_semaphore.py -x --no-header -q 2>&1 | tail -3`
   - Expect: 测试全通过
@@ -141,17 +141,17 @@
 
 #### Checks
 
-- [ ] C1 验证 CLI 测试全通过
+- [x] C1 验证 CLI 测试全通过
   - Preserves: `openspec/specs/edera-cli/spec.md` / Requirement "edera CLI 提供完整控制面子命令集" / Scenario "全部子命令 help 文本正确"
   - Command: `uv run pytest tests/core/unit/test_cli.py packages/core/tests/test_cli_entity.py packages/core/tests/test_cli_skill.py packages/core/tests/test_cli_relation_aliases.py packages/core/tests/test_cli_help.py tests/core/unit/test_cli_extension.py packages/core/tests/test_bootstrap_with_existing_cert.py -x --no-header -q 2>&1 | tail -3`
   - Expect: 测试全通过
 
-- [ ] C2 验证 cli_help.py 已删除且无残留引用
+- [x] C2 验证 cli_help.py 已删除且无残留引用
   - Preserves: `openspec/specs/edera-cli/spec.md` / Requirement "edera CLI 提供完整控制面子命令集" / Scenario "子命令 help 文本包含 description"
   - Command: `rg "cli_help" packages/core/src/ tests/ --files-with-matches`
   - Expect: 无输出（无残留引用）
 
-- [ ] C3 验证全量测试通过
+- [x] C3 验证全量测试通过
   - Preserves: `openspec/specs/dag-runner/spec.md` / Requirement "NodeExecutor 使用 DagExecutionSnapshot 中的 handler resolver" / Scenario "DAG 正常运行"
   - Command: `uv run pytest tests/ packages/ -x --no-header -q 2>&1 | tail -5`
   - Expect: 所有测试通过（零回归）
