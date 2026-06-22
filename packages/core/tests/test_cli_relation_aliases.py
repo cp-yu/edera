@@ -5,6 +5,7 @@ import argparse
 import pytest
 
 from edera_core import cli
+from edera_core.cli import entity as cli_entity
 
 
 @pytest.mark.asyncio

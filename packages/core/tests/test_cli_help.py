@@ -3,7 +3,8 @@ from __future__ import annotations
 import pytest
 
 from edera_core import cli
-from edera_core.cli_help import COMMANDS
+from edera_core.cli import COMMANDS
+from edera_core.cli._common import CommandHelp
 
 
 def _run_main(argv: list[str], monkeypatch, capsys) -> tuple[int, str, str]:
@@ -16,6 +17,12 @@ def _run_main(argv: list[str], monkeypatch, capsys) -> tuple[int, str, str]:
         code = 0
     captured = capsys.readouterr()
     return code, captured.out, captured.err
+
+
+def _get_help(name: str) -> CommandHelp:
+    import importlib
+    mod = importlib.import_module(COMMANDS[name][0])
+    return mod.HELP
 
 
 def test_top_level_help_contains_description_and_examples(monkeypatch, capsys):
@@ -41,7 +48,8 @@ def test_first_level_help_contains_description_and_examples(monkeypatch, capsys)
     for command in ("entity", "dag", "client"):
         code, out, _ = _run_main([command, "--help"], monkeypatch, capsys)
         assert code == 0, f"{command} --help exited with {code}"
-        assert COMMANDS[command].description.split("(")[0].strip() in out
+        help_meta = _get_help(command)
+        assert help_meta.description.split("(")[0].strip() in out
         assert "EXAMPLES" in out
 
 
