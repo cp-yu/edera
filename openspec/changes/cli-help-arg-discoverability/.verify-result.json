@@ -10,7 +10,7 @@
       "packages/core/src/edera_core/cli.py",
       "packages/core/src/edera_core/cli_help.py"
     ],
-    "evidenceFingerprint": "8763000cc537e0a7864f4160892de3fdade1dcacb6a95fd1a490a9370b6765b7",
+    "evidenceFingerprint": "b83cb14e629379ab0f6631ce1ab0b84b7397906150be1f4d8b436920e53105b3",
     "evidenceFingerprintEntries": [
       {
         "path": "packages/core/src/edera_core/cli_help.py",
@@ -18,14 +18,15 @@
       },
       {
         "path": "packages/core/src/edera_core/cli.py",
-        "hash": "a615654e2b8879f9a699be968f0524dffbd7b34bfd4d9e111145a10b2feebcb3"
+        "hash": "2cef84d4270618c1e80eee16f027a2c960f7ecc69344ca5f239211bc9546adad"
       }
     ],
     "skippedEvidenceFiles": [],
-    "gitHeadCommit": "71e027490ce281a2fb59cdabe000567b94a3bdf3"
+    "gitHeadCommit": "89f11fd140481926aa9acbc0fefaf33e2bf85fc9",
+    "timestamp": "2026-06-22T04:01:44.212Z"
   },
   "optimization": {
-    "status": "PENDING_VERIFICATION",
+    "status": "IMPROVED",
     "attempts": [
       {
         "timestamp": "2026-06-22T03:57:12.476Z",
@@ -35,6 +36,12 @@
         "files": [
           "packages/core/src/edera_core/cli.py"
         ]
+      },
+      {
+        "timestamp": "2026-06-22T04:01:44.206Z",
+        "type": "verification",
+        "result": "PASS",
+        "behaviorRetryCounter": 1
       }
     ],
     "affectedFileHashes": {
@@ -66,6 +73,10 @@
         "skippedEvidenceFiles": [],
         "gitHeadCommit": "71e027490ce281a2fb59cdabe000567b94a3bdf3"
       }
+    },
+    "final": {
+      "result": "PASS",
+      "issues": []
     }
   }
 }

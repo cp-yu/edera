@@ -15,12 +15,12 @@
 
 #### Checks
 
-- [ ] C1 P0 `dag edit` 叶子子命令 `--help` 不中断
+- [x] C1 P0 `dag edit` 叶子子命令 `--help` 不中断
   - Verifies: `specs/edera-cli/spec.md` / Requirement "CLI Help Surface" / Scenario "三级子命令 help 不中断"
   - Command: `edera dag edit --help 2>&1`
   - Expect: 输出中包含 `add-node`、`add-edge`、`remove-edge` 及其一行说明
 
-- [ ] C2 P0-sub 三级子命令 `--help` 不中断
+- [x] C2 P0-sub 三级子命令 `--help` 不中断
   - Verifies: `specs/edera-cli/spec.md` / Requirement "CLI Help Surface" / Scenario "三级子命令 help 不中断"
   - Command: `for cmd in "entity-type materialize plan" "config system show" "config entity-type list" "query briefing latest" "query advice list" "query results summary"; do edera $cmd --help 2>&1 | head -3; done`
   - Expect: 每个命令输出自身的 usage 与参数，不回退到父级
@@ -41,22 +41,22 @@
 
 #### Checks
 
-- [ ] C3 二级子命令参数 `help=` 可见
+- [x] C3 二级子命令参数 `help=` 可见
   - Verifies: `specs/edera-cli/spec.md` / Requirement "CLI Help Surface" / Scenario "二级子命令 help 包含参数说明"
   - Command: `edera entity update --help 2>&1`
   - Expect: `ref`、`--field`、`--value`、`--attributes` 各有 `help=` 文本
 
-- [ ] C4 JSON 参数格式标注
+- [x] C4 JSON 参数格式标注
   - Verifies: `specs/edera-cli/spec.md` / Requirement "参数帮助文本格式标注" / Scenario "JSON 参数标注格式"
   - Command: `edera entity create --help 2>&1`
   - Expect: `--attributes` 的 help 文本包含 `JSON object`
 
-- [ ] C5 复合 ID 参数格式标注
+- [x] C5 复合 ID 参数格式标注
   - Verifies: `specs/edera-cli/spec.md` / Requirement "参数帮助文本格式标注" / Scenario "复合 ID 参数标注格式"
   - Command: `edera node status --help 2>&1`
   - Expect: `node_id` 的 help 文本包含 `<dag>.<alias>`
 
-- [ ] C6 有限可选值参数列出选项
+- [x] C6 有限可选值参数列出选项
   - Verifies: `specs/edera-cli/spec.md` / Requirement "参数帮助文本格式标注" / Scenario "有限可选值参数列出选项"
   - Command: `edera dag retry --help 2>&1`
   - Expect: `--mode` 的 help 文本包含 `single`、`cascade`、`downstream` 及 `default: single`
@@ -75,7 +75,7 @@
 
 #### Checks
 
-- [ ] C7 源码扫描无遗漏
+- [x] C7 源码扫描无遗漏
   - Verifies: `specs/edera-cli/spec.md` / Requirement "CLI Help Surface" / Scenario "二级子命令 help 包含参数说明" 与 Scenario "三级子命令 help 不中断"
   - Command: `subagent scout 扫描 cli.py，检查所有 add_argument() 和 add_parser() 的 help= 覆盖率`
   - Expect: subagent 返回 clean pass，无遗漏
@@ -94,7 +94,7 @@
 
 #### Checks
 
-- [ ] C8 `--help` 输出全覆盖验证
+- [x] C8 `--help` 输出全覆盖验证
   - Verifies: `specs/edera-cli/spec.md` / Requirement "CLI Help Surface" / Scenario "二级子命令 help 包含参数说明" 与 Scenario "三级子命令 help 不中断"
   - Command: `subagent 遍历 P0/P0-sub 18 处叶子命令和 P1 关键命令，调用 edera <cmd> <sub> --help，收集输出并判断是否正确`
   - Expect: 所有命令 help 输出正常，无回退、无裸参数
