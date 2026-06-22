@@ -31,7 +31,7 @@ from edera_core.web.app import create_app
 class FakeController(DagController):
     last_payload: object | None = None
 
-    async def start(self, run_startup: bool = True) -> None:
+    async def start(self) -> None:
         self.engine = create_engine(sqlite_url(self.config_dir / "test.db"))
         await init_db(self.engine)
         self.factory = session_factory(self.engine)
@@ -212,7 +212,7 @@ async def _node_trigger_capture_controller(tmp_path: Path):
             await asyncio.sleep(60)
 
     ctrl = NodeTriggerCaptureController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     async with ctrl._factory()() as session:
         await create_dag_run(session, "run-original", "manual", dag_name="default")
         await finish_dag_run(session, "run-original", "succeeded")
@@ -361,7 +361,7 @@ async def test_per_dag_concurrent_execution(tmp_path: Path) -> None:
     """C1: Different DAGs can run concurrently; same DAG raises RunAlreadyActiveError."""
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         run_default = await ctrl.start_run("manual", "default")
         run_realtime = await ctrl.start_run("manual", "realtime")
@@ -380,7 +380,7 @@ async def test_per_dag_stop(tmp_path: Path) -> None:
     """C2: Stopping one DAG does not affect another running DAG."""
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await ctrl.start_run("manual", "default")
         await ctrl.start_run("manual", "realtime")
@@ -397,7 +397,7 @@ async def test_per_dag_stop(tmp_path: Path) -> None:
 async def test_dag_stop_api_accepts_force(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await ctrl.start_run("manual", "default")
         run_id = await ctrl.stop_current("default", force=True)
@@ -410,7 +410,7 @@ async def test_dag_stop_api_accepts_force(tmp_path: Path) -> None:
 async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", dag_name="default")
@@ -434,7 +434,7 @@ async def test_retry_api_records_retry_of(tmp_path: Path) -> None:
 async def test_retry_api_defaults_to_latest_finished_run(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-old", "manual", dag_name="default")
@@ -469,7 +469,7 @@ async def test_trigger_node_target_uses_controller_node_path(tmp_path: Path) -> 
             await asyncio.sleep(60)
 
     ctrl = NodeTriggerController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", dag_name="default")
@@ -512,7 +512,7 @@ async def test_trigger_append(tmp_path: Path) -> None:
 async def test_retry_api_missing_run_returns_404(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         with pytest.raises(DagRunNotFoundError):
             await ctrl.retry_node("default", "missing-run", ["node-a"], "single")
@@ -546,7 +546,7 @@ async def test_retry_node_missing_prefilled_upstream_returns_error(tmp_path: Pat
     extensions_dir = tmp_path / "extensions"
     _write_node_b_extension(extensions_dir)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", ["node-a", "node-b"], dag_name="default")
@@ -585,7 +585,7 @@ async def test_retry_allows_missing_optional_historical_upstream(tmp_path: Path)
     extensions_dir = tmp_path / "extensions"
     _write_node_b_extension(extensions_dir)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", ["node-a", "node-b"], dag_name="default")
@@ -629,7 +629,7 @@ async def test_retry_blocks_missing_required_historical_upstream(tmp_path: Path)
         encoding="utf-8",
     )
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", ["node-a", "node-b"], dag_name="default")
@@ -662,7 +662,7 @@ async def test_full_successful_dag_run_triggers_retention_cleanup(
 
     monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         await ctrl.run_now("manual", "default")
@@ -686,7 +686,7 @@ async def test_failed_dag_run_skips_retention_cleanup(
 
     monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         with pytest.raises(DagError, match="all source nodes failed"):
@@ -711,7 +711,7 @@ async def test_cancelled_dag_run_skips_retention_cleanup(
 
     monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         run_id = await ctrl.start_run("manual", "default")
@@ -738,7 +738,7 @@ async def test_single_node_run_skips_retention_cleanup(
 
     monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         await ctrl.run_node_trigger("default/source", {"manual": True})
@@ -763,7 +763,7 @@ async def test_partial_retry_skips_retention_cleanup(
 
     monkeypatch.setattr(dag_controller_module, "_persist_outputs", fake_persist_outputs)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["retention-source", "retention-sink"])
         await ctrl.run_now("manual", "default")
@@ -818,7 +818,7 @@ async def test_sub_dag_records_independent_run_and_parent_metadata(tmp_path: Pat
     extensions_dir = tmp_path / "extensions"
     _write_leaf_extension(extensions_dir)
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["leaf"])
         parent_run_id = await ctrl.run_now("manual", "default", source_shared_inputs={"seed": True})
@@ -1186,7 +1186,7 @@ async def test_resume_api_reuses_original_run(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-original", "manual", ["node-a"], dag_name="default")
@@ -1209,7 +1209,7 @@ async def test_resume_api_reuses_original_run(tmp_path: Path) -> None:
 async def test_reflection_run_waits_for_target_idle(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         blocker = asyncio.create_task(asyncio.sleep(0.2))
         default_dag = tmp_path / "dags" / "default.yaml"
@@ -1265,7 +1265,7 @@ async def test_dag_run_pi_session_dir_flows(tmp_path: Path, monkeypatch: pytest.
         encoding="utf-8",
     )
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await ctrl.run_now("manual", "default")
     finally:
@@ -1314,7 +1314,7 @@ async def test_scheduler_reflection_waits_and_edits_skill(tmp_path: Path) -> Non
         encoding="utf-8",
     )
     ctrl = DagController(tmp_path, extensions_dirs=[extensions_dir])
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         await _install_controller_extensions(ctrl, extensions_dir, ["reflection-editor"])
         blocker = asyncio.create_task(asyncio.sleep(0.2))
@@ -1456,7 +1456,7 @@ async def test_dag_run_dag_name_field(tmp_path: Path) -> None:
     """C7: DagRun records include dag_name; filtering by dag_name works."""
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "run-a", "manual", dag_name="default")
@@ -1479,7 +1479,7 @@ async def test_dag_run_dag_name_field(tmp_path: Path) -> None:
 async def test_status_ignores_stale_running_rows(tmp_path: Path) -> None:
     _write_dag_config(tmp_path)
     ctrl = FakeController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         async with ctrl._factory()() as session:
             await create_dag_run(session, "stale-run", "manual", dag_name="default")
@@ -1518,7 +1518,7 @@ async def test_scheduler_per_dag_registration(tmp_path: Path) -> None:
     (tmp_path / "dags" / "reflection.yaml").unlink()
     await _seed_trigger(tmp_path, "hourly", 'cron:"0 * * * *"')
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         assert not (tmp_path / "triggers" / "default-default-cron.yaml").exists()
         assert not (tmp_path / "triggers" / "realtime-default-cron.yaml").exists()

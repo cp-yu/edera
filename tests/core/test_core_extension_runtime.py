@@ -251,8 +251,8 @@ async def test_node_executor_exposes_declared_extension_table(tmp_path: Path) ->
 async def test_engine_provides_start_run_shutdown(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, object, object]] = []
 
-    async def start(self, run_startup: bool = True) -> None:
-        calls.append(("start", run_startup, None))
+    async def start(self) -> None:
+        calls.append(("start", None, None))
 
     async def run_now(self, source: str = "manual", dag_name: str = "default", payload: object | None = None) -> str:
         calls.append(("run", source, dag_name))
@@ -271,7 +271,7 @@ async def test_engine_provides_start_run_shutdown(monkeypatch: pytest.MonkeyPatc
     await engine.shutdown()
 
     assert run_id == "run"
-    assert calls == [("start", False, None), ("run", "manual", "default"), ("shutdown", None, None)]
+    assert calls == [("start", None, None), ("run", "manual", "default"), ("shutdown", None, None)]
 
 
 def _manifest_snapshot(path: Path) -> dict[str, object]:

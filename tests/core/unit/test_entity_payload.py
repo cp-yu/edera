@@ -66,5 +66,5 @@ def test_display_fallback_when_no_matching_entity_type():
 
 
 def test_dag_run_startup_source_rejected():
-    with pytest.raises(ValueError, match="source must be manual, retry, or trigger:<name>"):
-        DagRun.model_validate({"run_id": "run-1", "source": "startup", "status": "running"})
+    with pytest.raises(ValueError, match="source must be manual, startup, retry, or trigger:<name>"):
+        DagRun.model_validate({"run_id": "run-1", "source": "invalid", "status": "running"})

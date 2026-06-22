@@ -39,7 +39,7 @@ async def test_install_rpc(tmp_path: Path) -> None:
     config_dir = _write_config(tmp_path)
     (tmp_path / "extensions").mkdir()
     controller = DagController(config_dir, extensions_dirs=[tmp_path / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         _write_extension(tmp_path / "extensions" / "demo")
         daemon = type("Daemon", (), {"pb2": pb2, "controller": controller, "config_dir": config_dir})()
@@ -62,7 +62,7 @@ async def test_install_workflow_extension_rpc(tmp_path: Path) -> None:
     config_dir = _write_config(tmp_path)
     (tmp_path / "extensions").mkdir()
     controller = DagController(config_dir, extensions_dirs=[tmp_path / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         _write_workflow_extension(tmp_path / "extensions" / "workflow")
         daemon = type("Daemon", (), {"pb2": pb2, "controller": controller, "config_dir": config_dir})()
@@ -97,7 +97,7 @@ async def test_install_rpc_reports_unmatched_glob(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     controller = DagController(config_dir, extensions_dirs=[tmp_path / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = type("Daemon", (), {"pb2": pb2, "controller": controller, "config_dir": config_dir})()
         service = _ExtensionService(daemon)
@@ -113,7 +113,7 @@ async def test_install_overwrite_refreshes_runtime(tmp_path: Path) -> None:
     config_dir = _write_config(tmp_path)
     (tmp_path / "extensions").mkdir()
     controller = DagController(config_dir, extensions_dirs=[tmp_path / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         _write_extension(tmp_path / "extensions" / "demo")
         daemon = type("Daemon", (), {"pb2": pb2, "controller": controller, "config_dir": config_dir})()
@@ -141,7 +141,7 @@ async def test_delete_rpc(tmp_path: Path) -> None:
     extensions_dir = tmp_path / "extensions"
     extensions_dir.mkdir()
     controller = DagController(config_dir, extensions_dirs=[extensions_dir])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         _write_extension(extensions_dir / "demo")
         _write_extension(extensions_dir / "stale")
@@ -172,7 +172,7 @@ async def test_import_entities_rpc(tmp_path: Path) -> None:
     config_dir = _write_config(tmp_path)
     (tmp_path / "extensions").mkdir()
     controller = DagController(config_dir, extensions_dirs=[tmp_path / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = type("Daemon", (), {"pb2": pb2, "controller": controller, "config_dir": config_dir})()
         service = _ExtensionService(daemon)

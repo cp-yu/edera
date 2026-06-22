@@ -410,7 +410,7 @@ async def test_dag_controller_publishes_dag_status_events(tmp_path: Path) -> Non
     from edera_core.dag_controller import DagController
 
     controller = DagController(config_dir)
-    await controller.start(run_startup=False)
+    await controller.start()
     events = event_bus.subscribe()
     pending = asyncio.create_task(events.__anext__())
     try:

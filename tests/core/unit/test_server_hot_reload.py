@@ -75,7 +75,7 @@ async def test_lifecycle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
 async def test_reload_installs_snapshot(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         _write_dag(tmp_path, nodes=["worker"])
@@ -95,7 +95,7 @@ async def test_reload_installs_snapshot(tmp_path: Path) -> None:
 async def test_runtime_read_api_committed_snapshot(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         graph = _GraphService(daemon)
@@ -129,7 +129,7 @@ async def test_runtime_read_api_committed_snapshot(tmp_path: Path) -> None:
 async def test_runtime_read_api_ignores_failed_candidate(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         graph = _GraphService(daemon)
@@ -163,7 +163,7 @@ async def test_query_runtime_api_committed_snapshot(monkeypatch: pytest.MonkeyPa
     _write_config(tmp_path)
     _write_source_schema(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         query = _QueryService(daemon)
@@ -208,7 +208,7 @@ async def test_query_runtime_api_committed_snapshot(monkeypatch: pytest.MonkeyPa
 async def test_config_edit_api_file_backed(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         graph = _GraphService(daemon)
@@ -230,7 +230,7 @@ async def test_config_edit_api_file_backed(tmp_path: Path) -> None:
 async def test_control_api_uses_committed_snapshot_not_yaml(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         dags = _DagService(daemon)
@@ -252,7 +252,7 @@ async def test_control_api_uses_committed_snapshot_not_yaml(tmp_path: Path) -> N
 async def test_dag_edit_updates_db_snapshot_not_yaml(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         dags = _DagService(daemon)
@@ -282,7 +282,7 @@ async def test_dag_edit_updates_db_snapshot_not_yaml(tmp_path: Path) -> None:
 async def test_graph_core_mutations_update_db_snapshot_not_yaml(tmp_path: Path) -> None:
     _write_config(tmp_path)
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         daemon = Server(tmp_path / "data", "127.0.0.1:0", tmp_path, controller=controller)
         graph = _GraphService(daemon)

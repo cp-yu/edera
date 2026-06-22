@@ -14,7 +14,7 @@ async def test_startup_does_not_migrate_existing_extensions(tmp_path: Path) -> N
     _write_manifest(extensions / "demo", "demo")
     (extensions / "demo" / "handler.py").write_text("def run(payload):\n    return payload\n", encoding="utf-8")
     controller = DagController(config_dir, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     try:
         async with controller._factory()() as session:
             rows = await list_installed_extensions(session)

@@ -50,7 +50,7 @@ async def test_emit_rpc() -> None:
 async def test_no_apscheduler(tmp_path: Path) -> None:
     _write_config(tmp_path)
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         assert ctrl.scheduler.get_jobs() == []
     finally:
@@ -62,7 +62,7 @@ async def test_config_changed_rescans_cron_tokens(tmp_path: Path) -> None:
     _write_config(tmp_path)
     await _seed_trigger(tmp_path, "hourly", 'cron:"0 * * * *"')
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
@@ -80,7 +80,7 @@ async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Pa
     _write_config(tmp_path)
     await _seed_trigger(tmp_path, "hourly", 'cron:"0 * * * *"')
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
 
     assert ctrl.cron_emitter is not None
     assert ctrl.cron_emitter.cron_tokens() == {'cron:"0 * * * *"'}
@@ -112,7 +112,7 @@ async def test_failed_config_changed_reload_preserves_cron_registry(tmp_path: Pa
 async def test_dag_presence_does_not_generate_default_cron_trigger(tmp_path: Path) -> None:
     _write_config(tmp_path)
     ctrl = DagController(tmp_path)
-    await ctrl.start(run_startup=False)
+    await ctrl.start()
     try:
         assert ctrl.cron_emitter is not None
         assert ctrl.cron_emitter.cron_tokens() == set()

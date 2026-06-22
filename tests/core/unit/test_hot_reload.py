@@ -19,7 +19,7 @@ async def test_snapshot_commit_success(tmp_path: Path) -> None:
     _write_config(tmp_path)
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     old_snapshot = controller.runtime_snapshot()
     _write_extension(extensions, "new-handler")
 
@@ -41,7 +41,7 @@ async def test_snapshot_commit_failure(monkeypatch: pytest.MonkeyPatch, tmp_path
     _write_config(tmp_path)
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     old_snapshot = controller.runtime_snapshot()
     _write_extension(extensions, "failed-handler")
 
@@ -62,7 +62,7 @@ async def test_snapshot_commit_serialized(monkeypatch: pytest.MonkeyPatch, tmp_p
     _write_config(tmp_path)
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     _write_extension(extensions, "serial-handler")
     candidate = load_app_config(tmp_path)
     bootstrap = await _install_extensions(controller, extensions)
@@ -94,7 +94,7 @@ async def test_active_run_snapshot_isolation(monkeypatch: pytest.MonkeyPatch, tm
     _write_config(tmp_path)
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     old_snapshot = controller.runtime_snapshot()
     started = __import__("asyncio").Event()
     release = __import__("asyncio").Event()
@@ -123,7 +123,7 @@ async def test_new_run_uses_committed_snapshot(monkeypatch: pytest.MonkeyPatch, 
     _write_config(tmp_path)
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     await _save_core_dag(controller, [])
     await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     captured: list[list[str]] = []
@@ -150,7 +150,7 @@ async def test_handler_reload_new_executor_only(tmp_path: Path) -> None:
     _write_dag(tmp_path, nodes=["first-handler"])
     _write_extension(extensions, "first-handler")
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     await _save_core_node(controller, "first-handler", "first-handler")
     await _save_core_dag(controller, ["first-handler"])
     graph = DagGraph("default", [], {}, {}, {})
@@ -186,7 +186,7 @@ async def test_handler_manifest_deletion_rebuilds_registry(tmp_path: Path) -> No
     extensions = tmp_path.parent / "extensions"
     _write_extension(extensions, "removed-handler")
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     await _save_installed_handler(controller, "removed-handler", handlers=True)
     await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
     assert "removed-handler" in _bootstrap_handler_names(controller.bootstrap_result())
@@ -204,7 +204,7 @@ async def test_config_parse_failure_preserves_snapshot(tmp_path: Path) -> None:
     _write_config(tmp_path)
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     old_snapshot = controller.runtime_snapshot()
     emitted: list[str] = []
 
@@ -234,7 +234,7 @@ async def test_config_changed_uses_snapshot(monkeypatch: pytest.MonkeyPatch, tmp
     _write_trigger_schema(tmp_path)
     _write_triggers(tmp_path, ['cron:"0 9 * * *"'])
     controller = DagController(tmp_path, extensions_dirs=[tmp_path.parent / "extensions"])
-    await controller.start(run_startup=False)
+    await controller.start()
     called = False
 
     async def fail_reload_triggers() -> None:
@@ -257,7 +257,7 @@ async def test_cron_registry_update_and_preservation(monkeypatch: pytest.MonkeyP
     _write_triggers(tmp_path, ['cron:"0 9 * * *"'])
     extensions = tmp_path.parent / "extensions"
     controller = DagController(tmp_path, extensions_dirs=[extensions])
-    await controller.start(run_startup=False)
+    await controller.start()
     await _save_core_dag(controller, [])
     await _save_core_trigger(controller, "trigger-0", 'cron:"0 9 * * *"')
     await controller.install_snapshot(load_app_config(tmp_path), await controller.load_bootstrap())
