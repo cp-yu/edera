@@ -481,8 +481,7 @@ def _query_parser(parser: argparse.ArgumentParser) -> None:
     summary = results_sub.add_parser("summary", help=sub["results-summary"])
     summary.add_argument("--stock-code", default="", help="Filter by stock code.")
     summary.add_argument("--direction", default="", help="Filter by direction.")
-    summary.add_argument("--created-from", default="", help="ISO-8601 start of creation time range.")
-    summary.add_argument("--created-to", default="", help="ISO-8601 end of creation time range.")
+    _created_range_args(summary)
     node_outputs = subparsers.add_parser("node-outputs", help=sub["node-outputs"])
     node_outputs.add_argument("--node-id", default="", help="Node ID.")
     node_outputs.add_argument("--run-id", default="", help="Run ID.")
@@ -497,9 +496,13 @@ def _query_parser(parser: argparse.ArgumentParser) -> None:
     child_run.add_argument("--parent-node-id", required=True, help="Parent node ID.")
 
 
-def _time_range_arguments(parser: argparse.ArgumentParser) -> None:
+def _created_range_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--created-from", default="", help="ISO-8601 start of creation time range.")
     parser.add_argument("--created-to", default="", help="ISO-8601 end of creation time range.")
+
+
+def _time_range_arguments(parser: argparse.ArgumentParser) -> None:
+    _created_range_args(parser)
     parser.add_argument("--limit", type=int, default=50, help="Max results (default: 50).")
     _offset_argument(parser)
 

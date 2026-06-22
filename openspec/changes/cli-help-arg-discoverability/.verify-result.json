@@ -26,7 +26,20 @@
   },
   "optimization": {
     "status": "PENDING_VERIFICATION",
-    "attempts": [],
+    "attempts": [
+      {
+        "timestamp": "2026-06-22T03:57:12.476Z",
+        "type": "optimization",
+        "status": "OPTIMIZATION_PROPOSED",
+        "summary": "Extract _created_range_args helper to eliminate duplicate --created-from/--created-to argument definitions",
+        "files": [
+          "packages/core/src/edera_core/cli.py"
+        ]
+      }
+    ],
+    "affectedFileHashes": {
+      "packages/core/src/edera_core/cli.py": "a615654e2b8879f9a699be968f0524dffbd7b34bfd4d9e111145a10b2feebcb3"
+    },
     "baseline": {
       "timestamp": "2026-06-22T03:53:03.802Z",
       "result": "PASS",
